@@ -224,6 +224,8 @@ runs headless in Node for tests (and later the optimiser).
 - **All tunable numbers in one `PARAMS` object** (`sim/params.js`). No magic numbers scattered through the code.
 - `sim/` never touches the DOM, so the browser and Node run the identical code.
 - **Run:** `node tools/serve.mjs` then open http://localhost:5180/sandbox/ (`?preset=Wave%20tail` opens a preset).
+  `node tools/serve.mjs --lan` also serves phones on the same Wi-Fi (prints the address; Windows asks once to allow
+  Node through the firewall). The server shares only sandbox/ and sim/.
   `node tools/check.mjs` runs the physics-law checks (~1 min). Port 8080 is taken on the author's machine.
 - **Integration:** midpoint method, dt 1 ms. Simple Euler leaked a drift proportional to dt into strokes that should
   go nowhere (measured, 2026-10-23); keep a second-order method.

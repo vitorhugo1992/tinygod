@@ -14,7 +14,7 @@
     font: 13px/1.4 system-ui, -apple-system, Segoe UI, sans-serif; }
   body { display: flex; }
   #view { flex: 1; min-width: 0; position: relative; }
-  canvas { display: block; width: 100%; height: 100%; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }   /* drags move cells, not the page */
   [hidden] { display: none !important; }
   select, button, input, textarea { font: inherit; color: var(--text); background: var(--btn); border: 1px solid var(--line);
     border-radius: 6px; padding: 5px 9px; }
