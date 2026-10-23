@@ -51,7 +51,22 @@
   .part.editing { outline: 1px solid var(--accent); border-radius: 4px; padding: 2px 4px; background: rgba(111,211,181,.06); }
   .part .wire { font-size: 11px; display: flex; gap: 4px; align-items: center; width: 100%; flex-wrap: wrap; }
   .part .wire select { font-size: 11px; padding: 2px 4px; flex: 1 1 100%; }
-  .part .wire input { font-size: 11px; width: 52px; padding: 1px 3px; }
+  .part .wire .range { width: 100%; }
+  .part .wire .rlabel b { color: var(--text); font-weight: 600; }
+  .part .wire .rscale { color: var(--dim); }
+  /* two handles on one bar; the track is inset by half a thumb so 0 and 1 sit under the thumbs' centres */
+  .dual { position: relative; height: 26px; }
+  .dual .track { position: absolute; left: 9px; right: 9px; top: 11px; height: 4px; background: #2a3a52; border-radius: 2px; }
+  .dual .band { position: absolute; top: 0; height: 4px; background: var(--accent); border-radius: 2px; }
+  .dual .now { position: absolute; top: -6px; width: 3px; height: 16px; margin-left: -1px; background: #ff8a3c; border-radius: 1px; }
+  .dual input { position: absolute; left: 0; top: 2px; width: 100%; height: 22px; margin: 0; padding: 0; border: 0;
+    background: none; pointer-events: none; -webkit-appearance: none; appearance: none; }
+  .dual input::-webkit-slider-runnable-track { background: none; }
+  .dual input::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; width: 18px; height: 18px;
+    border-radius: 50%; background: #d8e4ea; border: 2px solid var(--accent); cursor: pointer; }
+  .dual input::-moz-range-track { background: none; }
+  .dual input::-moz-range-thumb { pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; background: #d8e4ea;
+    border: 2px solid var(--accent); cursor: pointer; }
   #partList .cat { margin-top: 4px; }
   details summary { color: var(--dim); cursor: pointer; }
   textarea { width: 100%; height: 220px; font: 11px/1.35 ui-monospace, Consolas, monospace; resize: vertical; margin-top: 6px; }

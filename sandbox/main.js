@@ -190,10 +190,25 @@ function wiring(g, wired) {
   if (c) {
     const lo = c.when === 'light' ? 0.5 : c.min ?? 0, hi = c.when === 'dark' ? 0.5 : c.max ?? 1;
     const kind = design.parts.find((p) => p.id === c.sensor).kind || 'light';
-    const span = document.createElement('span');
-    span.innerHTML = `${motor ? 'on' : 'fires'} while it reads <input type="number" min="0" max="1" step="0.05" value="${lo}"> to <input type="number" min="0" max="1" step="0.05" value="${hi}"> · now <b data-live="${c.sensor}">–</b><br><span style="color:var(--dim)">${SCALE[kind]}</span>`;
+    // one bar, two handles: the part is on (or fires) while the reading is inside the lit stretch; the orange tick is
+    // the reading now
+    const span = document.createElement('div');
+    span.className = 'range';
+    span.innerHTML = `<div class="rlabel">${motor ? 'on' : 'fires'} while it reads <b class="lohi"></b> · now <b data-live="${c.sensor}">–</b></div>
+      <div class="dual"><div class="track"><div class="band"></div><div class="now" data-livebar="${c.sensor}"></div></div>
+        <input type="range" min="0" max="1" step="0.05" value="${lo}"><input type="range" min="0" max="1" step="0.05" value="${hi}"></div>
+      <div class="rscale">${SCALE[kind]}</div>`;
     const [a, b] = span.querySelectorAll('input');
+    const band = span.querySelector('.band'), lohi = span.querySelector('.lohi');
+    const show = () => {
+      const x = Number(a.value), y = Number(b.value);
+      band.style.left = `${x * 100}%`; band.style.width = `${(y - x) * 100}%`;
+      lohi.textContent = `${x.toFixed(2)} to ${y.toFixed(2)}`;
+    };
+    a.oninput = () => { if (Number(a.value) > Number(b.value)) a.value = b.value; show(); };
+    b.oninput = () => { if (Number(b.value) < Number(a.value)) b.value = a.value; show(); };
     a.onchange = b.onchange = () => write(c.sensor, Number(a.value), Number(b.value));
+    show();
     box.appendChild(span);
   }
   return box;
@@ -378,6 +393,11 @@ function stats() {
   for (const el of document.querySelectorAll('[data-live]')) {
     const sn = cell.design === design && cell.sensors.find((x) => x.id === el.dataset.live);
     el.textContent = sn ? sn.value.toFixed(2) : '–';
+  }
+  for (const el of document.querySelectorAll('[data-livebar]')) {
+    const sn = cell.design === design && cell.sensors.find((x) => x.id === el.dataset.livebar);
+    el.style.display = sn ? '' : 'none';
+    if (sn) el.style.left = `${Math.min(Math.max(sn.value, 0), 1) * 100}%`;
   }
   $('stats').textContent = lines.join('\n');
 }
