@@ -315,25 +315,26 @@ const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
   check('a world of meeting cells runs bit-identical twice', a.every((x, i) => x === b[i]), `${a.length / 8} numbers compared after 5 s`);
 }
 
-// 19. A light sensor reads the light by the way it faces; a motor wired to it runs only while it is lit, and its
-// beat resumes where it froze (no jump)
+// 19. A light sensor reads the light where it is (fading with depth) by the way it faces; a motor wired to it runs
+// only while the reading is in its range, and its beat resumes where it froze (no jump)
+const eyeTail = (min, max) => ({
+  body: { radius: 8 },
+  parts: [
+    { type: 'sensor', id: 'eye', at: [8, 0], kind: 'light' },
+    ...PRESETS['Wave tail'].parts.map((p) => ({ ...p, joint: { ...p.joint, control: { sensor: 'eye', min, max } } })),
+  ],
+});
 {
-  const eyeTail = {
-    body: { radius: 8 },
-    parts: [
-      { type: 'sensor', id: 'eye', at: [8, 0], kind: 'light' },
-      ...PRESETS['Wave tail'].parts.map((p) => ({ ...p, joint: { ...p.joint, control: { sensor: 'eye', when: 'light' } } })),
-    ],
-  };
-  const readAt = (deg, light = true) => {
+  const readAt = (deg, y = 1950, light = true) => {
     const w = makeWorld(1, { gravity: false, light });
-    const c = addCell(w, eyeTail, 300, 1000, deg);
+    const c = addCell(w, eyeTail(0.5, 1), 300, y, deg);
     stepWorld(w);
     return { w, c, value: c.sensors[0].value, on: c.joints[0].on };
   };
-  const up = readAt(90), side = readAt(0), down = readAt(-90), off = readAt(90, false);
+  const up = readAt(90), deep = readAt(90, 500), side = readAt(0), down = readAt(-90), off = readAt(90, 1950, false);
+  const expected = Math.exp(-PARAMS.light.attenuation * (PARAMS.tank.h - up.c.cy[0] - 8));
   // facing up it swims; turned down mid-run its motors stop with the tail where it was, and resume from there
-  const r = readAt(90);
+  const r = readAt(90, 1900);
   for (let i = 0; i < 500; i++) stepWorld(r.w);
   const y1 = r.c.q[1];
   r.c.q[2] = -Math.PI / 2;
@@ -345,14 +346,68 @@ const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
   stepWorld(r.w);
   const jump = Math.max(...Array.from(r.c.q.slice(3)).map((a, i) => Math.abs(a - frozen[i])));
   const j0 = r.c.joints[0], beatStep = j0.swing * Math.PI / Math.min(j0.stroke, 1 - j0.stroke) * j0.rate * DT;  // most a beating joint moves in a step
-  check('a light sensor reads by the way it faces; a motor wired to it runs only while lit, resuming without a jump',
-    up.value > 0.99 && side.value < 1e-6 && down.value === 0 && off.value === 0 && up.on && !down.on && y1 > 1010 && still && jump <= beatStep * 1.001,
-    `facing up ${fmt(up.value)}, sideways ${fmt(side.value)}, down ${fmt(down.value)}, light off ${fmt(off.value)}; ` +
-    `swam ${fmt(y1 - 1000, 1)} µm up in 0.5 s; turned down: tail frozen ${still ? 'in place' : 'NOT in place'}; ` +
-    `turned back up, the tail's first step moves ${fmt(jump * 180 / Math.PI, 2)}° (an ordinary beat step is up to ${fmt(beatStep * 180 / Math.PI, 2)}°)`);
+  check('a light sensor reads the light where it is by the way it faces; a wired motor runs only in range, resuming without a jump',
+    Math.abs(up.value - expected) < 0.01 && deep.value < up.value * 0.15 && side.value < 1e-6 && down.value === 0 &&
+    off.value === 0 && up.on && !deep.on && !down.on && y1 > 1910 && still && jump <= beatStep * 1.001,
+    `facing up 50 µm from the surface ${fmt(up.value)}, 1.5 mm deep ${fmt(deep.value)}, sideways ${fmt(side.value)}, ` +
+    `down ${fmt(down.value)}, light off ${fmt(off.value)}; swam ${fmt(y1 - 1900, 1)} µm up in 0.5 s\n      ` +
+    `turned down: tail frozen ${still ? 'in place' : 'NOT in place'}; turned back up, its first step moves ` +
+    `${fmt(jump * 180 / Math.PI, 2)}° (an ordinary beat step is up to ${fmt(beatStep * 180 / Math.PI, 2)}°)`);
 }
 
-// 20. Speed (not a pass test yet)
+// 20. Wired to run while the light is below 0.8, a sinking swimmer climbs until the light is enough, then hovers
+// there (a range of 0.3-0.8 would also stop it in water too dark, and it would sink away)
+{
+  const w = makeWorld(1);
+  const c = addCell(w, eyeTail(0, 0.8), 300, 1300, 90);
+  const ys = [];
+  for (let i = 0; i < 60000; i++) { stepWorld(w); if (i >= 40000 && i % 100 === 0) ys.push(c.q[1]); }
+  const lo = Math.min(...ys), hi = Math.max(...ys);
+  const level = PARAMS.tank.h - Math.log(1 / 0.8) / PARAMS.light.attenuation;   // where facing-up light is 0.8
+  check('wired to run while the light is below 0.8, a swimmer climbs until the light is enough, then hovers',
+    lo > level - 60 && hi < level + 40,
+    `started 700 µm down; over its last 20 s it stays ${fmt(PARAMS.tank.h - hi, 0)}–${fmt(PARAMS.tank.h - lo, 0)} µm ` +
+    `from the surface (light 0.8 at ${fmt(PARAMS.tank.h - level, 0)} µm)`);
+}
+
+// 21. Touch and proximity sensors feel another species, not their own kind; a spring wired to touch fires on contact
+{
+  const feeler = {
+    species: 'F',
+    body: { radius: 8 },
+    parts: [
+      { type: 'sensor', id: 'touch', at: [8, 0], kind: 'touch' },
+      { type: 'sensor', id: 'near', at: [8, 0], kind: 'near', range: 50 },
+      { type: 'segment', at: [-8, 0], angle: 180, length: 30, radius: 0.4,
+        joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true, control: { sensor: 'touch', min: 0.5, max: 1 } } },
+    ],
+  };
+  const read = (other, gap) => {
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, feeler, 300, 1000, 0);
+    addCell(w, other, 300 + 16 + gap, 1000, 0);
+    stepWorld(w);
+    return { touch: c.sensors[0].value, near: c.sensors[1].value, fired: !c.joints[0].latched };
+  };
+  const stranger = { species: 'X', body: { radius: 8 }, parts: [] };
+  const far = read(stranger, 80), mid = read(stranger, 25), touching = read(stranger, 1), kin = read(feeler, 1);
+  check('touch and proximity sensors feel another species (not kin); a spring wired to touch fires on contact',
+    far.near === 0 && mid.near > 0.4 && mid.near < 0.6 && mid.touch === 0 && touching.touch === 1 && touching.fired &&
+    !mid.fired && kin.touch === 0 && kin.near === 0,
+    `stranger 80 µm away: proximity ${fmt(far.near)}; 25 µm: proximity ${fmt(mid.near)}, touch ${mid.touch}; ` +
+    `1 µm: touch ${touching.touch}, spring ${touching.fired ? 'fired' : 'waits'}; kin 1 µm away: touch ${kin.touch}`);
+}
+
+// 22. Inclusions can't overlap: the room inside a cell is limited
+{
+  const tryBuild = (parts) => { try { addCell(makeWorld(1), { body: { radius: 10 }, parts }, 300, 1000); return 'built'; } catch (e) { return e.message; } };
+  const apart = tryBuild([{ type: 'inclusion', at: [4.5, 0], radius: 4, material: 'oil' }, { type: 'inclusion', at: [-4.5, 0], radius: 4, material: 'oil' }]);
+  const stacked = tryBuild([{ type: 'inclusion', at: [1, 0], radius: 4, material: 'oil' }, { type: 'inclusion', at: [-1, 0], radius: 4, material: 'sap' }]);
+  check('inclusions side by side fit; overlapping ones are refused', apart === 'built' && stacked.startsWith('inclusions overlap'),
+    `side by side: ${apart}; overlapping: "${stacked}"`);
+}
+
+// 23. Speed (not a pass test yet)
 {
   for (const name of ['Spiny cell', 'Wave tail']) {
     const w = makeWorld(1); addCell(w, PRESETS[name], 300, 1500, 0);

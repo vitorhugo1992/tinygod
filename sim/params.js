@@ -28,11 +28,13 @@ export const PARAMS = {
   },
   light: {
     strength: 1,            // light from above, at the surface (relative)
-    attenuation: 0,         // per µm; 0 in the 2 mm sandbox, where light gives direction only
+    attenuation: 0.0015,    // per µm: the 2 mm tank's light is a water column squeezed (made playable): 5% at the floor
   },
   sensor: {
-    threshold: 0.5,         // a light sensor counts as lit above this reading...
-    hysteresis: 0.05,       // ...and as dark only once it falls this much below (no flicker at the edge)
+    threshold: 0.5,         // 'light' / 'dark' wiring splits here
+    hysteresis: 0.03,       // a wired part changes state only this far inside or outside its range (no flicker)
+    touchRange: 2,          // µm from a touch sensor's spot that counts as touching
+    nearRange: 60,          // µm a proximity sensor feels another species from (default)
   },
   pads: {
     stiffness: 5,           // pN/µm, the spring of a stuck pad

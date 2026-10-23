@@ -8,18 +8,21 @@
 //     { type: 'segment', id?, parent = 'body', at: [x, y], angle, length, radius, material, joint? },
 //     { type: 'inclusion', parent = 'body', at: [x, y], radius, material, density? },
 //     { type: 'pad', parent = 'body', at: [x, y], radius = 1, kind = 'kin' | 'mucus' },
-//     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' },
+//     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' | 'touch' | 'near', range? },
 //   ]
 // }
 // `at` is a point in the parent's own frame (x along its axis, from its centre). A segment grows from that point
 // in direction `angle` (degrees, relative to the parent's axis). An inclusion is a sphere inside the body; a sap
 // inclusion can be pumped toward a target density (inclusion.target), at a cost. On an extending segment, children's
 // `at` is measured from its tip. A pad is a sticky patch (see interact.js): kin pads hold kin pads of the same
-// species, mucus pads hold any surface. A light sensor (an eyespot) faces `angle` (degrees, relative to its parent's
-// axis; default: straight out from where it sits) and reads 1 facing straight up into the light, 0 facing sideways
-// or down (sense.js).
-// Any joint can be wired to a sensor: control: { sensor: id, when: 'light' | 'dark' }. A motor then runs only while
-// that holds; a latched hinge or extender is released the first time it holds.
+// species, mucus pads hold any surface. Inclusions may not overlap: the room inside a cell is limited.
+// Sensors read 0..1 (sense.js): a light sensor (an eyespot) faces `angle` (degrees, relative to its parent's axis;
+// default: straight out from where it sits) and reads the light there × how squarely it faces up; a touch sensor
+// reads 1 while another species touches its spot; a proximity sensor reads how close another species is within
+// `range` µm (1 touching, 0 at the range).
+// Any joint can be wired to a sensor: control: { sensor: id, min = 0, max = 1 }: a motor runs only while the reading
+// is between min and max; a latched hinge or extender is released the first time it is.
+// ({ when: 'light' } means min 0.5, { when: 'dark' } max 0.5.)
 // A segment's joint, at `at`:
 //   { type: 'fixed' }                                    (default) rigid
 //   { type: 'hinge', stiffness = 0, rest = 0, latched = false }  springy (pN·µm/rad; rest angle in degrees, starts
@@ -139,6 +142,9 @@ export function buildCell(design) {
       // inside the wall: distance from the body's axis plus own radius
       const dx = Math.max(Math.abs(x) - host.L / 2, 0);
       if (Math.sqrt(dx * dx + y * y) + r > host.a - C.wallThickness + 1e-9) throw new Error('inclusion sticks out of the body');
+      for (const o of host.inclusions) {
+        if (Math.hypot(o.x - x, o.y - y) < o.r + r - 1e-9) throw new Error('inclusions overlap: there is no room for both there');
+      }
       const v = (4 / 3) * PI * r * r * r;
       inclusionVol += v;
       // it replaces cytoplasm, so only the difference counts
@@ -148,9 +154,10 @@ export function buildCell(design) {
         pumpable: mat.min !== undefined, min: mat.min, max: mat.max });
     } else if (part.type === 'sensor') {
       const kind = part.kind || 'light';
-      if (kind !== 'light') throw new Error(`unknown sensor kind: ${kind}`);
+      if (!['light', 'touch', 'near'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
       const facing = part.angle !== undefined ? part.angle * DEG : Math.atan2(y, x);
-      sensors.push({ id: part.id, piece: parent, x, y, facing, kind, value: 0 });
+      const range = part.range || (kind === 'near' ? PARAMS.sensor.nearRange : PARAMS.sensor.touchRange);
+      sensors.push({ id: part.id, piece: parent, x, y, facing, kind, range, value: 0 });
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
       if (kind !== 'kin' && kind !== 'mucus') throw new Error(`unknown pad kind: ${kind}`);
@@ -172,8 +179,12 @@ export function buildCell(design) {
   for (const [joint, c] of controls) {
     const s = sensors.findIndex((x) => x.id === c.sensor);
     if (s < 0) throw new Error(`no sensor called ${c.sensor}`);
-    if (c.when !== 'light' && c.when !== 'dark') throw new Error('control.when must be light or dark');
-    joint.control = { sensor: s, when: c.when };
+    let min = c.min ?? 0, max = c.max ?? 1;
+    if (c.when === 'light') min = PARAMS.sensor.threshold;
+    else if (c.when === 'dark') max = PARAMS.sensor.threshold;
+    else if (c.when !== undefined) throw new Error('control.when must be light or dark');
+    if (!(min <= max)) throw new Error('control: min must not be above max');
+    joint.control = { sensor: s, min, max, holds: null };
   }
 
   // how far the cell can reach from its body centre, for finding neighbours

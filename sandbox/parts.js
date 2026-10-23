@@ -1,6 +1,7 @@
 // Part templates for the sandbox's Build panel: each returns design parts placed at an angle round the body,
 // pointing outward (or, for inclusions, inside toward that angle). `size` (0.1-1) sets an inclusion's radius
-// (share of the room inside the wall), a spine's or ejectisome's length. The root part carries a `label`.
+// (share of the room inside the wall), a spine's or ejectisome's length, a proximity sensor's range. The root part
+// carries a `label`.
 
 // Where a ray from the body centre at angle `deg` leaves the body (a capsule along x): [x, y]
 export function surfacePoint(body, deg) {
@@ -12,14 +13,14 @@ export function surfacePoint(body, deg) {
   return [r * c, r * s];
 }
 
-// A sphere inside the wall, as big as `size` of the room, pushed toward `deg` as far as it fits
-function inside(body, deg, size) {
+// A sphere inside the wall, as big as `size` of the room, toward `deg`: `depth` 0 at the centre, 1 against the wall
+function inside(body, deg, size, depth = 1) {
   const room = body.radius - 0.35;                          // inside the wall (0.3 µm) with a little play
   const L = body.length || 0, a = body.radius;
   const most = Math.cbrt(0.85 * (Math.PI * a * a * L + 4 / 3 * Math.PI * a ** 3) * 3 / (4 * Math.PI));  // ≤ 85% of the body
   const r = Math.floor(Math.min(room, most) * size * 10) / 10;
   const [x, y] = surfacePoint(body, deg), d = Math.hypot(x, y);
-  const k = Math.max(0, d - body.radius + room - r) / d;   // how far from the centre it can sit
+  const k = Math.max(0, d - body.radius + room - r) / d * depth;   // how far from the centre it can sit, × depth
   return { at: [Math.round(x * k * 100) / 100, Math.round(y * k * 100) / 100], radius: r };
 }
 
@@ -28,8 +29,8 @@ const chain = (id, at, deg, n, length, joint) => Array.from({ length: n }, (_, i
   angle: i ? 0 : deg, length, radius: 0.25, material: 'protein', joint: joint(i),
 }));
 
-// Each template: (body, where, id, size, tilt). `where` is the angle round the body; the part points straight out
-// from there, turned by `tilt` degrees.
+// Each template: (body, where, id, size, tilt, depth). `where` is the angle round the body; the part points straight
+// out from there, turned by `tilt` degrees; an inclusion sits `depth` of the way from the centre to the wall.
 export const PART_TEMPLATES = {
   'Wave tail (swims)': (body, deg, id, size, tilt) => {
     const parts = chain(id, surfacePoint(body, deg), deg + tilt, 6, 8, (i) => ({ type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 }));
@@ -60,13 +61,29 @@ export const PART_TEMPLATES = {
     { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(200 * size), radius: 0.3,
       joint: { type: 'extend', stiffness: 20, latched: true } },
   ],
-  'Oil droplet': (body, deg, id, size) => [{ type: 'inclusion', id, label: 'Oil droplet', ...inside(body, deg, size), material: 'oil' }],
-  'Sap vacuole (slider)': (body, deg, id, size) =>
-    [{ type: 'inclusion', id, label: 'Sap vacuole', ...inside(body, deg, size), material: 'sap', density: 1025 }],
+  'Oil droplet': (body, deg, id, size, tilt, depth) =>
+    [{ type: 'inclusion', id, label: 'Oil droplet', ...inside(body, deg, size, depth), material: 'oil' }],
+  'Sap vacuole (slider)': (body, deg, id, size, tilt, depth) =>
+    [{ type: 'inclusion', id, label: 'Sap vacuole', ...inside(body, deg, size, depth), material: 'sap', density: 1025 }],
   'Kin pad': (body, deg, id) => [{ type: 'pad', id, label: 'Kin pad', at: surfacePoint(body, deg), kind: 'kin' }],
   'Mucus pad': (body, deg, id) => [{ type: 'pad', id, label: 'Mucus pad', at: surfacePoint(body, deg), kind: 'mucus' }],
   'Light sensor (eyespot)': (body, deg, id, size, tilt) =>
     [{ type: 'sensor', id, label: 'Light sensor', at: surfacePoint(body, deg), angle: deg + tilt, kind: 'light' }],
+  'Touch sensor (another species)': (body, deg, id) =>
+    [{ type: 'sensor', id, label: 'Touch sensor', at: surfacePoint(body, deg), kind: 'touch' }],
+  'Proximity sensor (another species)': (body, deg, id, size) =>
+    [{ type: 'sensor', id, label: 'Proximity sensor', at: surfacePoint(body, deg), kind: 'near', range: Math.round(200 * size) }],
+};
+
+// Which Build controls mean something for each part, and what Size means for it
+export const CONTROLS = {
+  'Wave tail (swims)': { tilt: true }, 'Flexible oar (swims)': { tilt: true }, 'Stiff flap (goes nowhere)': { tilt: true },
+  'Spine, protein': { tilt: true, size: 'length, up to 100 µm' }, 'Spine, glass': { tilt: true, size: 'length, up to 100 µm' },
+  'Spring, latched (Release)': { tilt: true }, 'Ejectisome, latched (Release)': { tilt: true, size: 'length, up to 200 µm' },
+  'Oil droplet': { size: 'share of the room inside', inside: true }, 'Sap vacuole (slider)': { size: 'share of the room inside', inside: true },
+  'Kin pad': {}, 'Mucus pad': {},
+  'Light sensor (eyespot)': { tilt: true }, 'Touch sensor (another species)': {},
+  'Proximity sensor (another species)': { size: 'range, up to 200 µm' },
 };
 
 // How the Build panel sorts parts
@@ -76,7 +93,7 @@ export const CATEGORIES = {
   'Springs & ejectors': ['Spring, latched (Release)', 'Ejectisome, latched (Release)'],
   'Vacuoles & droplets': ['Oil droplet', 'Sap vacuole (slider)'],
   'Pads': ['Kin pad', 'Mucus pad'],
-  'Sensors': ['Light sensor (eyespot)'],
+  'Sensors': ['Light sensor (eyespot)', 'Touch sensor (another species)', 'Proximity sensor (another species)'],
 };
 
 // The category of a part already on the body, from what it is
@@ -104,7 +121,7 @@ export function partGroups(parts) {
     }
     const [x, y] = p.at || [0, 0];
     const name = p.label || (p.type === 'segment' ? `${p.material || 'protein'} segment${p.joint ? ` (${p.joint.type})` : ''}`
-      : p.type === 'inclusion' ? `${p.material} inclusion` : p.type === 'sensor' ? 'light sensor' : `${p.kind || 'kin'} pad`);
+      : p.type === 'inclusion' ? `${p.material} inclusion` : p.type === 'sensor' ? `${p.kind || 'light'} sensor` : `${p.kind || 'kin'} pad`);
     groups.push({ name, members, category: categoryOf(p), more: members.length - 1, deg: Math.round(Math.atan2(y, x) * 180 / Math.PI + 360) % 360 });
   }
   return groups;

@@ -28,7 +28,8 @@ export function addCell(world, design, x, y, angle = 0) {
 
 export function stepWorld(world) {
   const t = worldTime(world);
-  for (const cell of world.cells) { updatePose(cell); sense(world, cell); }
+  for (const cell of world.cells) updatePose(cell);
+  for (const cell of world.cells) sense(world, cell);   // after every pose is current: sensors look at others
   if (world.cells.length > 1) interact(world);
   for (const cell of world.cells) stepCell(cell, t, world.gravity);
   world.steps++;

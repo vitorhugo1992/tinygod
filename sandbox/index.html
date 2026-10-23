@@ -30,7 +30,9 @@
   .part { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; }
   .part { flex-wrap: wrap; }
   .part button { padding: 1px 6px; font-size: 11px; }
-  .part .wire { font-size: 11px; padding: 1px 4px; width: 100%; }
+  .part .wire { font-size: 11px; display: flex; gap: 4px; align-items: center; width: 100%; flex-wrap: wrap; }
+  .part .wire select { font-size: 11px; padding: 1px 4px; flex: 1 1 100%; }
+  .part .wire input { font-size: 11px; width: 52px; padding: 1px 3px; }
   #stats { font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; background: #0d1626;
     border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
   textarea { width: 100%; height: 260px; font: 11px/1.35 ui-monospace, Consolas, monospace; resize: vertical; }
@@ -47,8 +49,6 @@
 <div id="view"><canvas id="c"></canvas></div>
 <div id="panel">
   <h1>TINYGOD · SANDBOX v0</h1>
-  <label>Design <select id="preset"></select></label>
-  <div id="note"></div>
   <div id="build">
     <b>Build</b> <span class="hint">(changes reset the tank)</span>
     <div class="cat">Body shape</div>
@@ -67,19 +67,26 @@
       <label>Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180" style="width:120px">
         <span id="partAngleOut"></span></label>
     </div>
-    <div class="row">
+    <div class="row" id="tiltRow">
       <label>Tilt <input type="range" id="partTilt" min="-90" max="90" step="5" value="0" style="width:120px">
         <span id="partTiltOut"></span></label>
     </div>
-    <div class="row">
+    <div class="row" id="insideRow">
+      <label>Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100" style="width:120px">
+        <span id="partInsideOut"></span></label>
+    </div>
+    <div class="row" id="sizeRow">
       <label>Size <input type="range" id="partSize" min="10" max="100" step="5" value="40" style="width:120px">
         <span id="partSizeOut"></span></label>
-      <button id="addPart">Add to body</button>
     </div>
+    <div class="row"><button id="addPart">Add to body</button></div>
     <div class="hint">The white dot on the cell shows where, its line which way the part points. 0° is the front
       (right), 180° the back. Tilt turns the part away from pointing straight out (a side flagellum pointing straight
-      out pushes through the centre and can't turn the cell). Wire flagella and springs to a light sensor in the list
-      below: an eyespot reads 1 facing straight up into the light, 0 facing sideways or down; lit above 0.5. Size: how much
+      out pushes through the centre and can't turn the cell). Inside: 0 at the centre, 100 against the wall;
+      droplets and vacuoles can't overlap. Wire flagella and springs to a sensor in the list below: the part runs
+      (or fires) while the sensor's reading is in the range you set. An eyespot reads the light where it is (it fades
+      with depth) × how squarely it faces up; a touch sensor 1 when another species touches it; a proximity sensor
+      how close another species is. Size: how much
       of the cell an oil droplet or vacuole fills, or how long a spine (up to 100 µm) or ejectisome (up to 200 µm) is.
       Oil's density is fixed (920, seawater 1025): a cell floats by holding more of it, about a quarter of its volume.</div>
     <div id="buildErr" style="color:var(--bad)"></div>

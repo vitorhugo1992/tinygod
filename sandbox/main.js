@@ -3,7 +3,7 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose } from '../sim/physics.js';
-import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES } from './parts.js';
+import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 const $ = (id) => document.getElementById(id);
@@ -14,7 +14,7 @@ const COLOR = {
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
-  eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,',
+  eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
 
 let design, world, cell, playing = true, acc = 0, lagging = false;   // cell: the selected one (followed, measured)
@@ -23,18 +23,15 @@ let ghosts = [];                                  // outlines of cells as they w
 let cam = { x: TW / 2, y: TH / 2 };
 
 // ----- loading and resetting -----
-const presetSelect = $('preset');
 const addSelect = $('addWhat');
 addSelect.add(new Option('copy of this design', ''));
-for (const name of Object.keys(PRESETS)) { presetSelect.add(new Option(name, name)); addSelect.add(new Option(name, name)); }
+for (const name of Object.keys(PRESETS)) addSelect.add(new Option(name, name));
 // each preset is its own species, so kin pads only hold copies of the same design
 const preset = (name) => Object.assign(JSON.parse(JSON.stringify(PRESETS[name])), { species: name });
-presetSelect.onchange = () => load(preset(presetSelect.value));
 
 function load(d) {
   design = d;
   $('json').value = JSON.stringify(d, null, 2);
-  $('note').textContent = d.note || '';
   reset();
   listParts();
 }
@@ -46,7 +43,6 @@ function applyDesign(d) {
   if (!reset()) { const msg = $('err').textContent; design = old; reset(); $('err').textContent = msg; $('buildErr').textContent = msg; return false; }
   $('buildErr').textContent = '';
   $('json').value = JSON.stringify(d, null, 2);
-  $('note').textContent = d.note || '';
   listParts();
   return true;
 }
@@ -91,38 +87,64 @@ const showAngle = () => { $('partAngleOut').textContent = `${$('partAngle').valu
 $('partAngle').oninput = showAngle; showAngle();
 const showTilt = () => { $('partTiltOut').textContent = `${$('partTilt').value}°`; };
 $('partTilt').oninput = showTilt; showTilt();
-const showSize = () => { $('partSizeOut').textContent = `${$('partSize').value}%`; };
-$('partSize').oninput = showSize; showSize();
+const showSize = () => {
+  const what = (CONTROLS[$('partWhat').value] || {}).size;
+  $('partSizeOut').textContent = `${$('partSize').value}%${what ? ` (${what})` : ''}`;
+};
+$('partSize').oninput = showSize;
+const showInside = () => { $('partInsideOut').textContent = `${$('partInside').value}%`; };
+$('partInside').oninput = showInside; showInside();
+// only the controls that mean something for the chosen part
+const showControls = () => {
+  const c = CONTROLS[$('partWhat').value] || {};
+  $('tiltRow').style.display = c.tilt ? '' : 'none';
+  $('sizeRow').style.display = c.size ? '' : 'none';
+  $('insideRow').style.display = c.inside ? '' : 'none';
+  showSize();
+};
+$('partWhat').onchange = showControls; showControls();
 let partCount = 0;
 $('addPart').onclick = () => {
   const d = JSON.parse(JSON.stringify(design));
   d.parts = (d.parts || []).concat(PART_TEMPLATES[$('partWhat').value](d.body, Number($('partAngle').value), `p${Date.now() % 100000}_${++partCount}`,
-    Number($('partSize').value) / 100, Number($('partTilt').value)));
+    Number($('partSize').value) / 100, Number($('partTilt').value), Number($('partInside').value) / 100));
   applyDesign(d);
 };
-// A menu wiring a group's motors (runs) or latched springs (released) to a light sensor
+// Wiring for a group's motors (runs) or latched springs (released): a sensor, and the range of its reading (0-1)
+// in which the part runs or fires
+const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1] };   // a sensible start when a sensor is picked
 function wiring(g, wired) {
-  const sel = document.createElement('select');
+  const box = document.createElement('div');
+  box.className = 'wire';
   const motor = wired[0].joint.type === 'motor';
+  const sel = document.createElement('select');
   sel.add(new Option(motor ? 'runs always' : 'released by hand', ''));
   const sensors = partGroups(design.parts || []).filter((x) => x.category === 'Sensors');
-  for (const s of sensors) {
-    const id = s.members[0].id, where = `${s.name.toLowerCase()} at ${s.deg}°`;
-    sel.add(new Option(`${motor ? 'runs' : 'released'} when ${where} sees light`, `${id}|light`));
-    sel.add(new Option(`${motor ? 'runs' : 'released'} when ${where} is dark`, `${id}|dark`));
-  }
+  for (const s of sensors) sel.add(new Option(`${motor ? 'runs' : 'fires'} by ${s.name.toLowerCase()} at ${s.deg}°`, s.members[0].id));
   const c = wired[0].joint.control;
-  sel.value = c ? `${c.sensor}|${c.when}` : '';
-  sel.onchange = () => {
+  sel.value = c ? c.sensor : '';
+  box.appendChild(sel);
+  const write = (sensor, min, max) => {
     const d = JSON.parse(JSON.stringify(design));
     for (const m of wired) {
       const joint = d.parts[design.parts.indexOf(m)].joint;
-      if (sel.value) { const [sensor, when] = sel.value.split('|'); joint.control = { sensor, when }; } else delete joint.control;
+      if (sensor) joint.control = { sensor, min, max }; else delete joint.control;
     }
     applyDesign(d);
   };
-  sel.className = 'wire';
-  return sel;
+  sel.onchange = () => {
+    const kind = sel.value && (design.parts.find((p) => p.id === sel.value).kind || 'light');
+    write(sel.value, ...(kind ? RANGE[kind] : []));
+  };
+  if (c) {
+    const lo = c.when === 'light' ? 0.5 : c.min ?? 0, hi = c.when === 'dark' ? 0.5 : c.max ?? 1;
+    const span = document.createElement('span');
+    span.innerHTML = `while reading is <input type="number" min="0" max="1" step="0.05" value="${lo}"> to <input type="number" min="0" max="1" step="0.05" value="${hi}">`;
+    const [a, b] = span.querySelectorAll('input');
+    a.onchange = b.onchange = () => write(c.sensor, Number(a.value), Number(b.value));
+    box.appendChild(span);
+  }
+  return box;
 }
 
 function listParts() {
@@ -281,7 +303,9 @@ function stats() {
     const together = world.cells.filter((c) => c.group === cell.group).length;
     lines.push(`cells     ${world.cells.length}, pad links ${world.links.length}, this one's group ${together}`);
   }
-  cell.sensors.forEach((sn, i) => lines.push(`eyespot ${i + 1}  ${sn.value.toFixed(2)} ${sn.lit ? '(lit)' : '(dark)'}`));
+  lines.push(`light here ${(world.light ? Math.exp(-PARAMS.light.attenuation * (TH - cell.q[1])) : 0).toFixed(2)} of the surface's`);
+  const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity' };
+  cell.sensors.forEach((sn, i) => lines.push(`${NAME[sn.kind].padEnd(9)} ${sn.value.toFixed(2)}`));
   const motors = cell.joints.filter((j) => j.type === 'motor');
   if (motors.length) lines.push(`motors    ${motors.filter((j) => j.on).length} of ${motors.length} running`);
   for (const inc of cell.pieces[0].inclusions) if (inc.show) inc.show();
@@ -319,10 +343,10 @@ function draw() {
   ctx.fillStyle = COLOR.label; ctx.font = '11px system-ui';
   for (let gy = Math.ceil(Math.max(y0, 0) / 100) * 100; gy <= Math.min(y1, TH); gy += 100) ctx.fillText(`${TH - gy} µm deep`, X(Math.max(x0, 0)) + 4, Y(gy) - 3);
 
-  if (world.light) {   // light from above: a glow down from the surface, and a sign in the corner
-    const top = Y(TH), g = ctx.createLinearGradient(0, Math.max(top, 0), 0, Math.max(top, 0) + 140);
-    g.addColorStop(0, COLOR.light + '.22)'); g.addColorStop(1, COLOR.light + '0)');
-    ctx.fillStyle = g; ctx.fillRect(X(0), Math.max(top, 0), TW * s, 140);
+  if (world.light) {   // light from above, fading with depth over the tank, and a sign in the corner
+    const top = Y(TH), g = ctx.createLinearGradient(0, top, 0, Y(0));
+    for (let k = 0; k <= 4; k++) g.addColorStop(k / 4, COLOR.light + (0.16 * Math.exp(-PARAMS.light.attenuation * TH * k / 4)).toFixed(3) + ')');
+    ctx.fillStyle = g; ctx.fillRect(X(0), top, TW * s, TH * s);
     if (top > 0) { ctx.fillStyle = COLOR.light + '.8)'; ctx.fillRect(X(0), top - 2, TW * s, 3); }
     ctx.fillStyle = COLOR.light + '.85)'; ctx.font = '12px system-ui';
     ctx.fillText('☀ light from above ↓', 12, 18);
@@ -375,12 +399,24 @@ function drawCell(c, X, Y, s) {
     ctx.fillStyle = COLOR[c.joints[p.joint].type] || COLOR.motor;
     ctx.beginPath(); ctx.arc(X(c.jx[i]), Y(c.jy[i]), Math.max(0.8 * s, 2), 0, Math.PI * 2); ctx.fill();
   }
-  for (const sn of c.sensors) {   // eyespots: dark red, bright orange when lit, a tick the way they face
+  for (const sn of c.sensors) {
     const i = sn.piece, px = c.cx[i] + c.cs[i] * sn.x - c.sn[i] * sn.y, py = c.cy[i] + c.sn[i] * sn.x + c.cs[i] * sn.y;
+    if (sn.kind !== 'light') {   // touch and proximity: a blue dot, filled while it feels someone; the range, faint
+      ctx.strokeStyle = COLOR.touch; ctx.fillStyle = COLOR.touch; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2);
+      if (sn.value > 0) ctx.fill(); else ctx.stroke();
+      if (sn.kind === 'near' && c === cell) {
+        ctx.strokeStyle = COLOR.near + (0.15 + 0.5 * sn.value) + ')'; ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.arc(X(px), Y(py), sn.range * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      }
+      continue;
+    }
+    // eyespots: dark red, bright orange when lit, a tick the way they face
     const dir = c.phi[i] + sn.facing;
-    ctx.strokeStyle = sn.lit ? COLOR.eyeLit : COLOR.eyeDark; ctx.lineWidth = 2;
+    const lit = sn.value > 0.5;
+    ctx.strokeStyle = lit ? COLOR.eyeLit : COLOR.eyeDark; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(X(px), Y(py)); ctx.lineTo(X(px + Math.cos(dir) * 4), Y(py + Math.sin(dir) * 4)); ctx.stroke();
-    ctx.fillStyle = sn.lit ? COLOR.eyeLit : COLOR.eyeDark;
+    ctx.fillStyle = lit ? COLOR.eyeLit : COLOR.eyeDark;
     ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2); ctx.fill();
   }
   for (const pad of c.pads) {
@@ -503,6 +539,5 @@ window.addEventListener('keydown', (e) => {
 
 resize();
 const asked = new URLSearchParams(location.search).get('preset');   // ?preset=Wave%20tail opens that design
-if (asked && PRESETS[asked]) presetSelect.value = asked;
-load(preset(presetSelect.value));
+load(preset(asked && PRESETS[asked] ? asked : 'Round cell'));
 requestAnimationFrame(frame);
