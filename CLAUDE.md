@@ -31,6 +31,15 @@ number of cells; a burst organ for escapes, eyespot cone width, touch and proxim
   pads, meetings and the water pulling them apart).
 - **No free lunch.** Every part costs something. Forms balance only when each wins in one kind of water and pays
   in another (MONAD's lesson: every strictly-better form took over until it got a cost).
+- **Costs are honest, and shown** (decided, author 2026-10-23). In real cells running parts is nearly free: a cell
+  ~20 µm across catches ~200 pW by photosynthesis (~500-700 pg C growing ~1/day), the wave tail spends 0.26 pW
+  (~0.1%; flagellar motion is well under 1% of a flagellate's budget, e.g. Raven & Richardson 1984) and a burst
+  less than a tenth of a second of income. So parts cost what real ones cost: **materials to build** (nitrogen for
+  protein, later silica for glass), **upkeep**, **room**, **weight and drag**, and later **grazing risk**; not their
+  running. The sandbox shows each part's share of the budget ("tail: 0.1% of income; its upkeep: 4%") so players
+  learn where the cost really is.
+- **Scale:** the sandbox is almost at real scale (µm, seconds, pW). MONAD's water is not; how designs move into it
+  is for later (author, 2026-10-23).
 - **What matters is how parts interact** (author, 2026-10-23): with each other (an eyespot wired to a tail, a
   droplet that turns the cell its eyespot looks through, spines that slow a swimmer) and with the environment (light,
   depth, other species, the water's drag). The depth of the game is in these interactions, not in any single part.
