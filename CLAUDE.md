@@ -4,8 +4,9 @@ Players **design their own phytoplankton species** from parts and try to make it
 The author is a **phytoplankton researcher**: the biology carries weight, and their corrections on biology are
 authoritative.
 
-**Status (2026-10-23): designing step 0, the physics sandbox.** Decisions below were made with the author in the
-first design conversation. No code yet; build only after the author's go.
+**Status (2026-10-23): building step 0, the physics sandbox** (author's go given). Done: sinking, joints, motors,
+the swimming laws, a first viewer with presets. Next: inclusions that change over time, pads, sensors, coloured
+light; then the drag-and-drop editor.
 
 ---
 
@@ -173,6 +174,14 @@ runs headless in Node for tests (and later the optimiser).
   (copy them; never `Math.exp/sin/cos/pow` in `sim/`). Same seed, same world, on any engine.
 - **All tunable numbers in one `PARAMS` object** (`sim/params.js`). No magic numbers scattered through the code.
 - `sim/` never touches the DOM, so the browser and Node run the identical code.
+- **Run:** `node tools/serve.mjs` then open http://localhost:5180/sandbox/ (`?preset=Wave%20tail` opens a preset).
+  `node tools/check.mjs` runs the physics-law checks (~1 min). Port 8080 is taken on the author's machine.
+- **Integration:** midpoint method, dt 1 ms. Simple Euler leaked a drift proportional to dt into strokes that should
+  go nowhere (measured, 2026-10-23); keep a second-order method.
+- **Speed (measured 2026-10-23):** ~2 ms per simulated second for a 5-piece cell, ~7 ms for a 6-piece motorised
+  tail: fine for watching, ~100x too slow for scoring designs over many seeds by brute force. Likely plan for
+  step 1: measure each design's swimming, sinking and turning once in full physics, and let the ecology use those
+  numbers (to discuss with the author).
 - Copy from MONAD; never share code with it (MONAD stays one finished file).
 
 ---
