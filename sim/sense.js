@@ -7,9 +7,11 @@
 //   tank's walls, floor and surface ('anything').
 // Every cell also has its energy level built in (no part): how full its energy pool is, 0 empty, 1 full (1 with
 // metabolism off). Wiring to sensor 'energy' reads it.
-// A part can be wired to several sensors (its conditions): a wired motor runs only while every reading is inside its
-// [min, max]; a latched spring or burst organ fires the first time they all are. Each condition changes state only a
-// little inside or outside its range (hysteresis), so it doesn't flicker.
+// A part can be wired to several sensors (its conditions). A condition holds while its reading is inside its [min, max]
+// (marked `not`: outside it). Conditions are ANDed in groups, and one marked `or` starts a new group: the part goes when
+// every condition of any one group holds. A wired motor runs while that is so; a latched spring or burst organ fires
+// the first time it is. Each condition changes state only a little inside or outside its range (hysteresis), so it
+// doesn't flicker.
 import { PARAMS } from './params.js';
 import { dcos } from './dmath.js';
 import { fire } from './physics.js';
@@ -71,11 +73,13 @@ export function sense(world, cell) {
   }
   for (const j of cell.joints) {
     if (!j.controls) continue;
-    let all = true;
+    let all = false, group = true;   // all: an earlier group held; group: the current group holds so far
     for (const ctl of j.controls) {   // every condition is updated, so each keeps its own hysteresis state
+      if (ctl.or && ctl !== j.controls[0]) { all = all || group; group = true; }
       const v = ctl.sensor < 0 ? energyLevel(world, cell) : cell.sensors[ctl.sensor].value;
-      if (!holds(ctl, v)) all = false;
+      if (holds(ctl, v) === ctl.not) group = false;
     }
+    all = all || group;
     if (j.burst) { if (all) fire(cell, j.burst.group); }   // a burst organ fires when its sensors say so
     else if (j.type === 'motor') j.on = all;
     else if (j.latched && all) j.latched = false;   // a trigger: released once, the first time they all hold

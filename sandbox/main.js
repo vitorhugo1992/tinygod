@@ -166,33 +166,46 @@ const SCALE = {   // what the 0-1 reading means, shown beside the range
   near: '0 = nothing in range, 1 = touching',
   energy: '0 = out of energy (starving), 1 = full',
 };
-// The wiring of a part: a list of conditions (a sensor and a range of its reading), all of which must hold for the part
-// to run (or fire). Rewiring changes the design and the cells already in the tank as they are: no reset.
+// The wiring of a part: a list of conditions (a sensor and a range of its reading, or outside it), in groups: the part
+// runs (or fires) while every condition of any one group holds (AND inside a group, OR between groups). Rewiring
+// changes the design and the cells already in the tank as they are: no reset.
 function wiring(g, wired) {
   const box = document.createElement('div');
   box.className = 'wire';
   const motor = wired[0].joint.type === 'motor' && !wired[0].joint.burst;
   const sensors = partGroups(design.parts || []).filter((x) => x.category === 'Sensors');
   const kindOf = (id) => (id === 'energy' ? 'energy' : (design.parts.find((p) => p.id === id) || {}).kind || 'light');
-  const list = controlsOf(wired[0].joint).map((c) => ({ sensor: c.sensor,
-    min: c.when === 'light' ? 0.5 : c.min ?? 0, max: c.when === 'dark' ? 0.5 : c.max ?? 1 }));
+  const list = controlsOf(wired[0].joint).map((c, i) => ({ sensor: c.sensor,
+    min: c.when === 'light' ? 0.5 : c.min ?? 0, max: c.when === 'dark' ? 0.5 : c.max ?? 1,
+    not: !!c.not, or: i > 0 && !!c.or }));
   const write = (next) => {
     if (next.some((c) => !(c.min <= c.max))) { $('buildErr').textContent = 'a range must run from low to high'; return; }
     $('buildErr').textContent = '';
+    // only true marks are stored, and the first condition never starts a new group
+    const clean = next.map((c, i) => ({ sensor: c.sensor, min: c.min, max: c.max,
+      ...(c.not ? { not: true } : {}), ...(i > 0 && c.or ? { or: true } : {}) }));
     for (const m of wired) {
       delete m.joint.control;
-      if (next.length) m.joint.controls = next.map((c) => ({ ...c })); else delete m.joint.controls;
+      if (clean.length) m.joint.controls = clean.map((c) => ({ ...c })); else delete m.joint.controls;
       const k = design.parts.indexOf(m);
-      for (const c of world.cells) if (c.design === design) rewire(c, k, next);
+      for (const c of world.cells) if (c.design === design) rewire(c, k, clean);
     }
     $('json').value = JSON.stringify(design, null, 2);
     listParts();
   };
+  const copy = () => list.map((x) => ({ ...x }));
+  const groups = list.length ? 1 + list.filter((c) => c.or).length : 0;
   const head = document.createElement('div');
-  head.textContent = list.length ? `${motor ? 'runs' : 'fires'} while all of these hold:`
-    : (motor ? 'runs always' : 'fires by hand (Release)');
+  head.textContent = !list.length ? (motor ? 'runs always' : 'fires by hand (Release)')
+    : groups > 1 ? `${motor ? 'runs' : 'fires'} while all of one group hold:`
+    : list.length > 1 ? `${motor ? 'runs' : 'fires'} while all of these hold:` : `${motor ? 'runs' : 'fires'} while this holds:`;
   box.appendChild(head);
   list.forEach((c, idx) => {
+    if (c.or) {
+      const line = document.createElement('div');
+      line.className = 'orline'; line.textContent = '— or —';
+      box.appendChild(line);
+    }
     const cond = document.createElement('div');
     cond.className = 'cond';
     const top = document.createElement('div');
@@ -201,25 +214,44 @@ function wiring(g, wired) {
     for (const s of sensors) sel.add(new Option(`${s.name.toLowerCase()} at ${s.deg}°`, s.members[0].id));
     sel.add(new Option('its energy level (built in)', 'energy'));
     sel.value = c.sensor;
-    sel.onchange = () => { const next = list.map((x) => ({ ...x })); next[idx] = { sensor: sel.value, min: RANGE[kindOf(sel.value)][0], max: RANGE[kindOf(sel.value)][1] }; write(next); };
+    sel.onchange = () => { const next = copy(); next[idx] = { ...next[idx], sensor: sel.value, min: RANGE[kindOf(sel.value)][0], max: RANGE[kindOf(sel.value)][1] }; write(next); };
+    const not = document.createElement('button');
+    not.className = 'notbtn'; not.textContent = c.not ? 'outside' : 'inside';
+    not.title = c.not ? 'Holds while the reading is OUTSIDE the range (tap: inside)' : 'Holds while the reading is inside the range (tap: outside)';
+    not.onclick = () => { const next = copy(); next[idx].not = !c.not; write(next); };
     const del = document.createElement('button');
     del.textContent = '✕'; del.title = 'Remove this condition';
-    del.onclick = () => write(list.filter((_, i) => i !== idx));
-    top.append(sel, del);
+    del.onclick = () => {
+      const next = copy();
+      // the next condition takes over the start of a group this one began
+      if (c.or && next[idx + 1] && !next[idx + 1].or) next[idx + 1].or = true;
+      write(next.filter((_, i) => i !== idx));
+    };
+    top.append(sel, not, del);
     cond.appendChild(top);
     cond.appendChild(rangeBar(c, motor, kindOf(c.sensor), (lo, hi) => {
-      const next = list.map((x) => ({ ...x })); next[idx].min = lo; next[idx].max = hi; write(next);
+      const next = copy(); next[idx].min = lo; next[idx].max = hi; write(next);
     }));
     box.appendChild(cond);
   });
+  const fresh = (or) => {
+    const first = sensors.length ? sensors[0].members[0].id : 'energy';
+    return { sensor: first, min: RANGE[kindOf(first)][0], max: RANGE[kindOf(first)][1], not: false, or };
+  };
   const add = document.createElement('button');
   add.className = 'addcond';
   add.textContent = list.length ? '＋ and also…' : (motor ? '＋ wire it to a sensor' : '＋ fire it by a sensor');
-  add.onclick = () => {
-    const first = sensors.length ? sensors[0].members[0].id : 'energy';
-    write([...list, { sensor: first, min: RANGE[kindOf(first)][0], max: RANGE[kindOf(first)][1] }]);
-  };
+  add.title = list.length ? 'Another condition in the last group: all of them must hold' : '';
+  add.onclick = () => write([...list, fresh(false)]);
   box.appendChild(add);
+  if (list.length) {
+    const or = document.createElement('button');
+    or.className = 'addcond';
+    or.textContent = '＋ or instead…';
+    or.title = `A new group: the part ${motor ? 'runs' : 'fires'} when either group holds`;
+    or.onclick = () => write([...list, fresh(true)]);
+    box.appendChild(or);
+  }
   return box;
 }
 
@@ -232,8 +264,8 @@ function rangeBar(c, motor, kind, onSet) {
     // the reading now
     const span = document.createElement('div');
     span.className = 'range';
-    span.innerHTML = `<div class="rlabel">${motor ? 'on' : 'fires'} while it reads <b class="lohi"></b> · now <b data-live="${c.sensor}">–</b></div>
-      <div class="dual"><div class="track"><div class="band"></div>${kind === 'light' ? '<div class="most"></div>' : ''}<div class="now" data-livebar="${c.sensor}"></div></div>
+    span.innerHTML = `<div class="rlabel">${motor ? 'on' : 'fires'} while it reads ${c.not ? 'outside ' : ''}<b class="lohi"></b> · now <b data-live="${c.sensor}">–</b></div>
+      <div class="dual"><div class="track${c.not ? ' out' : ''}"><div class="band"></div>${kind === 'light' ? '<div class="most"></div>' : ''}<div class="now" data-livebar="${c.sensor}"></div></div>
         <input type="range" min="0" max="1" step="0.05" value="${lo}"><input type="range" min="0" max="1" step="0.05" value="${hi}"></div>
       <div class="rscale">${SCALE[kind]}${kind === 'light' ? `<span data-livemax="${c.sensor}"></span>` : ''}</div>`;
     const [a, b] = span.querySelectorAll('input');

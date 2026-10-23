@@ -11,13 +11,13 @@ whole sandbox build happened in one long chat (2026-10-21 to 23); this file hold
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
-`node tools/check.mjs`: 31 physics checks, all passing (~2 min).
+`node tools/check.mjs`: 32 physics checks, all passing (~2 min).
 
 **Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
 springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
 kin and mucus pads, chains (hidden cap 32), **light from above** fading with depth with a **10-minute day/night**,
 sensors (eyespot with cone width; touch and proximity feeling other species or anything incl. walls) and the
-**built-in energy level**, **wiring** (each part: a list of conditions, all must hold, each a reading range),
+**built-in energy level**, **wiring** (each part: conditions, each a reading inside or outside a range, ANDed in groups joined by OR),
 **metabolism v0** (energy only: plastids earn by light; upkeep; starch and oil fill and burn automatically and change
 buoyancy; starving stops motors). Viewer: one-tap toolbar, Build panel (body shape, parts by category, where / tilt /
 inside / size / feels, edit in place, live rewiring), budget panel, phone layout with pinch zoom.
@@ -30,7 +30,6 @@ faking it; the flexible oar's stiffness sweet spot; longer ribbons throw disprop
 once in full physics and let the ecology reuse it (to decide).
 
 **Left in the sandbox (none blocks v0):**
-- **Logic in wiring** (author liked it, 2026-10-23): OR and NOT besides the current AND.
 - Wiring stores to the energy level (decided optional).
 - Saving designs (now they live until reload, except via the JSON box under Advanced).
 - A rebuild (any part change) resets the clock to dawn and clears other cells.
@@ -151,7 +150,12 @@ holds. A stopped motor freezes mid-beat and resumes from there (each motor keeps
 enough light, then hovers there (the author's idea: stop once near the surface and catching enough light).
 **Several conditions per part** (author, 2026-10-23): a part's wiring is a list of conditions (a sensor or the
 energy level, and a range), and it runs (or fires) only while **all** of them hold, e.g. a tail that runs while energy
-is above 0.3 AND the eyespot reads 0.1-0.8 AND a proximity sensor says no wall is near. (Only AND for now.)
+is above 0.3 AND the eyespot reads 0.1-0.8 AND a proximity sensor says no wall is near.
+**OR and NOT** (built 2026-10-23, author's go-ahead): a condition can hold while its reading is **outside** its range
+(the "inside / outside" button; the bar lights the outside), and "＋ or instead…" starts a new group: the part goes
+when every condition of **any one group** holds, e.g. (energy above 0.5 AND eyespot dark) OR touch. In the design: a
+condition's `not: true`, and `or: true` on the condition that starts a group (ignored on the first). Hysteresis is
+unchanged (NOT flips a condition's held state).
 **Touch and proximity sensors** (author asked, 2026-10-23) feel another species by default, or, set to feel
 **anything**, any other cell and the tank's walls, floor and surface (a flagellum can be shut off before a wall). By
 default they feel another species, not kin: touch on its spot,

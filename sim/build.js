@@ -25,9 +25,10 @@
 // reads 1 while another species touches its spot; a proximity sensor reads how close another species is within
 // `range` µm (1 touching, 0 at the range).
 // Any joint can be wired to sensors: controls: [{ sensor: id, min = 0, max = 1 }, ...] (sensor 'energy': the cell's own
-// energy level, built into every cell: 0 empty, 1 full; one control: { ... } is the same as a list of one). All must
-// hold: a motor runs only while the reading
-// is between min and max; a latched hinge or extender is released the first time it is.
+// energy level, built into every cell: 0 empty, 1 full; one control: { ... } is the same as a list of one). A
+// condition holds while the reading is between min and max (with not: true, while it is outside them). Conditions
+// are ANDed; or: true starts another group, and the part goes when every condition of any one group holds: a motor
+// runs while they do; a latched hinge or extender is released the first time they do.
 // ({ when: 'light' } means min 0.5, { when: 'dark' } max 0.5.)
 // A segment's joint, at `at`:
 //   { type: 'fixed' }                                    (default) rigid
@@ -100,7 +101,7 @@ function resolveControl(sensors, c) {
   else if (c.when === 'dark') max = PARAMS.sensor.threshold;
   else if (c.when !== undefined) throw new Error('control.when must be light or dark');
   if (!(min <= max)) throw new Error('control: min must not be above max');
-  return { sensor: s, min, max, holds: null };
+  return { sensor: s, min, max, not: !!c.not, or: !!c.or, holds: null };
 }
 
 // A design joint's wiring as a list (`controls`, or the older single `control`)

@@ -552,6 +552,31 @@ const runDay = (design, y, seconds, opts = {}) => {
     `from the wall; feeling only other species it swims into it (${fmt(strangers.gap, 1)} µm)`);
 }
 
+// 28d. Logic in wiring: NOT (outside a range) and OR (groups); energy is full (metabolism off), the wall near or far
+{
+  const tail = PRESETS['Wave tail'].parts;
+  const swimmer = (controls) => ({ body: { radius: 8 }, parts: [
+    { type: 'sensor', id: 'near', at: [8, 0], kind: 'near', range: 50, feels: 'anything' },
+    ...tail.map((p) => ({ ...p, joint: { ...p.joint, controls } })) ] });
+  const on = (controls, gap) => {   // is the tail on after one step, its sensor `gap` µm from the wall?
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, swimmer(controls), PARAMS.tank.w - 8 - 8 - gap, 1000, 0);
+    stepWorld(w);
+    return c.joints[0].on;
+  };
+  const both = (controls) => `${on(controls, 200) ? 'on' : 'off'} far, ${on(controls, 10) ? 'on' : 'off'} near`;
+  const nearNot = [{ sensor: 'near', min: 0.3, max: 1, not: true }];
+  const hungryOrNear = [{ sensor: 'energy', min: 0, max: 0.5 }, { sensor: 'near', min: 0.3, max: 1, or: true }];
+  const hungryAndNear = [{ sensor: 'energy', min: 0, max: 0.5 }, { sensor: 'near', min: 0.3, max: 1 }];
+  const fullOrNot = [{ sensor: 'near', min: 0.3, max: 1 }, { sensor: 'energy', min: 0, max: 0.5, not: true, or: true }];
+  const loneOr = [{ sensor: 'near', min: 0.3, max: 1, or: true }];
+  const r = [both(nearNot), both(hungryOrNear), both(hungryAndNear), both(fullOrNot), both(loneOr)];
+  check('wiring logic: NOT takes the outside of a range, OR joins groups of conditions',
+    r.join('|') === 'on far, off near|off far, on near|off far, off near|on far, on near|off far, on near',
+    `NOT near: ${r[0]}; hungry OR near: ${r[1]}; hungry AND near: ${r[2]}; near OR NOT hungry: ${r[3]}; ` +
+    `an "or" on the first condition is ignored: ${r[4]}`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {
