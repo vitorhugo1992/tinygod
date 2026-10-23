@@ -1,7 +1,8 @@
 // Overdamped motion: no momentum, so each step we solve "drag balances every force and torque" for the
 // velocities of the unknowns (the body's slide and turn, joint angles), then step positions.
-// Each piece's drag is resistive force theory about its centre. Contacts are stiff springs treated implicitly
-// (their stiffness × dt joins the drag matrix), so they stay stable at any stiffness.
+// Each piece's drag is resistive force theory about its centre. Contacts and joint springs are treated
+// implicitly (their stiffness × dt joins the drag matrix), so they stay stable at any stiffness.
+// Motors drive their joint's angle exactly (prescribed), and pay for the torque that takes.
 import { PARAMS } from './params.js';
 import { dsin, dcos } from './dmath.js';
 
@@ -69,7 +70,16 @@ function walls(cell, cols, ex, ey, a) {
   if (ex + a > TW) contact(cell, cols, ex + a, ey, -1, 0, ex + a - TW);
 }
 
-function assemble(cell) {
+// A motor's angle at time t: forward stroke from -swing to +swing in `stroke` of the cycle, recovery in the rest,
+// both eased (cosine) so the joint starts and stops smoothly
+export function motorAngle(j, t) {
+  let u = j.rate * t + j.phase;
+  u -= Math.floor(u);
+  const w = u < j.stroke ? -dcos(Math.PI * u / j.stroke) : dcos(Math.PI * (u - j.stroke) / (1 - j.stroke));
+  return j.swing * w;
+}
+
+function assemble(cell, gravity) {
   const { pieces, A, f, n, cs, sn, cx, cy } = cell;
   A.fill(0); f.fill(0);
   for (let i = 0; i < pieces.length; i++) {
@@ -89,7 +99,7 @@ function assemble(cell) {
     }
 
     // weight minus buoyancy, at each weight point (light and heavy points apart make a turning couple)
-    for (const wp of p.wpts) {
+    if (gravity) for (const wp of p.wpts) {
       const wx = cx[i] + c * wp.x - s * wp.y, wy = cy[i] + s * wp.x + c * wp.y;
       fillCols(cell, cols, wx, wy);
       for (let k = 0; k < m; k++) f[cols[k]] -= UY[k] * wp.w;
@@ -120,10 +130,65 @@ function solve(A, b, n, x) {
   }
 }
 
-export function stepCell(cell) {
+// Velocities of every unknown at the cell's current pose; motors go from their angle in `from` to their angle
+// at tEnd in time h.
+// Returns the motors' power (only positive work costs).
+function velocities(cell, from, tEnd, h, gravity) {
   updatePose(cell);
-  assemble(cell);
-  solve(cell.A, cell.f, cell.n, cell.v);
+  assemble(cell, gravity);
+  const { q, v, n, A, f, A0, f0, joints } = cell;
+
+  // springy joints pull toward their rest angle
+  for (let j = 0; j < joints.length; j++) {
+    const jt = joints[j];
+    if (jt.type !== 'hinge' || jt.stiffness === 0) continue;
+    const p = 3 + j;
+    f[p] -= jt.stiffness * (q[p] - jt.rest);
+    A[p * n + p] += DT * jt.stiffness;
+  }
+
+  // motors: the joint's rate is known; move it to the right-hand side (keeps the system symmetric)
+  A0.set(A); f0.set(f);
+  for (let j = 0; j < joints.length; j++) {
+    const jt = joints[j];
+    if (jt.type !== 'motor') continue;
+    const p = 3 + j;
+    const r = jt.on ? (motorAngle(jt, tEnd) - from[p]) / h : 0;
+    for (let i = 0; i < n; i++) {
+      if (i === p) continue;
+      f[i] -= A[i * n + p] * r;
+      A[i * n + p] = 0; A[p * n + i] = 0;
+    }
+    A[p * n + p] = 1; f[p] = r;
+  }
+
+  solve(A, f, n, v);
+
+  // what the motors paid: torque they had to supply × their rate (only positive work costs)
+  let power = 0;
+  for (let j = 0; j < joints.length; j++) {
+    if (joints[j].type !== 'motor') continue;
+    const p = 3 + j;
+    let tau = -f0[p];
+    for (let l = 0; l < n; l++) tau += A0[p * n + l] * v[l];
+    const pw = tau * v[p];
+    if (pw > 0) power += pw;
+  }
+  return power;
+}
+
+// Step one cell from time t to t + dt by the midpoint method: velocities at the start take it halfway, the
+// velocities there take the whole step. Its error falls with dt² (simple Euler's falls with dt and leaked a
+// steady drift into strokes that should go nowhere).
+export function stepCell(cell, t, gravity = true) {
   const { q, v, n } = cell;
-  for (let i = 0; i < n; i++) q[i] += DT * v[i];
+  const q0 = cell.q0 || (cell.q0 = new Float64Array(n));
+  q0.set(q);
+  velocities(cell, q0, t + DT / 2, DT / 2, gravity);
+  for (let i = 0; i < n; i++) q[i] = q0[i] + DT / 2 * v[i];
+  // from the midpoint, motors aim for their angle at the end of the step, measured from the start
+  const power = velocities(cell, q0, t + DT, DT, gravity);
+  for (let i = 0; i < n; i++) q[i] = q0[i] + DT * v[i];
+  cell.power = power;
+  cell.energy.motor += power * DT;
 }

@@ -43,8 +43,9 @@ watchable, and show what is invisible.
   moves it only a short way.
 - **Back-and-forth goes nowhere** (Purcell's scallop theorem). A stiff part that opens and closes along the same
   path returns to its start, **however fast or slow each half is** (only the shape sequence counts, not the
-  speed). Moving needs a stroke whose shape differs on the way back: a springy joint that bends one way on the
-  stroke and another on the recovery (Purcell's flexible oar), or several joints beating out of step (a wave).
+  speed). Moving needs a stroke whose shape differs on the way back: a springy part that lags behind the beat
+  (Purcell's flexible oar: the lag turns a flap into a small travelling wave, even with an even beat), or several
+  joints beating out of step (a wave).
 - **Size and shape decide sinking.** Sinking speed grows with size² and density excess (Stokes); spines, chains
   and flat or long shapes slow it. Buoyancy control costs energy.
 - **Everything costs energy.**
@@ -201,6 +202,11 @@ runs headless in Node for tests (and later the optimiser).
 - **Parked idea:** viruses that track genotypes; lineages with more mutation and diversity resist them (Red
   Queen), a real trade-off if players choose a mutation rate.
 - **The niche radar** (MONAD's species page, eight traits scored 0–4) is a natural way to compare designs.
+- **Tips while building** (author, 2026-10-23): when a player places a part or picks a material, a short true tip
+  says what it does physically ("gas is much lighter than water: it floats the cell, but crushes below a certain
+  depth"; "a stiff flap that beats back and forth goes nowhere: try a springy joint"), so the player is never
+  completely in the dark. Like MONAD's curiosity facts: sourced, plain, never contradicting the model; they hint at
+  the physics without giving away the builds.
 - Whether TinyGod keeps MONAD's generative music is open.
 
 ## The engine to copy from: MONAD

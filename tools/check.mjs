@@ -3,6 +3,7 @@
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld } from '../sim/world.js';
 import { cellWeight } from '../sim/build.js';
+import { PRESETS } from '../sim/presets.js';
 
 const DT = PARAMS.time.dt;
 const MU = PARAMS.water.viscosity;
@@ -119,16 +120,87 @@ const sphere = (radius, wall = 'protein') => ({ body: { radius, wall }, parts: [
   check('same world twice is bit-identical', a.every((x, i) => x === b[i]), `${a.length / 8} numbers compared after 10 s`);
 }
 
-// 8. Speed (not a pass test yet): one cell with a body and four spines
+// Swimming, with gravity off so only the strokes move the cell. Returns µm/s and fW over `seconds`
+// after half a second of settling.
+function swim(design, seconds = 2) {
+  const w = makeWorld(1, { gravity: false });
+  const c = addCell(w, design, 300, 1000, 0);
+  for (let i = 0; i < 0.5 / DT; i++) stepWorld(w);
+  const x0 = c.q[0], y0 = c.q[1], e0 = c.energy.motor;
+  for (let i = 0; i < seconds / DT; i++) stepWorld(w);
+  return { w, c, vx: (c.q[0] - x0) / seconds, vy: (c.q[1] - y0) / seconds,
+    speed: Math.hypot(c.q[0] - x0, c.q[1] - y0) / seconds, fw: (c.energy.motor - e0) / seconds / 1000 };
+}
+const flapper = (stroke, stiffness) => ({ body: { radius: 8 }, parts: stiffness === undefined
+  ? [{ type: 'segment', at: [-8, 0], angle: 180, length: 40, radius: 0.25, joint: { type: 'motor', rate: 20, swing: 60, stroke } }]
+  : [{ type: 'segment', id: 'b', at: [-8, 0], angle: 180, length: 15, radius: 0.25, joint: { type: 'motor', rate: 20, swing: 60, stroke } },
+     { type: 'segment', parent: 'b', at: [7.5, 0], length: 25, radius: 0.25, joint: { type: 'hinge', stiffness } }] });
+
+// 8. Scallop theorem: a stiff flap goes nowhere however unequal its stroke and recovery; a springy one swims
 {
-  const design = { body: { radius: 10 }, parts: [0, 90, 180, 270].map((deg) => ({ type: 'segment',
-    at: [10 * Math.cos(deg * Math.PI / 180), 10 * Math.sin(deg * Math.PI / 180)], angle: deg, length: 30, radius: 0.5 })) };
-  const w = makeWorld(1); addCell(w, design, 300, 1500, 0);
-  const steps = 200000, t0 = performance.now();
-  for (let i = 0; i < steps; i++) stepWorld(w);
-  const ms = performance.now() - t0;
-  console.log(`INFO  speed: 5-piece cell, ${fmt(ms / (steps * DT), 2)} ms per simulated second ` +
-    `(${fmt(steps / ms * 1000 / 1e6, 2)} M steps/s, dt ${DT * 1000} ms)`);
+  const stiff = [0.5, 0.25, 0.1].map((s) => swim(flapper(s)));
+  const oar = swim(flapper(0.25, 700));
+  const oarEven = swim(flapper(0.5, 700));
+  const worst = Math.max(...stiff.map((r) => r.speed));
+  check('scallop theorem: a stiff flap goes nowhere; a springy one (flexible oar) swims',
+    worst < 0.01 * oar.speed && oar.speed > 5,
+    `stiff flap, stroke 50/25/10% of the beat: ${stiff.map((r) => fmt(r.speed, 4)).join(' / ')} µm/s ` +
+    `(spending ${stiff.map((r) => fmt(r.fw, 0)).join(' / ')} fW for nothing)\n      ` +
+    `flexible oar, fast stroke: ${fmt(oar.speed)} µm/s; even stroke: ${fmt(oarEven.speed)} µm/s ` +
+    `(the springy tail lags behind the beat, turning the flap into a wave, so even an even beat swims)`);
+}
+
+// 9. The flexible oar has a sweet spot: too floppy trails, too stiff is a stiff flap again
+{
+  const ks = [50, 200, 700, 2500, 10000];
+  const v = ks.map((k) => swim(flapper(0.25, k)).speed);
+  const best = v.indexOf(Math.max(...v));
+  check('flexible oar works best at a middle stiffness', best > 0 && best < ks.length - 1,
+    ks.map((k, i) => `k ${k}: ${fmt(v[i], 1)}`).join(', ') + ' µm/s');
+}
+
+// 10. A travelling wave swims, and reversing the wave reverses the swimming
+{
+  const wave = PRESETS['Wave tail'];
+  const back = { ...wave, parts: wave.parts.map((p) => ({ ...p, joint: { ...p.joint, phase: -p.joint.phase } })) };
+  const a = swim(wave), b = swim(back);
+  check('a travelling wave swims; the reversed wave swims the other way', a.speed > 20 && a.vx * b.vx < 0,
+    `wave from body to tip: ${fmt(a.vx)} µm/s along x (${fmt(a.speed / 16, 1)} body lengths/s, ${fmt(a.fw, 0)} fW); ` +
+    `tip to body: ${fmt(b.vx)} µm/s`);
+}
+
+// 11. No coasting: motors off, the cell stops in the same step; a cocked spring hops a short way, then stops
+{
+  const r = swim(PRESETS['Wave tail'], 1);
+  for (const j of r.c.joints) j.on = false;
+  const x0 = r.c.q[0];
+  stepWorld(r.w);
+  const after = Math.abs(r.c.v[0]) + Math.abs(r.c.v[1]);
+  for (let i = 0; i < 1000; i++) stepWorld(r.w);
+  const drift = Math.abs(r.c.q[0] - x0);
+
+  const w = makeWorld(1, { gravity: false });
+  const c = addCell(w, PRESETS['Spring jump'], 300, 1000, 0);
+  const p0 = [c.q[0], c.q[1]];
+  let tStop = null;
+  for (let i = 0; i < 2000; i++) { stepWorld(w); if (tStop === null && Math.hypot(c.v[0], c.v[1]) < 0.01) tStop = (i + 1) * DT; }
+  const hop = Math.hypot(c.q[0] - p0[0], c.q[1] - p0[1]);
+  check('no coasting: motors off stops the cell at once; a spring burst hops a short way and stops',
+    after < 1e-9 && drift < 1e-9 && hop > 0.5 && hop < 12 && Math.hypot(c.v[0], c.v[1]) < 1e-6,
+    `after the motors stop: speed ${after.toExponential(1)} µm/s next step, moved ${drift.toExponential(1)} µm in 1 s\n      ` +
+    `spring jump: ${fmt(hop, 1)} µm (cell 12 µm across), under 0.01 µm/s after ${tStop === null ? '-' : fmt(tStop * 1000, 0) + ' ms'}`);
+}
+
+// 12. Speed (not a pass test yet)
+{
+  for (const name of ['Spiny cell', 'Wave tail']) {
+    const w = makeWorld(1); addCell(w, PRESETS[name], 300, 1500, 0);
+    const steps = 20000, t0 = performance.now();
+    for (let i = 0; i < steps; i++) stepWorld(w);
+    const ms = performance.now() - t0;
+    console.log(`INFO  speed: ${name} (${w.cells[0].pieces.length} pieces, ${w.cells[0].n} unknowns): ` +
+      `${fmt(ms / (steps * DT), 2)} ms per simulated second, ${fmt(ms / (steps * DT) * 60, 0)} ms per simulated minute`);
+  }
 }
 
 console.log(failures ? `\n${failures} FAILED` : '\nall passed');

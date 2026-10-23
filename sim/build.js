@@ -5,12 +5,18 @@
 //   name,
 //   body:  { radius, length = 0, wall = 'protein' },      // a capsule: cylinder `length` µm long, `radius` µm
 //   parts: [
-//     { type: 'segment', id?, parent = 'body', at: [x, y], angle, length, radius, material },
+//     { type: 'segment', id?, parent = 'body', at: [x, y], angle, length, radius, material, joint? },
 //     { type: 'inclusion', parent = 'body', at: [x, y], radius, material, density? },
 //   ]
 // }
 // `at` is a point in the parent's own frame (x along its axis, from its centre). A segment grows from that point
 // in direction `angle` (degrees, relative to the parent's axis). An inclusion is a sphere inside the body.
+// A segment's joint, at `at`:
+//   { type: 'fixed' }                                    (default) rigid
+//   { type: 'hinge', stiffness = 0, rest = 0 }           springy (pN·µm/rad; rest angle in degrees, starts at 0)
+//   { type: 'motor', rate, swing, stroke = 0.5, phase = 0, on = true }
+//       beats `rate` times a second, `swing` degrees each side; the forward stroke takes `stroke` of the cycle
+//       and the recovery the rest. Off, it holds its angle.
 import { PARAMS } from './params.js';
 import { material } from './materials.js';
 import { DEG, dlog } from './dmath.js';
@@ -38,8 +44,23 @@ function capsuleDrag(L, a) {
   return { xt, xn, xr };
 }
 
+function parseJoint(j, pieceIndex) {
+  if (!j || j.type === 'fixed') return null;
+  if (j.type === 'hinge') {
+    return { type: 'hinge', piece: pieceIndex, stiffness: j.stiffness || 0, rest: (j.rest || 0) * DEG };
+  }
+  if (j.type === 'motor') {
+    const stroke = j.stroke === undefined ? 0.5 : j.stroke;
+    if (!(stroke > 0 && stroke < 1)) throw new Error('motor stroke must be between 0 and 1');
+    return { type: 'motor', piece: pieceIndex, rate: j.rate, swing: (j.swing || 0) * DEG, stroke,
+      phase: j.phase || 0, on: j.on !== false };
+  }
+  throw new Error(`unknown joint type: ${j.type}`);
+}
+
 export function buildCell(design) {
   const pieces = [];
+  const joints = [];
   const ids = new Map();
   const C = PARAMS.cell;
 
@@ -66,8 +87,11 @@ export function buildCell(design) {
     if (part.type === 'segment') {
       const L = part.length, a = part.radius, mat = part.material || 'protein';
       const v = capsuleVolume(L, a);
+      const joint = parseJoint(part.joint, pieces.length);
+      if (joint) joints.push(joint);
       pieces.push({
-        kind: 'segment', parent, ax: x, ay: y, mount: (part.angle || 0) * DEG, offset: L / 2, joint: -1,
+        kind: 'segment', parent, ax: x, ay: y, mount: (part.angle || 0) * DEG, offset: L / 2,
+        joint: joint ? joints.length - 1 : -1,
         L, a, material: mat, volume: v,
         ...capsuleDrag(L, a),
         wpts: [{ x: 0, y: 0, w: weight(material(mat).density, v) }],
@@ -93,17 +117,24 @@ export function buildCell(design) {
   }
   if (inclusionVol > C.maxInclusionFraction * vol) throw new Error('inclusions overfill the body');
 
-  // Unknowns: the body's slide (x, y) and turn, then one angle per joint (none until joints exist).
-  // Each piece's columns: the unknowns that move it.
-  for (const p of pieces) p.cols = Int32Array.from([0, 1, 2]);
+  // Unknowns: the body's slide (x, y) and turn, then one angle per joint.
+  // Each piece's columns: the unknowns that move it (its parent's, plus its own joint). Parents come first.
+  for (const p of pieces) {
+    const base = p.parent < 0 ? [0, 1, 2] : Array.from(pieces[p.parent].cols);
+    if (p.joint >= 0) base.push(3 + p.joint);
+    p.cols = Int32Array.from(base);
+  }
 
-  const n = 3;
+  const n = 3 + joints.length;
   const np = pieces.length;
   return {
-    design, pieces, n,
-    jointPiece: new Int32Array(0),
+    design, pieces, joints, n,
+    jointPiece: Int32Array.from(joints.map((j) => j.piece)),
     q: new Float64Array(n), v: new Float64Array(n),
     A: new Float64Array(n * n), f: new Float64Array(n),
+    A0: new Float64Array(n * n), f0: new Float64Array(n),
+    energy: { motor: 0 },    // aJ (pN·µm) spent by motors
+    power: 0,                // aJ/s (fW) at the last step
     phi: new Float64Array(np), cs: new Float64Array(np), sn: new Float64Array(np),
     cx: new Float64Array(np), cy: new Float64Array(np), jx: new Float64Array(np), jy: new Float64Array(np),
   };
