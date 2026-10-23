@@ -55,4 +55,32 @@ export const PRESETS = {
     parts: [{ type: 'segment', at: [-6, 0], angle: 180, length: 30, radius: 0.4,
       joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true } }],
   },
+  'Ejectisome': {
+    note: 'A coiled ribbon, latched. Press Release: it shoots out (like a cryptophyte ejectisome) and the cell ' +
+      'jumps the other way, a short hop like Spring jump: a thin ribbon gets little grip on the water.',
+    body: { radius: 6 },
+    parts: [{ type: 'segment', at: [-6, 0], angle: 180, length: 30, radius: 0.3,
+      joint: { type: 'extend', stiffness: 20, latched: true } }],
+  },
+  'Sap vacuole': {
+    note: 'A big cell that is mostly sap vacuole. Slide its target density: lighter than seawater (1025) and it ' +
+      'rises, heavier and it sinks. Pumping takes time and costs energy.',
+    body: { radius: 20 },
+    parts: [{ type: 'inclusion', at: [0, 0], radius: 18.5, material: 'sap', density: 1025 }],
+  },
+  'Kin chain': {
+    note: 'Kin pads at both ends. Drop copies and push them together with the mouse: pads of the same species ' +
+      'stick, end to end. Pull hard and they snap.',
+    body: { radius: 6, length: 10 },
+    parts: [{ type: 'pad', at: [11, 0], kind: 'kin' }, { type: 'pad', at: [-11, 0], kind: 'kin' }],
+  },
+  'Mucus hitchhiker': {
+    note: 'A swimmer with a mucus pad on its nose: it sticks to anything it bumps into, but only weakly.',
+    body: { radius: 8 },
+    parts: [{ type: 'pad', at: [8, 0], kind: 'mucus' }].concat([0, 1, 2, 3, 4, 5].map((i) => ({
+      type: 'segment', id: `t${i}`, parent: i ? `t${i - 1}` : 'body', at: i ? [4, 0] : [-8, 0],
+      angle: i ? 0 : 180, length: 8, radius: 0.25,
+      joint: { type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 },
+    }))),
+  },
 };

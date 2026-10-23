@@ -46,7 +46,8 @@
     <button id="play">Pause</button>
     <button id="step">Step</button>
     <button id="reset">Reset</button>
-    <button id="release" title="Let go of latched springs">Release</button>
+    <button id="release" title="Let go of latched springs and ribbons">Release</button>
+    <button id="copy" title="Drop another cell of this design beside the selected one">Drop copy</button>
     <label>Speed <select id="speed">
       <option value="0.02">0.02×</option><option value="0.1">0.1×</option><option value="0.25">0.25×</option>
       <option value="1" selected>1× real</option><option value="5">5×</option><option value="20">20×</option>
@@ -59,14 +60,17 @@
     <label>Zoom <input type="range" id="zoom" min="0.3" max="20" step="0.1" value="5" style="width:90px"></label>
   </div>
   <div id="stats"></div>
+  <div id="sap"></div>
   <div class="hint">Slow it down (0.1×) to see a stroke. Grid: fine lines every 10 µm, bold every 100 µm.
-    Trail dots every 0.1 s.</div>
+    Trail dots every 0.1 s. Drag a cell to move it (and pick it); drag the water to look around.</div>
   <label>Design (JSON, edit and Apply)</label>
   <textarea id="json" spellcheck="false"></textarea>
   <div class="row"><button id="apply">Apply</button><span id="err"></span></div>
   <div class="hint">Segments: at [x,y] on the parent, angle (°), length, radius (µm), material (protein, glass).
     Joint: {"type":"motor","rate":Hz,"swing":°,"stroke":0–1,"phase":0–1} or {"type":"hinge","stiffness":pN·µm/rad,"rest":°}.
-    Inclusions: at, radius, material (oil, sap with "density" 1005–1040).</div>
+    Or {"type":"extend","stiffness":pN/µm,"latched":true}: the segment slides out.
+    Inclusions: at, radius, material (oil, sap with "density" 1005–1040).
+    Pads: {"type":"pad","at":[x,y],"kind":"kin"|"mucus"}: kin sticks to kin pads, mucus to anything.</div>
 </div>
 <script type="module" src="main.js"></script>
 </body>

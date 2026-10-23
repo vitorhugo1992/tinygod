@@ -16,11 +16,20 @@ export const PARAMS = {
     cytoplasm: 1060,        // density of the living cell without wall or inclusions
     wallThickness: 0.3,     // µm; the wall material's share of the body
     maxInclusionFraction: 0.9, // inclusions may fill at most this share of the body (a diatom is mostly vacuole)
+    pumpRate: 1,            // kg/m³ per s a sap vacuole's density can change (made playable: real cells take hours)
+    pumpCost: 0.05,         // aJ per (kg/m³ × µm³) of density change pumped (placeholder until costs are designed)
   },
   drag: {
     minLogAspect: 2,        // ln(length/radius) floor for the slender-rod formulas, so stubby pieces stay sane
   },
   contact: {
     stiffness: 20,          // pN/µm, walls and floor (treated implicitly, so stiff is stable)
+    cells: 20,              // pN/µm, cell against cell
+  },
+  pads: {
+    stiffness: 5,           // pN/µm, the spring of a stuck pad
+    kinBreak: 40,           // pN a kin pad holds before it snaps
+    mucusBreak: 4,          // pN a mucus pad holds
+    maxChain: 32,           // hidden backstop: a new link may not make a group bigger than this
   },
 };

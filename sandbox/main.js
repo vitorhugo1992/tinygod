@@ -12,9 +12,10 @@ const COLOR = {
   water: '#0b1322', outside: '#060a12', grid: '#132036', gridMajor: '#1f3352', label: '#4d6a86',
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
+  extend: '#c9a0ff', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
 };
 
-let design, world, cell, playing = true, acc = 0, lagging = false;
+let design, world, cell, playing = true, acc = 0, lagging = false;   // cell: the selected one (followed, measured)
 let trail = [], samples = [], released = null;   // released: where and when latches were let go
 let cam = { x: TW / 2, y: TH / 2 };
 
@@ -40,9 +41,27 @@ function reset() {
     $('err').textContent = e.message;
     return false;
   }
-  world = w; acc = 0; trail = []; samples = []; released = null;
+  world = w; acc = 0; released = null;
+  select(cell);
   cam = { x: cell.q[0], y: cell.q[1] };
   return true;
+}
+
+// Follow and measure one cell; its sap vacuoles get sliders
+function select(c) {
+  cell = c; trail = []; samples = [];
+  const box = $('sap');
+  box.innerHTML = '';
+  c.pieces[0].inclusions.forEach((inc, i) => {
+    if (!inc.pumpable) return;
+    const row = document.createElement('label');
+    row.innerHTML = `Sap vacuole ${i + 1} target <input type="range" min="${inc.min}" max="${inc.max}" step="1" value="${inc.target}" style="width:110px"> <span></span>`;
+    const input = row.querySelector('input'), out = row.querySelector('span');
+    const show = () => { out.textContent = `${inc.target} (now ${inc.density.toFixed(1)})`; };
+    input.oninput = () => { inc.target = Number(input.value); show(); };
+    inc.show = show; show();
+    box.appendChild(row);
+  });
 }
 
 $('apply').onclick = () => {
@@ -58,8 +77,13 @@ $('play').onclick = () => { playing = !playing; $('play').textContent = playing 
 $('step').onclick = () => { playing = false; $('play').textContent = 'Play'; advance(10); };
 $('release').onclick = () => {
   let any = false;
-  for (const j of cell.joints) if (j.latched) { j.latched = false; any = true; }
+  for (const c of world.cells) for (const j of c.joints) if (j.latched) { j.latched = false; any = true; }
   if (any) released = { x: cell.q[0], y: cell.q[1], t: worldTime(world) };
+};
+$('copy').onclick = () => {   // a copy of the design beside the selected cell
+  const s = design.start || {};
+  const x = Math.min(Math.max(cell.q[0] + 2 * cell.reach + 4, 20), TW - 20);
+  try { addCell(world, design, x, cell.q[1], s.angle ?? 0); } catch (e) { $('err').textContent = e.message; }
 };
 $('gravity').onchange = () => { if (world) world.gravity = $('gravity').checked; };
 
@@ -68,7 +92,7 @@ function advance(steps) {
   for (let i = 0; i < steps; i++) {
     stepWorld(world);
     if (world.steps % 10 === 0) {              // every 10 ms: samples for beat-averaged speed and power
-      samples.push({ t: worldTime(world), x: cell.q[0], y: cell.q[1], e: cell.energy.motor });
+      samples.push({ t: worldTime(world), x: cell.q[0], y: cell.q[1], e: cell.energy.motor + cell.energy.pump });
       if (samples.length > 400) samples.shift();
     }
     if (world.steps % 100 === 0) {             // every 0.1 s: a trail dot
@@ -115,11 +139,16 @@ function stats() {
       `speed     ${sp.toFixed(2)} µm/s  = ${(sp / len).toFixed(2)} body lengths/s`,
       `  up/down ${vy >= 0 ? '+' : ''}${vy.toFixed(2)} µm/s  (${(vy * 0.0864).toFixed(2)} m/day)`,
       `  sideways ${vx.toFixed(2)} µm/s`,
-      `power     ${((now.e - then.e) / dt / 1000).toFixed(1)} fW (motors)`,
+      `power     ${((now.e - then.e) / dt / 1000).toFixed(1)} fW (motors and pumps)`,
     );
   } else lines.push('speed     (measuring over 1 s...)');
   if (released) lines.push(`released  ${Math.hypot(cell.q[0] - released.x, cell.q[1] - released.y).toFixed(2)} µm from the cross, ${((worldTime(world) - released.t) * 1000).toFixed(0)} ms ago`);
-  lines.push(`spent     ${(cell.energy.motor / 1000).toFixed(1)} fJ in total`);
+  lines.push(`spent     ${(cell.energy.motor / 1000).toFixed(1)} fJ motors, ${(cell.energy.pump / 1000).toFixed(1)} fJ pumping`);
+  if (world.cells.length > 1) {
+    const together = world.cells.filter((c) => c.group === cell.group).length;
+    lines.push(`cells     ${world.cells.length}, pad links ${world.links.length}, this one's group ${together}`);
+  }
+  for (const inc of cell.pieces[0].inclusions) if (inc.show) inc.show();
   $('stats').textContent = lines.join('\n');
 }
 
@@ -161,7 +190,8 @@ function draw() {
     ctx.moveTo(X(released.x) - 6, Y(released.y)); ctx.lineTo(X(released.x) + 6, Y(released.y));
     ctx.moveTo(X(released.x), Y(released.y) - 6); ctx.lineTo(X(released.x), Y(released.y) + 6); ctx.stroke();
   }
-  drawCell(cell, X, Y, s);
+  for (const c of world.cells) drawCell(c, X, Y, s);
+  drawLinks(X, Y, s);
   drawScale(W, H, s);
   drawMinimap(W, H);
 }
@@ -190,8 +220,35 @@ function drawCell(c, X, Y, s) {
   for (let i = 0; i < c.pieces.length; i++) {
     const p = c.pieces[i];
     if (p.joint < 0) continue;
-    ctx.fillStyle = c.joints[p.joint].type === 'motor' ? COLOR.motor : COLOR.hinge;
+    ctx.fillStyle = COLOR[c.joints[p.joint].type] || COLOR.motor;
     ctx.beginPath(); ctx.arc(X(c.jx[i]), Y(c.jy[i]), Math.max(0.8 * s, 2), 0, Math.PI * 2); ctx.fill();
+  }
+  for (const pad of c.pads) {
+    const [px, py] = padWorld(c, pad);
+    ctx.strokeStyle = COLOR[pad.kind]; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(pad.r * s, 2.5), 0, Math.PI * 2); ctx.stroke();
+  }
+  if (c === cell && world.cells.length > 1) {   // a ring round the selected cell
+    ctx.strokeStyle = COLOR.selected; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.arc(X(c.q[0]), Y(c.q[1]), (c.pieces[0].a + c.pieces[0].L / 2) * s + 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function padWorld(c, pad) {
+  const i = pad.piece, p = c.pieces[i], x = pad.x + (p.ext ? p.offset : 0);
+  return [c.cx[i] + c.cs[i] * x - c.sn[i] * pad.y, c.cy[i] + c.sn[i] * x + c.cs[i] * pad.y];
+}
+
+function drawLinks(X, Y, s) {
+  ctx.strokeStyle = COLOR.link; ctx.lineWidth = Math.max(0.6 * s, 1.5);
+  for (const l of world.links) {
+    const A = world.cells[l.a], B = world.cells[l.b];
+    const [ax, ay] = padWorld(A, l.padA);
+    let bx, by;
+    if (l.padB) [bx, by] = padWorld(B, l.padB);
+    else { const i = l.pieceB; bx = B.cx[i] + B.cs[i] * l.bx - B.sn[i] * l.by; by = B.cy[i] + B.sn[i] * l.bx + B.cs[i] * l.by; }
+    ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
   }
 }
 
@@ -209,20 +266,44 @@ function drawMinimap(W, H) {
   ctx.strokeStyle = COLOR.gridMajor; ctx.strokeRect(mx, my, mw, mh);
   ctx.fillStyle = COLOR.trail;
   for (const [tx, ty] of trail) ctx.fillRect(mx + tx / TW * mw, my + (1 - ty / TH) * mh, 1, 1);
-  ctx.fillStyle = COLOR.outline;
-  ctx.beginPath(); ctx.arc(mx + cell.q[0] / TW * mw, my + (1 - cell.q[1] / TH) * mh, 3, 0, Math.PI * 2); ctx.fill();
+  for (const c of world.cells) {
+    ctx.fillStyle = c === cell ? COLOR.outline : COLOR.label;
+    ctx.beginPath(); ctx.arc(mx + c.q[0] / TW * mw, my + (1 - c.q[1] / TH) * mh, c === cell ? 3 : 2, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
-// wheel zooms, drag pans (and stops following)
+// wheel zooms; dragging a cell moves it (tweezers) and selects it; dragging water pans (and stops following)
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const z = $('zoom');
   z.value = Math.min(20, Math.max(0.3, Number(z.value) * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
 }, { passive: false });
 let drag = null;
-canvas.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, cam: { ...cam } }; $('follow').checked = false; });
+function toWorld(e) {
+  const r = canvas.getBoundingClientRect(), s = Number($('zoom').value);
+  return [cam.x + (e.clientX - r.left - r.width / 2) / s, cam.y - (e.clientY - r.top - r.height / 2) / s];
+}
+canvas.addEventListener('pointerdown', (e) => {
+  const [wx, wy] = toWorld(e);
+  const s = Number($('zoom').value);
+  const hit = world.cells.find((c) => Math.hypot(c.q[0] - wx, c.q[1] - wy) < c.pieces[0].a + c.pieces[0].L / 2 + 6 / s);
+  if (hit) {
+    if (hit !== cell) select(hit);
+    drag = { cell: hit, dx: hit.q[0] - wx, dy: hit.q[1] - wy };
+    $('follow').checked = false;   // a camera following the dragged cell would run away from the mouse
+  } else {
+    drag = { x: e.clientX, y: e.clientY, cam: { ...cam } };
+    $('follow').checked = false;
+  }
+});
 window.addEventListener('pointermove', (e) => {
   if (!drag) return;
+  if (drag.cell) {
+    const [wx, wy] = toWorld(e);
+    drag.cell.q[0] = wx + drag.dx; drag.cell.q[1] = wy + drag.dy;
+    updatePose(drag.cell);
+    return;
+  }
   const s = Number($('zoom').value);
   cam = { x: drag.cam.x - (e.clientX - drag.x) / s, y: drag.cam.y + (e.clientY - drag.y) / s };
 });

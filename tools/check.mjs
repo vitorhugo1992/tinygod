@@ -208,7 +208,114 @@ const flapper = (stroke, stiffness) => ({ body: { radius: 8 }, parts: stiffness 
     [500, 2000, 8000].map((k, i) => `k ${k}: ${fmt(r[i].d, 3)} µm, 90% sprung in ${fmt(r[i].t90 * 1000, 0)} ms`).join('; '));
 }
 
-// 13. Speed (not a pass test yet)
+const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
+
+// 13. An extending ribbon (ejectisome) pushes the cell back; again, a stronger spring goes no farther
+{
+  const shoot = (stiffness, length = 30) => {
+    const d = copy('Ejectisome');
+    Object.assign(d.parts[0], { length });
+    Object.assign(d.parts[0].joint, { stiffness, latched: false });
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, d, 300, 1000, 0);
+    for (let i = 0; i < 3000; i++) stepWorld(w);
+    return { d: Math.hypot(c.q[0] - 300, c.q[1] - 1000), back: c.q[0] - 300, out: c.q[3] };
+  };
+  const r = [5, 20, 80].map((k) => shoot(k));
+  const long = shoot(20, 60);
+  check('an extending ribbon pushes the cell back; stronger is not farther; longer is farther',
+    r[0].back > 0.5 && Math.max(...r.map((x) => x.d)) / Math.min(...r.map((x) => x.d)) < 1.01 && long.d > r[1].d && r[1].out > 29.9,
+    `30 µm ribbon, k 5/20/80: ${r.map((x) => fmt(x.d, 3)).join(' / ')} µm (cell 12 µm across); 60 µm ribbon: ${fmt(long.d, 2)} µm`);
+}
+
+// 14. A sap vacuole pumped lighter than seawater turns a sinking cell into a rising one, slowly, at a cost
+{
+  const w = makeWorld(1);
+  const c = addCell(w, copy('Sap vacuole'), 300, 1000, 0);
+  for (let i = 0; i < 1000; i++) stepWorld(w);
+  const sinkBefore = 1000 - c.q[1];
+  const inc = c.pieces[0].inclusions[0];
+  inc.target = 1005;
+  let tFloat = null;
+  for (let i = 0; i < 40000; i++) { const y = c.q[1]; stepWorld(w); if (tFloat === null && c.q[1] > y) tFloat = (i + 1) * DT; }
+  const y0 = c.q[1];
+  for (let i = 0; i < 1000; i++) stepWorld(w);
+  const rise = c.q[1] - y0;
+  check('pumping a sap vacuole light makes a sinking cell rise, after a delay, at an energy cost',
+    sinkBefore > 0 && rise > 0 && tFloat > 1 && c.energy.pump > 0,
+    `sinks ${fmt(sinkBefore)} µm/s at 1025; pumped to 1005 it starts rising after ${fmt(tFloat, 1)} s and rises ` +
+    `${fmt(rise)} µm/s; pumping cost ${fmt(c.energy.pump / 1000, 1)} fJ`);
+}
+
+// 15. Cells don't pass through each other: one dropped on another settles touching it
+{
+  const w = makeWorld(1);
+  const a = addCell(w, sphere(10), 300, 10, 0);
+  const b = addCell(w, sphere(8, 'glass'), 300, 60, 0);
+  for (let i = 0; i < 20000; i++) stepWorld(w);
+  const gap = Math.hypot(a.q[0] - b.q[0], a.q[1] - b.q[1]);
+  check('a cell dropped on another comes to rest on it', b.q[1] > a.q[1] && gap > 17.5 && gap < 18.5,
+    `centres ${fmt(gap, 2)} µm apart (radii add to 18), the upper one ${fmt(b.q[1] - a.q[1], 2)} µm higher`);
+}
+
+// 16. Pads: kin pads hold kin pads end to end, not strangers; mucus holds anyone, weakly; links snap
+{
+  const pair = (da, db, gap = 22.5) => {
+    const w = makeWorld(1, { gravity: false });
+    const a = addCell(w, da, 300, 1000, 0), b = addCell(w, db, 300 + gap, 1000, 0);
+    for (let i = 0; i < 500; i++) stepWorld(w);
+    return { w, a, b };
+  };
+  const kin = pair(copy('Kin chain'), copy('Kin chain'));
+  const stranger = copy('Kin chain'); stranger.species = 'B';
+  const strangers = pair(copy('Kin chain'), stranger);
+  const mucusDesign = copy('Kin chain'); mucusDesign.species = 'C'; mucusDesign.parts[0].kind = 'mucus';
+  const mucus = pair(mucusDesign, stranger);
+  // pull apart: a kin link holds a 5 µm stretch (25 pN) but not 10 µm (50 pN); mucus snaps at 2 µm (10 pN)
+  // (at 1 µm it snaps but is still within its 1 µm reach, so it sticks again at once)
+  const yank = (p, by) => { p.b.q[0] += by; for (let i = 0; i < 5; i++) stepWorld(p.w); return p.w.links.length; };
+  const kinHolds = yank(pair(copy('Kin chain'), copy('Kin chain')), 5);
+  const kinSnaps = yank(pair(copy('Kin chain'), copy('Kin chain')), 10);
+  const mucusSnaps = yank(pair(mucusDesign, stranger), 2);
+  check('kin pads hold kin end to end, not strangers; mucus holds anyone weakly; pulled too hard, links snap',
+    kin.w.links.length === 1 && Math.abs(kin.b.q[0] - kin.a.q[0] - 22) < 0.1 && strangers.w.links.length === 0 &&
+    mucus.w.links.length === 1 && kinHolds === 1 && kinSnaps === 0 && mucusSnaps === 0,
+    `kin + kin: ${kin.w.links.length} link, ${fmt(kin.b.q[0] - kin.a.q[0], 2)} µm centre to centre (22 = touching); ` +
+    `kin + stranger: ${strangers.w.links.length}; mucus + stranger: ${mucus.w.links.length}\n      ` +
+    `yanked: kin 5 µm ${kinHolds ? 'holds' : 'snaps'}, kin 10 µm ${kinSnaps ? 'holds' : 'snaps'}, mucus 2 µm ${mucusSnaps ? 'holds' : 'snaps'}`);
+}
+
+// 17. The hidden chain backstop: no group grows past PARAMS.pads.maxChain (lowered to 3 here to test it)
+{
+  const cap = PARAMS.pads.maxChain;
+  PARAMS.pads.maxChain = 3;
+  const w = makeWorld(1, { gravity: false });
+  for (let i = 0; i < 6; i++) addCell(w, copy('Kin chain'), 200 + 22.5 * i, 1000, 0);
+  for (let i = 0; i < 500; i++) stepWorld(w);
+  PARAMS.pads.maxChain = cap;
+  const sizes = {};
+  for (const c of w.cells) sizes[c.group] = (sizes[c.group] || 0) + 1;
+  const biggest = Math.max(...Object.values(sizes));
+  check('chains stop at the hidden backstop', biggest === 3 && w.links.length === 4,
+    `6 kin cells in a row with the cap at 3: groups of ${Object.values(sizes).join(', ')}, ${w.links.length} links`);
+}
+
+// 18. Determinism with cells meeting, sticking and pushing
+{
+  const go = () => {
+    const w = makeWorld(3);
+    addCell(w, copy('Mucus hitchhiker'), 250, 1000, 0);
+    addCell(w, copy('Kin chain'), 300, 1000, 90);
+    addCell(w, copy('Kin chain'), 300, 1023, 90);
+    addCell(w, copy('Sap vacuole'), 380, 1000, 0);
+    for (let i = 0; i < 5000; i++) stepWorld(w);
+    return new Uint8Array(Float64Array.from(w.cells.flatMap((c) => Array.from(c.q))).buffer);
+  };
+  const a = go(), b = go();
+  check('a world of meeting cells runs bit-identical twice', a.every((x, i) => x === b[i]), `${a.length / 8} numbers compared after 5 s`);
+}
+
+// 19. Speed (not a pass test yet)
 {
   for (const name of ['Spiny cell', 'Wave tail']) {
     const w = makeWorld(1); addCell(w, PRESETS[name], 300, 1500, 0);

@@ -5,8 +5,9 @@ The author is a **phytoplankton researcher**: the biology carries weight, and th
 authoritative.
 
 **Status (2026-10-23): building step 0, the physics sandbox** (author's go given). Done: sinking, joints, motors,
-the swimming laws, a first viewer with presets. Next: inclusions that change over time, pads, sensors, coloured
-light; then the drag-and-drop editor.
+latched springs, extending parts (ejectisome), pumped sap vacuoles, cells touching, kin and mucus pads, chains with
+the hidden cap, a viewer with presets, tweezers and copies; 18 physics checks pass. Held back: sensors (what
+switches parts on is open), coloured light (waiting on how the 2 mm tank maps to a real water column).
 
 ---
 

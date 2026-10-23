@@ -3,11 +3,16 @@
 // Each piece's drag is resistive force theory about its centre. Contacts and joint springs are treated
 // implicitly (their stiffness × dt joins the drag matrix), so they stay stable at any stiffness.
 // Motors drive their joint's angle exactly (prescribed), and pay for the torque that takes.
+// Other cells act through cell.ext (contacts and pad pulls, found once a step by interact.js): their points are
+// held where they were at the start of the step, and each side takes the stiffness implicitly at twice the step,
+// so two cells pushing on each other never overshoot.
 import { PARAMS } from './params.js';
 import { dsin, dcos } from './dmath.js';
 
 const DT = PARAMS.time.dt;
 const KC = PARAMS.contact.stiffness;
+const PUMP_RATE = PARAMS.cell.pumpRate, PUMP_COST = PARAMS.cell.pumpCost, CYTO = PARAMS.cell.cytoplasm;
+const G = PARAMS.gravity * 1e-6;
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 
 // Step length used for the implicit spring and contact terms (the current sub-step)
@@ -25,9 +30,15 @@ export function updatePose(cell) {
     if (p.parent < 0) { a = q[2]; px = q[0]; py = q[1]; }
     else {
       const k = p.parent;
-      px = cx[k] + cs[k] * p.ax - sn[k] * p.ay;
-      py = cy[k] + sn[k] * p.ax + cs[k] * p.ay;
-      a = phi[k] + p.mount + (p.joint >= 0 ? q[3 + p.joint] : 0);
+      const ax = p.ax + (pieces[k].ext ? pieces[k].offset : 0);   // on an extending part, measured from its tip
+      px = cx[k] + cs[k] * ax - sn[k] * p.ay;
+      py = cy[k] + sn[k] * ax + cs[k] * p.ay;
+      a = phi[k] + p.mount + (p.joint >= 0 && !p.ext ? q[3 + p.joint] : 0);
+    }
+    if (p.ext) {               // exposed length is the joint's unknown; drag grows with it
+      const e = q[3 + p.joint], x = p.ext;
+      p.L = e; p.offset = e / 2;
+      p.xt = x.s + x.ct * e; p.xn = x.s + x.cn * e; p.xr = x.r + x.cn * e * e * e / 12;
     }
     const c = dcos(a), s = dsin(a);
     phi[i] = a; cs[i] = c; sn[i] = s; jx[i] = px; jy[i] = py;
@@ -46,23 +57,44 @@ function fillCols(cell, cols, px, py) {
     const c = cols[k];
     if (c === 0) { UX[k] = 1; UY[k] = 0; }
     else if (c === 1) { UX[k] = 0; UY[k] = 1; }
-    else {
+    else if (cell.colTurn[c]) {
       const o = c === 2 ? 0 : cell.jointPiece[c - 3];   // turning about the body centre, or about a joint
       UX[k] = -(py - cell.jy[o]); UY[k] = px - cell.jx[o];
+    } else {
+      const o = cell.jointPiece[c - 3];                  // sliding out along an extending part's axis
+      UX[k] = cell.cs[o]; UY[k] = cell.sn[o];
     }
   }
 }
 
-// A stiff contact pushing point (px, py) of a piece along (nx, ny) by depth pen
-function contact(cell, cols, px, py, nx, ny, pen) {
+// A spring of stiffness kc pushing point (px, py) of a piece along (nx, ny) by `pen` (negative pulls), with its
+// stiffness × imp taken implicitly
+function contact(cell, cols, px, py, nx, ny, pen, kc = KC, imp = IMP) {
   const { A, f, n } = cell;
   fillCols(cell, cols, px, py);
   const m = cols.length;
   for (let k = 0; k < m; k++) {
     const gk = UX[k] * nx + UY[k] * ny;
     if (gk === 0) continue;
-    f[cols[k]] += gk * KC * pen;
-    for (let l = 0; l < m; l++) A[cols[k] * n + cols[l]] += IMP * KC * gk * (UX[l] * nx + UY[l] * ny);
+    f[cols[k]] += gk * kc * pen;
+    for (let l = 0; l < m; l++) A[cols[k] * n + cols[l]] += imp * kc * gk * (UX[l] * nx + UY[l] * ny);
+  }
+}
+
+// Contacts and pad pulls from other cells (interact.js)
+function outside(cell) {
+  const { pieces, cs, sn, cx, cy } = cell;
+  for (const e of cell.ext) {
+    const i = e.piece, c = cs[i], s = sn[i];
+    const px = cx[i] + c * e.x - s * e.y, py = cy[i] + s * e.x + c * e.y;
+    const cols = pieces[i].cols;
+    if (e.type === 'push') {                 // pushed out along n until it clears (tx, ty)
+      const pen = e.nx * (e.tx - px) + e.ny * (e.ty - py);
+      if (pen > 0) contact(cell, cols, px, py, e.nx, e.ny, pen, e.k, 2 * IMP);
+    } else {                                 // pulled toward (tx, ty) by a zero-length spring
+      contact(cell, cols, px, py, 1, 0, e.tx - px, e.k, 2 * IMP);
+      contact(cell, cols, px, py, 0, 1, e.ty - py, e.k, 2 * IMP);
+    }
   }
 }
 
@@ -94,10 +126,10 @@ function assemble(cell, gravity) {
     fillCols(cell, cols, cx[i], cy[i]);
     for (let k = 0; k < m; k++) {
       const ax = rxx * UX[k] + rxy * UY[k], ay = rxy * UX[k] + ryy * UY[k];
-      const turnk = cols[k] >= 2;
+      const turnk = cell.colTurn[cols[k]];
       const row = cols[k] * n;
       for (let l = 0; l < m; l++) {
-        A[row + cols[l]] += UX[l] * ax + UY[l] * ay + (turnk && cols[l] >= 2 ? p.xr : 0);
+        A[row + cols[l]] += UX[l] * ax + UY[l] * ay + (turnk && cell.colTurn[cols[l]] ? p.xr : 0);
       }
     }
 
@@ -113,6 +145,7 @@ function assemble(cell, gravity) {
     walls(cell, cols, cx[i] + c * h, cy[i] + s * h, p.a);
     if (h > 0) walls(cell, cols, cx[i] - c * h, cy[i] - s * h, p.a);
   }
+  if (cell.ext.length) outside(cell);
 }
 
 // Symmetric positive definite: plain Gaussian elimination, + - * / only
@@ -141,10 +174,10 @@ function velocities(cell, from, tEnd, h, gravity) {
   assemble(cell, gravity);
   const { q, v, n, A, f, A0, f0, joints } = cell;
 
-  // springy joints pull toward their rest angle
+  // springy joints pull toward their rest angle (hinges) or rest length (extenders)
   for (let j = 0; j < joints.length; j++) {
     const jt = joints[j];
-    if (jt.type !== 'hinge' || jt.stiffness === 0) continue;
+    if (jt.type === 'motor' || jt.stiffness === 0) continue;
     const p = 3 + j;
     f[p] -= jt.stiffness * (q[p] - jt.rest);
     A[p * n + p] += IMP * jt.stiffness;
@@ -184,20 +217,39 @@ function velocities(cell, from, tEnd, h, gravity) {
 // stiffness × step (measured: a stiff spring's hop came out 14% too long at 1 ms). Fixed once per design, from
 // its build pose, so it stays deterministic.
 export function planSubsteps(cell) {
+  // extenders measured half out, where their drag is typical
+  const saved = Float64Array.from(cell.q);
+  cell.joints.forEach((jt, j) => { if (jt.type === 'extend') cell.q[3 + j] = cell.pieces[jt.piece].ext.max / 2; });
+  const ext = cell.ext; cell.ext = [];
   updatePose(cell);
   IMP = DT;
   assemble(cell, false);
+  cell.ext = ext;
   // relaxation time: the joint's drag with everything else free to move (1 / (A⁻¹)pp), over its stiffness
   const { n } = cell, A = new Float64Array(n * n), b = new Float64Array(n), x = new Float64Array(n);
   let fastest = Infinity;
   cell.joints.forEach((jt, j) => {
-    if (jt.type !== 'hinge' || jt.stiffness === 0) return;
+    if (jt.type === 'motor' || jt.stiffness === 0) return;
     const p = 3 + j;
     A.set(cell.A); b.fill(0); b[p] = 1;
     solve(A, b, n, x);
     fastest = Math.min(fastest, 1 / x[p] / jt.stiffness);
   });
   cell.sub = Math.min(Math.max(Math.ceil(PARAMS.time.subPerRelax * DT / fastest), 1), PARAMS.time.maxSub);
+  cell.q.set(saved);
+  updatePose(cell);
+}
+
+// Sap vacuoles pump toward their target density at a limited rate; moving ions costs energy
+function pump(cell) {
+  for (const inc of cell.pieces[0].inclusions) {
+    if (!inc.pumpable || inc.target === inc.density) continue;
+    const d = inc.target - inc.density, step = PUMP_RATE * DT;
+    const change = d > step ? step : d < -step ? -step : d;
+    inc.density += change;
+    inc.wpt.w = (inc.density - CYTO) * inc.v * G;
+    cell.energy.pump += PUMP_COST * (change < 0 ? -change : change) * inc.v;
+  }
 }
 
 // Step one cell from time t to t + dt in cell.sub sub-steps, each by the midpoint method: velocities at the start
@@ -207,6 +259,7 @@ export function stepCell(cell, t, gravity = true) {
   const { q, v, n } = cell;
   const q0 = cell.q0 || (cell.q0 = new Float64Array(n));
   const sub = cell.sub || 1, h = DT / sub;
+  pump(cell);
   IMP = h;
   let energy = 0;
   for (let k = 0; k < sub; k++) {
@@ -221,4 +274,10 @@ export function stepCell(cell, t, gravity = true) {
   }
   cell.power = energy / DT;
   cell.energy.motor += energy;
+  // extenders can't go back into the cell past nothing, nor out past their length
+  for (let j = 0; j < cell.joints.length; j++) {
+    if (cell.joints[j].type !== 'extend') continue;
+    const p = 3 + j, max = cell.pieces[cell.joints[j].piece].ext.max;
+    if (q[p] < 0) q[p] = 0; else if (q[p] > max) q[p] = max;
+  }
 }
