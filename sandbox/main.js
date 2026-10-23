@@ -2,7 +2,7 @@
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
-import { updatePose, fire } from '../sim/physics.js';
+import { updatePose, fire, motorAngle } from '../sim/physics.js';
 import { rewire, controlsOf } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel } from '../sim/sense.js';
@@ -370,10 +370,51 @@ function advance(steps) {
   for (const c of world.cells) updatePose(c);
 }
 
+// ----- calm drawing: beats drawn slowly, the body's beat-wobble smoothed; the physics is untouched -----
+// A real tail beats 20-500 times a second: on screen, a blur. Each motor gets a drawn phase that advances at most
+// VIS_BEATS strokes per real second; the body's pose (and passive hinges) follow the physics through a short
+// smoothing. When the true beat is already that slow on screen (slow motion), the drawing is the physics exactly.
+const VIS_BEATS = 2.5, VIS_TAU = 0.25;   // strokes per real second; smoothing time (real seconds)
+let calmBeats = true, lastReal = 0;
+function calmPose(c, realDt, speed) {
+  const v = c.vis || (c.vis = { q: Float64Array.from(c.q), phase: c.joints.map((j) => (j.clock || 0) * (j.rate || 0)) });
+  let fast = false;
+  c.joints.forEach((j, i) => {
+    if (j.type !== 'motor') return;
+    const f = Math.min(1, VIS_BEATS / (j.rate * Math.max(speed, 1e-9)));   // how much slower to draw it
+    if (f < 1) fast = true;
+    if (j.on) v.phase[i] += j.rate * f * speed * realDt;
+  });
+  if (!calmBeats || !fast) {   // the true pose
+    v.q.set(c.q);
+    c.joints.forEach((j, i) => { if (j.type === 'motor') v.phase[i] = j.clock * j.rate; });
+    return null;
+  }
+  const k = 1 - Math.exp(-realDt / VIS_TAU);
+  // position exactly (smoothing it would lag behind the swimming cell); the turn and passive hinges smoothed, since
+  // they wobble with every beat
+  v.q[0] = c.q[0]; v.q[1] = c.q[1];
+  for (let i = 2; i < c.n; i++) {
+    let d = c.q[i] - v.q[i];
+    if (i === 2) d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));   // the turn: the short way round
+    v.q[i] += Math.abs(d) > 2 ? d : d * k;                            // a big jump (Q/E, a snap) at once
+  }
+  c.joints.forEach((j, i) => { if (j.type === 'motor') v.q[3 + i] = motorAngle(j, v.phase[i] / j.rate); });
+  // a copy of the cell posed for drawing: it shares everything but the pose
+  const d = Object.assign({}, c, {
+    q: v.q, phi: new Float64Array(c.phi), cs: new Float64Array(c.cs), sn: new Float64Array(c.sn),
+    cx: new Float64Array(c.cx), cy: new Float64Array(c.cy), jx: new Float64Array(c.jx), jy: new Float64Array(c.jy),
+  });
+  updatePose(d);
+  updatePose(c);   // extenders keep their length on the shared piece objects: put the true one back
+  return d;
+}
+
 let last = performance.now();
 function frame(now) {
   const elapsed = Math.min((now - last) / 1000, 0.1);
   last = now;
+  lastReal = elapsed;
   if (playing && world) {
     acc += elapsed * Number($('speed').value);
     const want = Math.floor(acc / DT);
@@ -531,7 +572,8 @@ function draw() {
     ctx.lineWidth = Math.max(2 * a * s, 1);
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
   }
-  for (const c of world.cells) drawCell(c, X, Y, s);
+  const spd = playing ? Number($('speed').value) : 0;
+  for (const c of world.cells) drawCell(calmPose(c, lastReal, spd) || c, X, Y, s, c);
   drawLinks(X, Y, s);
   drawScale(W, H, s);
   drawMinimap(W, H);
@@ -554,7 +596,7 @@ function drawHud(W, H) {
   if (world.metab && m.starving) { ctx.fillStyle = COLOR.starving; ctx.fillText('STARVING', 17 + tw - 82, H - 46); }
 }
 
-function drawCell(c, X, Y, s) {
+function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the cell itself
   ctx.lineCap = 'round';
   // segments first, body over them, then inclusions and joints
   const order = c.pieces.map((p, i) => i).sort((a, b) => (c.pieces[a].kind === 'body') - (c.pieces[b].kind === 'body'));
@@ -606,13 +648,13 @@ function drawCell(c, X, Y, s) {
       ctx.strokeStyle = COLOR.touch; ctx.fillStyle = COLOR.touch; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2);
       if (sn.value > 0) ctx.fill(); else ctx.stroke();
-      if (sn.kind === 'near' && c === cell) {
+      if (sn.kind === 'near' && real === cell) {
         ctx.strokeStyle = COLOR.near + (0.15 + 0.5 * sn.value) + ')'; ctx.setLineDash([4, 4]);
         ctx.beginPath(); ctx.arc(X(px), Y(py), sn.range * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
       }
       continue;
     }
-    if (c === cell) {   // the eyespot's cone, faint
+    if (real === cell) {   // the eyespot's cone, faint
       const dir = c.phi[i] + sn.facing, r = 14;
       ctx.fillStyle = COLOR.light + '.12)';
       ctx.beginPath(); ctx.moveTo(X(px), Y(py));
@@ -632,7 +674,7 @@ function drawCell(c, X, Y, s) {
     ctx.strokeStyle = COLOR[pad.kind]; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(pad.r * s, 2.5), 0, Math.PI * 2); ctx.stroke();
   }
-  if (c === cell && c.design === design) {      // where the Build panel would put the next part
+  if (real === cell && c.design === design) {      // where the Build panel would put the next part
     const [mx, my] = surfacePoint(design.body, Number($('partAngle').value));
     const [wx, wy] = [c.cx[0] + c.cs[0] * mx - c.sn[0] * my, c.cy[0] + c.sn[0] * mx + c.cs[0] * my];
     ctx.fillStyle = COLOR.selected; ctx.strokeStyle = COLOR.selected; ctx.lineWidth = 1;
@@ -640,7 +682,7 @@ function drawCell(c, X, Y, s) {
     const dir = c.phi[0] + (Number($('partAngle').value) + Number($('partTilt').value)) * Math.PI / 180;
     ctx.beginPath(); ctx.moveTo(X(wx), Y(wy)); ctx.lineTo(X(wx + Math.cos(dir) * 8), Y(wy + Math.sin(dir) * 8)); ctx.stroke();
   }
-  if (c === cell && world.cells.length > 1) {   // a ring round the selected cell
+  if (real === cell && world.cells.length > 1) {   // a ring round the selected cell
     ctx.strokeStyle = COLOR.selected; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.arc(X(c.q[0]), Y(c.q[1]), (c.pieces[0].a + c.pieces[0].L / 2) * s + 6, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
@@ -790,6 +832,7 @@ function segmented(boxId, selectId) {
 }
 segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall'); segmented('feelsSeg', 'partFeels');
 const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked = !$(boxId).checked; $(boxId).dispatchEvent(new Event('change')); }; };
+$('calmBtn').onclick = () => { calmBeats = !calmBeats; };
 toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day');
 $('day').onchange = () => { if (world) world.day = $('day').checked; };
 if (window.matchMedia('(max-width: 760px)').matches) $('stats').hidden = true;   // phones: the tank first
@@ -830,6 +873,7 @@ function syncButtons() {
   $('gravityBtn').classList.toggle('on', $('gravity').checked);
   $('lightBtn').classList.toggle('on', $('light').checked);
   $('dayBtn').classList.toggle('on', $('day').checked);
+  $('calmBtn').classList.toggle('on', calmBeats);
   $('infoBtn').classList.toggle('on', !$('stats').hidden);
 }
 
