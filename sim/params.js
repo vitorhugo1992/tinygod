@@ -31,6 +31,25 @@ export const PARAMS = {
     strength: 1,            // light from above, at the surface (relative)
     attenuation: 0.0015,    // per µm: the 2 mm tank's light is a water column squeezed (made playable): 5% at the floor
   },
+  // Metabolism (made playable, numbers round and tuned for play, CLAUDE.md). Energy in pJ; flows per sandbox second.
+  // A sandbox day lasts `day` seconds; every energy flow runs `speedup` times faster than real, together, so each
+  // part's share of the budget stays honest while motion stays in real seconds.
+  metab: {
+    day: 600,               // s
+    dawn: 0.06,             // a world starts this far into its day (just after sunrise)
+    speedup: 144,           // real day / sandbox day: motors' and pumps' real power counts this many times
+    bodyUpkeep: 1,          // pJ/s per µm³ of body
+    partUpkeep: 5,          // pJ/s per µm of segment
+    insideUpkeep: 0.2,      // pJ/s per µm³ of plastid or store
+    plastidMax: 50,         // pJ/s per µm³ of plastid in full light...
+    plastidHalf: 0.2,       // ...and half of that at this light
+    pool: 60,               // pJ per µm³ of body the cytoplasm holds (about a minute of upkeep)
+    start: 0.8,             // pool at birth, share of full
+    fillAbove: 0.8,         // stores fill while the pool is above this share...
+    burnBelow: 0.3,         // ...and are burned while it is below this
+    starch: { energy: 6000, fill: 1 / 200, burn: 1 / 150 },   // pJ per µm³; share of a full store per s
+    oil: { energy: 9000, fill: 1 / 600, burn: 1 / 600 },      // denser energy, light, but slow both ways
+  },
   sensor: {
     threshold: 0.5,         // 'light' / 'dark' wiring splits here
     hysteresis: 0.03,       // a wired part changes state only this far inside or outside its range (no flicker)

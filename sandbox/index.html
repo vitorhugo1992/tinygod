@@ -102,6 +102,7 @@
     <span class="seg" id="viewSeg" title="Camera"></span>
     <button id="gravityBtn" title="Weight and buoyancy">Gravity</button>
     <button id="lightBtn" title="Light from above, fading with depth">☀ Light</button>
+    <button id="dayBtn" title="The sun rises and sets (a day lasts 10 minutes at 1×); off: always noon">☾ Day</button>
     <span class="seg"><button id="rotL" title="Turn the selected cell (or Q)">⟲</button><button id="rotR" title="Turn the selected cell (or E)">⟳</button></span>
     <span class="seg"><button id="zoomOut" title="Zoom out (or mouse wheel)">−</button><button id="zoomIn" title="Zoom in (or mouse wheel)">+</button></span>
   </div>
@@ -149,6 +150,7 @@
   <select id="bodyWall" hidden><option value="protein">Protein</option><option value="glass">Glass</option></select>
   <input type="checkbox" id="gravity" checked hidden>
   <input type="checkbox" id="light" checked hidden>
+  <input type="checkbox" id="day" checked hidden>
   <input type="range" id="zoom" min="0.3" max="20" step="any" value="5" hidden>
 </div>
 <script type="module" src="main.js"></script>

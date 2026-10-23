@@ -4,6 +4,7 @@ import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire } from '../sim/physics.js';
 import { rewire } from '../sim/build.js';
+import { lightAt, daylight, clock } from '../sim/light.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -15,7 +16,7 @@ const COLOR = {
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
-  eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
+  plastid: '#8fc94a', starch: '#ece3c4', starving: '#ff5a4a', eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
 
 let design, world, cell, playing = true, acc = 0, lagging = false;   // cell: the selected one (followed, measured)
@@ -153,11 +154,12 @@ $('cancelEdit').onclick = stopEditing;
 for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside']) $(id).onchange = () => { if (editing) updateEdited(); };
 // Wiring for a group's motors (runs) or latched springs (released): a sensor, and the range of its reading (0-1)
 // in which the part runs or fires
-const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1] };   // a sensible start when a sensor is picked
+const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], hunger: [0.3, 1] };   // a sensible start when a sensor is picked
 const SCALE = {   // what the 0-1 reading means, shown beside the range
   light: '0 = dark or facing away, 1 = facing up in full light',
   touch: '0 = nothing, 1 = another species touching',
   near: '0 = nobody in range, 1 = another species touching',
+  hunger: '0 = energy pool empty (starving), 1 = full',
 };
 function wiring(g, wired) {
   const box = document.createElement('div');
@@ -245,7 +247,7 @@ function listParts() {
 function reset(pose) {
   $('err').textContent = '';
   const s = (pose && pose.x !== undefined ? pose : null) || design.start || {};
-  const w = makeWorld(1, { gravity: $('gravity').checked, light: $('light').checked });
+  const w = makeWorld(1, { gravity: $('gravity').checked, light: $('light').checked, day: $('day').checked, metab: true });
   try {
     cell = addCell(w, design, s.x ?? TW / 2, s.y ?? TH * 0.6, s.angle ?? 0);
   } catch (e) {
@@ -378,8 +380,9 @@ function stats() {
     const together = world.cells.filter((c) => c.group === cell.group).length;
     lines.push(`cells     ${world.cells.length}, pad links ${world.links.length}, this one's group ${together}`);
   }
-  lines.push(`light here ${(world.light ? Math.exp(-PARAMS.light.attenuation * (TH - cell.q[1])) : 0).toFixed(2)} of the surface's`);
-  const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity' };
+  lines.push(`light here ${lightAt(world, cell.q[1]).toFixed(2)} (1 = full sun at the surface)`);
+  budget(lines);
+  const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity', hunger: 'hunger' };
   cell.sensors.forEach((sn, i) => lines.push(`${NAME[sn.kind].padEnd(9)} ${sn.value.toFixed(2)}`));
   const bursts = cell.joints.filter((j) => j.burst);
   if (bursts.length) {
@@ -387,9 +390,31 @@ function stats() {
     lines.push(`burst     ${b.state === 'charged' ? 'charged' : b.state === 'firing' ? 'FIRING' : `recharging, ${(b.recharge - b.t).toFixed(1)} s left`}`);
   }
   const motors = cell.joints.filter((j) => j.type === 'motor' && !j.burst);
+  if (motors.length && cell.metab.starving) lines.push('motors    stopped: STARVING');
   if (motors.length) lines.push(`motors    ${motors.filter((j) => j.on).length} of ${motors.length} running`);
   for (const inc of cell.pieces[0].inclusions) if (inc.show) inc.show();
   $('stats').textContent = lines.join('\n');
+}
+
+// The energy budget of the selected cell: income, then where it goes, as shares of the income
+function budget(lines) {
+  const m = cell.metab;
+  if (!world.metab) return;
+  const base = m.income > 0 ? m.income : null;
+  const show = (v) => base ? `${(100 * v / base).toFixed(v / base < 0.01 ? 2 : 0)}%` : `${v.toFixed(0)} pJ/s`;
+  lines.push(`energy    pool ${(100 * m.E / m.C).toFixed(0)}%${m.starving ? '  STARVING' : ''}`);
+  lines.push(`income    ${m.income.toFixed(0)} pJ/s from plastids${base ? '' : ' (none: dark or no plastid)'}`);
+  lines.push(`spent on  body upkeep ${show(m.bodyUpkeep)}`);
+  for (const g of partGroups(cell.design.parts || [])) {
+    let v = 0;
+    for (const mm of g.members) v += m.byPart.get(cell.design.parts.indexOf(mm)) || 0;
+    if (v > 0) lines.push(`          ${g.name} upkeep ${show(v)}`);
+  }
+  if (m.motors > 0) lines.push(`          motors running ${show(m.motors)}`);
+  if (m.pumps > 0) lines.push(`          pumping ${show(m.pumps)}`);
+  const net = m.income - m.upkeep - m.motors - m.pumps;
+  lines.push(`net       ${net >= 0 ? "+" : ""}${net.toFixed(0)} pJ/s: ${net >= 0 ? "gaining energy" : "losing energy"}`);
+  for (const inc of cell.pieces[0].inclusions) if (inc.store) lines.push(`store     ${inc.store} ${(100 * inc.fill).toFixed(0)}% full`);
 }
 
 // Live sensor readings beside the wiring, for the selected cell if it is this design (always, numbers shown or not).
@@ -409,7 +434,7 @@ function liveReadings() {
     const sn = find(el.dataset.livemax);
     if (!sn) { el.textContent = ''; continue; }
     const i = sn.piece, y = cell.cy[i] + cell.sn[i] * sn.x + cell.cs[i] * sn.y;
-    const most = world.light ? Math.exp(-PARAMS.light.attenuation * (TH - y)) : 0;
+    const most = lightAt(world, y);
     el.textContent = ` · facing straight up here it would read ${most.toFixed(2)}`;
     const mark = el.closest('.range').querySelector('.most');
     if (mark) mark.style.left = `${most * 100}%`;
@@ -447,12 +472,14 @@ function draw() {
   ctx.fillStyle = COLOR.label; ctx.font = '11px system-ui';
   for (let gy = Math.ceil(Math.max(y0, 0) / 100) * 100; gy <= Math.min(y1, TH); gy += 100) ctx.fillText(`${TH - gy} µm deep`, X(Math.max(x0, 0)) + 4, Y(gy) - 3);
 
-  if (world.light) {   // light from above, fading with depth over the tank, and a sign in the corner
+  const sun = world.light ? daylight(world) : 0;
+  if (sun > 0) {   // light from above, fading with depth over the tank, as bright as the sun is now
     const top = Y(TH), g = ctx.createLinearGradient(0, top, 0, Y(0));
-    for (let k = 0; k <= 4; k++) g.addColorStop(k / 4, COLOR.light + (0.16 * Math.exp(-PARAMS.light.attenuation * TH * k / 4)).toFixed(3) + ')');
+    for (let k = 0; k <= 4; k++) g.addColorStop(k / 4, COLOR.light + (0.16 * sun * Math.exp(-PARAMS.light.attenuation * TH * k / 4)).toFixed(3) + ')');
     ctx.fillStyle = g; ctx.fillRect(X(0), top, TW * s, TH * s);
-    if (top > 0) { ctx.fillStyle = COLOR.light + '.8)'; ctx.fillRect(X(0), top - 2, TW * s, 3); }
+    if (top > 0) { ctx.fillStyle = COLOR.light + (0.8 * sun).toFixed(2) + ')'; ctx.fillRect(X(0), top - 2, TW * s, 3); }
   }
+  if (sun < 1) { ctx.fillStyle = `rgba(2,4,10,${(0.45 * (1 - sun)).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }   // night
   // trail
   ctx.fillStyle = COLOR.trail;
   for (const [tx, ty] of trail) ctx.fillRect(X(tx) - 1, Y(ty) - 1, 2, 2);
@@ -472,6 +499,23 @@ function draw() {
   drawLinks(X, Y, s);
   drawScale(W, H, s);
   drawMinimap(W, H);
+  drawHud(W, H);
+}
+
+// Always on the tank (phones too): the time, the energy pool, the stores
+function drawHud(W, H) {
+  const m = cell.metab, h = clock(world), hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
+  const sunny = world.day ? daylight(world) > 0 : true;
+  let text = `${sunny ? '☀' : '☾'} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  if (world.metab) {
+    text += `   ⚡ ${(100 * m.E / m.C).toFixed(0)}%`;
+    for (const inc of cell.pieces[0].inclusions) if (inc.store) text += `   ${inc.store} ${(100 * inc.fill).toFixed(0)}%`;
+  }
+  ctx.font = '12px system-ui';
+  const tw = ctx.measureText(text).width + (m.starving ? 90 : 0);
+  ctx.fillStyle = 'rgba(8,14,26,.8)'; ctx.fillRect(10, H - 62, tw + 14, 22);
+  ctx.fillStyle = COLOR.outline; ctx.fillText(text, 17, H - 46);
+  if (world.metab && m.starving) { ctx.fillStyle = COLOR.starving; ctx.fillText('STARVING', 17 + tw - 82, H - 46); }
 }
 
 function drawCell(c, X, Y, s) {
@@ -483,8 +527,8 @@ function drawCell(c, X, Y, s) {
     const ax = c.cx[i] - c.cs[i] * h, ay = c.cy[i] - c.sn[i] * h, bx = c.cx[i] + c.cs[i] * h, by = c.cy[i] + c.sn[i] * h;
     const fill = p.kind === 'body' ? COLOR.body[p.material] : COLOR[p.material];
     const w = Math.max(2 * p.a * s, 1.5);
-    if (p.kind === 'body') {   // outline
-      ctx.strokeStyle = COLOR.outline; ctx.lineWidth = w + 2;
+    if (p.kind === 'body') {   // outline (red while starving)
+      ctx.strokeStyle = world.metab && c.metab.starving ? COLOR.starving : COLOR.outline; ctx.lineWidth = w + 2;
       ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     }
     const jt = p.joint >= 0 ? c.joints[p.joint] : null;
@@ -505,8 +549,13 @@ function drawCell(c, X, Y, s) {
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     if (p.kind === 'body') for (const inc of p.inclusions) {
       const ix = c.cx[i] + c.cs[i] * inc.x - c.sn[i] * inc.y, iy = c.cy[i] + c.sn[i] * inc.x + c.cs[i] * inc.y;
+      const r = inc.store ? inc.r * Math.cbrt(inc.fill) : inc.r;   // a store shrinks as it is burned
+      if (inc.store) {   // the room it may fill, faint
+        ctx.strokeStyle = 'rgba(216,240,224,.25)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(X(ix), Y(iy), Math.max(inc.r * s, 1.5), 0, Math.PI * 2); ctx.stroke();
+      }
       ctx.fillStyle = COLOR[inc.material];
-      ctx.beginPath(); ctx.arc(X(ix), Y(iy), Math.max(inc.r * s, 1.5), 0, Math.PI * 2); ctx.fill();
+      if (r > 0.02) { ctx.beginPath(); ctx.arc(X(ix), Y(iy), Math.max(r * s, 1), 0, Math.PI * 2); ctx.fill(); }
     }
   }
   for (let i = 0; i < c.pieces.length; i++) {
@@ -705,7 +754,8 @@ function segmented(boxId, selectId) {
 }
 segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall');
 const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked = !$(boxId).checked; $(boxId).dispatchEvent(new Event('change')); }; };
-toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light');
+toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day');
+$('day').onchange = () => { if (world) world.day = $('day').checked; };
 if (window.matchMedia('(max-width: 760px)').matches) $('stats').hidden = true;   // phones: the tank first
 $('infoBtn').onclick = () => { $('stats').hidden = !$('stats').hidden; };
 $('rotL').onclick = () => rotate(cell, 15);
@@ -720,6 +770,7 @@ const SHORT = {
   'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Burst organ',
   'Spring, latched (Release)': 'Spring', 'Ejectisome, latched (Release)': 'Ejectisome', 'Oil droplet': 'Oil droplet',
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
+  'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch', 'Hunger sensor': 'Hunger',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor (another species)': 'Touch', 'Proximity sensor (another species)': 'Proximity',
 };
 for (const [cat, names] of Object.entries(CATEGORIES)) {
@@ -742,6 +793,7 @@ function syncButtons() {
   }
   $('gravityBtn').classList.toggle('on', $('gravity').checked);
   $('lightBtn').classList.toggle('on', $('light').checked);
+  $('dayBtn').classList.toggle('on', $('day').checked);
   $('infoBtn').classList.toggle('on', !$('stats').hidden);
 }
 

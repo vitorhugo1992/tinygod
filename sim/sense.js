@@ -3,14 +3,15 @@
 //   pigment shield behind it) sees it only from the side it faces: reading = light there × how squarely it faces up.
 // - touch: 1 while a cell of another species is within PARAMS.sensor.touchRange of its spot.
 // - near: how close the nearest cell of another species is, 1 touching, 0 at the sensor's range.
+// - hunger: how full the cell's energy pool is, 0 empty, 1 full (1 with metabolism off).
 // A wired motor runs while its sensor's reading is inside [min, max]; a latched spring is released the first time
 // it is. The state changes only a little inside or outside the range (hysteresis), so it doesn't flicker.
 import { PARAMS } from './params.js';
-import { dsin, dcos, dexp } from './dmath.js';
+import { dcos } from './dmath.js';
 import { fire } from './physics.js';
+import { lightAt } from './light.js';
 
-const L = PARAMS.light, S = PARAMS.sensor;
-const TH = PARAMS.tank.h;
+const S = PARAMS.sensor;
 
 // Distance from (x, y) to the nearest surface of a cell of another species, or Infinity
 function nearestStranger(world, cell, x, y, reach) {
@@ -37,6 +38,7 @@ export function sense(world, cell) {
   for (const s of cell.sensors) {
     const i = s.piece, c = cell.cs[i], n = cell.sn[i];
     const x = cell.cx[i] + c * s.x - n * s.y, y = cell.cy[i] + n * s.x + c * s.y;
+    if (s.kind === 'hunger') { s.value = world.metab ? cell.metab.E / cell.metab.C : 1; continue; }
     if (s.kind === 'light') {
       if (!world.light) { s.value = 0; continue; }
       // how far it faces from straight up, against half its cone: full facing up, nothing at the cone's edge
@@ -44,7 +46,7 @@ export function sense(world, cell) {
       off -= 2 * Math.PI * Math.floor(off / (2 * Math.PI) + 0.5);
       if (off < 0) off = -off;
       const half = s.cone / 2;
-      s.value = off < half ? dcos(off / half * Math.PI / 2) * L.strength * dexp(-L.attenuation * (TH - y)) : 0;
+      s.value = off < half ? dcos(off / half * Math.PI / 2) * lightAt(world, y) : 0;
     } else {
       const d = nearestStranger(world, cell, x, y, s.range);
       s.value = s.kind === 'touch' ? (d <= s.range ? 1 : 0) : (d >= s.range ? 0 : d <= 0 ? 1 : 1 - d / s.range);

@@ -6,14 +6,16 @@
 //   body:  { radius, length = 0, wall = 'protein' },      // a capsule: cylinder `length` µm long, `radius` µm
 //   parts: [
 //     { type: 'segment', id?, parent = 'body', at: [x, y], angle, length, radius, material, joint? },
-//     { type: 'inclusion', parent = 'body', at: [x, y], radius, material, density? },
+//     { type: 'inclusion', parent = 'body', at: [x, y], radius, material, density?, fill? },
 //     { type: 'pad', parent = 'body', at: [x, y], radius = 1, kind = 'kin' | 'mucus' },
 //     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' | 'touch' | 'near', range?, cone? },
 //   ]
 // }
 // `at` is a point in the parent's own frame (x along its axis, from its centre). A segment grows from that point
 // in direction `angle` (degrees, relative to the parent's axis). An inclusion is a sphere inside the body; a sap
-// inclusion can be pumped toward a target density (inclusion.target), at a cost. On an extending segment, children's
+// inclusion can be pumped toward a target density (inclusion.target), at a cost. Oil and starch inclusions are energy
+// stores: `radius` is how big they can get, `fill` (0-1, default 1) how full they are; with metabolism on they fill
+// and empty (metab.js) and their weight follows. A plastid inclusion makes energy from light. On an extending segment, children's
 // `at` is measured from its tip. A pad is a sticky patch (see interact.js): kin pads hold kin pads of the same
 // species, mucus pads hold any surface. Inclusions may not overlap: the room inside a cell is limited.
 // Sensors read 0..1 (sense.js): a light sensor (an eyespot) faces `angle` (degrees, relative to its parent's axis;
@@ -158,12 +160,14 @@ export function buildCell(design) {
         piece.ext = { max: L, s: 6 * PI * MU * a, r: 8 * PI * MU * a * a * a,
           cn: 4 * PI * MU / (e + 0.5), ct: 2 * PI * MU / (e - 0.5) };
       }
+      piece.part = design.parts.indexOf(part);
       pieces.push(piece);
       if (part.id) ids.set(part.id, pieces.length - 1);
     } else if (part.type === 'inclusion') {
       const host = pieces[parent];
       if (host.kind !== 'body') throw new Error('inclusions go inside the body');
       const r = part.radius, mat = material(part.material);
+      const fill = mat.store ? Math.min(Math.max(part.fill ?? 1, 0), 1) : 1;
       const rho = part.density !== undefined ? part.density : mat.density;
       if (mat.min !== undefined && (rho < mat.min || rho > mat.max)) throw new Error(`${part.material} density out of range`);
       // inside the wall: distance from the body's axis plus own radius
@@ -175,13 +179,15 @@ export function buildCell(design) {
       const v = (4 / 3) * PI * r * r * r;
       inclusionVol += v;
       // it replaces cytoplasm, so only the difference counts
-      const wpt = { x, y, w: (rho - C.cytoplasm) * v * G };
+      const wpt = { x, y, w: (rho - C.cytoplasm) * v * fill * G };
       host.wpts.push(wpt);
+      // v: its full volume (the room it takes); a store holds v × fill of its stuff, the rest is cytoplasm
       host.inclusions.push({ x, y, r, v, wpt, material: part.material, density: rho, target: rho,
-        pumpable: mat.min !== undefined, min: mat.min, max: mat.max });
+        pumpable: mat.min !== undefined, min: mat.min, max: mat.max, store: mat.store, fill,
+        part: design.parts.indexOf(part) });
     } else if (part.type === 'sensor') {
       const kind = part.kind || 'light';
-      if (!['light', 'touch', 'near'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
+      if (!['light', 'touch', 'near', 'hunger'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
       const facing = part.angle !== undefined ? part.angle * DEG : Math.atan2(y, x);
       const range = part.range || (kind === 'near' ? PARAMS.sensor.nearRange : PARAMS.sensor.touchRange);
       const cone = Math.min(Math.max(part.cone || 180, 10), 180) * DEG;

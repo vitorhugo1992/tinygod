@@ -5,6 +5,7 @@ import { makeWorld, addCell, stepWorld } from '../sim/world.js';
 import { cellWeight } from '../sim/build.js';
 import { PRESETS } from '../sim/presets.js';
 import { fire } from '../sim/physics.js';
+import { clock, daylight } from '../sim/light.js';
 
 const DT = PARAMS.time.dt;
 const MU = PARAMS.water.viscosity;
@@ -453,7 +454,84 @@ const eyeTail = (min, max) => ({
     `the burst cost ${fmt(c.energy.motor / 1000, 0)} fJ, as much as ${fmt(c.energy.motor / (swimFw * 1000), 0)} s of wave-tail swimming`);
 }
 
-// 25. Speed (not a pass test yet)
+// ----- metabolism (energy, plastids, stores, day and night) -----
+const phototroph = (y = 4, extra = []) => ({ body: { radius: 8 }, parts: [
+  { type: 'inclusion', at: [0, y], radius: 3, material: 'plastid' },
+  { type: 'inclusion', at: [0, -4], radius: 3, material: 'starch', fill: 0.3 },
+  ...extra ] });
+const runDay = (design, y, seconds, opts = {}) => {
+  const w = makeWorld(1, { gravity: false, day: true, metab: true, ...opts });
+  const c = addCell(w, design, 800, y, 90);
+  const log = [];
+  let starved = 0;
+  for (let i = 1; i <= seconds / DT; i++) { stepWorld(w); if (c.metab.starving) starved++; if (!(i % 1000)) log.push({ h: clock(w), fill: c.pieces[0].inclusions[1]?.fill, E: c.metab.E / c.metab.C }); }
+  return { w, c, log, starved: starved * DT };
+};
+
+// 25. The sun rises and sets: noon light, dark at midnight; with the day off it is always noon
+{
+  const w = makeWorld(1, { day: true });
+  const at = (h) => { while (Math.abs(clock(w) - h) > 0.05) stepWorld(w); return daylight(w); };
+  const noon = at(12), dusk = at(18.5), midnight = at(0);
+  const still = makeWorld(1);
+  check('the sun rises and sets (a day of 10 minutes); with the day off it is always noon',
+    noon > 0.99 && dusk === 0 && midnight === 0 && daylight(still) === 1,
+    `sunlight at noon ${fmt(noon)}, 18:30 ${fmt(dusk)}, midnight ${fmt(midnight)}; day off: ${fmt(daylight(still))}`);
+}
+
+// 26. A plastid earns by the light where it is: near the surface a cell lives through the night on its starch;
+// deep down it can't earn its keep and starves
+{
+  const top = runDay(phototroph(), 1900, 720), deep = runDay(phototroph(), 500, 720);
+  check('near the surface a plastid feeds the cell through day and night; deep down it starves',
+    top.starved === 0 && deep.starved > 100,
+    `100 µm down: starving ${fmt(top.starved, 0)} s of 720; 1.5 mm down: starving ${fmt(deep.starved, 0)} s`);
+}
+
+// 27. Starch fills by day and is burned at night; full, it makes the cell heavier
+{
+  const r = runDay(phototroph(), 1900, 720);
+  const at = (h) => r.log.reduce((best, x) => (Math.abs(x.h - h) < Math.abs(best.h - h) ? x : best)).fill;
+  const sink = (fill) => {
+    const w = makeWorld(1, { day: true, metab: false });
+    const c = addCell(w, { body: { radius: 8 }, parts: [{ type: 'inclusion', at: [0, 0], radius: 4, material: 'starch', fill }] }, 800, 1000);
+    for (let i = 0; i < 1000; i++) stepWorld(w);
+    return 1000 - c.q[1];
+  };
+  const empty = sink(0), full = sink(1);
+  check('starch fills by day, is burned at night, and full it sinks the cell faster',
+    at(17) > at(9) && at(5) < at(17) && full > empty * 1.1,
+    `starch at 9 h ${fmt(100 * at(9), 0)}%, 17 h ${fmt(100 * at(17), 0)}%, 5 h ${fmt(100 * at(5), 0)}%; ` +
+    `sinking empty ${fmt(empty)} µm/s, full ${fmt(full)} µm/s`);
+}
+
+// 28. Starving stops the motors: a swimmer with no plastid runs its tail until its pool is empty
+{
+  const swimmer = { body: { radius: 8 }, parts: PRESETS['Wave tail'].parts };
+  const w = makeWorld(1, { gravity: false, metab: true });
+  const c = addCell(w, swimmer, 800, 1000, 0);
+  let stoppedAt = null;
+  for (let i = 1; i <= 120 / DT; i++) { stepWorld(w); if (stoppedAt === null && c.metab.starving) stoppedAt = i * DT; }
+  const x1 = c.q[0];
+  for (let i = 0; i < 2000; i++) stepWorld(w);
+  check('starving stops the motors', stoppedAt !== null && !c.joints[0].on && Math.abs(c.q[0] - x1) < 1e-9,
+    `no plastid: pool empty after ${fmt(stoppedAt ?? 0, 0)} s, then the tail stops and the cell stays put`);
+}
+
+// 29. Determinism with day, metabolism and stores
+{
+  const go = () => {
+    const w = makeWorld(5, { day: true, metab: true });
+    addCell(w, phototroph(4, PRESETS['Wave tail'].parts), 700, 1500, 90);
+    addCell(w, phototroph(), 900, 1800, 0);
+    for (let i = 0; i < 20000; i++) stepWorld(w);
+    return new Uint8Array(Float64Array.from(w.cells.flatMap((c) => [...c.q, c.metab.E, ...c.pieces[0].inclusions.map((x) => x.fill)])).buffer);
+  };
+  const a = go(), b = go();
+  check('a world with day, metabolism and stores runs bit-identical twice', a.every((x, i) => x === b[i]), `${a.length / 8} numbers compared after 20 s`);
+}
+
+// 30. Speed (not a pass test yet)
 {
   for (const name of ['Spiny cell', 'Wave tail']) {
     const w = makeWorld(1); addCell(w, PRESETS[name], 300, 1500, 0);

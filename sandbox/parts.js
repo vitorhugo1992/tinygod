@@ -70,6 +70,10 @@ export const PART_TEMPLATES = {
     { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(200 * size), radius: 0.3,
       joint: { type: 'extend', stiffness: 20, latched: true } },
   ],
+  'Plastid (makes energy)': (body, deg, id, size, tilt, depth) =>
+    [{ type: 'inclusion', id, label: 'Plastid', ...inside(body, deg, size, depth), material: 'plastid' }],
+  'Starch granule (quick store, heavy)': (body, deg, id, size, tilt, depth) =>
+    [{ type: 'inclusion', id, label: 'Starch granule', ...inside(body, deg, size, depth), material: 'starch', fill: 0.5 }],
   'Oil droplet': (body, deg, id, size, tilt, depth) =>
     [{ type: 'inclusion', id, label: 'Oil droplet', ...inside(body, deg, size, depth), material: 'oil' }],
   'Sap vacuole (slider)': (body, deg, id, size, tilt, depth) =>
@@ -81,6 +85,7 @@ export const PART_TEMPLATES = {
       cone: Math.max(20, Math.round(180 * size)) }],
   'Touch sensor (another species)': (body, deg, id) =>
     [{ type: 'sensor', id, label: 'Touch sensor', at: surfacePoint(body, deg), kind: 'touch' }],
+  'Hunger sensor': (body, deg, id) => [{ type: 'sensor', id, label: 'Hunger sensor', at: [0, 0], kind: 'hunger' }],
   'Proximity sensor (another species)': (body, deg, id, size) =>
     [{ type: 'sensor', id, label: 'Proximity sensor', at: surfacePoint(body, deg), kind: 'near', range: Math.round(200 * size) }],
 };
@@ -92,7 +97,9 @@ export const CONTROLS = {
   'Spring, latched (Release)': { tilt: true }, 'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
   'Burst organ (escape)': { tilt: true, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
-  'Kin pad': {}, 'Mucus pad': {},
+  'Kin pad': {}, 'Mucus pad': {}, 'Hunger sensor': {},
+  'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
+  'Starch granule (quick store, heavy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor (another species)': {},
   'Proximity sensor (another species)': { size: (s) => `${Math.round(200 * s)} µm range` },
 };
@@ -102,14 +109,14 @@ export const CATEGORIES = {
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)', 'Stiff flap (goes nowhere)'],
   'Spines & appendages': ['Spine, protein', 'Spine, glass'],
   'Springs & ejectors': ['Burst organ (escape)', 'Spring, latched (Release)', 'Ejectisome, latched (Release)'],
-  'Vacuoles & droplets': ['Oil droplet', 'Sap vacuole (slider)'],
+  'Inside the cell': ['Plastid (makes energy)', 'Starch granule (quick store, heavy)', 'Oil droplet', 'Sap vacuole (slider)'],
   'Pads': ['Kin pad', 'Mucus pad'],
-  'Sensors': ['Light sensor (eyespot)', 'Touch sensor (another species)', 'Proximity sensor (another species)'],
+  'Sensors': ['Light sensor (eyespot)', 'Touch sensor (another species)', 'Proximity sensor (another species)', 'Hunger sensor'],
 };
 
 // The category of a part already on the body, from what it is
 export function categoryOf(p) {
-  if (p.type === 'inclusion') return 'Vacuoles & droplets';
+  if (p.type === 'inclusion') return 'Inside the cell';
   if (p.type === 'pad') return 'Pads';
   if (p.type === 'sensor') return 'Sensors';
   const j = p.joint && p.joint.type;
