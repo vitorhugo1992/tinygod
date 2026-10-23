@@ -7,7 +7,7 @@ authoritative.
 **Status (2026-10-23): building step 0, the physics sandbox** (author's go given). Done: sinking, joints, motors,
 latched springs, extending parts (ejectisome), pumped sap vacuoles, cells touching, kin and mucus pads, chains with
 the hidden cap, a viewer with presets, tweezers and copies; 18 physics checks pass. Held back: sensors (what
-switches parts on is open), coloured light (waiting on how the 2 mm tank maps to a real water column).
+switches parts on is open), light (author: too soon for the sandbox).
 
 ---
 
@@ -98,6 +98,12 @@ below) are one proposal, not decided. Until then the sandbox switches parts by h
 | **Pad** | adhesive patch on a piece | whatever touches it sticks through a spring that **snaps** if pulled too hard |
 | **Sensor** | reads light (per colour), depth, tilt (gravity direction) or a day clock | turns a motor or an inclusion up or down (threshold or proportional, can invert) |
 
+**A light-direction sensor** (author, 2026-10-23): a part that tells the cell **which way the light comes from**,
+not just how bright it is, like the eyespot (stigma) of *Chlamydomonas* and many dinoflagellates, a pigment
+shield beside a photoreceptor that the cell's own rotation sweeps across the light. Swimming toward or away from
+light (phototaxis) would then come out of a built part, not a rule. Like all sensors, how it switches parts is
+open (see above).
+
 **Pads and chains:** a **kin-binding** pad (interlocking setae, surface recognition) is strong and sticks only to
 the same species; a **mucus** pad is weak and sticks to anything (strangers, marine snow, a passing swimmer:
 hitch-hiking). Chains form when kin meet (or, after v0, at division); where the pads sit decides the colony's
@@ -143,9 +149,13 @@ runs headless in Node for tests (and later the optimiser).
 
 ### v0 scope
 - **Blocks:** Body, Segment, Joint, Motor, Inclusion, Pad, Sensor. **Materials:** protein, glass, sap, oil.
-- **Water: still.** A tall tank with gravity, walls, floor, and light in three colour bands (blue, green, red)
-  fading with depth at different rates, with a day/night clock. Coloured from the start so sensors read colour
-  and v1 never rebuilds the light. A simple **shear or eddy flow** comes later as a switch.
+- **Water: still.** A tall tank with gravity, walls and floor. A simple **shear or eddy flow** comes later as a
+  switch.
+- **No light in the sandbox yet** (author, 2026-10-23: too soon). Planned: three colour bands (blue, green, red)
+  fading with depth at different rates, with a day/night clock. **Open question:** how the 2 mm tank relates to a
+  real water column (light changes over metres). Proposed: the sandbox stays a microscope (real µm and seconds;
+  light as one adjustable setting) and the real column with its light lives in step 1, where each design's
+  measured swimming, sinking and turning moves it at real speeds with time sped up. Not yet decided.
 - **Energy is tracked and shown** per part (motor power, pumping, pad upkeep), but nothing dies, grows or divides
   yet. Several copies of a design can be dropped in (to test chains by meeting).
 - **Sandbox view:** plain shapes; trails; force arrows; numbers (speed, depth, sinking rate, energy spent);

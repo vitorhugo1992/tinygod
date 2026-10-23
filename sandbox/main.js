@@ -3,6 +3,7 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose } from '../sim/physics.js';
+import { PART_TEMPLATES, partGroups, surfacePoint } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 const $ = (id) => document.getElementById(id);
@@ -17,18 +18,64 @@ const COLOR = {
 
 let design, world, cell, playing = true, acc = 0, lagging = false;   // cell: the selected one (followed, measured)
 let trail = [], samples = [], released = null;   // released: where and when latches were let go
+let ghosts = [];                                  // outlines of cells as they were at Release
 let cam = { x: TW / 2, y: TH / 2 };
 
 // ----- loading and resetting -----
 const presetSelect = $('preset');
-for (const name of Object.keys(PRESETS)) presetSelect.add(new Option(name, name));
-presetSelect.onchange = () => load(JSON.parse(JSON.stringify(PRESETS[presetSelect.value])));
+const addSelect = $('addWhat');
+addSelect.add(new Option('copy of this design', ''));
+for (const name of Object.keys(PRESETS)) { presetSelect.add(new Option(name, name)); addSelect.add(new Option(name, name)); }
+// each preset is its own species, so kin pads only hold copies of the same design
+const preset = (name) => Object.assign(JSON.parse(JSON.stringify(PRESETS[name])), { species: name });
+presetSelect.onchange = () => load(preset(presetSelect.value));
 
 function load(d) {
   design = d;
   $('json').value = JSON.stringify(d, null, 2);
   $('note').textContent = d.note || '';
   reset();
+  listParts();
+}
+
+// Try a changed design; if it doesn't build, keep the old one and say why
+function applyDesign(d) {
+  const old = design;
+  design = d;
+  if (!reset()) { const msg = $('err').textContent; design = old; reset(); $('err').textContent = msg; $('buildErr').textContent = msg; return false; }
+  $('buildErr').textContent = '';
+  $('json').value = JSON.stringify(d, null, 2);
+  $('note').textContent = d.note || '';
+  listParts();
+  return true;
+}
+
+// ----- the Build panel: add parts round the body, list them, remove them -----
+for (const name of Object.keys(PART_TEMPLATES)) $('partWhat').add(new Option(name, name));
+const showAngle = () => { $('partAngleOut').textContent = `${$('partAngle').value}°`; };
+$('partAngle').oninput = showAngle; showAngle();
+let partCount = 0;
+$('addPart').onclick = () => {
+  const d = JSON.parse(JSON.stringify(design));
+  d.parts = (d.parts || []).concat(PART_TEMPLATES[$('partWhat').value](d.body, Number($('partAngle').value), `p${Date.now() % 100000}_${++partCount}`));
+  applyDesign(d);
+};
+function listParts() {
+  const box = $('partList');
+  box.innerHTML = '';
+  partGroups(design.parts || []).forEach((g) => {
+    const row = document.createElement('div');
+    row.className = 'part';
+    row.innerHTML = `<span>${g.name} at ${g.deg}°${g.more ? ` (+${g.more} pieces)` : ''}</span> <button>Remove</button>`;
+    row.querySelector('button').onclick = () => {
+      const d = JSON.parse(JSON.stringify(design));
+      const gone = new Set(g.members.map((m) => design.parts.indexOf(m)));
+      d.parts = d.parts.filter((_, i) => !gone.has(i));
+      applyDesign(d);
+    };
+    box.appendChild(row);
+  });
+  if (!box.children.length) box.textContent = 'No parts yet: just a body.';
 }
 
 function reset() {
@@ -41,7 +88,7 @@ function reset() {
     $('err').textContent = e.message;
     return false;
   }
-  world = w; acc = 0; released = null;
+  world = w; acc = 0; released = null; ghosts = [];
   select(cell);
   cam = { x: cell.q[0], y: cell.q[1] };
   return true;
@@ -67,10 +114,7 @@ function select(c) {
 $('apply').onclick = () => {
   let d;
   try { d = JSON.parse($('json').value); } catch (e) { $('err').textContent = 'JSON: ' + e.message; return; }
-  const old = design;
-  design = d;
-  if (reset()) $('note').textContent = d.note || '';
-  else design = old;
+  applyDesign(d);
 };
 $('reset').onclick = reset;
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; };
@@ -78,13 +122,31 @@ $('step').onclick = () => { playing = false; $('play').textContent = 'Play'; adv
 $('release').onclick = () => {
   let any = false;
   for (const c of world.cells) for (const j of c.joints) if (j.latched) { j.latched = false; any = true; }
-  if (any) released = { x: cell.q[0], y: cell.q[1], t: worldTime(world) };
+  if (!any) return;
+  released = { x: cell.q[0], y: cell.q[1], t: worldTime(world) };
+  ghosts = world.cells.map(outline);
 };
-$('copy').onclick = () => {   // a copy of the design beside the selected cell
-  const s = design.start || {};
-  const x = Math.min(Math.max(cell.q[0] + 2 * cell.reach + 4, 20), TW - 20);
-  try { addCell(world, design, x, cell.q[1], s.angle ?? 0); } catch (e) { $('err').textContent = e.message; }
+$('add').onclick = () => {   // another cell beside the selected one: a copy (kin), or any preset (its own species)
+  const d = addSelect.value ? preset(addSelect.value) : design;
+  try {
+    const c = addCell(world, d, cell.q[0], cell.q[1], (d.start || {}).angle ?? 0);
+    c.q[0] = Math.min(Math.max(cell.q[0] + cell.reach + c.reach + 2, c.reach), TW - c.reach);
+    updatePose(c);
+  } catch (e) { $('err').textContent = e.message; }
 };
+
+// The capsules of a cell, as they are now
+function outline(c) {
+  return c.pieces.map((p, i) => {
+    const h = p.L / 2;
+    return [c.cx[i] - c.cs[i] * h, c.cy[i] - c.sn[i] * h, c.cx[i] + c.cs[i] * h, c.cy[i] + c.sn[i] * h, p.a];
+  });
+}
+
+function rotate(c, deg) {
+  c.q[2] += deg * Math.PI / 180;
+  updatePose(c);
+}
 $('gravity').onchange = () => { if (world) world.gravity = $('gravity').checked; };
 
 // ----- simulation -----
@@ -100,7 +162,7 @@ function advance(steps) {
       if (trail.length > 4000) trail.shift();
     }
   }
-  updatePose(cell);
+  for (const c of world.cells) updatePose(c);
 }
 
 let last = performance.now();
@@ -162,8 +224,10 @@ window.addEventListener('resize', resize);
 
 function draw() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
+  const view = $('view').value;
+  if (view === 'follow') cam = { x: cell.q[0], y: cell.q[1] };
+  else if (view === 'fit') fit(W, H);
   const s = Number($('zoom').value);                       // pixels per µm
-  if ($('follow').checked) cam = { x: cell.q[0], y: cell.q[1] };
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
 
   ctx.fillStyle = COLOR.outside; ctx.fillRect(0, 0, W, H);
@@ -189,6 +253,12 @@ function draw() {
     ctx.strokeStyle = COLOR.motor; ctx.lineWidth = 1.5; ctx.beginPath();
     ctx.moveTo(X(released.x) - 6, Y(released.y)); ctx.lineTo(X(released.x) + 6, Y(released.y));
     ctx.moveTo(X(released.x), Y(released.y) - 6); ctx.lineTo(X(released.x), Y(released.y) + 6); ctx.stroke();
+  }
+  // where the cells were at Release, faint
+  ctx.strokeStyle = 'rgba(216,240,224,.35)'; ctx.lineCap = 'round';
+  for (const g of ghosts) for (const [ax, ay, bx, by, a] of g) {
+    ctx.lineWidth = Math.max(2 * a * s, 1);
+    ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
   }
   for (const c of world.cells) drawCell(c, X, Y, s);
   drawLinks(X, Y, s);
@@ -228,6 +298,12 @@ function drawCell(c, X, Y, s) {
     ctx.strokeStyle = COLOR[pad.kind]; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(pad.r * s, 2.5), 0, Math.PI * 2); ctx.stroke();
   }
+  if (c === cell && c.design === design) {      // where the Build panel would put the next part
+    const [mx, my] = surfacePoint(design.body, Number($('partAngle').value));
+    const [wx, wy] = [c.cx[0] + c.cs[0] * mx - c.sn[0] * my, c.cy[0] + c.sn[0] * mx + c.cs[0] * my];
+    ctx.fillStyle = COLOR.selected;
+    ctx.beginPath(); ctx.arc(X(wx), Y(wy), 3, 0, Math.PI * 2); ctx.fill();
+  }
   if (c === cell && world.cells.length > 1) {   // a ring round the selected cell
     ctx.strokeStyle = COLOR.selected; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
     ctx.beginPath(); ctx.arc(X(c.q[0]), Y(c.q[1]), (c.pieces[0].a + c.pieces[0].L / 2) * s + 6, 0, Math.PI * 2); ctx.stroke();
@@ -252,6 +328,18 @@ function drawLinks(X, Y, s) {
   }
 }
 
+// Zoom and centre so every cell is in view
+function fit(W, H) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const c of world.cells) {
+    x0 = Math.min(x0, c.q[0] - c.reach); x1 = Math.max(x1, c.q[0] + c.reach);
+    y0 = Math.min(y0, c.q[1] - c.reach); y1 = Math.max(y1, c.q[1] + c.reach);
+  }
+  cam = { x: (x0 + x1) / 2, y: (y0 + y1) / 2 };
+  const z = Math.min((W - 80) / (x1 - x0 + 20), (H - 60) / (y1 - y0 + 20));
+  $('zoom').value = Math.min(20, Math.max(0.3, z));
+}
+
 function drawScale(W, H, s) {
   const opts = [1, 2, 5, 10, 20, 50, 100, 200, 500];
   const len = opts.find((v) => v * s >= 60) || 500;
@@ -272,9 +360,12 @@ function drawMinimap(W, H) {
   }
 }
 
-// wheel zooms; dragging a cell moves it (tweezers) and selects it; dragging water pans (and stops following)
+// Wheel zooms, or turns the cell you are holding; dragging a cell moves it (tweezers) and selects it; dragging
+// water looks around. Q / E turn the selected cell (Shift: finer).
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
+  if (drag && drag.cell) { rotate(drag.cell, e.deltaY < 0 ? 10 : -10); return; }
+  $('view').value = 'free';
   const z = $('zoom');
   z.value = Math.min(20, Math.max(0.3, Number(z.value) * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
 }, { passive: false });
@@ -289,11 +380,11 @@ canvas.addEventListener('pointerdown', (e) => {
   const hit = world.cells.find((c) => Math.hypot(c.q[0] - wx, c.q[1] - wy) < c.pieces[0].a + c.pieces[0].L / 2 + 6 / s);
   if (hit) {
     if (hit !== cell) select(hit);
-    drag = { cell: hit, dx: hit.q[0] - wx, dy: hit.q[1] - wy };
-    $('follow').checked = false;   // a camera following the dragged cell would run away from the mouse
+    drag = { cell: hit, dx: hit.q[0] - wx, dy: hit.q[1] - wy, view: $('view').value };
+    $('view').value = 'free';   // a camera following the dragged cell would run away from the mouse
   } else {
     drag = { x: e.clientX, y: e.clientY, cam: { ...cam } };
-    $('follow').checked = false;
+    $('view').value = 'free';
   }
 });
 window.addEventListener('pointermove', (e) => {
@@ -307,10 +398,19 @@ window.addEventListener('pointermove', (e) => {
   const s = Number($('zoom').value);
   cam = { x: drag.cam.x - (e.clientX - drag.x) / s, y: drag.cam.y + (e.clientY - drag.y) / s };
 });
-window.addEventListener('pointerup', () => { drag = null; });
+window.addEventListener('pointerup', () => {
+  if (drag && drag.cell) $('view').value = drag.view;
+  drag = null;
+});
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k === 'q') rotate(cell, e.shiftKey ? 2 : 15);
+  if (k === 'e') rotate(cell, e.shiftKey ? -2 : -15);
+});
 
 resize();
 const asked = new URLSearchParams(location.search).get('preset');   // ?preset=Wave%20tail opens that design
 if (asked && PRESETS[asked]) presetSelect.value = asked;
-load(JSON.parse(JSON.stringify(PRESETS[presetSelect.value])));
+load(preset(presetSelect.value));
 requestAnimationFrame(frame);

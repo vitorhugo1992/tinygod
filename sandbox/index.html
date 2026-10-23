@@ -24,6 +24,9 @@
   button { cursor: pointer; } button:hover { border-color: var(--accent); }
   .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   #note { color: var(--dim); min-height: 3em; }
+  #build { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
+  .part { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; }
+  .part button { padding: 1px 6px; font-size: 11px; }
   #stats { font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; background: #0d1626;
     border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
   textarea { width: 100%; height: 260px; font: 11px/1.35 ui-monospace, Consolas, monospace; resize: vertical; }
@@ -42,12 +45,23 @@
   <h1>TINYGOD · SANDBOX v0</h1>
   <label>Design <select id="preset"></select></label>
   <div id="note"></div>
+  <div id="build">
+    <b>Build</b> <span class="hint">(changes reset the tank)</span>
+    <div class="row"><label>Part <select id="partWhat"></select></label></div>
+    <div class="row">
+      <label>Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180" style="width:120px">
+        <span id="partAngleOut"></span></label>
+      <button id="addPart">Add to body</button>
+    </div>
+    <div class="hint">The white dot on the cell shows where. 0° is the front (right), 180° the back.</div>
+    <div id="buildErr" style="color:var(--bad)"></div>
+    <div id="partList"></div>
+  </div>
   <div class="row">
     <button id="play">Pause</button>
     <button id="step">Step</button>
     <button id="reset">Reset</button>
     <button id="release" title="Let go of latched springs and ribbons">Release</button>
-    <button id="copy" title="Drop another cell of this design beside the selected one">Drop copy</button>
     <label>Speed <select id="speed">
       <option value="0.02">0.02×</option><option value="0.1">0.1×</option><option value="0.25">0.25×</option>
       <option value="1" selected>1× real</option><option value="5">5×</option><option value="20">20×</option>
@@ -55,14 +69,22 @@
     </select></label>
   </div>
   <div class="row">
+    <select id="addWhat" title="What to add"></select>
+    <button id="add" title="Add a cell beside the selected one">Add cell</button>
+  </div>
+  <div class="row">
     <label><input type="checkbox" id="gravity" checked> gravity</label>
-    <label><input type="checkbox" id="follow" checked> follow</label>
+    <label>View <select id="view">
+      <option value="follow" selected>follow selected</option><option value="fit">fit all cells</option>
+      <option value="free">free</option>
+    </select></label>
     <label>Zoom <input type="range" id="zoom" min="0.3" max="20" step="0.1" value="5" style="width:90px"></label>
   </div>
   <div id="stats"></div>
   <div id="sap"></div>
   <div class="hint">Slow it down (0.1×) to see a stroke. Grid: fine lines every 10 µm, bold every 100 µm.
-    Trail dots every 0.1 s. Drag a cell to move it (and pick it); drag the water to look around.</div>
+    Trail dots every 0.1 s. Drag a cell to move it (and pick it); turn the wheel while holding it, or press Q / E,
+    to rotate it (Shift: finer). Drag the water to look around. At Release, a faint outline marks where cells were.</div>
   <label>Design (JSON, edit and Apply)</label>
   <textarea id="json" spellcheck="false"></textarea>
   <div class="row"><button id="apply">Apply</button><span id="err"></span></div>
