@@ -34,8 +34,11 @@ once in full physics and let the ecology reuse it (to decide).
 - Wiring stores to the energy level (decided optional).
 - Saving designs (now they live until reload, except via the JSON box under Advanced).
 - A rebuild (any part change) resets the clock to dawn and clears other cells.
-- Planned, not done: force arrows; a water-flow switch (shear or eddies); tips while building; more materials
-  (chalk, mucus, gas).
+- Planned, not done: force arrows; tips while building; more materials (chalk, mucus, gas).
+- **Moving water is for v1** (author, 2026-10-23): the tank is still. The physics decision says "the big water moves
+  everything"; a Water switch (shear, gentle eddies) would break chains and pads, make spines sea anchors and gather
+  bottom-heavy swimmers into thin layers (gyrotaxis). The one basic left out of v0 on purpose.
+- Done since: beating parts are drawn calmly (about 2.5 strokes a second; the physics unchanged; a Calm toggle).
 
 **Next after v0: step 1, the ecology** (roadmap below): growth, death, division, a real water column with light
 and nutrients, grazing, the optimiser. Open there: how designs move into MONAD's not-to-scale water; the speed plan;
