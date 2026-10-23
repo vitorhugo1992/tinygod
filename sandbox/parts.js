@@ -29,22 +29,24 @@ const chain = (id, at, deg, n, length, joint) => Array.from({ length: n }, (_, i
   angle: i ? 0 : deg, length, radius: 0.25, material: 'protein', joint: joint(i),
 }));
 
-// Each template: (body, where, id, size, tilt, depth, feels). `where` is the angle round the body; the part points straight
-// out from there, turned by `tilt` degrees; an inclusion sits `depth` of the way from the centre to the wall.
+// Each template: (body, where, id, size, tilt, depth, feels, len). `where` is the angle round the body; the part points
+// straight out from there, turned by `tilt` degrees; an inclusion sits `depth` of the way from the centre to the wall;
+// `len` (µm) is a flagellum's or spring's length (default as before; the panel's range is CONTROLS[...].length).
 export const PART_TEMPLATES = {
-  'Wave tail (swims)': (body, deg, id, size, tilt) => {
-    const parts = chain(id, surfacePoint(body, deg), deg + tilt, 6, 8, (i) => ({ type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 }));
+  'Wave tail (swims)': (body, deg, id, size, tilt, depth, feels, len = 48) => {   // more 8 µm pieces when longer
+    const parts = chain(id, surfacePoint(body, deg), deg + tilt, Math.max(2, Math.round(len / 8)), 8,
+      (i) => ({ type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 }));
     parts[0].label = 'Wave tail';
     return parts;
   },
-  'Flexible oar (swims)': (body, deg, id, size, tilt) => [
-    { type: 'segment', id: `${id}_0`, label: 'Flexible oar', at: surfacePoint(body, deg), angle: deg + tilt, length: 15, radius: 0.25,
+  'Flexible oar (swims)': (body, deg, id, size, tilt, depth, feels, len = 40) => [   // a driven blade 3/8 of it, the springy rest
+    { type: 'segment', id: `${id}_0`, label: 'Flexible oar', at: surfacePoint(body, deg), angle: deg + tilt, length: len * 3 / 8, radius: 0.25,
       joint: { type: 'motor', rate: 20, swing: 60, stroke: 0.25 } },
-    { type: 'segment', id: `${id}_1`, parent: `${id}_0`, at: [7.5, 0], length: 25, radius: 0.25,
+    { type: 'segment', id: `${id}_1`, parent: `${id}_0`, at: [len * 3 / 16, 0], length: len * 5 / 8, radius: 0.25,
       joint: { type: 'hinge', stiffness: 700 } },
   ],
-  'Stiff flap (goes nowhere)': (body, deg, id, size, tilt) => [
-    { type: 'segment', id, label: 'Stiff flap', at: surfacePoint(body, deg), angle: deg + tilt, length: 40, radius: 0.25,
+  'Stiff flap (goes nowhere)': (body, deg, id, size, tilt, depth, feels, len = 40) => [
+    { type: 'segment', id, label: 'Stiff flap', at: surfacePoint(body, deg), angle: deg + tilt, length: len, radius: 0.25,
       joint: { type: 'motor', rate: 20, swing: 45, stroke: 0.25 } },
   ],
   'Spine, protein': (body, deg, id, size, tilt) => [
@@ -53,13 +55,13 @@ export const PART_TEMPLATES = {
   'Spine, glass': (body, deg, id, size, tilt) => [
     { type: 'segment', id, label: 'Glass spine', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(100 * size), radius: 0.5, material: 'glass' },
   ],
-  'Spring, latched (Release)': (body, deg, id, size, tilt) => [
-    { type: 'segment', id, label: 'Latched spring', at: surfacePoint(body, deg), angle: deg + tilt, length: 30, radius: 0.4,
+  'Spring, latched (Release)': (body, deg, id, size, tilt, depth, feels, len = 30) => [
+    { type: 'segment', id, label: 'Latched spring', at: surfacePoint(body, deg), angle: deg + tilt, length: len, radius: 0.4,
       joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true } },
   ],
-  'Burst organ (escape)': (body, deg, id, size, tilt) => {
+  'Burst organ (escape)': (body, deg, id, size, tilt, depth, feels, len = 20) => {
     // a short coiled tail that, fired, beats extremely fast for a moment (like Mesodinium's escape), then recharges
-    const parts = chain(id, surfacePoint(body, deg), deg + tilt, 4, 5, (i) => ({
+    const parts = chain(id, surfacePoint(body, deg), deg + tilt, Math.max(2, Math.round(len / 5)), 5, (i) => ({
       type: 'motor', rate: 500, swing: 40, phase: -i * 0.2,
       burst: { duration: Math.round(20 * size) / 10, recharge: 3, group: id } }));
     for (const p of parts) p.radius = 0.3;
@@ -151,10 +153,12 @@ export function mirrorGroup(members, axis, id) {
 
 // Which Build controls mean something for each part, and what Size means for it
 export const CONTROLS = {
-  'Wave tail (swims)': { tilt: true, flip: true }, 'Flexible oar (swims)': { tilt: true, flip: true }, 'Stiff flap (goes nowhere)': { tilt: true, flip: true },
+  'Wave tail (swims)': { tilt: true, flip: true, length: { min: 16, max: 96, step: 8, def: 48 } },
+  'Flexible oar (swims)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
+  'Stiff flap (goes nowhere)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
   'Spine, protein': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` }, 'Spine, glass': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },
-  'Spring, latched (Release)': { tilt: true, flip: true }, 'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
-  'Burst organ (escape)': { tilt: true, flip: true, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
+  'Spring, latched (Release)': { tilt: true, flip: true, length: { min: 10, max: 60, step: 5, def: 30 } }, 'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
+  'Burst organ (escape)': { tilt: true, flip: true, length: { min: 10, max: 40, step: 5, def: 20 }, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
   'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },

@@ -134,6 +134,8 @@ const showSize = () => {
 $('partSize').oninput = showSize;
 const showInside = () => { $('partInsideOut').textContent = `${$('partInside').value}%`; };
 $('partInside').oninput = showInside; showInside();
+let partCount = 0;
+let editing = null;   // the id of the part being edited, or null when adding
 // only the controls that mean something for the chosen part
 const showControls = () => {
   const c = CONTROLS[$('partWhat').value] || {};
@@ -142,20 +144,27 @@ const showControls = () => {
   $('insideRow').style.display = c.inside ? '' : 'none';
   $('feelsRow').style.display = c.feels ? '' : 'none';
   $('flipRow').style.display = c.flip ? '' : 'none';
+  $('lengthRow').style.display = c.length ? '' : 'none';
+  if (c.length) {   // this part's range; a new pick starts at its usual length
+    const L = $('partLength'), keep = Number(L.value);
+    L.min = c.length.min; L.max = c.length.max; L.step = c.length.step;
+    L.value = editing ? keep : c.length.def;
+  }
   if (c.sizeDefault && !editing) $('partSize').value = c.sizeDefault;
-  showSize();
+  showSize(); showLength();
 };
+function showLength() { $('partLengthOut').textContent = `${$('partLength').value} µm`; }
+$('partLength').oninput = showLength;
 $('partWhat').onchange = () => { showControls(); if (editing) updateEdited(); else updatePreview(); }; showControls();
 $('flipBtn').onclick = () => { $('partFlip').checked = !$('partFlip').checked; $('partFlip').dispatchEvent(new Event('change')); };
-let partCount = 0;
-let editing = null;   // the id of the part being edited, or null when adding
 // Make a part from the Build controls; its first piece remembers how (build), so it can be edited later
 function makePart(body, id) {
   const c = CONTROLS[$('partWhat').value] || {};
   const b = { tpl: $('partWhat').value, where: Number($('partAngle').value), tilt: Number($('partTilt').value),
     size: Number($('partSize').value) / 100, depth: Number($('partInside').value) / 100, feels: $('partFeels').value,
     flip: !!c.flip && $('partFlip').checked, id };
-  const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels);
+  if (c.length) b.length = Number($('partLength').value);
+  const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length);
   if (b.flip) flipPart(parts);
   parts[0].build = b;
   return parts;
@@ -193,7 +202,9 @@ function startEditing(b) {
   $('partSize').value = Math.round(b.size * 100); $('partInside').value = Math.round(b.depth * 100);
   if (b.feels) $('partFeels').value = b.feels;
   $('partFlip').checked = !!b.flip;
-  showAngle(); showTilt(); showSize(); showInside();
+  const lc = (CONTROLS[b.tpl] || {}).length;
+  if (lc) $('partLength').value = b.length ?? lc.def;   // parts made before Length had the usual length
+  showAngle(); showTilt(); showSize(); showInside(); showLength();
   $('addPart').textContent = '✓ Done editing'; $('cancelEdit').hidden = false;
   previewOn = true;
   listParts(); updatePreview();
@@ -206,9 +217,9 @@ function stopEditing() {
 }
 $('cancelEdit').onclick = stopEditing;
 // while editing, letting go of a slider (or picking another part type) updates the part at once
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partFeels', 'partFlip']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partFeels', 'partFlip']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
 // while dragging, the ghost follows the slider
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
 
 // ----- the ghost: the part as it would be added (or the edited part as it would become), drawn see-through on the
 // selected cell before anything is built; red when it would not fit. Nothing is simulated. -----
