@@ -84,19 +84,27 @@ property. The lab grows by adding materials, not new rules.
 or spines on the body, parts on parts, at any point and angle. The design format already allows it; the editor
 must too. Costs, not limits, keep designs in check.
 
+**Room inside a cell is a real limit** (author, 2026-10-23): inclusions (droplets, vacuoles) can sit anywhere inside
+the body but may not overlap, and together fill at most 90% of it. Space pushes the player to choose carefully.
+
 **Parts need not be always active** (author, 2026-10-23): a flagellum can rest, a spring can wait cocked. The
 physics already supports it (a motor can be off and holds its angle; a hinge can start latched until released).
 **What switches a part on or off is open, for a future discussion with the author**: sensors (the Sensor block
 below) are one proposal, not decided. Until then the sandbox switches parts by hand (Release button).
 **First switch built (author asked, 2026-10-23):** a light sensor (eyespot) that motors and latched springs can be
 wired to: a motor runs only while it is lit (or only while dark), a latched spring is released the first time it
-holds. A stopped motor freezes mid-beat and resumes from there (each motor keeps its own clock). Other switches
-(clock, depth, touch, tilt) are still open.
+holds. A stopped motor freezes mid-beat and resumes from there (each motor keeps its own clock). Wiring takes a
+**range** of the reading (0-1): e.g. a tail that runs while the light is below 0.8 climbs until the cell has
+enough light, then hovers there (the author's idea: stop once near the surface and catching enough light).
+**Touch and proximity sensors** (author asked, 2026-10-23) feel another species, not kin: touch on its spot,
+proximity rising as a stranger comes within range (a spring wired to touch is an escape trigger). Clock, depth and
+tilt switches are still open.
 
 **Escape jumps are too short (open problem, author 2026-10-23):** an escape should carry a cell **close to 100 µm**,
 enough to evade a predator. As built, a released spring hops ~5 µm and a 30 µm ejectisome ribbon ~6 µm (a 60 µm
 ribbon 16.5 µm): at low Reynolds number one push moves the cell by an amount set by the shape change, not the force,
-so it stays below the length of what pushes. To work on together; not yet solved.
+so it stays below the length of what pushes. To work on together; not yet solved. The author's target: a ~20 µm
+spring should throw the cell **at least 200 µm**, a high burst of energy that feels rewarding.
 
 | Block | What it is | What the physics does with it |
 |---|---|---|
@@ -161,8 +169,9 @@ runs headless in Node for tests (and later the optimiser).
 - **Blocks:** Body, Segment, Joint, Motor, Inclusion, Pad, Sensor. **Materials:** protein, glass, sap, oil.
 - **Water: still.** A tall tank with gravity, walls and floor. A simple **shear or eddy flow** comes later as a
   switch.
-- **Light from above, direction only** (author asked for it, 2026-10-23, to wire an eyespot): it does not fade
-  over the 2 mm tank (PARAMS.light.attenuation 0); a switch turns it off. Planned for later: three colour bands (blue, green, red)
+- **Light from above** (author asked for it, 2026-10-23, to wire an eyespot). It **fades with depth over the tank**
+  (to 5% at the floor): the 2 mm tank's light is a water column squeezed, made playable, so sensors can tell how
+  close to the surface they are. A switch turns it off. Planned for later: three colour bands (blue, green, red)
   fading with depth at different rates, with a day/night clock. **Open question:** how the 2 mm tank relates to a
   real water column (light changes over metres). Proposed: the sandbox stays a microscope (real µm and seconds;
   light as one adjustable setting) and the real column with its light lives in step 1, where each design's
