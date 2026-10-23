@@ -5,6 +5,7 @@ import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire } from '../sim/physics.js';
 import { rewire } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
+import { energyLevel } from '../sim/sense.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -154,12 +155,12 @@ $('cancelEdit').onclick = stopEditing;
 for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside']) $(id).onchange = () => { if (editing) updateEdited(); };
 // Wiring for a group's motors (runs) or latched springs (released): a sensor, and the range of its reading (0-1)
 // in which the part runs or fires
-const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], hunger: [0.3, 1] };   // a sensible start when a sensor is picked
+const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1] };   // a sensible start when a sensor is picked
 const SCALE = {   // what the 0-1 reading means, shown beside the range
   light: '0 = dark or facing away, 1 = facing up in full light',
   touch: '0 = nothing, 1 = another species touching',
   near: '0 = nobody in range, 1 = another species touching',
-  hunger: '0 = energy pool empty (starving), 1 = full',
+  energy: '0 = out of energy (starving), 1 = full',
 };
 function wiring(g, wired) {
   const box = document.createElement('div');
@@ -169,6 +170,7 @@ function wiring(g, wired) {
   sel.add(new Option(motor ? 'runs always' : 'released by hand', ''));
   const sensors = partGroups(design.parts || []).filter((x) => x.category === 'Sensors');
   for (const s of sensors) sel.add(new Option(`${motor ? 'runs' : 'fires'} by ${s.name.toLowerCase()} at ${s.deg}°`, s.members[0].id));
+  sel.add(new Option(`${motor ? 'runs' : 'fires'} by its energy level (built in)`, 'energy'));
   const c = wired[0].joint.control;
   sel.value = c ? c.sensor : '';
   box.appendChild(sel);
@@ -186,12 +188,12 @@ function wiring(g, wired) {
     listParts();
   };
   sel.onchange = () => {
-    const kind = sel.value && (design.parts.find((p) => p.id === sel.value).kind || 'light');
+    const kind = sel.value && (sel.value === 'energy' ? 'energy' : design.parts.find((p) => p.id === sel.value).kind || 'light');
     write(sel.value, ...(kind ? RANGE[kind] : []));
   };
   if (c) {
     const lo = c.when === 'light' ? 0.5 : c.min ?? 0, hi = c.when === 'dark' ? 0.5 : c.max ?? 1;
-    const kind = design.parts.find((p) => p.id === c.sensor).kind || 'light';
+    const kind = c.sensor === 'energy' ? 'energy' : design.parts.find((p) => p.id === c.sensor).kind || 'light';
     // one bar, two handles: the part is on (or fires) while the reading is inside the lit stretch; the orange tick is
     // the reading now
     const span = document.createElement('div');
@@ -420,7 +422,8 @@ function budget(lines) {
 // Live sensor readings beside the wiring, for the selected cell if it is this design (always, numbers shown or not).
 // For a light sensor, also the most it could read at this depth (facing straight up), as a faint mark on the bar.
 function liveReadings() {
-  const find = (id) => cell.design === design && cell.sensors.find((x) => x.id === id);
+  // the built-in energy level reads like a sensor
+  const find = (id) => cell.design === design && (id === 'energy' ? { value: energyLevel(world, cell) } : cell.sensors.find((x) => x.id === id));
   for (const el of document.querySelectorAll('[data-live]')) {
     const sn = find(el.dataset.live);
     el.textContent = sn ? sn.value.toFixed(2) : '–';
@@ -770,7 +773,7 @@ const SHORT = {
   'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Burst organ',
   'Spring, latched (Release)': 'Spring', 'Ejectisome, latched (Release)': 'Ejectisome', 'Oil droplet': 'Oil droplet',
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
-  'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch', 'Hunger sensor': 'Hunger',
+  'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor (another species)': 'Touch', 'Proximity sensor (another species)': 'Proximity',
 };
 for (const [cat, names] of Object.entries(CATEGORIES)) {

@@ -23,7 +23,8 @@
 // light there × how squarely it faces up, scaled to its cone (a narrow eyespot is precise, a wide one vague); a touch sensor
 // reads 1 while another species touches its spot; a proximity sensor reads how close another species is within
 // `range` µm (1 touching, 0 at the range).
-// Any joint can be wired to a sensor: control: { sensor: id, min = 0, max = 1 }: a motor runs only while the reading
+// Any joint can be wired to a sensor: control: { sensor: id, min = 0, max = 1 } (sensor 'energy': the cell's own energy
+// level, built into every cell: 0 empty, 1 full): a motor runs only while the reading
 // is between min and max; a latched hinge or extender is released the first time it is.
 // ({ when: 'light' } means min 0.5, { when: 'dark' } max 0.5.)
 // A segment's joint, at `at`:
@@ -90,8 +91,8 @@ function parseJoint(j, pieceIndex) {
 
 // A joint's wiring as the design writes it -> as the cell uses it (the sensor by index, the range)
 function resolveControl(sensors, c) {
-  const s = sensors.findIndex((x) => x.id === c.sensor);
-  if (s < 0) throw new Error(`no sensor called ${c.sensor}`);
+  const s = c.sensor === 'energy' ? -1 : sensors.findIndex((x) => x.id === c.sensor);   // -1: the built-in energy level
+  if (s < 0 && c.sensor !== 'energy') throw new Error(`no sensor called ${c.sensor}`);
   let min = c.min ?? 0, max = c.max ?? 1;
   if (c.when === 'light') min = PARAMS.sensor.threshold;
   else if (c.when === 'dark') max = PARAMS.sensor.threshold;

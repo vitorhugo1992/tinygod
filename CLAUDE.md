@@ -7,7 +7,7 @@ authoritative.
 **Status (2026-10-23): building step 0, the physics sandbox** (author's go given). Done: sinking, joints, motors,
 latched springs, extending parts (ejectisome), a burst organ for escapes, pumped sap vacuoles, cells touching, kin
 and mucus pads, chains with the hidden cap, light from above with a day/night cycle, sensors (eyespot with cone width,
-touch, proximity, hunger) wired by a reading range, and **metabolism v0** (energy only: plastids earn by light,
+touch, proximity) and the built-in energy level, wired by a reading range, and **metabolism v0** (energy only: plastids earn by light,
 upkeep, starch and oil stores filling and burning automatically and changing buoyancy, starving stops motors); a
 viewer with a Build panel (body, parts by category, edit in place, wiring), presets, tweezers, phone layout; 29
 physics checks pass.
@@ -154,8 +154,8 @@ tracked; nitrate from the water), buoyancy as a side effect of what is stored (d
 slow), shared room (reserves take space from plastids and vacuole), reserves buy time (survive dark or poor water),
 division splits them. This is the bridge into step 1 (plastids, light as food, growth, starving, dividing).
 **Decided (author, 2026-10-23): automatic, wiring optional.** Stores fill with surplus and are burned when short, on
-their own (the player chooses which stores and how big); a player who wants to can wire a store to a **hunger sensor**
-(reads the cell's energy pool) to set when it fills or burns.
+their own (the player chooses which stores and how big); a player who wants to can wire a store to the cell's
+**energy level** to set when it fills or burns.
 
 **Metabolism v0 (built 2026-10-23; sim/metab.js, sim/light.js).** Energy only (nitrogen and silica later), in pJ,
 round numbers tuned for play (PARAMS.metab). A **plastid** (an inclusion) earns by the light where it is,
@@ -165,7 +165,9 @@ a small **pool** (about a minute of upkeep). **Stores, automatic:** above 80% of
 (quick, heavy) then oil (slow, light, denser energy); below 30%, starch then oil are burned. A store's weight follows
 its fill, so a cell full of starch sinks faster at dusk (measured 2.4x). **Starving** (empty pool) stops motors and
 pumps. Measured: a cell 16 µm across with one plastid and a starch granule lives day and night 100 µm down and starves
-1.5 mm down. Not yet: wiring stores to the hunger sensor (decided optional), death, growth and division (step 1).
+1.5 mm down. **The energy level is built into every cell**
+(author, 2026-10-23: hunger is not a part you place): any flagellum or spring can be wired to it like a sensor
+(e.g. a tail that rests below half energy). Not yet: wiring stores to it (decided optional), death, growth and division (step 1).
 
 **Escape jumps: the burst organ (decided, author 2026-10-23).** The author's target: a ~20 µm spring should throw
 the cell **at least 200 µm**, a high burst of energy that feels rewarding. A single push can't (at low Reynolds

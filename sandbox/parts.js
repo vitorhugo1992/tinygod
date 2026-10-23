@@ -85,7 +85,6 @@ export const PART_TEMPLATES = {
       cone: Math.max(20, Math.round(180 * size)) }],
   'Touch sensor (another species)': (body, deg, id) =>
     [{ type: 'sensor', id, label: 'Touch sensor', at: surfacePoint(body, deg), kind: 'touch' }],
-  'Hunger sensor': (body, deg, id) => [{ type: 'sensor', id, label: 'Hunger sensor', at: [0, 0], kind: 'hunger' }],
   'Proximity sensor (another species)': (body, deg, id, size) =>
     [{ type: 'sensor', id, label: 'Proximity sensor', at: surfacePoint(body, deg), kind: 'near', range: Math.round(200 * size) }],
 };
@@ -97,7 +96,7 @@ export const CONTROLS = {
   'Spring, latched (Release)': { tilt: true }, 'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
   'Burst organ (escape)': { tilt: true, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
-  'Kin pad': {}, 'Mucus pad': {}, 'Hunger sensor': {},
+  'Kin pad': {}, 'Mucus pad': {},
   'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Starch granule (quick store, heavy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor (another species)': {},
@@ -111,7 +110,7 @@ export const CATEGORIES = {
   'Springs & ejectors': ['Burst organ (escape)', 'Spring, latched (Release)', 'Ejectisome, latched (Release)'],
   'Inside the cell': ['Plastid (makes energy)', 'Starch granule (quick store, heavy)', 'Oil droplet', 'Sap vacuole (slider)'],
   'Pads': ['Kin pad', 'Mucus pad'],
-  'Sensors': ['Light sensor (eyespot)', 'Touch sensor (another species)', 'Proximity sensor (another species)', 'Hunger sensor'],
+  'Sensors': ['Light sensor (eyespot)', 'Touch sensor (another species)', 'Proximity sensor (another species)'],
 };
 
 // The category of a part already on the body, from what it is

@@ -518,6 +518,18 @@ const runDay = (design, y, seconds, opts = {}) => {
     `no plastid: pool empty after ${fmt(stoppedAt ?? 0, 0)} s, then the tail stops and the cell stays put`);
 }
 
+// 28b. The built-in energy level can be wired: a tail set to run while energy is above 0.5 stops at 0.5, saving the rest
+{
+  const saver = { body: { radius: 8 }, parts: PRESETS['Wave tail'].parts.map((p) => ({ ...p, joint: { ...p.joint, control: { sensor: 'energy', min: 0.5, max: 1 } } })) };
+  const w = makeWorld(1, { gravity: false, metab: true });
+  const c = addCell(w, saver, 800, 1000, 0);
+  let stoppedAt = null;
+  for (let i = 1; i <= 60 / DT; i++) { stepWorld(w); if (stoppedAt === null && !c.joints[0].on) stoppedAt = c.metab.E / c.metab.C; }
+  check('the built-in energy level can be wired: a tail stops when energy falls below its range',
+    stoppedAt !== null && Math.abs(stoppedAt - 0.5) < 0.05,   // (with no plastid its upkeep still starves it later)
+    `tail wired to run while energy is 0.5-1: it stopped at ${fmt(100 * (stoppedAt ?? 0), 0)}% (the range's edge less a small dead band)`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

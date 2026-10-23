@@ -3,7 +3,8 @@
 //   pigment shield behind it) sees it only from the side it faces: reading = light there × how squarely it faces up.
 // - touch: 1 while a cell of another species is within PARAMS.sensor.touchRange of its spot.
 // - near: how close the nearest cell of another species is, 1 touching, 0 at the sensor's range.
-// - hunger: how full the cell's energy pool is, 0 empty, 1 full (1 with metabolism off).
+// Every cell also has its energy level built in (no part): how full its energy pool is, 0 empty, 1 full (1 with
+// metabolism off). Wiring to sensor 'energy' reads it.
 // A wired motor runs while its sensor's reading is inside [min, max]; a latched spring is released the first time
 // it is. The state changes only a little inside or outside the range (hysteresis), so it doesn't flicker.
 import { PARAMS } from './params.js';
@@ -33,12 +34,13 @@ function nearestStranger(world, cell, x, y, reach) {
   return best;
 }
 
+export function energyLevel(world, cell) { return world.metab ? cell.metab.E / cell.metab.C : 1; }
+
 export function sense(world, cell) {
-  if (!cell.sensors.length) return;
   for (const s of cell.sensors) {
     const i = s.piece, c = cell.cs[i], n = cell.sn[i];
     const x = cell.cx[i] + c * s.x - n * s.y, y = cell.cy[i] + n * s.x + c * s.y;
-    if (s.kind === 'hunger') { s.value = world.metab ? cell.metab.E / cell.metab.C : 1; continue; }
+    if (s.kind === 'hunger') { s.value = energyLevel(world, cell); continue; }   // old designs: same as the built-in
     if (s.kind === 'light') {
       if (!world.light) { s.value = 0; continue; }
       // how far it faces from straight up, against half its cone: full facing up, nothing at the cone's edge
@@ -55,7 +57,7 @@ export function sense(world, cell) {
   for (const j of cell.joints) {
     const ctl = j.control;
     if (!ctl) continue;
-    const v = cell.sensors[ctl.sensor].value;
+    const v = ctl.sensor < 0 ? energyLevel(world, cell) : cell.sensors[ctl.sensor].value;
     if (ctl.holds === null) ctl.holds = v >= ctl.min && v <= ctl.max;
     else if (ctl.holds) { if (v < ctl.min - S.hysteresis || v > ctl.max + S.hysteresis) ctl.holds = false; }
     else if (v > ctl.min + S.hysteresis && v < ctl.max - S.hysteresis) ctl.holds = true;
