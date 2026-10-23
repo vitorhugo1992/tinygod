@@ -731,6 +731,13 @@ function syncButtons() {
   $('infoBtn').classList.toggle('on', !$('stats').hidden);
 }
 
+// The phone address, when the server shares the sandbox on the Wi-Fi (shown on the computer, not on the phone)
+fetch('/lan').then((r) => r.json()).then((urls) => {
+  if (!urls.length || urls.some((u) => u.startsWith(location.origin))) return;
+  $('phone').innerHTML = `📱 On a phone: <a href="${urls[0]}">${urls[0].replace('http://', '')}</a>`;
+  $('phone').hidden = false;
+}).catch(() => {});
+
 resize();
 const asked = new URLSearchParams(location.search).get('preset');   // ?preset=Wave%20tail opens that design
 load(preset(asked && PRESETS[asked] ? asked : 'Round cell'));

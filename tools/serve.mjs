@@ -13,12 +13,16 @@ const args = process.argv.slice(2);
 const LAN = args.includes('--lan');
 const PORT = Number(args.find((a) => /^\d+$/.test(a))) || 5180;
 const SHARED = ['sandbox', 'sim'].map((d) => join(ROOT, d) + sep);
+// the addresses a phone on the same Wi-Fi can use (empty without --lan)
+const lanUrls = () => !LAN ? [] : Object.values(networkInterfaces()).flat()
+  .filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => `http://${i.address}:${PORT}/sandbox/`);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
 createServer(async (req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (path === '/') { res.writeHead(302, { Location: '/sandbox/' }); res.end(); return; }
+  if (path === '/lan') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(lanUrls())); return; }
   if (path.endsWith('/')) path += 'index.html';
   const file = normalize(join(ROOT, path));
   if (!SHARED.some((d) => file.startsWith(d))) { res.writeHead(404); res.end('not found'); return; }
@@ -31,8 +35,5 @@ createServer(async (req, res) => {
   }
 }).listen(PORT, LAN ? '0.0.0.0' : '127.0.0.1', () => {
   console.log(`TinyGod sandbox: http://localhost:${PORT}/sandbox/`);
-  if (LAN) {
-    const ips = Object.values(networkInterfaces()).flat().filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => i.address);
-    for (const ip of ips) console.log(`  on the same Wi-Fi: http://${ip}:${PORT}/sandbox/`);
-  }
+  for (const url of lanUrls()) console.log(`  on the same Wi-Fi: ${url}`);
 });
