@@ -357,10 +357,14 @@ const eyeTail = (min, max) => ({
 }
 
 // 20. Wired to run while the light is below 0.8, a sinking swimmer climbs until the light is enough, then hovers
-// there (a range of 0.3-0.8 would also stop it in water too dark, and it would sink away)
+// there (a range of 0.3-0.8 would also stop it in water too dark, and it would sink away). It needs an oil droplet
+// at its front to stay pointed up (gyrotaxis): without one its tail makes it veer, it ends up facing sideways or
+// down, and swims away downward (found when the tank got wider: the old narrow tank's wall had been steering it).
 {
   const w = makeWorld(1);
-  const c = addCell(w, eyeTail(0, 0.8), 300, 1300, 90);
+  const design = eyeTail(0, 0.8);
+  design.parts.push({ type: 'inclusion', at: [2.6, 0], radius: 5, material: 'oil' });   // smaller (r 4) is too weak to keep it up
+  const c = addCell(w, design, 300, 1300, 90);
   const ys = [];
   for (let i = 0; i < 60000; i++) { stepWorld(w); if (i >= 40000 && i % 100 === 0) ys.push(c.q[1]); }
   const lo = Math.min(...ys), hi = Math.max(...ys);
