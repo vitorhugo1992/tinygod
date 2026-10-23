@@ -51,7 +51,12 @@ once in full physics and let the ecology reuse it (to decide).
 - **Moving water is for v1** (author, 2026-10-23): the tank is still. The physics decision says "the big water moves
   everything"; a Water switch (shear, gentle eddies) would break chains and pads, make spines sea anchors and gather
   bottom-heavy swimmers into thin layers (gyrotaxis). The one basic left out of v0 on purpose.
-- Done since: beating parts are drawn calmly (about 2.5 strokes a second; the physics unchanged; a Calm toggle).
+- Done since: beating parts are drawn calmly (about 2.5 strokes a second; the physics unchanged; a Calm toggle). The
+  body is drawn at its position averaged over the last beat (2026-10-24): it really bounces ~10 µm per stroke 20 times a
+  second and frames caught it anywhere (jitter); now it glides at its net speed, as at 0.1x (author: "I like the
+  fluidity at 0.1x"); the camera and ghost follow the drawn body. Calm off or slow motion shows the true bounce.
+- Flexible oars push mostly along their own length (like a tail): a mirrored pair pointing left and right cancels and
+  sinks; pointing down and out (240°/300°) it climbs ~28 µm/s (measured 2026-10-24).
 
 **Next after v0: step 1, the ecology** (roadmap below): growth, death, division, a real water column with light
 and nutrients, grazing, the optimiser. Open there: how designs move into MONAD's not-to-scale water; the speed plan;

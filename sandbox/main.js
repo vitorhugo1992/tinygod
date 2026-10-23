@@ -242,8 +242,9 @@ function updatePreview() {
 function drawPreview(X, Y, s) {
   if (!preview || !cell) return;
   const c = preview.cell;
-  c.q[0] = cell.q[0]; c.q[1] = cell.q[1];
-  c.q[2] = cell.vis && calmBeats ? cell.vis.q[2] : cell.q[2];   // turned as the cell is drawn
+  const drawn = cell.vis ? cell.vis.q : cell.q;   // on the body as it is drawn (calm: beat-averaged)
+  c.q[0] = drawn[0]; c.q[1] = drawn[1];
+  c.q[2] = drawn[2];
   // beating parts beat as the real part will be drawn: from the start of the stroke, VIS_BEATS strokes a second
   const t = performance.now() / 1000;
   c.joints.forEach((j, i) => { if (j.type === 'motor' && !j.burst) c.q[3 + i] = motorAngle(j, t * VIS_BEATS / j.rate); });
@@ -512,6 +513,7 @@ $('light').onchange = () => { if (world) world.light = $('light').checked; };
 function advance(steps) {
   for (let i = 0; i < steps; i++) {
     stepWorld(world);
+    for (const c of world.cells) remember1(c);
     if (world.steps % 10 === 0) {              // every 10 ms: samples for beat-averaged speed and power
       samples.push({ t: worldTime(world), x: cell.q[0], y: cell.q[1], e: cell.energy.motor + cell.energy.pump });
       if (samples.length > 400) samples.shift();
@@ -530,6 +532,26 @@ function advance(steps) {
 // smoothing. When the true beat is already that slow on screen (slow motion), the drawing is the physics exactly.
 const VIS_BEATS = 2.5, VIS_TAU = 0.25;   // strokes per real second; smoothing time (real seconds)
 let calmBeats = true, lastReal = 0;
+// The body bounces forward and back with every stroke (no coasting at this scale), 20+ times a second: drawn as it is,
+// frames catch it anywhere in the bounce and it jitters. Calm drawing puts it where it is on average over the last
+// beat of its slowest running motor (half a beat behind), so it glides at its net speed, as it looks in slow motion.
+const TRACK = 1000;   // steps kept (1 s: one beat of anything beating at least once a second)
+function remember1(c) {
+  const t = c.track || (c.track = { x: new Float64Array(TRACK), y: new Float64Array(TRACK), n: 0, i: 0 });
+  t.i = (t.i + 1) % TRACK; t.x[t.i] = c.q[0]; t.y[t.i] = c.q[1]; t.n = Math.min(t.n + 1, TRACK);
+}
+function beatAverage(c) {
+  const t = c.track;
+  if (!t || !t.n || t.x[t.i] !== c.q[0] || t.y[t.i] !== c.q[1]) {   // moved by hand (tweezers, reset): start afresh
+    c.track = null; remember1(c); return [c.q[0], c.q[1]];
+  }
+  let rate = Infinity;
+  for (const j of c.joints) if (j.type === 'motor' && j.on && (!j.burst || j.burst.state === 'firing')) rate = Math.min(rate, j.rate);
+  const w = Math.min(t.n, rate === Infinity ? 1 : Math.max(1, Math.round(1 / (rate * DT))));
+  let sx = 0, sy = 0;
+  for (let k = 0; k < w; k++) { const m = (t.i - k + TRACK) % TRACK; sx += t.x[m]; sy += t.y[m]; }
+  return [sx / w, sy / w];
+}
 function calmPose(c, realDt, speed) {
   const v = c.vis || (c.vis = { q: Float64Array.from(c.q), phase: c.joints.map((j) => (j.clock || 0) * (j.rate || 0)) });
   let fast = false;
@@ -545,9 +567,9 @@ function calmPose(c, realDt, speed) {
     return null;
   }
   const k = 1 - Math.exp(-realDt / VIS_TAU);
-  // position exactly (smoothing it would lag behind the swimming cell); the turn and passive hinges smoothed, since
-  // they wobble with every beat
-  v.q[0] = c.q[0]; v.q[1] = c.q[1];
+  // position averaged over the last beat (it follows the swimming cell half a beat behind); the turn and passive
+  // hinges smoothed, since they wobble with every beat
+  [v.q[0], v.q[1]] = beatAverage(c);
   for (let i = 2; i < c.n; i++) {
     let d = c.q[i] - v.q[i];
     if (i === 2) d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));   // the turn: the short way round
@@ -683,7 +705,7 @@ window.addEventListener('resize', resize);
 function draw() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
   const view = $('viewMode').value;
-  if (view === 'follow') cam = { x: cell.q[0], y: cell.q[1] };
+  if (view === 'follow') { const q = cell.vis ? cell.vis.q : cell.q; cam = { x: q[0], y: q[1] }; }   // the body as drawn
   else if (view === 'fit') fit(W, H);
   const s = Number($('zoom').value);                       // pixels per µm
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
