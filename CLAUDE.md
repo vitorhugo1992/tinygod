@@ -116,9 +116,15 @@ Real cells combine:
 4. **Chemical gradients (chemotaxis)**: real but weak at water-column scale (gradients over metres are too gentle
    for one cell); more for finding patches than for setting depth.
 5. Weaker or uncertain: moonlight, temperature, perhaps pressure (better known in zooplankton).
-For the game, as sensor parts wired like the eyespot: a **gravity sensor** (statolith-like; reads facing up vs
-down; sandbox-ready now), a **clock** (needs a day/night cycle), a **hunger sensor** (reads the cell's own stores;
-needs step 1's ecology) and a **chemical sensor** (reads local nutrient; needs step 1's nutrient field).
+For the game, as sensor parts wired like the eyespot: a **clock** (needs a day/night cycle), a **hunger sensor**
+(reads the cell's own stores; needs step 1's ecology) and a **chemical sensor** (reads local nutrient; needs step
+1's nutrient field).
+**No abstract gravity sensor** (author, 2026-10-23: "gravity seems more like magic... the light sensor is more
+charming"). **Principle: prefer sensors the player can see working** (an eyespot lighting up) over parts that just
+"know" something. Night descent can emerge instead: a cell heavier than water with its tail wired to its eyespot
+stops swimming in the dark and sinks by its own weight toward the nutrients, and climbs back at dawn (its droplet
+keeping it pointed up). If gravity sensing is ever needed, make it visible and physical: a dense grain loose in a
+chamber that rolls to the lower wall (statolith-like; e.g. the mineral grains of the ciliate *Loxodes*).
 
 **Escape jumps: the burst organ (decided, author 2026-10-23).** The author's target: a ~20 µm spring should throw
 the cell **at least 200 µm**, a high burst of energy that feels rewarding. A single push can't (at low Reynolds
