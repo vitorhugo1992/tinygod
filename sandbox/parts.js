@@ -55,10 +55,6 @@ export const PART_TEMPLATES = {
   'Spine, glass': (body, deg, id, size, tilt) => [
     { type: 'segment', id, label: 'Glass spine', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(100 * size), radius: 0.5, material: 'glass' },
   ],
-  'Spring, latched (Release)': (body, deg, id, size, tilt, depth, feels, len = 30) => [
-    { type: 'segment', id, label: 'Latched spring', at: surfacePoint(body, deg), angle: deg + tilt, length: len, radius: 0.4,
-      joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true } },
-  ],
   'Burst organ (escape)': (body, deg, id, size, tilt, depth, feels, len = 20) => {
     // a short coiled tail that, fired, beats extremely fast for a moment (like Mesodinium's escape), then recharges
     const parts = chain(id, surfacePoint(body, deg), deg + tilt, Math.max(2, Math.round(len / 5)), 5, (i) => ({
@@ -157,7 +153,7 @@ export const CONTROLS = {
   'Flexible oar (swims)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
   'Stiff flap (goes nowhere)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
   'Spine, protein': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` }, 'Spine, glass': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },
-  'Spring, latched (Release)': { tilt: true, flip: true, length: { min: 10, max: 60, step: 5, def: 30 } }, 'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
+  'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
   'Burst organ (escape)': { tilt: true, flip: true, length: { min: 10, max: 40, step: 5, def: 20 }, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
@@ -171,7 +167,7 @@ export const CONTROLS = {
 export const CATEGORIES = {
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)', 'Stiff flap (goes nowhere)'],
   'Spines & appendages': ['Spine, protein', 'Spine, glass'],
-  'Springs & ejectors': ['Burst organ (escape)', 'Spring, latched (Release)', 'Ejectisome, latched (Release)'],
+  'Escapes': ['Burst organ (escape)', 'Ejectisome, latched (Release)'],
   'Inside the cell': ['Plastid (makes energy)', 'Starch granule (quick store, heavy)', 'Oil droplet', 'Sap vacuole (slider)'],
   'Pads': ['Kin pad', 'Mucus pad'],
   'Sensors': ['Light sensor (eyespot)', 'Touch sensor', 'Proximity sensor'],
@@ -183,8 +179,8 @@ export function categoryOf(p) {
   if (p.type === 'pad') return 'Pads';
   if (p.type === 'sensor') return 'Sensors';
   const j = p.joint && p.joint.type;
-  if (j === 'motor') return p.joint.burst ? 'Springs & ejectors' : 'Flagella';
-  if (j === 'hinge' || j === 'extend') return 'Springs & ejectors';
+  if (j === 'motor') return p.joint.burst ? 'Escapes' : 'Flagella';
+  if (j === 'hinge' || j === 'extend') return 'Escapes';
   return 'Spines & appendages';
 }
 

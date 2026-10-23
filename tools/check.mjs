@@ -9,6 +9,9 @@ import { clock, daylight } from '../sim/light.js';
 import { PART_TEMPLATES, mirrorGroup } from '../sandbox/parts.js';
 
 const DT = PARAMS.time.dt;
+// A cocked spring (a latched springy joint), for the no-coasting and one-flick laws; not a part in the Build panel
+const SPRING = { body: { radius: 6 }, parts: [{ type: 'segment', at: [-6, 0], angle: 180, length: 30, radius: 0.4,
+  joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true } }] };
 const MU = PARAMS.water.viscosity;
 const PER_DAY = 86400 * 1e-6;  // µm/s -> m/day
 let failures = 0;
@@ -183,7 +186,7 @@ const flapper = (stroke, stiffness) => ({ body: { radius: 8 }, parts: stiffness 
   const drift = Math.abs(r.c.q[0] - x0);
 
   const w = makeWorld(1, { gravity: false });
-  const c = addCell(w, PRESETS['Spring jump'], 300, 1000, 0);
+  const c = addCell(w, SPRING, 300, 1000, 0);
   for (const j of c.joints) j.latched = false;
   const p0 = [c.q[0], c.q[1]];
   let tStop = null;
@@ -198,7 +201,7 @@ const flapper = (stroke, stiffness) => ({ body: { radius: 8 }, parts: stiffness 
 // 12. One flick goes as far whatever its force: a stronger spring hops faster, not farther (only the shape change counts)
 {
   const hop = (stiffness) => {
-    const d = JSON.parse(JSON.stringify(PRESETS['Spring jump']));
+    const d = JSON.parse(JSON.stringify(SPRING));
     d.parts[0].joint.stiffness = stiffness; d.parts[0].joint.latched = false;
     const w = makeWorld(1, { gravity: false });
     const c = addCell(w, d, 300, 1000, 0);

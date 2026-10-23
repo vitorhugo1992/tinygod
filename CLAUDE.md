@@ -28,7 +28,13 @@ part's row** add a mirror copy across the left-right or top-bottom line (an inde
 reflection: positions, angles, and every motor's swing and spring's rest negated, sandbox/parts.js `mirrorGroup`;
 a mirrored pair of oars swims straight, the check proves a copy swims as the exact mirror image); **↶ Undo / ↷ Redo**
 (the last 50 design changes; undoing only wiring rewires the tank without a reset) and **🗑 Delete all** (keeps the
-body; undoable, so no confirm).
+body; undoable, so no confirm). **Length** slider (author asked, 2026-10-24) for the wave tail (16-96 µm, more 8 µm
+pieces), flexible oar (10-100 µm, both pieces in proportion), stiff flap (10-100) and burst organ (10-40 µm, more
+pieces); the ghost beats like the real part (from the start of its stroke, the calm rhythm), so Flip shows in it.
+**The latched spring part was removed** from the Build panel and presets (author, 2026-10-24: "it looks like it has no
+utility"; it swung 150° through the body, spun the cell, hopped ~10 µm and stayed bent). The physics (a latched
+springy hinge) stays: the no-coasting and one-flick checks use it, and the Release button still frees one in an old
+design. The burst organ and ejectisome are the escape parts (Build heading "Escapes").
 
 **v0 pass tests (below):** 1, physics honest: **passed** (checks). 2, fun and depth: **for the author to judge**
 (candidate ways to hold a depth: eyespot-wired tail, buoyancy, starch sinking at dusk, burst organ, chains;
