@@ -88,13 +88,13 @@ export const PART_TEMPLATES = {
 // Which Build controls mean something for each part, and what Size means for it
 export const CONTROLS = {
   'Wave tail (swims)': { tilt: true }, 'Flexible oar (swims)': { tilt: true }, 'Stiff flap (goes nowhere)': { tilt: true },
-  'Spine, protein': { tilt: true, size: 'length, up to 100 µm' }, 'Spine, glass': { tilt: true, size: 'length, up to 100 µm' },
-  'Spring, latched (Release)': { tilt: true }, 'Ejectisome, latched (Release)': { tilt: true, size: 'length, up to 200 µm' },
-  'Burst organ (escape)': { tilt: true, size: 'burst length, up to 2 s', sizeDefault: 40 },
-  'Oil droplet': { size: 'share of the room inside', inside: true }, 'Sap vacuole (slider)': { size: 'share of the room inside', inside: true },
+  'Spine, protein': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` }, 'Spine, glass': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },
+  'Spring, latched (Release)': { tilt: true }, 'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
+  'Burst organ (escape)': { tilt: true, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
+  'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
-  'Light sensor (eyespot)': { tilt: true, size: 'cone width, 20-180°', sizeDefault: 100 }, 'Touch sensor (another species)': {},
-  'Proximity sensor (another species)': { size: 'range, up to 200 µm' },
+  'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor (another species)': {},
+  'Proximity sensor (another species)': { size: (s) => `${Math.round(200 * s)} µm range` },
 };
 
 // How the Build panel sorts parts

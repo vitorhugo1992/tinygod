@@ -89,7 +89,7 @@ const showTilt = () => { $('partTiltOut').textContent = `${$('partTilt').value}�
 $('partTilt').oninput = showTilt; showTilt();
 const showSize = () => {
   const what = (CONTROLS[$('partWhat').value] || {}).size;
-  $('partSizeOut').textContent = `${$('partSize').value}%${what ? ` (${what})` : ''}`;
+  $('partSizeOut').textContent = what ? what(Number($('partSize').value) / 100) : '';
 };
 $('partSize').oninput = showSize;
 const showInside = () => { $('partInsideOut').textContent = `${$('partInside').value}%`; };
@@ -210,8 +210,8 @@ $('apply').onclick = () => {
   applyDesign(d);
 };
 $('reset').onclick = reset;
-$('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; };
-$('step').onclick = () => { playing = false; $('play').textContent = 'Play'; advance(10); };
+$('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '⏸' : '▶'; };
+$('step').onclick = () => { playing = false; $('play').textContent = '▶'; advance(10); };
 $('release').onclick = () => {
   let any = false;
   for (const c of world.cells) {
@@ -275,7 +275,7 @@ function frame(now) {
     acc -= want * DT;
     lagging = done < want;                     // the computer can't keep up with this speed
   }
-  if (world) { draw(); stats(); }
+  if (world) { draw(); stats(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
   requestAnimationFrame(frame);
 }
 
@@ -331,7 +331,7 @@ window.addEventListener('resize', resize);
 
 function draw() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
-  const view = $('view').value;
+  const view = $('viewMode').value;
   if (view === 'follow') cam = { x: cell.q[0], y: cell.q[1] };
   else if (view === 'fit') fit(W, H);
   const s = Number($('zoom').value);                       // pixels per µm
@@ -357,8 +357,6 @@ function draw() {
     for (let k = 0; k <= 4; k++) g.addColorStop(k / 4, COLOR.light + (0.16 * Math.exp(-PARAMS.light.attenuation * TH * k / 4)).toFixed(3) + ')');
     ctx.fillStyle = g; ctx.fillRect(X(0), top, TW * s, TH * s);
     if (top > 0) { ctx.fillStyle = COLOR.light + '.8)'; ctx.fillRect(X(0), top - 2, TW * s, 3); }
-    ctx.fillStyle = COLOR.light + '.85)'; ctx.font = '12px system-ui';
-    ctx.fillText('☀ light from above ↓', 12, 18);
   }
   // trail
   ctx.fillStyle = COLOR.trail;
@@ -523,7 +521,7 @@ function drawMinimap(W, H) {
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   if (drag && drag.cell) { rotate(drag.cell, e.deltaY < 0 ? 10 : -10); return; }
-  $('view').value = 'free';
+  $('viewMode').value = 'free';
   const z = $('zoom');
   z.value = Math.min(20, Math.max(0.3, Number(z.value) * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
 }, { passive: false });
@@ -538,11 +536,11 @@ canvas.addEventListener('pointerdown', (e) => {
   const hit = world.cells.find((c) => Math.hypot(c.q[0] - wx, c.q[1] - wy) < c.pieces[0].a + c.pieces[0].L / 2 + 6 / s);
   if (hit) {
     if (hit !== cell) select(hit);
-    drag = { cell: hit, dx: hit.q[0] - wx, dy: hit.q[1] - wy, view: $('view').value };
-    $('view').value = 'free';   // a camera following the dragged cell would run away from the mouse
+    drag = { cell: hit, dx: hit.q[0] - wx, dy: hit.q[1] - wy, view: $('viewMode').value };
+    $('viewMode').value = 'free';   // a camera following the dragged cell would run away from the mouse
   } else {
     drag = { x: e.clientX, y: e.clientY, cam: { ...cam } };
-    $('view').value = 'free';
+    $('viewMode').value = 'free';
   }
 });
 window.addEventListener('pointermove', (e) => {
@@ -557,7 +555,7 @@ window.addEventListener('pointermove', (e) => {
   cam = { x: drag.cam.x - (e.clientX - drag.x) / s, y: drag.cam.y + (e.clientY - drag.y) / s };
 });
 window.addEventListener('pointerup', () => {
-  if (drag && drag.cell) $('view').value = drag.view;
+  if (drag && drag.cell) $('viewMode').value = drag.view;
   drag = null;
 });
 window.addEventListener('keydown', (e) => {
@@ -566,6 +564,56 @@ window.addEventListener('keydown', (e) => {
   if (k === 'q') rotate(cell, e.shiftKey ? 2 : 15);
   if (k === 'e') rotate(cell, e.shiftKey ? -2 : -15);
 });
+
+// ----- buttons that stand for the hidden selects and checkboxes, so everything is one tap away -----
+// A row of buttons for a select: tapping one sets the select; the lit button follows it (the code also changes it)
+function segmented(boxId, selectId) {
+  const box = $(boxId), sel = $(selectId);
+  for (const o of sel.options) {
+    const b = document.createElement('button');
+    b.textContent = o.text; b.dataset.v = o.value;
+    b.onclick = () => { sel.value = o.value; sel.dispatchEvent(new Event('change')); };
+    box.appendChild(b);
+  }
+}
+segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall');
+const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked = !$(boxId).checked; $(boxId).dispatchEvent(new Event('change')); }; };
+toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light');
+$('rotL').onclick = () => rotate(cell, 15);
+$('rotR').onclick = () => rotate(cell, -15);
+const zoomBy = (k) => { $('zoom').value = Math.min(20, Math.max(0.3, Number($('zoom').value) * k)); if ($('viewMode').value === 'fit') $('viewMode').value = 'free'; };
+$('zoomIn').onclick = () => zoomBy(1.4);
+$('zoomOut').onclick = () => zoomBy(1 / 1.4);
+
+// Part buttons by category (short names); tapping one picks it
+const SHORT = {
+  'Wave tail (swims)': 'Wave tail', 'Flexible oar (swims)': 'Flexible oar', 'Stiff flap (goes nowhere)': 'Stiff flap',
+  'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Burst organ',
+  'Spring, latched (Release)': 'Spring', 'Ejectisome, latched (Release)': 'Ejectisome', 'Oil droplet': 'Oil droplet',
+  'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
+  'Light sensor (eyespot)': 'Eyespot', 'Touch sensor (another species)': 'Touch', 'Proximity sensor (another species)': 'Proximity',
+};
+for (const [cat, names] of Object.entries(CATEGORIES)) {
+  const head = document.createElement('div'); head.className = 'cat'; head.textContent = cat;
+  const chips = document.createElement('div'); chips.className = 'chips';
+  for (const name of names) {
+    const b = document.createElement('button');
+    b.textContent = SHORT[name] || name; b.title = name; b.dataset.v = name;
+    b.onclick = () => { $('partWhat').value = name; $('partWhat').dispatchEvent(new Event('change')); };
+    chips.appendChild(b);
+  }
+  $('chips').append(head, chips);
+}
+
+// Light up the buttons that match the current state (cheap; once a frame)
+function syncButtons() {
+  for (const [boxId, selId] of [['speedSeg', 'speed'], ['viewSeg', 'viewMode'], ['wallSeg', 'bodyWall'], ['chips', 'partWhat']]) {
+    const v = $(selId).value;
+    for (const b of $(boxId).querySelectorAll('button')) b.classList.toggle('on', b.dataset.v === v);
+  }
+  $('gravityBtn').classList.toggle('on', $('gravity').checked);
+  $('lightBtn').classList.toggle('on', $('light').checked);
+}
 
 resize();
 const asked = new URLSearchParams(location.search).get('preset');   // ?preset=Wave%20tail opens that design

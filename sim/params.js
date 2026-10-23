@@ -6,7 +6,7 @@ export const PARAMS = {
     viscosity: 1.08e-3,     // seawater at ~20 °C, in pN·s/µm²
   },
   gravity: 9.81,            // m/s²
-  tank: { w: 600, h: 2000 },// still water, y up from the floor
+  tank: { w: 1600, h: 2000 },// still water, y up from the floor
   time: {
     dt: 1 / 1000,           // fixed physics step (s), midpoint method; motors up to ~50 Hz get >= 20 steps a beat
     subPerRelax: 16,        // a stiff spring gets sub-steps of at most 1/16 of its relaxation time

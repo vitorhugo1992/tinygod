@@ -7,6 +7,7 @@
 <style>
   :root {
     --bg: #0b1322; --panel: #111c2e; --line: #23324a; --text: #d8e4ea; --dim: #8197a8; --accent: #6fd3b5; --bad: #ff8a7a;
+    --btn: #0d1626; --on: #1d4a44;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
@@ -14,30 +15,45 @@
   body { display: flex; }
   #view { flex: 1; min-width: 0; position: relative; }
   canvas { display: block; width: 100%; height: 100%; }
-  #panel { width: 340px; flex: none; background: var(--panel); border-left: 1px solid var(--line);
-    padding: 12px 14px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 10px; }
-  #panel > * { flex-shrink: 0; }
-  h1 { font-size: 15px; margin: 0; letter-spacing: .04em; }
-  label { color: var(--dim); display: flex; align-items: center; gap: 6px; }
-  select, button, input, textarea { font: inherit; color: var(--text); background: #0d1626; border: 1px solid var(--line);
-    border-radius: 4px; padding: 4px 6px; }
+  [hidden] { display: none !important; }
+  select, button, input, textarea { font: inherit; color: var(--text); background: var(--btn); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 9px; }
   button { cursor: pointer; } button:hover { border-color: var(--accent); }
+  button.on { background: var(--on); border-color: var(--accent); }
+  .seg { display: inline-flex; } .seg button { border-radius: 0; margin-left: -1px; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; } .seg button:last-child { border-radius: 0 6px 6px 0; }
+
+  /* over the tank: the toolbar and the numbers */
+  #bar { position: absolute; top: 8px; left: 8px; right: 52px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  #bar button { background: rgba(13,22,38,.88); }
+  #bar button.on { background: rgba(29,74,68,.95); }
+  #bar .big { font-size: 15px; padding: 4px 12px; }
+  #stats { position: absolute; top: 52px; left: 8px; font: 11.5px/1.45 ui-monospace, Consolas, monospace; white-space: pre;
+    background: rgba(8,14,26,.78); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; pointer-events: none; }
+
+  #panel { width: 330px; flex: none; background: var(--panel); border-left: 1px solid var(--line);
+    padding: 10px 12px; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 8px; }
+  #panel > * { flex-shrink: 0; }
+  h1 { font-size: 14px; margin: 0; letter-spacing: .05em; }
+  h2 { font-size: 11px; margin: 6px 0 0; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+  label { color: var(--dim); display: flex; align-items: center; gap: 6px; }
   .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  #note { color: var(--dim); min-height: 3em; }
-  #build { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
-  .cat { color: var(--accent); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
-  #partList .cat { color: var(--dim); }
-  .part { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; }
-  .part { flex-wrap: wrap; }
-  .part button { padding: 1px 6px; font-size: 11px; }
+  .slider { display: grid; grid-template-columns: 52px 1fr 92px; align-items: center; gap: 6px; color: var(--dim); }
+  .slider input { width: 100%; padding: 0; }
+  .slider span { color: var(--text); font-size: 12px; }
+  .cat { color: var(--dim); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chips button { padding: 4px 8px; font-size: 12px; }
+  #addPart { width: 100%; padding: 8px; font-size: 14px; background: var(--on); border-color: var(--accent); }
+  #buildErr, #err { color: var(--bad); }
+  .part { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; flex-wrap: wrap; }
+  .part button { padding: 1px 7px; font-size: 11px; }
   .part .wire { font-size: 11px; display: flex; gap: 4px; align-items: center; width: 100%; flex-wrap: wrap; }
-  .part .wire select { font-size: 11px; padding: 1px 4px; flex: 1 1 100%; }
+  .part .wire select { font-size: 11px; padding: 2px 4px; flex: 1 1 100%; }
   .part .wire input { font-size: 11px; width: 52px; padding: 1px 3px; }
-  #stats { font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; background: #0d1626;
-    border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
-  textarea { width: 100%; height: 260px; font: 11px/1.35 ui-monospace, Consolas, monospace; resize: vertical; }
-  #err { color: var(--bad); min-height: 1em; }
-  .hint { color: var(--dim); font-size: 12px; }
+  #partList .cat { margin-top: 4px; }
+  details summary { color: var(--dim); cursor: pointer; }
+  textarea { width: 100%; height: 220px; font: 11px/1.35 ui-monospace, Consolas, monospace; resize: vertical; margin-top: 6px; }
   @media (max-width: 760px) {
     body { flex-direction: column; }
     #view { height: 60vh; flex: none; }
@@ -46,90 +62,63 @@
 </style>
 </head>
 <body>
-<div id="view"><canvas id="c"></canvas></div>
-<div id="panel">
-  <h1>TINYGOD · SANDBOX v0</h1>
-  <div id="build">
-    <b>Build</b> <span class="hint">(changes reset the tank)</span>
-    <div class="cat">Body shape</div>
-    <div class="row">
-      <label>Cell radius <input type="range" id="bodyRadius" min="1" max="50" step="0.5" style="width:100px">
-        <span id="bodyRadiusOut"></span></label>
-    </div>
-    <div class="row">
-      <label>Length <input type="range" id="bodyLength" min="0" max="200" step="1" style="width:100px">
-        <span id="bodyLengthOut"></span></label>
-      <label>Wall <select id="bodyWall"><option value="protein">protein</option><option value="glass">glass</option></select></label>
-    </div>
-    <div class="cat">Add a part</div>
-    <div class="row"><label>Part <select id="partWhat"></select></label></div>
-    <div class="row">
-      <label>Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180" style="width:120px">
-        <span id="partAngleOut"></span></label>
-    </div>
-    <div class="row" id="tiltRow">
-      <label>Tilt <input type="range" id="partTilt" min="-90" max="90" step="5" value="0" style="width:120px">
-        <span id="partTiltOut"></span></label>
-    </div>
-    <div class="row" id="insideRow">
-      <label>Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100" style="width:120px">
-        <span id="partInsideOut"></span></label>
-    </div>
-    <div class="row" id="sizeRow">
-      <label>Size <input type="range" id="partSize" min="10" max="100" step="5" value="40" style="width:120px">
-        <span id="partSizeOut"></span></label>
-    </div>
-    <div class="row"><button id="addPart">Add to body</button></div>
-    <div class="hint">The white dot on the cell shows where, its line which way the part points. 0° is the front
-      (right), 180° the back. Tilt turns the part away from pointing straight out (a side flagellum pointing straight
-      out pushes through the centre and can't turn the cell). Inside: 0 at the centre, 100 against the wall;
-      droplets and vacuoles can't overlap. Wire flagella and springs to a sensor in the list below: the part runs
-      (or fires) while the sensor's reading is in the range you set. An eyespot reads the light where it is (it fades
-      with depth) × how squarely it faces up; a touch sensor 1 when another species touches it; a proximity sensor
-      how close another species is. Size: how much
-      of the cell an oil droplet or vacuole fills, or how long a spine (up to 100 µm) or ejectisome (up to 200 µm) is.
-      Oil's density is fixed (920, seawater 1025): a cell floats by holding more of it, about a quarter of its volume.</div>
-    <div id="buildErr" style="color:var(--bad)"></div>
-    <div class="cat">On this body</div>
-    <div id="partList"></div>
-  </div>
-  <div class="row">
-    <button id="play">Pause</button>
-    <button id="step">Step</button>
-    <button id="reset">Reset</button>
-    <button id="release" title="Let go of latched springs and ribbons">Release</button>
-    <label>Speed <select id="speed">
-      <option value="0.02">0.02×</option><option value="0.1">0.1×</option><option value="0.25">0.25×</option>
-      <option value="1" selected>1× real</option><option value="5">5×</option><option value="20">20×</option>
-      <option value="100">100×</option>
-    </select></label>
-  </div>
-  <div class="row">
-    <select id="addWhat" title="What to add"></select>
-    <button id="add" title="Add a cell beside the selected one">Add cell</button>
-  </div>
-  <div class="row">
-    <label><input type="checkbox" id="gravity" checked> gravity</label>
-    <label><input type="checkbox" id="light" checked> light from above</label>
-    <label>View <select id="view">
-      <option value="follow" selected>follow selected</option><option value="fit">fit all cells</option>
-      <option value="free">free</option>
-    </select></label>
-    <label>Zoom <input type="range" id="zoom" min="0.3" max="20" step="0.1" value="5" style="width:90px"></label>
+<div id="view">
+  <canvas id="c"></canvas>
+  <div id="bar">
+    <button id="play" class="big" title="Play / pause">⏸</button>
+    <button id="step" title="Step 10 ms">Step</button>
+    <button id="reset" title="Start again (re-cocks springs)">↺ Reset</button>
+    <button id="release" title="Fire burst organs, let go of latched springs and ejectisomes">⚡ Release</button>
+    <span class="seg" id="speedSeg" title="Speed"></span>
+    <span class="seg" id="viewSeg" title="Camera"></span>
+    <button id="gravityBtn" title="Weight and buoyancy">Gravity</button>
+    <button id="lightBtn" title="Light from above, fading with depth">☀ Light</button>
+    <span class="seg"><button id="rotL" title="Turn the selected cell (or Q)">⟲</button><button id="rotR" title="Turn the selected cell (or E)">⟳</button></span>
+    <span class="seg"><button id="zoomOut" title="Zoom out (or mouse wheel)">−</button><button id="zoomIn" title="Zoom in (or mouse wheel)">+</button></span>
   </div>
   <div id="stats"></div>
+</div>
+<div id="panel">
+  <h1>TINYGOD · SANDBOX</h1>
+
+  <h2>Body</h2>
+  <div class="slider">Radius <input type="range" id="bodyRadius" min="1" max="50" step="0.5"><span id="bodyRadiusOut"></span></div>
+  <div class="slider" title="0 = round; longer makes a rod">Length <input type="range" id="bodyLength" min="0" max="200" step="1"><span id="bodyLengthOut"></span></div>
+  <div class="row">Wall <span class="seg" id="wallSeg"></span></div>
+
+  <h2>Add a part</h2>
+  <div id="chips"></div>
+  <div class="slider" title="Where on the body: 0° front (right), 180° back">Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180"><span id="partAngleOut"></span></div>
+  <div class="slider" id="tiltRow" title="Turn the part away from pointing straight out (a side flagellum needs tilt to turn the cell)">Tilt <input type="range" id="partTilt" min="-90" max="90" step="5" value="0"><span id="partTiltOut"></span></div>
+  <div class="slider" id="insideRow" title="0 = centre, 100 = against the wall; droplets and vacuoles can't overlap">Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100"><span id="partInsideOut"></span></div>
+  <div class="slider" id="sizeRow">Size <input type="range" id="partSize" min="10" max="100" step="5" value="40"><span id="partSizeOut"></span></div>
+  <button id="addPart">＋ Add to body</button>
+  <div id="buildErr"></div>
+
+  <h2>On this body</h2>
+  <div id="partList"></div>
   <div id="sap"></div>
-  <div class="hint">Slow it down (0.1×) to see a stroke. Grid: fine lines every 10 µm, bold every 100 µm.
-    Trail dots every 0.1 s. Drag a cell to move it (and pick it); turn the wheel while holding it, or press Q / E,
-    to rotate it (Shift: finer). Drag the water to look around. At Release, a faint outline marks where cells were.</div>
-  <label>Design (JSON, edit and Apply)</label>
-  <textarea id="json" spellcheck="false"></textarea>
-  <div class="row"><button id="apply">Apply</button><span id="err"></span></div>
-  <div class="hint">Segments: at [x,y] on the parent, angle (°), length, radius (µm), material (protein, glass).
-    Joint: {"type":"motor","rate":Hz,"swing":°,"stroke":0–1,"phase":0–1} or {"type":"hinge","stiffness":pN·µm/rad,"rest":°}.
-    Or {"type":"extend","stiffness":pN/µm,"latched":true}: the segment slides out.
-    Inclusions: at, radius, material (oil, sap with "density" 1005–1040).
-    Pads: {"type":"pad","at":[x,y],"kind":"kin"|"mucus"}: kin sticks to kin pads, mucus to anything.</div>
+
+  <h2>Tank</h2>
+  <div class="row">
+    <select id="addWhat" title="What to add"></select>
+    <button id="add" title="Add a cell beside the selected one">＋ Cell</button>
+  </div>
+
+  <details>
+    <summary>Advanced: design as JSON</summary>
+    <textarea id="json" spellcheck="false"></textarea>
+    <div class="row"><button id="apply">Apply</button><span id="err"></span></div>
+  </details>
+
+  <!-- state the code reads; the buttons above drive them -->
+  <select id="partWhat" hidden></select>
+  <select id="speed" hidden><option value="0.1">0.1×</option><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
+  <select id="viewMode" hidden><option value="follow" selected>Follow</option><option value="fit">Fit</option><option value="free">Free</option></select>
+  <select id="bodyWall" hidden><option value="protein">Protein</option><option value="glass">Glass</option></select>
+  <input type="checkbox" id="gravity" checked hidden>
+  <input type="checkbox" id="light" checked hidden>
+  <input type="range" id="zoom" min="0.3" max="20" step="0.1" value="5" hidden>
 </div>
 <script type="module" src="main.js"></script>
 </body>
