@@ -86,6 +86,27 @@ function parseJoint(j, pieceIndex) {
   throw new Error(`unknown joint type: ${j.type}`);
 }
 
+// A joint's wiring as the design writes it -> as the cell uses it (the sensor by index, the range)
+function resolveControl(sensors, c) {
+  const s = sensors.findIndex((x) => x.id === c.sensor);
+  if (s < 0) throw new Error(`no sensor called ${c.sensor}`);
+  let min = c.min ?? 0, max = c.max ?? 1;
+  if (c.when === 'light') min = PARAMS.sensor.threshold;
+  else if (c.when === 'dark') max = PARAMS.sensor.threshold;
+  else if (c.when !== undefined) throw new Error('control.when must be light or dark');
+  if (!(min <= max)) throw new Error('control: min must not be above max');
+  return { sensor: s, min, max, holds: null };
+}
+
+// Rewire a living cell's joints that came from design part `partIndex` (control null: unwire), without rebuilding it
+export function rewire(cell, partIndex, control) {
+  for (const j of cell.joints) {
+    if (j.part !== partIndex) continue;
+    if (control) j.control = resolveControl(cell.sensors, control);
+    else { delete j.control; if (j.type === 'motor' && !j.burst) j.on = true; }
+  }
+}
+
 export function buildCell(design) {
   const pieces = [];
   const joints = [];
@@ -120,6 +141,7 @@ export function buildCell(design) {
       const v = capsuleVolume(L, a);
       const joint = parseJoint(part.joint, pieces.length);
       if (joint) joints.push(joint);
+      if (joint) joint.part = design.parts.indexOf(part);   // which design part it came from (for live rewiring)
       if (joint && part.joint.control) controls.push([joint, part.joint.control]);
       const piece = {
         kind: 'segment', parent, ax: x, ay: y, mount: (part.angle || 0) * DEG, offset: L / 2,
@@ -182,16 +204,7 @@ export function buildCell(design) {
     p.cols = Int32Array.from(base);
   }
 
-  for (const [joint, c] of controls) {
-    const s = sensors.findIndex((x) => x.id === c.sensor);
-    if (s < 0) throw new Error(`no sensor called ${c.sensor}`);
-    let min = c.min ?? 0, max = c.max ?? 1;
-    if (c.when === 'light') min = PARAMS.sensor.threshold;
-    else if (c.when === 'dark') max = PARAMS.sensor.threshold;
-    else if (c.when !== undefined) throw new Error('control.when must be light or dark');
-    if (!(min <= max)) throw new Error('control: min must not be above max');
-    joint.control = { sensor: s, min, max, holds: null };
-  }
+  for (const [joint, c] of controls) joint.control = resolveControl(sensors, c);
 
   // how far the cell can reach from its body centre, for finding neighbours
   const reachOf = [];

@@ -3,6 +3,7 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire } from '../sim/physics.js';
+import { rewire } from '../sim/build.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -130,13 +131,18 @@ function wiring(g, wired) {
   const c = wired[0].joint.control;
   sel.value = c ? c.sensor : '';
   box.appendChild(sel);
+  // rewiring changes the design and the cells already in the tank as they are: no reset
   const write = (sensor, min, max) => {
-    const d = JSON.parse(JSON.stringify(design));
+    if (sensor && !(min <= max)) { $('buildErr').textContent = 'the range must run from low to high'; return; }
+    $('buildErr').textContent = '';
     for (const m of wired) {
-      const joint = d.parts[design.parts.indexOf(m)].joint;
-      if (sensor) joint.control = { sensor, min, max }; else delete joint.control;
+      const control = sensor ? { sensor, min, max } : null;
+      if (control) m.joint.control = control; else delete m.joint.control;
+      const k = design.parts.indexOf(m);
+      for (const c of world.cells) if (c.design === design) rewire(c, k, control);
     }
-    applyDesign(d);
+    $('json').value = JSON.stringify(design, null, 2);
+    listParts();
   };
   sel.onchange = () => {
     const kind = sel.value && (design.parts.find((p) => p.id === sel.value).kind || 'light');
