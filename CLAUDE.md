@@ -4,13 +4,42 @@ Players **design their own phytoplankton species** from parts and try to make it
 The author is a **phytoplankton researcher**: the biology carries weight, and their corrections on biology are
 authoritative.
 
-**Status (2026-10-23): building step 0, the physics sandbox** (author's go given). Done: sinking, joints, motors,
-latched springs, extending parts (ejectisome), a burst organ for escapes, pumped sap vacuoles, cells touching, kin
-and mucus pads, chains with the hidden cap, light from above with a day/night cycle, sensors (eyespot with cone width,
-touch, proximity) and the built-in energy level, wired by a reading range, and **metabolism v0** (energy only: plastids earn by light,
-upkeep, starch and oil stores filling and burning automatically and changing buoyancy, starving stops motors); a
-viewer with a Build panel (body, parts by category, edit in place, wiring), presets, tweezers, phone layout; 29
-physics checks pass.
+## Start here (handoff, 2026-10-23)
+
+**Where we are:** step 0, the physics sandbox, is built and close to done. The first design conversation and the
+whole sandbox build happened in one long chat (2026-10-21 to 23); this file holds every decision from it.
+
+**Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
+the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
+`node tools/check.mjs`: 31 physics checks, all passing (~2 min).
+
+**Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
+springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
+kin and mucus pads, chains (hidden cap 32), **light from above** fading with depth with a **10-minute day/night**,
+sensors (eyespot with cone width; touch and proximity feeling other species or anything incl. walls) and the
+**built-in energy level**, **wiring** (each part: a list of conditions, all must hold, each a reading range),
+**metabolism v0** (energy only: plastids earn by light; upkeep; starch and oil fill and burn automatically and change
+buoyancy; starving stops motors). Viewer: one-tap toolbar, Build panel (body shape, parts by category, where / tilt /
+inside / size / feels, edit in place, live rewiring), budget panel, phone layout with pinch zoom.
+
+**v0 pass tests (below):** 1, physics honest: **passed** (checks). 2, fun and depth: **for the author to judge**
+(candidate ways to hold a depth: eyespot-wired tail, buoyancy, starch sinking at dusk, burst organ, chains;
+candidate surprises: a climbing swimmer needs an oil droplet to stay pointed up, and a narrow tank's wall had been
+faking it; the flexible oar's stiffness sweet spot; longer ribbons throw disproportionately farther). 3, cheap:
+**failed** (~170-520 ms per simulated minute per cell vs < 1 ms); plan for step 1: measure each design's movement
+once in full physics and let the ecology reuse it (to decide).
+
+**Left in the sandbox (none blocks v0):**
+- **Logic in wiring** (author liked it, 2026-10-23): OR and NOT besides the current AND.
+- Wiring stores to the energy level (decided optional).
+- Saving designs (now they live until reload, except via the JSON box under Advanced).
+- A rebuild (any part change) resets the clock to dawn and clears other cells.
+- Planned, not done: force arrows; a water-flow switch (shear or eddies); tips while building; more materials
+  (chalk, mucus, gas).
+
+**Next after v0: step 1, the ecology** (roadmap below): growth, death, division, a real water column with light
+and nutrients, grazing, the optimiser. Open there: how designs move into MONAD's not-to-scale water; the speed plan;
+the types of water; what a match is; how the optimiser searches.
 
 ---
 
@@ -246,21 +275,19 @@ A plain visual sandbox in the browser to build a cell from blocks, press play an
 runs headless in Node for tests (and later the optimiser).
 
 ### v0 scope
-- **Blocks:** Body, Segment, Joint, Motor, Inclusion, Pad, Sensor. **Materials:** protein, glass, sap, oil.
+- **Blocks:** Body, Segment, Joint (hinge, motor, extend), Inclusion, Pad, Sensor. **Materials:** protein, glass,
+  sap, oil, starch, plastid.
 - **Water: still.** A tall tank with gravity, walls and floor. A simple **shear or eddy flow** comes later as a
   switch.
 - **Light from above** (author asked for it, 2026-10-23, to wire an eyespot). It **fades with depth over the tank**
   (to 5% at the floor): the 2 mm tank's light is a water column squeezed, made playable, so sensors can tell how
-  close to the surface they are. A switch turns it off. Planned for later: three colour bands (blue, green, red)
-  fading with depth at different rates, with a day/night clock. **Open question:** how the 2 mm tank relates to a
-  real water column (light changes over metres). Proposed: the sandbox stays a microscope (real µm and seconds;
-  light as one adjustable setting) and the real column with its light lives in step 1, where each design's
-  measured swimming, sinking and turning moves it at real speeds with time sped up. Not yet decided.
-- **Energy is tracked and shown** per part (motor power, pumping, pad upkeep), but nothing dies, grows or divides
-  yet. Several copies of a design can be dropped in (to test chains by meeting).
-- **Sandbox view:** plain shapes; trails; force arrows; numbers (speed, depth, sinking rate, energy spent);
-  pause, step, speed up. Designs save and load as JSON; a few presets (stiff flapper, flexible oar, sinkers with
-  and without spines, bottom-heavy swimmer).
+  close to the surface they are. A switch turns it off; a day/night cycle (10 minutes) dims it. Coloured light
+  (blue, green, red bands for pigments) is for later.
+- **Metabolism v0** (see above): energy only; nothing dies, grows or divides yet.
+- **Sandbox view:** plain shapes; trails; numbers (speed, depth, light, energy budget) behind an info button, a line
+  on the tank with time, energy and stores; pause, step, speeds 0.1-20x; several cells (copies are kin, presets are
+  other species); tweezers (drag to move, wheel or Q/E or buttons to turn); presets in the Add-cell menu; the design
+  as JSON under Advanced.
 
 ### v0 passes if
 1. **The physics is honest** (automatic, in Node):
@@ -285,9 +312,11 @@ runs headless in Node for tests (and later the optimiser).
   WebAssembly for the hot loop later only if needed). Served by a one-command local server. Node 24.
 - **Layout:**
   ```
-  sim/        pure simulation, no DOM: rng, dmath, physics, parts, materials, water, params
-  sandbox/    index.html, editor, canvas drawing
-  tools/      Node: headless runs, physics-law checks, determinism check, speed bench
+  sim/        pure simulation, no DOM: params, rng, dmath, materials, build (design -> cell), physics (overdamped
+              solver, motors, bursts, pumps), interact (contact, pads, chains), sense (sensors, wiring), light (sun,
+              depth), metab (energy, stores), world (step order), presets
+  sandbox/    index.html, main.js (viewer, Build panel, wiring editor), parts.js (part templates, categories)
+  tools/      check.mjs (physics-law checks), serve.mjs (local / Wi-Fi server)
   ```
 - **Deterministic, as in MONAD:** all randomness through one seeded PRNG (mulberry32, state in the open); fixed
   timestep decoupled from rendering; maths limited to `+ − × ÷`, `sqrt`, and MONAD's custom `dexp` and `dsin`
@@ -297,10 +326,10 @@ runs headless in Node for tests (and later the optimiser).
 - **Run:** `node tools/serve.mjs` then open http://localhost:5180/sandbox/ (`?preset=Wave%20tail` opens a preset).
   `node tools/serve.mjs --lan` also serves phones on the same Wi-Fi (prints the address; Windows asks once to allow
   Node through the firewall). The server shares only sandbox/ and sim/.
-  `node tools/check.mjs` runs the physics-law checks (~1 min). Port 8080 is taken on the author's machine.
+  `node tools/check.mjs` runs the physics-law checks (~2 min). Port 8080 is taken on the author's machine.
 - **Integration:** midpoint method, dt 1 ms. Simple Euler leaked a drift proportional to dt into strokes that should
   go nowhere (measured, 2026-10-23); keep a second-order method.
-- **Speed (measured 2026-10-23):** ~2 ms per simulated second for a 5-piece cell, ~7 ms for a 6-piece motorised
+- **Speed (measured 2026-10-23):** ~3 ms per simulated second for a 5-piece cell, ~9 ms for a 6-piece motorised
   tail: fine for watching, ~100x too slow for scoring designs over many seeds by brute force. Likely plan for
   step 1: measure each design's swimming, sinking and turning once in full physics, and let the ecology use those
   numbers (to discuss with the author).
@@ -310,7 +339,7 @@ runs headless in Node for tests (and later the optimiser).
 
 ## Roadmap
 
-0. **Physics sandbox** (above). ← now
+0. **Physics sandbox** (above). ← now, nearly done
 1. **Headless prototype of the lab:** plastids and coloured light, growth, death and division, costs, 3–4 types
    of water, an optimiser (an evolutionary search over designs). Passes if it finds **different winners in
    different water**, **no single design wins in all of them**, and **at least one part combination does
@@ -358,5 +387,12 @@ written targets).
   recommendation.
 - Ask **one question at a time** when several decisions are open.
 - Explain plainly; avoid jargon or define it.
+- **Give tools, not finished solutions:** the author wants to mount builds themselves ("give me the tools, and I'll
+  try to do it"). Offer a build to try, don't build it for them.
+- **UI:** one or two taps, buttons visible, no long texts (tooltips instead), phone-first (the author tests on a
+  phone over Wi-Fi). Changing a setting should not reset the tank unless the cell's structure changes.
+- **Check in the real page before reporting:** drive the sandbox headless (Edge over the DevTools protocol, phone
+  size too) and look at screenshots; several bugs were only visible that way. Kill leftover headless browsers.
+- **Gameplay balance first, biology gives the shape; no rabbit holes** (see Principles).
 - Commit with git after each finished step. Commits use the GitHub noreply address
   (`vitorhugo1992@users.noreply.github.com`); never commit a personal email. GitHub user: `vitorhugo1992`.
