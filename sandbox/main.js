@@ -3,7 +3,7 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire } from '../sim/physics.js';
-import { rewire } from '../sim/build.js';
+import { rewire, controlsOf } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel } from '../sim/sense.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS } from './parts.js';
@@ -104,6 +104,7 @@ const showControls = () => {
   $('tiltRow').style.display = c.tilt ? '' : 'none';
   $('sizeRow').style.display = c.size ? '' : 'none';
   $('insideRow').style.display = c.inside ? '' : 'none';
+  $('feelsRow').style.display = c.feels ? '' : 'none';
   if (c.sizeDefault && !editing) $('partSize').value = c.sizeDefault;
   showSize();
 };
@@ -113,8 +114,8 @@ let editing = null;   // the id of the part being edited, or null when adding
 // Make a part from the Build controls; its first piece remembers how (build), so it can be edited later
 function makePart(body, id) {
   const b = { tpl: $('partWhat').value, where: Number($('partAngle').value), tilt: Number($('partTilt').value),
-    size: Number($('partSize').value) / 100, depth: Number($('partInside').value) / 100, id };
-  const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth);
+    size: Number($('partSize').value) / 100, depth: Number($('partInside').value) / 100, feels: $('partFeels').value, id };
+  const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels);
   parts[0].build = b;
   return parts;
 }
@@ -130,7 +131,9 @@ function updateEdited() {
   const g = partGroups(d.parts).find((x) => x.members[0].build && x.members[0].build.id === editing);
   if (!g) { stopEditing(); return; }
   const fresh = makePart(d.body, editing);
-  g.members.forEach((m, i) => { if (m.joint && m.joint.control && fresh[i] && fresh[i].joint) fresh[i].joint.control = m.joint.control; });
+  g.members.forEach((m, i) => {
+    if (m.joint && controlsOf(m.joint).length && fresh[i] && fresh[i].joint) fresh[i].joint.controls = controlsOf(m.joint);
+  });
   const at = d.parts.indexOf(g.members[0]);
   d.parts = d.parts.filter((p) => !g.members.includes(p));
   d.parts.splice(at, 0, ...fresh);
@@ -141,6 +144,7 @@ function startEditing(b) {
   $('partWhat').value = b.tpl; showControls();
   $('partAngle').value = b.where; $('partTilt').value = b.tilt;
   $('partSize').value = Math.round(b.size * 100); $('partInside').value = Math.round(b.depth * 100);
+  if (b.feels) $('partFeels').value = b.feels;
   showAngle(); showTilt(); showSize(); showInside();
   $('addPart').textContent = '✓ Done editing'; $('cancelEdit').hidden = false;
   listParts();
@@ -152,48 +156,78 @@ function stopEditing() {
 }
 $('cancelEdit').onclick = stopEditing;
 // while editing, letting go of a slider (or picking another part type) updates the part at once
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside']) $(id).onchange = () => { if (editing) updateEdited(); };
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partFeels']) $(id).onchange = () => { if (editing) updateEdited(); };
 // Wiring for a group's motors (runs) or latched springs (released): a sensor, and the range of its reading (0-1)
 // in which the part runs or fires
 const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1] };   // a sensible start when a sensor is picked
 const SCALE = {   // what the 0-1 reading means, shown beside the range
   light: '0 = dark or facing away, 1 = facing up in full light',
-  touch: '0 = nothing, 1 = another species touching',
-  near: '0 = nobody in range, 1 = another species touching',
+  touch: '0 = nothing, 1 = touching',
+  near: '0 = nothing in range, 1 = touching',
   energy: '0 = out of energy (starving), 1 = full',
 };
+// The wiring of a part: a list of conditions (a sensor and a range of its reading), all of which must hold for the part
+// to run (or fire). Rewiring changes the design and the cells already in the tank as they are: no reset.
 function wiring(g, wired) {
   const box = document.createElement('div');
   box.className = 'wire';
   const motor = wired[0].joint.type === 'motor' && !wired[0].joint.burst;
-  const sel = document.createElement('select');
-  sel.add(new Option(motor ? 'runs always' : 'released by hand', ''));
   const sensors = partGroups(design.parts || []).filter((x) => x.category === 'Sensors');
-  for (const s of sensors) sel.add(new Option(`${motor ? 'runs' : 'fires'} by ${s.name.toLowerCase()} at ${s.deg}°`, s.members[0].id));
-  sel.add(new Option(`${motor ? 'runs' : 'fires'} by its energy level (built in)`, 'energy'));
-  const c = wired[0].joint.control;
-  sel.value = c ? c.sensor : '';
-  box.appendChild(sel);
-  // rewiring changes the design and the cells already in the tank as they are: no reset
-  const write = (sensor, min, max) => {
-    if (sensor && !(min <= max)) { $('buildErr').textContent = 'the range must run from low to high'; return; }
+  const kindOf = (id) => (id === 'energy' ? 'energy' : (design.parts.find((p) => p.id === id) || {}).kind || 'light');
+  const list = controlsOf(wired[0].joint).map((c) => ({ sensor: c.sensor,
+    min: c.when === 'light' ? 0.5 : c.min ?? 0, max: c.when === 'dark' ? 0.5 : c.max ?? 1 }));
+  const write = (next) => {
+    if (next.some((c) => !(c.min <= c.max))) { $('buildErr').textContent = 'a range must run from low to high'; return; }
     $('buildErr').textContent = '';
     for (const m of wired) {
-      const control = sensor ? { sensor, min, max } : null;
-      if (control) m.joint.control = control; else delete m.joint.control;
+      delete m.joint.control;
+      if (next.length) m.joint.controls = next.map((c) => ({ ...c })); else delete m.joint.controls;
       const k = design.parts.indexOf(m);
-      for (const c of world.cells) if (c.design === design) rewire(c, k, control);
+      for (const c of world.cells) if (c.design === design) rewire(c, k, next);
     }
     $('json').value = JSON.stringify(design, null, 2);
     listParts();
   };
-  sel.onchange = () => {
-    const kind = sel.value && (sel.value === 'energy' ? 'energy' : design.parts.find((p) => p.id === sel.value).kind || 'light');
-    write(sel.value, ...(kind ? RANGE[kind] : []));
+  const head = document.createElement('div');
+  head.textContent = list.length ? `${motor ? 'runs' : 'fires'} while all of these hold:`
+    : (motor ? 'runs always' : 'fires by hand (Release)');
+  box.appendChild(head);
+  list.forEach((c, idx) => {
+    const cond = document.createElement('div');
+    cond.className = 'cond';
+    const top = document.createElement('div');
+    top.className = 'condhead';
+    const sel = document.createElement('select');
+    for (const s of sensors) sel.add(new Option(`${s.name.toLowerCase()} at ${s.deg}°`, s.members[0].id));
+    sel.add(new Option('its energy level (built in)', 'energy'));
+    sel.value = c.sensor;
+    sel.onchange = () => { const next = list.map((x) => ({ ...x })); next[idx] = { sensor: sel.value, min: RANGE[kindOf(sel.value)][0], max: RANGE[kindOf(sel.value)][1] }; write(next); };
+    const del = document.createElement('button');
+    del.textContent = '✕'; del.title = 'Remove this condition';
+    del.onclick = () => write(list.filter((_, i) => i !== idx));
+    top.append(sel, del);
+    cond.appendChild(top);
+    cond.appendChild(rangeBar(c, motor, kindOf(c.sensor), (lo, hi) => {
+      const next = list.map((x) => ({ ...x })); next[idx].min = lo; next[idx].max = hi; write(next);
+    }));
+    box.appendChild(cond);
+  });
+  const add = document.createElement('button');
+  add.className = 'addcond';
+  add.textContent = list.length ? '＋ and also…' : (motor ? '＋ wire it to a sensor' : '＋ fire it by a sensor');
+  add.onclick = () => {
+    const first = sensors.length ? sensors[0].members[0].id : 'energy';
+    write([...list, { sensor: first, min: RANGE[kindOf(first)][0], max: RANGE[kindOf(first)][1] }]);
   };
-  if (c) {
-    const lo = c.when === 'light' ? 0.5 : c.min ?? 0, hi = c.when === 'dark' ? 0.5 : c.max ?? 1;
-    const kind = c.sensor === 'energy' ? 'energy' : design.parts.find((p) => p.id === c.sensor).kind || 'light';
+  box.appendChild(add);
+  return box;
+}
+
+// One condition's range: a bar with two handles; the part is on (or fires) while the reading is inside the lit stretch;
+// the orange tick is the reading now
+function rangeBar(c, motor, kind, onSet) {
+  {
+    const lo = c.min, hi = c.max;
     // one bar, two handles: the part is on (or fires) while the reading is inside the lit stretch; the orange tick is
     // the reading now
     const span = document.createElement('div');
@@ -211,11 +245,10 @@ function wiring(g, wired) {
     };
     a.oninput = () => { if (Number(a.value) > Number(b.value)) a.value = b.value; show(); };
     b.oninput = () => { if (Number(b.value) < Number(a.value)) b.value = a.value; show(); };
-    a.onchange = b.onchange = () => write(c.sensor, Number(a.value), Number(b.value));
+    a.onchange = b.onchange = () => onSet(Number(a.value), Number(b.value));
     show();
-    box.appendChild(span);
+    return span;
   }
-  return box;
 }
 
 function listParts() {
@@ -755,7 +788,7 @@ function segmented(boxId, selectId) {
     box.appendChild(b);
   }
 }
-segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall');
+segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall'); segmented('feelsSeg', 'partFeels');
 const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked = !$(boxId).checked; $(boxId).dispatchEvent(new Event('change')); }; };
 toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day');
 $('day').onchange = () => { if (world) world.day = $('day').checked; };
@@ -774,7 +807,7 @@ const SHORT = {
   'Spring, latched (Release)': 'Spring', 'Ejectisome, latched (Release)': 'Ejectisome', 'Oil droplet': 'Oil droplet',
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
   'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
-  'Light sensor (eyespot)': 'Eyespot', 'Touch sensor (another species)': 'Touch', 'Proximity sensor (another species)': 'Proximity',
+  'Light sensor (eyespot)': 'Eyespot', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity',
 };
 for (const [cat, names] of Object.entries(CATEGORIES)) {
   const head = document.createElement('div'); head.className = 'cat'; head.textContent = cat;
@@ -790,7 +823,7 @@ for (const [cat, names] of Object.entries(CATEGORIES)) {
 
 // Light up the buttons that match the current state (cheap; once a frame)
 function syncButtons() {
-  for (const [boxId, selId] of [['speedSeg', 'speed'], ['viewSeg', 'viewMode'], ['wallSeg', 'bodyWall'], ['chips', 'partWhat']]) {
+  for (const [boxId, selId] of [['speedSeg', 'speed'], ['viewSeg', 'viewMode'], ['wallSeg', 'bodyWall'], ['chips', 'partWhat'], ['feelsSeg', 'partFeels']]) {
     const v = $(selId).value;
     for (const b of $(boxId).querySelectorAll('button')) b.classList.toggle('on', b.dataset.v === v);
   }

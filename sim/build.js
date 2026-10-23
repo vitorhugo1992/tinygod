@@ -8,7 +8,8 @@
 //     { type: 'segment', id?, parent = 'body', at: [x, y], angle, length, radius, material, joint? },
 //     { type: 'inclusion', parent = 'body', at: [x, y], radius, material, density?, fill? },
 //     { type: 'pad', parent = 'body', at: [x, y], radius = 1, kind = 'kin' | 'mucus' },
-//     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' | 'touch' | 'near', range?, cone? },
+//     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' | 'touch' | 'near', range?, cone?,
+//       feels = 'strangers' | 'anything' },
 //   ]
 // }
 // `at` is a point in the parent's own frame (x along its axis, from its centre). A segment grows from that point
@@ -23,8 +24,9 @@
 // light there × how squarely it faces up, scaled to its cone (a narrow eyespot is precise, a wide one vague); a touch sensor
 // reads 1 while another species touches its spot; a proximity sensor reads how close another species is within
 // `range` µm (1 touching, 0 at the range).
-// Any joint can be wired to a sensor: control: { sensor: id, min = 0, max = 1 } (sensor 'energy': the cell's own energy
-// level, built into every cell: 0 empty, 1 full): a motor runs only while the reading
+// Any joint can be wired to sensors: controls: [{ sensor: id, min = 0, max = 1 }, ...] (sensor 'energy': the cell's own
+// energy level, built into every cell: 0 empty, 1 full; one control: { ... } is the same as a list of one). All must
+// hold: a motor runs only while the reading
 // is between min and max; a latched hinge or extender is released the first time it is.
 // ({ when: 'light' } means min 0.5, { when: 'dark' } max 0.5.)
 // A segment's joint, at `at`:
@@ -101,12 +103,15 @@ function resolveControl(sensors, c) {
   return { sensor: s, min, max, holds: null };
 }
 
-// Rewire a living cell's joints that came from design part `partIndex` (control null: unwire), without rebuilding it
-export function rewire(cell, partIndex, control) {
+// A design joint's wiring as a list (`controls`, or the older single `control`)
+export const controlsOf = (j) => (j.controls ? j.controls : j.control ? [j.control] : []);
+
+// Rewire a living cell's joints that came from design part `partIndex` (an empty list: unwire), without rebuilding it
+export function rewire(cell, partIndex, controls) {
   for (const j of cell.joints) {
     if (j.part !== partIndex) continue;
-    if (control) j.control = resolveControl(cell.sensors, control);
-    else { delete j.control; if (j.type === 'motor' && !j.burst) j.on = true; }
+    if (controls.length) j.controls = controls.map((c) => resolveControl(cell.sensors, c));
+    else { delete j.controls; if (j.type === 'motor' && !j.burst) j.on = true; }
   }
 }
 
@@ -145,7 +150,7 @@ export function buildCell(design) {
       const joint = parseJoint(part.joint, pieces.length);
       if (joint) joints.push(joint);
       if (joint) joint.part = design.parts.indexOf(part);   // which design part it came from (for live rewiring)
-      if (joint && part.joint.control) controls.push([joint, part.joint.control]);
+      if (joint && controlsOf(part.joint).length) controls.push([joint, controlsOf(part.joint)]);
       const piece = {
         kind: 'segment', parent, ax: x, ay: y, mount: (part.angle || 0) * DEG, offset: L / 2,
         joint: joint ? joints.length - 1 : -1,
@@ -192,7 +197,7 @@ export function buildCell(design) {
       const facing = part.angle !== undefined ? part.angle * DEG : Math.atan2(y, x);
       const range = part.range || (kind === 'near' ? PARAMS.sensor.nearRange : PARAMS.sensor.touchRange);
       const cone = Math.min(Math.max(part.cone || 180, 10), 180) * DEG;
-      sensors.push({ id: part.id, piece: parent, x, y, facing, kind, range, cone, value: 0 });
+      sensors.push({ id: part.id, piece: parent, x, y, facing, kind, range, cone, feels: part.feels || 'strangers', value: 0 });
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
       if (kind !== 'kin' && kind !== 'mucus') throw new Error(`unknown pad kind: ${kind}`);
@@ -211,7 +216,7 @@ export function buildCell(design) {
     p.cols = Int32Array.from(base);
   }
 
-  for (const [joint, c] of controls) joint.control = resolveControl(sensors, c);
+  for (const [joint, cs] of controls) joint.controls = cs.map((c) => resolveControl(sensors, c));
 
   // how far the cell can reach from its body centre, for finding neighbours
   const reachOf = [];

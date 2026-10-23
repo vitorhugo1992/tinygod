@@ -53,6 +53,10 @@
   .part .wire { font-size: 11px; display: flex; gap: 4px; align-items: center; width: 100%; flex-wrap: wrap; }
   .part .wire select { font-size: 11px; padding: 2px 4px; flex: 1 1 100%; }
   .part .wire .range { width: 100%; }
+  .part .wire .cond { width: 100%; border-left: 2px solid var(--line); padding-left: 6px; margin-top: 4px; }
+  .part .wire .condhead { display: flex; gap: 4px; align-items: center; }
+  .part .wire .condhead select { flex: 1; }
+  .part .wire .addcond { margin-top: 4px; }
   .part .wire .rlabel b { color: var(--text); font-weight: 600; }
   .part .wire .rscale { color: var(--dim); }
   /* two handles on one bar; the track is inset by half a thumb so 0 and 1 sit under the thumbs' centres */
@@ -122,6 +126,7 @@
   <div class="slider" title="Where on the body: 0° front (right), 180° back">Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180"><span id="partAngleOut"></span></div>
   <div class="slider" id="tiltRow" title="Turn the part away from pointing straight out (a side flagellum needs tilt to turn the cell)">Tilt <input type="range" id="partTilt" min="-90" max="90" step="5" value="0"><span id="partTiltOut"></span></div>
   <div class="slider" id="insideRow" title="0 = centre, 100 = against the wall; droplets and vacuoles can't overlap">Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100"><span id="partInsideOut"></span></div>
+  <div class="row" id="feelsRow" title="What a touch or proximity sensor reacts to">Feels <span class="seg" id="feelsSeg"></span></div>
   <div class="slider" id="sizeRow">Size <input type="range" id="partSize" min="10" max="100" step="5" value="40"><span id="partSizeOut"></span></div>
   <button id="addPart">＋ Add to body</button>
   <button id="cancelEdit" hidden>Stop editing</button>
@@ -147,6 +152,7 @@
   <select id="partWhat" hidden></select>
   <select id="speed" hidden><option value="0.1">0.1×</option><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
   <select id="viewMode" hidden><option value="follow" selected>Follow</option><option value="fit">Fit</option><option value="free">Free</option></select>
+  <select id="partFeels" hidden><option value="strangers" selected>Other species</option><option value="anything">Anything (cells, walls)</option></select>
   <select id="bodyWall" hidden><option value="protein">Protein</option><option value="glass">Glass</option></select>
   <input type="checkbox" id="gravity" checked hidden>
   <input type="checkbox" id="light" checked hidden>

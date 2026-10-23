@@ -117,7 +117,12 @@ wired to: a motor runs only while it is lit (or only while dark), a latched spri
 holds. A stopped motor freezes mid-beat and resumes from there (each motor keeps its own clock). Wiring takes a
 **range** of the reading (0-1): e.g. a tail that runs while the light is below 0.8 climbs until the cell has
 enough light, then hovers there (the author's idea: stop once near the surface and catching enough light).
-**Touch and proximity sensors** (author asked, 2026-10-23) feel another species, not kin: touch on its spot,
+**Several conditions per part** (author, 2026-10-23): a part's wiring is a list of conditions (a sensor or the
+energy level, and a range), and it runs (or fires) only while **all** of them hold, e.g. a tail that runs while energy
+is above 0.3 AND the eyespot reads 0.1-0.8 AND a proximity sensor says no wall is near. (Only AND for now.)
+**Touch and proximity sensors** (author asked, 2026-10-23) feel another species by default, or, set to feel
+**anything**, any other cell and the tank's walls, floor and surface (a flagellum can be shut off before a wall). By
+default they feel another species, not kin: touch on its spot,
 proximity rising as a stranger comes within range (a spring wired to touch is an escape trigger). Clock, depth and
 tilt switches are still open.
 

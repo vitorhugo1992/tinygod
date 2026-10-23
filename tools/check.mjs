@@ -530,6 +530,28 @@ const runDay = (design, y, seconds, opts = {}) => {
     `tail wired to run while energy is 0.5-1: it stopped at ${fmt(100 * (stoppedAt ?? 0), 0)}% (the range's edge less a small dead band)`);
 }
 
+// 28c. Several conditions on one part, all must hold; a proximity sensor that feels "anything" feels the tank's wall
+{
+  const tail = PRESETS['Wave tail'].parts;   // swims toward +x (its front)
+  const swimmer = (feels) => ({ body: { radius: 8 }, parts: [
+    { type: 'sensor', id: 'near', at: [8, 0], kind: 'near', range: 50, feels },
+    ...tail.map((p) => ({ ...p, joint: { ...p.joint, controls: [
+      { sensor: 'energy', min: 0.3, max: 1 },
+      { sensor: 'near', min: 0, max: 0.3 },
+    ] } })) ] });
+  const run = (feels) => {
+    const w = makeWorld(1, { gravity: false, metab: true });
+    const c = addCell(w, swimmer(feels), PARAMS.tank.w - 200, 1000, 0);
+    for (let i = 0; i < 10 / DT; i++) stepWorld(w);
+    return { gap: PARAMS.tank.w - (c.q[0] + 8), on: c.joints[0].on, conds: c.joints[0].controls.length };
+  };
+  const anything = run('anything'), strangers = run('strangers');
+  check('a part can need several conditions at once; a proximity sensor set to "anything" feels the wall',
+    anything.conds === 2 && !anything.on && anything.gap > 25 && anything.gap < 45 && strangers.gap < 5,
+    `tail runs while energy 0.3-1 AND proximity 0-0.3 (range 50 µm): feeling anything it stops ${fmt(anything.gap, 0)} µm ` +
+    `from the wall; feeling only other species it swims into it (${fmt(strangers.gap, 1)} µm)`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

@@ -29,7 +29,7 @@ const chain = (id, at, deg, n, length, joint) => Array.from({ length: n }, (_, i
   angle: i ? 0 : deg, length, radius: 0.25, material: 'protein', joint: joint(i),
 }));
 
-// Each template: (body, where, id, size, tilt, depth). `where` is the angle round the body; the part points straight
+// Each template: (body, where, id, size, tilt, depth, feels). `where` is the angle round the body; the part points straight
 // out from there, turned by `tilt` degrees; an inclusion sits `depth` of the way from the centre to the wall.
 export const PART_TEMPLATES = {
   'Wave tail (swims)': (body, deg, id, size, tilt) => {
@@ -83,10 +83,11 @@ export const PART_TEMPLATES = {
   'Light sensor (eyespot)': (body, deg, id, size, tilt) =>
     [{ type: 'sensor', id, label: 'Light sensor', at: surfacePoint(body, deg), angle: deg + tilt, kind: 'light',
       cone: Math.max(20, Math.round(180 * size)) }],
-  'Touch sensor (another species)': (body, deg, id) =>
-    [{ type: 'sensor', id, label: 'Touch sensor', at: surfacePoint(body, deg), kind: 'touch' }],
-  'Proximity sensor (another species)': (body, deg, id, size) =>
-    [{ type: 'sensor', id, label: 'Proximity sensor', at: surfacePoint(body, deg), kind: 'near', range: Math.round(200 * size) }],
+  'Touch sensor': (body, deg, id, size, tilt, depth, feels) =>
+    [{ type: 'sensor', id, label: `Touch sensor${feels === 'anything' ? ' (anything)' : ''}`, at: surfacePoint(body, deg), kind: 'touch', feels }],
+  'Proximity sensor': (body, deg, id, size, tilt, depth, feels) =>
+    [{ type: 'sensor', id, label: `Proximity sensor${feels === 'anything' ? ' (anything)' : ''}`, at: surfacePoint(body, deg), kind: 'near',
+      range: Math.round(200 * size), feels }],
 };
 
 // Which Build controls mean something for each part, and what Size means for it
@@ -99,8 +100,8 @@ export const CONTROLS = {
   'Kin pad': {}, 'Mucus pad': {},
   'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Starch granule (quick store, heavy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
-  'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor (another species)': {},
-  'Proximity sensor (another species)': { size: (s) => `${Math.round(200 * s)} µm range` },
+  'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor': { feels: true },
+  'Proximity sensor': { size: (s) => `${Math.round(200 * s)} µm range`, feels: true },
 };
 
 // How the Build panel sorts parts
@@ -110,7 +111,7 @@ export const CATEGORIES = {
   'Springs & ejectors': ['Burst organ (escape)', 'Spring, latched (Release)', 'Ejectisome, latched (Release)'],
   'Inside the cell': ['Plastid (makes energy)', 'Starch granule (quick store, heavy)', 'Oil droplet', 'Sap vacuole (slider)'],
   'Pads': ['Kin pad', 'Mucus pad'],
-  'Sensors': ['Light sensor (eyespot)', 'Touch sensor (another species)', 'Proximity sensor (another species)'],
+  'Sensors': ['Light sensor (eyespot)', 'Touch sensor', 'Proximity sensor'],
 };
 
 // The category of a part already on the body, from what it is
