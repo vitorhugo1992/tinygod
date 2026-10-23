@@ -126,6 +126,18 @@ stops swimming in the dark and sinks by its own weight toward the nutrients, and
 keeping it pointed up). If gravity sensing is ever needed, make it visible and physical: a dense grain loose in a
 chamber that rolls to the lower wall (statolith-like; e.g. the mineral grains of the ciliate *Loxodes*).
 
+**Reserves and vacuoles change (open design, author 2026-10-23).** In the sandbox an oil droplet is a fixed float;
+in real cells stores fill and empty: oil (light, compact, slow; builds up when light is plenty and nutrients short,
+burned in long hunger), starch or chrysolaminarin (heavy, quick; filled by day, burned at night), the sap vacuole
+(nitrate stock by luxury uptake; ion swaps for buoyancy cost energy), gas vesicles (built slowly, crushed too deep).
+Rules to give them: stores fill from a budget (an energy pool with photosynthesis income and the spending already
+tracked; nitrate from the water), buoyancy as a side effect of what is stored (daily migration out of eating, like
+*Trichodesmium*'s carbohydrate ballast), speed vs density (starch fast but heavy and bulky, oil compact and light but
+slow), shared room (reserves take space from plastids and vacuole), reserves buy time (survive dark or poor water),
+division splits them. This is the bridge into step 1 (plastids, light as food, growth, starving, dividing).
+Open: who decides when a store fills or empties: the cell's physiology, the player by wiring to a hunger sensor
+(reads the energy pool), or automatic with optional wiring (proposed).
+
 **Escape jumps: the burst organ (decided, author 2026-10-23).** The author's target: a ~20 µm spring should throw
 the cell **at least 200 µm**, a high burst of energy that feels rewarding. A single push can't (at low Reynolds
 number one push moves the cell by an amount set by the shape change, not the force: a released spring hops ~5 µm,
