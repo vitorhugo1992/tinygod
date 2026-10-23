@@ -114,6 +114,11 @@ $('addPart').onclick = () => {
 // Wiring for a group's motors (runs) or latched springs (released): a sensor, and the range of its reading (0-1)
 // in which the part runs or fires
 const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1] };   // a sensible start when a sensor is picked
+const SCALE = {   // what the 0-1 reading means, shown beside the range
+  light: '0 = dark or facing away, 1 = facing up in full light',
+  touch: '0 = nothing, 1 = another species touching',
+  near: '0 = nobody in range, 1 = another species touching',
+};
 function wiring(g, wired) {
   const box = document.createElement('div');
   box.className = 'wire';
@@ -139,8 +144,9 @@ function wiring(g, wired) {
   };
   if (c) {
     const lo = c.when === 'light' ? 0.5 : c.min ?? 0, hi = c.when === 'dark' ? 0.5 : c.max ?? 1;
+    const kind = design.parts.find((p) => p.id === c.sensor).kind || 'light';
     const span = document.createElement('span');
-    span.innerHTML = `while reading is <input type="number" min="0" max="1" step="0.05" value="${lo}"> to <input type="number" min="0" max="1" step="0.05" value="${hi}">`;
+    span.innerHTML = `${motor ? 'on' : 'fires'} while it reads <input type="number" min="0" max="1" step="0.05" value="${lo}"> to <input type="number" min="0" max="1" step="0.05" value="${hi}"> · now <b data-live="${c.sensor}">–</b><br><span style="color:var(--dim)">${SCALE[kind]}</span>`;
     const [a, b] = span.querySelectorAll('input');
     a.onchange = b.onchange = () => write(c.sensor, Number(a.value), Number(b.value));
     box.appendChild(span);
@@ -318,6 +324,11 @@ function stats() {
   const motors = cell.joints.filter((j) => j.type === 'motor' && !j.burst);
   if (motors.length) lines.push(`motors    ${motors.filter((j) => j.on).length} of ${motors.length} running`);
   for (const inc of cell.pieces[0].inclusions) if (inc.show) inc.show();
+  // live readings beside the wiring (for the selected cell, if it is this design)
+  for (const el of document.querySelectorAll('[data-live]')) {
+    const sn = cell.design === design && cell.sensors.find((x) => x.id === el.dataset.live);
+    el.textContent = sn ? sn.value.toFixed(2) : '–';
+  }
   $('stats').textContent = lines.join('\n');
 }
 
