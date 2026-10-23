@@ -48,6 +48,7 @@
   #buildErr, #err { color: var(--bad); }
   .part { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; flex-wrap: wrap; }
   .part button { padding: 1px 7px; font-size: 11px; }
+  .part.editing { outline: 1px solid var(--accent); border-radius: 4px; padding: 2px 4px; background: rgba(111,211,181,.06); }
   .part .wire { font-size: 11px; display: flex; gap: 4px; align-items: center; width: 100%; flex-wrap: wrap; }
   .part .wire select { font-size: 11px; padding: 2px 4px; flex: 1 1 100%; }
   .part .wire input { font-size: 11px; width: 52px; padding: 1px 3px; }
@@ -93,6 +94,7 @@
   <div class="slider" id="insideRow" title="0 = centre, 100 = against the wall; droplets and vacuoles can't overlap">Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100"><span id="partInsideOut"></span></div>
   <div class="slider" id="sizeRow">Size <input type="range" id="partSize" min="10" max="100" step="5" value="40"><span id="partSizeOut"></span></div>
   <button id="addPart">＋ Add to body</button>
+  <button id="cancelEdit" hidden>Stop editing</button>
   <div id="buildErr"></div>
 
   <h2>On this body</h2>

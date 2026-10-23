@@ -14,7 +14,7 @@ const COLOR = {
   water: '#0b1322', outside: '#060a12', grid: '#132036', gridMajor: '#1f3352', label: '#4d6a86',
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
-  extend: '#c9a0ff', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
+  extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
   eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
 
@@ -37,11 +37,12 @@ function load(d) {
   listParts();
 }
 
-// Try a changed design; if it doesn't build, keep the old one and say why
+// Try a changed design; if it doesn't build, keep the old one and say why. The rebuilt cell stays where the selected
+// one was, facing the same way.
 function applyDesign(d) {
-  const old = design;
+  const old = design, pose = cell ? { x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI } : null;
   design = d;
-  if (!reset()) { const msg = $('err').textContent; design = old; reset(); $('err').textContent = msg; $('buildErr').textContent = msg; return false; }
+  if (!reset(pose)) { const msg = $('err').textContent; design = old; reset(pose); $('err').textContent = msg; $('buildErr').textContent = msg; return false; }
   $('buildErr').textContent = '';
   $('json').value = JSON.stringify(d, null, 2);
   listParts();
@@ -101,17 +102,55 @@ const showControls = () => {
   $('tiltRow').style.display = c.tilt ? '' : 'none';
   $('sizeRow').style.display = c.size ? '' : 'none';
   $('insideRow').style.display = c.inside ? '' : 'none';
-  if (c.sizeDefault) $('partSize').value = c.sizeDefault;
+  if (c.sizeDefault && !editing) $('partSize').value = c.sizeDefault;
   showSize();
 };
-$('partWhat').onchange = showControls; showControls();
+$('partWhat').onchange = () => { showControls(); if (editing) updateEdited(); }; showControls();
 let partCount = 0;
+let editing = null;   // the id of the part being edited, or null when adding
+// Make a part from the Build controls; its first piece remembers how (build), so it can be edited later
+function makePart(body, id) {
+  const b = { tpl: $('partWhat').value, where: Number($('partAngle').value), tilt: Number($('partTilt').value),
+    size: Number($('partSize').value) / 100, depth: Number($('partInside').value) / 100, id };
+  const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth);
+  parts[0].build = b;
+  return parts;
+}
 $('addPart').onclick = () => {
+  if (editing) { stopEditing(); return; }
   const d = JSON.parse(JSON.stringify(design));
-  d.parts = (d.parts || []).concat(PART_TEMPLATES[$('partWhat').value](d.body, Number($('partAngle').value), `p${Date.now() % 100000}_${++partCount}`,
-    Number($('partSize').value) / 100, Number($('partTilt').value), Number($('partInside').value) / 100));
+  d.parts = (d.parts || []).concat(makePart(d.body, `p${Date.now() % 100000}_${++partCount}`));
   applyDesign(d);
 };
+// Replace the part being edited with one made from the controls now; keep its id and its wiring
+function updateEdited() {
+  const d = JSON.parse(JSON.stringify(design));
+  const g = partGroups(d.parts).find((x) => x.members[0].build && x.members[0].build.id === editing);
+  if (!g) { stopEditing(); return; }
+  const fresh = makePart(d.body, editing);
+  g.members.forEach((m, i) => { if (m.joint && m.joint.control && fresh[i] && fresh[i].joint) fresh[i].joint.control = m.joint.control; });
+  const at = d.parts.indexOf(g.members[0]);
+  d.parts = d.parts.filter((p) => !g.members.includes(p));
+  d.parts.splice(at, 0, ...fresh);
+  applyDesign(d);
+}
+function startEditing(b) {
+  editing = b.id;
+  $('partWhat').value = b.tpl; showControls();
+  $('partAngle').value = b.where; $('partTilt').value = b.tilt;
+  $('partSize').value = Math.round(b.size * 100); $('partInside').value = Math.round(b.depth * 100);
+  showAngle(); showTilt(); showSize(); showInside();
+  $('addPart').textContent = '✓ Done editing'; $('cancelEdit').hidden = false;
+  listParts();
+}
+function stopEditing() {
+  editing = null;
+  $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true;
+  listParts();
+}
+$('cancelEdit').onclick = stopEditing;
+// while editing, letting go of a slider (or picking another part type) updates the part at once
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside']) $(id).onchange = () => { if (editing) updateEdited(); };
 // Wiring for a group's motors (runs) or latched springs (released): a sensor, and the range of its reading (0-1)
 // in which the part runs or fires
 const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1] };   // a sensible start when a sensor is picked
@@ -169,10 +208,15 @@ function listParts() {
     if (i === 0) { const head = document.createElement('div'); head.className = 'cat'; head.textContent = cat; box.appendChild(head); }
     const row = document.createElement('div');
     row.className = 'part';
-    row.innerHTML = `<span>${g.name} at ${g.deg}°${g.more ? ` (+${g.more} pieces)` : ''}</span> <button>Remove</button>`;
+    const b = g.members[0].build;
+    row.innerHTML = `<span>${g.name} at ${g.deg}°${g.more ? ` (+${g.more} pieces)` : ''}</span>
+      <span>${b ? '<button class="edit">Edit</button> ' : ''}<button class="remove">Remove</button></span>`;
+    if (b && b.id === editing) row.classList.add('editing');
+    if (b) row.querySelector('.edit').onclick = () => (editing === b.id ? stopEditing() : startEditing(b));
     const wired = g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.latched));
     if (wired.length) row.appendChild(wiring(g, wired));
-    row.querySelector('button').onclick = () => {
+    row.querySelector('.remove').onclick = () => {
+      if (b && b.id === editing) { editing = null; $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true; }
       const d = JSON.parse(JSON.stringify(design));
       const gone = new Set(g.members.map((m) => design.parts.indexOf(m)));
       d.parts = d.parts.filter((_, i) => !gone.has(i));
@@ -183,9 +227,9 @@ function listParts() {
   if (!box.children.length) box.textContent = 'No parts yet: just a body.';
 }
 
-function reset() {
+function reset(pose) {
   $('err').textContent = '';
-  const s = design.start || {};
+  const s = (pose && pose.x !== undefined ? pose : null) || design.start || {};
   const w = makeWorld(1, { gravity: $('gravity').checked, light: $('light').checked });
   try {
     cell = addCell(w, design, s.x ?? TW / 2, s.y ?? TH * 0.6, s.angle ?? 0);
@@ -221,7 +265,7 @@ $('apply').onclick = () => {
   try { d = JSON.parse($('json').value); } catch (e) { $('err').textContent = 'JSON: ' + e.message; return; }
   applyDesign(d);
 };
-$('reset').onclick = reset;
+$('reset').onclick = () => reset();
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '⏸' : '▶'; };
 $('step').onclick = () => { playing = false; $('play').textContent = '▶'; advance(10); };
 $('release').onclick = () => {
@@ -423,7 +467,7 @@ function drawCell(c, X, Y, s) {
       ctx.stroke();
       continue;
     }
-    ctx.strokeStyle = fill; ctx.lineWidth = w;
+    ctx.strokeStyle = jt && jt.type === 'motor' && !jt.on ? COLOR.stopped : fill; ctx.lineWidth = w;   // a stopped flagellum is grey
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     if (p.kind === 'body') for (const inc of p.inclusions) {
       const ix = c.cx[i] + c.cs[i] * inc.x - c.sn[i] * inc.y, iy = c.cy[i] + c.sn[i] * inc.x + c.cs[i] * inc.y;
