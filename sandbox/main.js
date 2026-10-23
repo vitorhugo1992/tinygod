@@ -54,10 +54,13 @@ function applyDesign(d) {
 for (const name of Object.keys(PART_TEMPLATES)) $('partWhat').add(new Option(name, name));
 const showAngle = () => { $('partAngleOut').textContent = `${$('partAngle').value}°`; };
 $('partAngle').oninput = showAngle; showAngle();
+const showSize = () => { $('partSizeOut').textContent = `${$('partSize').value}%`; };
+$('partSize').oninput = showSize; showSize();
 let partCount = 0;
 $('addPart').onclick = () => {
   const d = JSON.parse(JSON.stringify(design));
-  d.parts = (d.parts || []).concat(PART_TEMPLATES[$('partWhat').value](d.body, Number($('partAngle').value), `p${Date.now() % 100000}_${++partCount}`));
+  d.parts = (d.parts || []).concat(PART_TEMPLATES[$('partWhat').value](d.body, Number($('partAngle').value), `p${Date.now() % 100000}_${++partCount}`,
+    Number($('partSize').value) / 100));
   applyDesign(d);
 };
 function listParts() {

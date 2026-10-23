@@ -88,6 +88,11 @@ physics already supports it (a motor can be off and holds its angle; a hinge can
 **What switches a part on or off is open, for a future discussion with the author**: sensors (the Sensor block
 below) are one proposal, not decided. Until then the sandbox switches parts by hand (Release button).
 
+**Escape jumps are too short (open problem, author 2026-10-23):** an escape should carry a cell **close to 100 µm**,
+enough to evade a predator. As built, a released spring hops ~5 µm and a 30 µm ejectisome ribbon ~6 µm (a 60 µm
+ribbon 16.5 µm): at low Reynolds number one push moves the cell by an amount set by the shape change, not the force,
+so it stays below the length of what pushes. To work on together; not yet solved.
+
 | Block | What it is | What the physics does with it |
 |---|---|---|
 | **Body** | the cell: round or elongated, any size | holds most of the mass; everything attaches to it |

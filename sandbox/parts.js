@@ -1,5 +1,6 @@
 // Part templates for the sandbox's Build panel: each returns design parts placed at an angle round the body,
-// pointing outward (or, for inclusions, inside toward that angle). The root part carries a `label` for the list.
+// pointing outward (or, for inclusions, inside toward that angle). `size` (0.1-1) sets an inclusion's radius
+// (share of the room inside the wall), a spine's or ejectisome's length. The root part carries a `label`.
 
 // Where a ray from the body centre at angle `deg` leaves the body (a capsule along x): [x, y]
 export function surfacePoint(body, deg) {
@@ -9,6 +10,17 @@ export function surfacePoint(body, deg) {
   if (as > 1e-9 && a * ac / as <= h) r = a / as;                   // through the straight side
   else r = h * ac + Math.sqrt(h * h * c * c - h * h + a * a);       // through a rounded end
   return [r * c, r * s];
+}
+
+// A sphere inside the wall, as big as `size` of the room, pushed toward `deg` as far as it fits
+function inside(body, deg, size) {
+  const room = body.radius - 0.35;                          // inside the wall (0.3 µm) with a little play
+  const L = body.length || 0, a = body.radius;
+  const most = Math.cbrt(0.85 * (Math.PI * a * a * L + 4 / 3 * Math.PI * a ** 3) * 3 / (4 * Math.PI));  // ≤ 85% of the body
+  const r = Math.floor(Math.min(room, most) * size * 10) / 10;
+  const [x, y] = surfacePoint(body, deg), d = Math.hypot(x, y);
+  const k = Math.max(0, d - body.radius + room - r) / d;   // how far from the centre it can sit
+  return { at: [Math.round(x * k * 100) / 100, Math.round(y * k * 100) / 100], radius: r };
 }
 
 const chain = (id, at, deg, n, length, joint) => Array.from({ length: n }, (_, i) => ({
@@ -32,28 +44,23 @@ export const PART_TEMPLATES = {
     { type: 'segment', id, label: 'Stiff flap', at: surfacePoint(body, deg), angle: deg, length: 40, radius: 0.25,
       joint: { type: 'motor', rate: 20, swing: 45, stroke: 0.25 } },
   ],
-  'Spine, protein': (body, deg, id) => [
-    { type: 'segment', id, label: 'Protein spine', at: surfacePoint(body, deg), angle: deg, length: 40, radius: 0.5, material: 'protein' },
+  'Spine, protein': (body, deg, id, size) => [
+    { type: 'segment', id, label: 'Protein spine', at: surfacePoint(body, deg), angle: deg, length: Math.round(100 * size), radius: 0.5, material: 'protein' },
   ],
-  'Spine, glass': (body, deg, id) => [
-    { type: 'segment', id, label: 'Glass spine', at: surfacePoint(body, deg), angle: deg, length: 40, radius: 0.5, material: 'glass' },
+  'Spine, glass': (body, deg, id, size) => [
+    { type: 'segment', id, label: 'Glass spine', at: surfacePoint(body, deg), angle: deg, length: Math.round(100 * size), radius: 0.5, material: 'glass' },
   ],
   'Spring, latched (Release)': (body, deg, id) => [
     { type: 'segment', id, label: 'Latched spring', at: surfacePoint(body, deg), angle: deg, length: 30, radius: 0.4,
       joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true } },
   ],
-  'Ejectisome, latched (Release)': (body, deg, id) => [
-    { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg, length: 30, radius: 0.3,
+  'Ejectisome, latched (Release)': (body, deg, id, size) => [
+    { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg, length: Math.round(200 * size), radius: 0.3,
       joint: { type: 'extend', stiffness: 20, latched: true } },
   ],
-  'Oil droplet': (body, deg, id) => {
-    const [x, y] = surfacePoint(body, deg), r = body.radius * 0.35, k = (Math.hypot(x, y) - body.radius * 0.4 - 0.5) / Math.hypot(x, y);
-    return [{ type: 'inclusion', id, label: 'Oil droplet', at: [x * k, y * k], radius: r, material: 'oil' }];
-  },
-  'Sap vacuole (slider)': (body, deg, id) => {
-    const [x, y] = surfacePoint(body, deg), r = body.radius * 0.6, k = (Math.hypot(x, y) - r - 0.5) / Math.hypot(x, y);
-    return [{ type: 'inclusion', id, label: 'Sap vacuole', at: [x * k, y * k], radius: r, material: 'sap', density: 1025 }];
-  },
+  'Oil droplet': (body, deg, id, size) => [{ type: 'inclusion', id, label: 'Oil droplet', ...inside(body, deg, size), material: 'oil' }],
+  'Sap vacuole (slider)': (body, deg, id, size) =>
+    [{ type: 'inclusion', id, label: 'Sap vacuole', ...inside(body, deg, size), material: 'sap', density: 1025 }],
   'Kin pad': (body, deg, id) => [{ type: 'pad', id, label: 'Kin pad', at: surfacePoint(body, deg), kind: 'kin' }],
   'Mucus pad': (body, deg, id) => [{ type: 'pad', id, label: 'Mucus pad', at: surfacePoint(body, deg), kind: 'mucus' }],
 };

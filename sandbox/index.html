@@ -53,7 +53,13 @@
         <span id="partAngleOut"></span></label>
       <button id="addPart">Add to body</button>
     </div>
-    <div class="hint">The white dot on the cell shows where. 0° is the front (right), 180° the back.</div>
+    <div class="row">
+      <label>Size <input type="range" id="partSize" min="10" max="100" step="5" value="40" style="width:120px">
+        <span id="partSizeOut"></span></label>
+    </div>
+    <div class="hint">The white dot on the cell shows where. 0° is the front (right), 180° the back. Size: how much
+      of the cell an oil droplet or vacuole fills, or how long a spine (up to 100 µm) or ejectisome (up to 200 µm) is.
+      Oil's density is fixed (920, seawater 1025): a cell floats by holding more of it, about a quarter of its volume.</div>
     <div id="buildErr" style="color:var(--bad)"></div>
     <div id="partList"></div>
   </div>
