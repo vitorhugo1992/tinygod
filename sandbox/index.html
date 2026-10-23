@@ -57,8 +57,17 @@
   textarea { width: 100%; height: 220px; font: 11px/1.35 ui-monospace, Consolas, monospace; resize: vertical; margin-top: 6px; }
   @media (max-width: 760px) {
     body { flex-direction: column; }
-    #view { height: 60vh; flex: none; }
+    #view { height: 62vh; flex: none; }
     #panel { width: 100%; border-left: 0; border-top: 1px solid var(--line); }
+    /* one compact toolbar row that scrolls sideways, so the tank stays visible */
+    #bar { flex-wrap: nowrap; overflow-x: auto; right: 44px; gap: 4px; scrollbar-width: none; }
+    #bar::-webkit-scrollbar { display: none; }
+    #bar > * { flex: none; }
+    #bar button { padding: 3px 7px; font-size: 12px; }
+    #bar .big { font-size: 13px; padding: 3px 9px; }
+    #stats { font-size: 10px; }
+    /* sliders only answer a finger on their thumb row, so scrolling the panel doesn't move them */
+    input[type=range] { touch-action: pan-y; }
   }
 </style>
 </head>
@@ -67,6 +76,7 @@
   <canvas id="c"></canvas>
   <div id="bar">
     <button id="play" class="big" title="Play / pause">⏸</button>
+    <button id="infoBtn" title="Show or hide the numbers">ⓘ</button>
     <button id="step" title="Step 10 ms">Step</button>
     <button id="reset" title="Start again (re-cocks springs)">↺ Reset</button>
     <button id="release" title="Fire burst organs, let go of latched springs and ejectisomes">⚡ Release</button>

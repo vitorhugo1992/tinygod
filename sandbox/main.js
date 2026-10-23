@@ -331,7 +331,7 @@ function frame(now) {
     acc -= want * DT;
     lagging = done < want;                     // the computer can't keep up with this speed
   }
-  if (world) { draw(); stats(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
+  if (world) { draw(); if (!$('stats').hidden) stats(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
   requestAnimationFrame(frame);
 }
 
@@ -591,7 +591,25 @@ function toWorld(e) {
   const r = canvas.getBoundingClientRect(), s = Number($('zoom').value);
   return [cam.x + (e.clientX - r.left - r.width / 2) / s, cam.y - (e.clientY - r.top - r.height / 2) / s];
 }
+// Two fingers on the tank pinch-zoom around the point between them (and pan with it)
+const touches = new Map();
+let pinch = null;
+function pinchState() {
+  const [a, b] = [...touches.values()];
+  const r = canvas.getBoundingClientRect();
+  const mx = (a.x + b.x) / 2 - r.left, my = (a.y + b.y) / 2 - r.top, s = Number($('zoom').value);
+  return { d: Math.hypot(a.x - b.x, a.y - b.y), mx, my, wx: cam.x + (mx - r.width / 2) / s, wy: cam.y - (my - r.height / 2) / s, s, w: r.width, h: r.height };
+}
 canvas.addEventListener('pointerdown', (e) => {
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touches.size === 2) {           // a second finger: stop dragging, start pinching
+    if (drag && drag.cell) $('viewMode').value = drag.view;
+    drag = null;
+    pinch = pinchState();
+    $('viewMode').value = 'free';
+    return;
+  }
+  if (touches.size > 2) return;
   const [wx, wy] = toWorld(e);
   const s = Number($('zoom').value);
   const hit = world.cells.find((c) => Math.hypot(c.q[0] - wx, c.q[1] - wy) < c.pieces[0].a + c.pieces[0].L / 2 + 6 / s);
@@ -605,6 +623,15 @@ canvas.addEventListener('pointerdown', (e) => {
   }
 });
 window.addEventListener('pointermove', (e) => {
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && touches.size === 2) {
+    const now = pinchState();
+    const s = Math.min(20, Math.max(0.3, pinch.s * now.d / pinch.d));
+    $('zoom').value = s;
+    // keep the world point that was under the fingers under them
+    cam = { x: pinch.wx - (now.mx - now.w / 2) / s, y: pinch.wy + (now.my - now.h / 2) / s };
+    return;
+  }
   if (!drag) return;
   if (drag.cell) {
     const [wx, wy] = toWorld(e);
@@ -615,10 +642,15 @@ window.addEventListener('pointermove', (e) => {
   const s = Number($('zoom').value);
   cam = { x: drag.cam.x - (e.clientX - drag.x) / s, y: drag.cam.y + (e.clientY - drag.y) / s };
 });
-window.addEventListener('pointerup', () => {
+function lift(e) {
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = null;
+  if (touches.size > 0) return;
   if (drag && drag.cell) $('viewMode').value = drag.view;
   drag = null;
-});
+}
+window.addEventListener('pointerup', lift);
+window.addEventListener('pointercancel', lift);
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
@@ -640,6 +672,8 @@ function segmented(boxId, selectId) {
 segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall');
 const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked = !$(boxId).checked; $(boxId).dispatchEvent(new Event('change')); }; };
 toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light');
+if (window.matchMedia('(max-width: 760px)').matches) $('stats').hidden = true;   // phones: the tank first
+$('infoBtn').onclick = () => { $('stats').hidden = !$('stats').hidden; };
 $('rotL').onclick = () => rotate(cell, 15);
 $('rotR').onclick = () => rotate(cell, -15);
 const zoomBy = (k) => { $('zoom').value = Math.min(20, Math.max(0.3, Number($('zoom').value) * k)); if ($('viewMode').value === 'fit') $('viewMode').value = 'free'; };
@@ -674,6 +708,7 @@ function syncButtons() {
   }
   $('gravityBtn').classList.toggle('on', $('gravity').checked);
   $('lightBtn').classList.toggle('on', $('light').checked);
+  $('infoBtn').classList.toggle('on', !$('stats').hidden);
 }
 
 resize();
