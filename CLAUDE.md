@@ -82,6 +82,11 @@ property. The lab grows by adding materials, not new rules.
 or spines on the body, parts on parts, at any point and angle. The design format already allows it; the editor
 must too. Costs, not limits, keep designs in check.
 
+**Parts need not be always active** (author, 2026-10-23): a flagellum can rest, a spring can wait cocked. The
+physics already supports it (a motor can be off and holds its angle; a hinge can start latched until released).
+**What switches a part on or off is open, for a future discussion with the author**: sensors (the Sensor block
+below) are one proposal, not decided. Until then the sandbox switches parts by hand (Release button).
+
 | Block | What it is | What the physics does with it |
 |---|---|---|
 | **Body** | the cell: round or elongated, any size | holds most of the mass; everything attaches to it |
