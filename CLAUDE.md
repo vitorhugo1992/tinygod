@@ -103,6 +103,23 @@ enough light, then hovers there (the author's idea: stop once near the surface a
 proximity rising as a stranger comes within range (a spring wired to touch is an escape trigger). Clock, depth and
 tilt switches are still open.
 
+**Navigating at night, without light** (author's question, 2026-10-23; to check with the author, the biologist).
+Real cells combine:
+1. **Gravity (gravitaxis)**, day and night: *passive* (a bottom-heavy or asymmetric cell turns upright by itself,
+   part of how *Chlamydomonas* orients; already in the sandbox, e.g. an oil droplet at the front) or *active* (e.g.
+   *Euglena* senses the cytoplasm pressing on mechanosensitive channels). Going up or down is then a matter of
+   reversing the response.
+2. **An internal clock**: in dinoflagellates such as *Lingulodinium polyedra* migration is clock-driven, starting
+   down before dusk and up before dawn even in constant conditions. The clock says *when*, gravity *which way*.
+3. **Their own hunger**: in migrators such as *Heterosigma*, nitrogen-starved cells descend at night toward the
+   nutrients, replete ones stay up: the cell reads its own state, not the outside gradient.
+4. **Chemical gradients (chemotaxis)**: real but weak at water-column scale (gradients over metres are too gentle
+   for one cell); more for finding patches than for setting depth.
+5. Weaker or uncertain: moonlight, temperature, perhaps pressure (better known in zooplankton).
+For the game, as sensor parts wired like the eyespot: a **gravity sensor** (statolith-like; reads facing up vs
+down; sandbox-ready now), a **clock** (needs a day/night cycle), a **hunger sensor** (reads the cell's own stores;
+needs step 1's ecology) and a **chemical sensor** (reads local nutrient; needs step 1's nutrient field).
+
 **Escape jumps: the burst organ (decided, author 2026-10-23).** The author's target: a ~20 µm spring should throw
 the cell **at least 200 µm**, a high burst of energy that feels rewarding. A single push can't (at low Reynolds
 number one push moves the cell by an amount set by the shape change, not the force: a released spring hops ~5 µm,
