@@ -38,6 +38,9 @@ number of cells; a burst organ for escapes, eyespot cone width, touch and proxim
   protein, later silica for glass), **upkeep**, **room**, **weight and drag**, and later **grazing risk**; not their
   running. The sandbox shows each part's share of the budget ("tail: 0.1% of income; its upkeep: 4%") so players
   learn where the cost really is.
+- **Time (decided, author 2026-10-23):** in the sandbox a day lasts ~10 minutes at 1x. Every energy flow
+  (photosynthesis, upkeep, motors, pumps, store filling and burning) is sped up by the same factor (~144x), so each
+  part's share of the budget stays honest; only motion stays in real seconds (made playable).
 - **Scale:** the sandbox is almost at real scale (µm, seconds, pW). MONAD's water is not; how designs move into it
   is for later (author, 2026-10-23).
 - **What matters is how parts interact** (author, 2026-10-23): with each other (an eyespot wired to a tail, a
