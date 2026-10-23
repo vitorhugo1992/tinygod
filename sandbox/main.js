@@ -3,7 +3,7 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose } from '../sim/physics.js';
-import { PART_TEMPLATES, partGroups, surfacePoint } from './parts.js';
+import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 const $ = (id) => document.getElementById(id);
@@ -50,8 +50,42 @@ function applyDesign(d) {
   return true;
 }
 
+// ----- the body: radius, length (0 = round), wall. Parts on it keep their angle; inclusions scale with it -----
+function showBody() {
+  const b = design.body;
+  $('bodyRadius').value = b.radius; $('bodyLength').value = b.length || 0; $('bodyWall').value = b.wall || 'protein';
+  $('bodyRadiusOut').textContent = `${b.radius} µm`;
+  $('bodyLengthOut').textContent = b.length ? `${b.length} µm (rod)` : '0 (round)';
+}
+function reshape() {
+  const d = JSON.parse(JSON.stringify(design));
+  const old = d.body, body = { ...old, radius: Number($('bodyRadius').value), length: Number($('bodyLength').value), wall: $('bodyWall').value };
+  const k = body.radius / old.radius;
+  for (const p of d.parts || []) {
+    if (p.parent && p.parent !== 'body') continue;
+    const [x, y] = p.at || [0, 0];
+    if (p.type === 'inclusion') { p.at = [x * k, y * k]; p.radius = Math.round(p.radius * k * 100) / 100; }
+    else p.at = surfacePoint(body, Math.atan2(y, x) * 180 / Math.PI).map((v) => Math.round(v * 100) / 100);
+  }
+  d.body = body;
+  if (!applyDesign(d)) showBody();
+}
+for (const id of ['bodyRadius', 'bodyLength']) {
+  $(id).oninput = () => {   // show the number while dragging; rebuild when let go
+    $('bodyRadiusOut').textContent = `${$('bodyRadius').value} µm`;
+    $('bodyLengthOut').textContent = Number($('bodyLength').value) ? `${$('bodyLength').value} µm (rod)` : '0 (round)';
+  };
+  $(id).onchange = reshape;
+}
+$('bodyWall').onchange = reshape;
+
 // ----- the Build panel: add parts round the body, list them, remove them -----
-for (const name of Object.keys(PART_TEMPLATES)) $('partWhat').add(new Option(name, name));
+for (const [cat, names] of Object.entries(CATEGORIES)) {
+  const group = document.createElement('optgroup');
+  group.label = cat;
+  for (const name of names) group.appendChild(new Option(name, name));
+  $('partWhat').appendChild(group);
+}
 const showAngle = () => { $('partAngleOut').textContent = `${$('partAngle').value}°`; };
 $('partAngle').oninput = showAngle; showAngle();
 const showSize = () => { $('partSizeOut').textContent = `${$('partSize').value}%`; };
@@ -64,9 +98,12 @@ $('addPart').onclick = () => {
   applyDesign(d);
 };
 function listParts() {
+  showBody();
   const box = $('partList');
   box.innerHTML = '';
-  partGroups(design.parts || []).forEach((g) => {
+  const groups = partGroups(design.parts || []);
+  for (const cat of Object.keys(CATEGORIES)) groups.filter((g) => g.category === cat).forEach((g, i) => {
+    if (i === 0) { const head = document.createElement('div'); head.className = 'cat'; head.textContent = cat; box.appendChild(head); }
     const row = document.createElement('div');
     row.className = 'part';
     row.innerHTML = `<span>${g.name} at ${g.deg}°${g.more ? ` (+${g.more} pieces)` : ''}</span> <button>Remove</button>`;

@@ -25,6 +25,8 @@
   .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   #note { color: var(--dim); min-height: 3em; }
   #build { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
+  .cat { color: var(--accent); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
+  #partList .cat { color: var(--dim); }
   .part { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; }
   .part button { padding: 1px 6px; font-size: 11px; }
   #stats { font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; background: #0d1626;
@@ -47,20 +49,32 @@
   <div id="note"></div>
   <div id="build">
     <b>Build</b> <span class="hint">(changes reset the tank)</span>
+    <div class="cat">Body shape</div>
+    <div class="row">
+      <label>Cell radius <input type="range" id="bodyRadius" min="1" max="50" step="0.5" style="width:100px">
+        <span id="bodyRadiusOut"></span></label>
+    </div>
+    <div class="row">
+      <label>Length <input type="range" id="bodyLength" min="0" max="200" step="1" style="width:100px">
+        <span id="bodyLengthOut"></span></label>
+      <label>Wall <select id="bodyWall"><option value="protein">protein</option><option value="glass">glass</option></select></label>
+    </div>
+    <div class="cat">Add a part</div>
     <div class="row"><label>Part <select id="partWhat"></select></label></div>
     <div class="row">
       <label>Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180" style="width:120px">
         <span id="partAngleOut"></span></label>
-      <button id="addPart">Add to body</button>
     </div>
     <div class="row">
       <label>Size <input type="range" id="partSize" min="10" max="100" step="5" value="40" style="width:120px">
         <span id="partSizeOut"></span></label>
+      <button id="addPart">Add to body</button>
     </div>
     <div class="hint">The white dot on the cell shows where. 0° is the front (right), 180° the back. Size: how much
       of the cell an oil droplet or vacuole fills, or how long a spine (up to 100 µm) or ejectisome (up to 200 µm) is.
       Oil's density is fixed (920, seawater 1025): a cell floats by holding more of it, about a quarter of its volume.</div>
     <div id="buildErr" style="color:var(--bad)"></div>
+    <div class="cat">On this body</div>
     <div id="partList"></div>
   </div>
   <div class="row">

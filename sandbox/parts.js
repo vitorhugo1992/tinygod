@@ -65,6 +65,25 @@ export const PART_TEMPLATES = {
   'Mucus pad': (body, deg, id) => [{ type: 'pad', id, label: 'Mucus pad', at: surfacePoint(body, deg), kind: 'mucus' }],
 };
 
+// How the Build panel sorts parts
+export const CATEGORIES = {
+  'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)', 'Stiff flap (goes nowhere)'],
+  'Spines & appendages': ['Spine, protein', 'Spine, glass'],
+  'Springs & ejectors': ['Spring, latched (Release)', 'Ejectisome, latched (Release)'],
+  'Vacuoles & droplets': ['Oil droplet', 'Sap vacuole (slider)'],
+  'Pads': ['Kin pad', 'Mucus pad'],
+};
+
+// The category of a part already on the body, from what it is
+export function categoryOf(p) {
+  if (p.type === 'inclusion') return 'Vacuoles & droplets';
+  if (p.type === 'pad') return 'Pads';
+  const j = p.joint && p.joint.type;
+  if (j === 'motor') return 'Flagella';
+  if (j === 'hinge' || j === 'extend') return 'Springs & ejectors';
+  return 'Spines & appendages';
+}
+
 // The design's parts grouped by root (a part on the body with everything hanging from it)
 export function partGroups(parts) {
   const groups = [];
@@ -80,7 +99,7 @@ export function partGroups(parts) {
     const [x, y] = p.at || [0, 0];
     const name = p.label || (p.type === 'segment' ? `${p.material || 'protein'} segment${p.joint ? ` (${p.joint.type})` : ''}`
       : p.type === 'inclusion' ? `${p.material} inclusion` : `${p.kind || 'kin'} pad`);
-    groups.push({ name, members, more: members.length - 1, deg: Math.round(Math.atan2(y, x) * 180 / Math.PI + 360) % 360 });
+    groups.push({ name, members, category: categoryOf(p), more: members.length - 1, deg: Math.round(Math.atan2(y, x) * 180 / Math.PI + 360) % 360 });
   }
   return groups;
 }
