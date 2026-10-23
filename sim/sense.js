@@ -6,7 +6,8 @@
 // A wired motor runs while its sensor's reading is inside [min, max]; a latched spring is released the first time
 // it is. The state changes only a little inside or outside the range (hysteresis), so it doesn't flicker.
 import { PARAMS } from './params.js';
-import { dsin, dexp } from './dmath.js';
+import { dsin, dcos, dexp } from './dmath.js';
+import { fire } from './physics.js';
 
 const L = PARAMS.light, S = PARAMS.sensor;
 const TH = PARAMS.tank.h;
@@ -38,8 +39,12 @@ export function sense(world, cell) {
     const x = cell.cx[i] + c * s.x - n * s.y, y = cell.cy[i] + n * s.x + c * s.y;
     if (s.kind === 'light') {
       if (!world.light) { s.value = 0; continue; }
-      const up = dsin(cell.phi[i] + s.facing);         // how squarely it faces the light above
-      s.value = up > 0 ? up * L.strength * dexp(-L.attenuation * (TH - y)) : 0;
+      // how far it faces from straight up, against half its cone: full facing up, nothing at the cone's edge
+      let off = cell.phi[i] + s.facing - Math.PI / 2;
+      off -= 2 * Math.PI * Math.floor(off / (2 * Math.PI) + 0.5);
+      if (off < 0) off = -off;
+      const half = s.cone / 2;
+      s.value = off < half ? dcos(off / half * Math.PI / 2) * L.strength * dexp(-L.attenuation * (TH - y)) : 0;
     } else {
       const d = nearestStranger(world, cell, x, y, s.range);
       s.value = s.kind === 'touch' ? (d <= s.range ? 1 : 0) : (d >= s.range ? 0 : d <= 0 ? 1 : 1 - d / s.range);
@@ -54,7 +59,8 @@ export function sense(world, cell) {
     else if (v > ctl.min + S.hysteresis && v < ctl.max - S.hysteresis) ctl.holds = true;
     // at the ends of the scale there is nothing beyond, so 0 and 1 count as inside a range that reaches them
     else if ((ctl.min <= 0 && v <= 0) || (ctl.max >= 1 && v >= 1)) ctl.holds = true;
-    if (j.type === 'motor') j.on = ctl.holds;
+    if (j.burst) { if (ctl.holds) fire(cell, j.burst.group); }   // a burst organ fires when its sensor says so
+    else if (j.type === 'motor') j.on = ctl.holds;
     else if (j.latched && ctl.holds) j.latched = false;   // a trigger: released once, the first time it holds
   }
 }

@@ -8,7 +8,7 @@ authoritative.
 latched springs, extending parts (ejectisome), pumped sap vacuoles, cells touching, kin and mucus pads, chains with
 the hidden cap, light from above (direction only) and a light sensor (eyespot) that flagella and springs can be wired
 to; a viewer with a Build panel (body shape, parts by category, where, tilt, size, wiring), presets, tweezers, any
-number of cells; 19 physics checks pass.
+number of cells; a burst organ for escapes, eyespot cone width, touch and proximity sensors; 24 physics checks pass.
 
 ---
 
@@ -31,6 +31,9 @@ number of cells; 19 physics checks pass.
   pads, meetings and the water pulling them apart).
 - **No free lunch.** Every part costs something. Forms balance only when each wins in one kind of water and pays
   in another (MONAD's lesson: every strictly-better form took over until it got a cost).
+- **What matters is how parts interact** (author, 2026-10-23): with each other (an eyespot wired to a tail, a
+  droplet that turns the cell its eyespot looks through, spines that slow a swimmer) and with the environment (light,
+  depth, other species, the water's drag). The depth of the game is in these interactions, not in any single part.
 - **Start simple, then scale.** Few blocks, few materials, cheap code. Add only what a test or the author asks for.
 - **Mechanics first, visuals later.** The sandbox uses plain shapes; a visual identity (probably from MONAD's
   pixel style) comes after the prototype passes.
@@ -100,11 +103,17 @@ enough light, then hovers there (the author's idea: stop once near the surface a
 proximity rising as a stranger comes within range (a spring wired to touch is an escape trigger). Clock, depth and
 tilt switches are still open.
 
-**Escape jumps are too short (open problem, author 2026-10-23):** an escape should carry a cell **close to 100 µm**,
-enough to evade a predator. As built, a released spring hops ~5 µm and a 30 µm ejectisome ribbon ~6 µm (a 60 µm
-ribbon 16.5 µm): at low Reynolds number one push moves the cell by an amount set by the shape change, not the force,
-so it stays below the length of what pushes. To work on together; not yet solved. The author's target: a ~20 µm
-spring should throw the cell **at least 200 µm**, a high burst of energy that feels rewarding.
+**Escape jumps: the burst organ (decided, author 2026-10-23).** The author's target: a ~20 µm spring should throw
+the cell **at least 200 µm**, a high burst of energy that feels rewarding. A single push can't (at low Reynolds
+number one push moves the cell by an amount set by the shape change, not the force: a released spring hops ~5 µm,
+a 30 µm ejectisome ~6 µm, a 200 µm one ~71 µm), and momentum would break the physics. Chosen (option B over keeping
+short jumps or adding momentum for jumps only): a **burst organ**, a ~20 µm coiled tail that waits charged and,
+fired (by hand or by a sensor such as touch), beats extremely fast for a moment (like *Mesodinium*'s escape), then
+stops dead and recharges (3 s). Default 500 Hz for 0.8 s: ~210 µm. **500 Hz is ~5x faster than any real flagellum
+(made playable)**; the stroke physics is real. A burst costs as much energy as ~50 s of ordinary swimming.
+**Eyespot cone width** (author, 2026-10-23): chosen per eyespot, 20-180°. Narrow sees only when pointed almost
+straight at the light (precise), wide falls off gently (vague). Planned trade-off for when costs exist: a narrow
+cone needs a bigger pigment shield and catches less light.
 
 | Block | What it is | What the physics does with it |
 |---|---|---|

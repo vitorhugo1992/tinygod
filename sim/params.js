@@ -10,6 +10,7 @@ export const PARAMS = {
   time: {
     dt: 1 / 1000,           // fixed physics step (s), midpoint method; motors up to ~50 Hz get >= 20 steps a beat
     subPerRelax: 16,        // a stiff spring gets sub-steps of at most 1/16 of its relaxation time
+    stepsPerBeat: 20,       // a running motor gets at least this many sub-steps a beat (fast bursts need more)
     maxSub: 64,
   },
   cell: {

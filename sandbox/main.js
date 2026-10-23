@@ -2,7 +2,7 @@
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
-import { updatePose } from '../sim/physics.js';
+import { updatePose, fire } from '../sim/physics.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -13,7 +13,7 @@ const COLOR = {
   water: '#0b1322', outside: '#060a12', grid: '#132036', gridMajor: '#1f3352', label: '#4d6a86',
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
-  extend: '#c9a0ff', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
+  extend: '#c9a0ff', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
   eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
 
@@ -100,6 +100,7 @@ const showControls = () => {
   $('tiltRow').style.display = c.tilt ? '' : 'none';
   $('sizeRow').style.display = c.size ? '' : 'none';
   $('insideRow').style.display = c.inside ? '' : 'none';
+  if (c.sizeDefault) $('partSize').value = c.sizeDefault;
   showSize();
 };
 $('partWhat').onchange = showControls; showControls();
@@ -116,7 +117,7 @@ const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1] };   // a sensi
 function wiring(g, wired) {
   const box = document.createElement('div');
   box.className = 'wire';
-  const motor = wired[0].joint.type === 'motor';
+  const motor = wired[0].joint.type === 'motor' && !wired[0].joint.burst;
   const sel = document.createElement('select');
   sel.add(new Option(motor ? 'runs always' : 'released by hand', ''));
   const sensors = partGroups(design.parts || []).filter((x) => x.category === 'Sensors');
@@ -213,7 +214,10 @@ $('play').onclick = () => { playing = !playing; $('play').textContent = playing 
 $('step').onclick = () => { playing = false; $('play').textContent = 'Play'; advance(10); };
 $('release').onclick = () => {
   let any = false;
-  for (const c of world.cells) for (const j of c.joints) if (j.latched) { j.latched = false; any = true; }
+  for (const c of world.cells) {
+    for (const j of c.joints) if (j.latched) { j.latched = false; any = true; }
+    if (fire(c)) any = true;   // burst organs that are charged
+  }
   if (!any) return;
   released = { x: cell.q[0], y: cell.q[1], t: worldTime(world) };
   ghosts = world.cells.map(outline);
@@ -306,7 +310,12 @@ function stats() {
   lines.push(`light here ${(world.light ? Math.exp(-PARAMS.light.attenuation * (TH - cell.q[1])) : 0).toFixed(2)} of the surface's`);
   const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity' };
   cell.sensors.forEach((sn, i) => lines.push(`${NAME[sn.kind].padEnd(9)} ${sn.value.toFixed(2)}`));
-  const motors = cell.joints.filter((j) => j.type === 'motor');
+  const bursts = cell.joints.filter((j) => j.burst);
+  if (bursts.length) {
+    const b = bursts[0].burst;
+    lines.push(`burst     ${b.state === 'charged' ? 'charged' : b.state === 'firing' ? 'FIRING' : `recharging, ${(b.recharge - b.t).toFixed(1)} s left`}`);
+  }
+  const motors = cell.joints.filter((j) => j.type === 'motor' && !j.burst);
   if (motors.length) lines.push(`motors    ${motors.filter((j) => j.on).length} of ${motors.length} running`);
   for (const inc of cell.pieces[0].inclusions) if (inc.show) inc.show();
   $('stats').textContent = lines.join('\n');
@@ -385,6 +394,20 @@ function drawCell(c, X, Y, s) {
       ctx.strokeStyle = COLOR.outline; ctx.lineWidth = w + 2;
       ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     }
+    const jt = p.joint >= 0 ? c.joints[p.joint] : null;
+    if (jt && jt.burst) {   // a burst organ: a coil, bright while firing, dull while recharging
+      const st = jt.burst.state;
+      ctx.strokeStyle = st === 'firing' ? COLOR.coilFiring : st === 'charged' ? COLOR.coil : COLOR.coilEmpty;
+      ctx.lineWidth = Math.max(0.5 * s, 1);
+      const turns = 3, amp = 1.2, nx = -(by - ay) / (p.L || 1), ny = (bx - ax) / (p.L || 1);
+      ctx.beginPath(); ctx.moveTo(X(ax), Y(ay));
+      for (let k = 1; k <= turns * 2; k++) {
+        const t = k / (turns * 2), side = k === turns * 2 ? 0 : (k % 2 ? amp : -amp);
+        ctx.lineTo(X(ax + (bx - ax) * t + nx * side), Y(ay + (by - ay) * t + ny * side));
+      }
+      ctx.stroke();
+      continue;
+    }
     ctx.strokeStyle = fill; ctx.lineWidth = w;
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     if (p.kind === 'body') for (const inc of p.inclusions) {
@@ -410,6 +433,13 @@ function drawCell(c, X, Y, s) {
         ctx.beginPath(); ctx.arc(X(px), Y(py), sn.range * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
       }
       continue;
+    }
+    if (c === cell) {   // the eyespot's cone, faint
+      const dir = c.phi[i] + sn.facing, r = 14;
+      ctx.fillStyle = COLOR.light + '.12)';
+      ctx.beginPath(); ctx.moveTo(X(px), Y(py));
+      for (let k = 0; k <= 12; k++) { const a = dir - sn.cone / 2 + sn.cone * k / 12; ctx.lineTo(X(px + Math.cos(a) * r), Y(py + Math.sin(a) * r)); }
+      ctx.closePath(); ctx.fill();
     }
     // eyespots: dark red, bright orange when lit, a tick the way they face
     const dir = c.phi[i] + sn.facing;

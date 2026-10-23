@@ -8,7 +8,7 @@
 //     { type: 'segment', id?, parent = 'body', at: [x, y], angle, length, radius, material, joint? },
 //     { type: 'inclusion', parent = 'body', at: [x, y], radius, material, density? },
 //     { type: 'pad', parent = 'body', at: [x, y], radius = 1, kind = 'kin' | 'mucus' },
-//     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' | 'touch' | 'near', range? },
+//     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' | 'touch' | 'near', range?, cone? },
 //   ]
 // }
 // `at` is a point in the parent's own frame (x along its axis, from its centre). A segment grows from that point
@@ -17,7 +17,8 @@
 // `at` is measured from its tip. A pad is a sticky patch (see interact.js): kin pads hold kin pads of the same
 // species, mucus pads hold any surface. Inclusions may not overlap: the room inside a cell is limited.
 // Sensors read 0..1 (sense.js): a light sensor (an eyespot) faces `angle` (degrees, relative to its parent's axis;
-// default: straight out from where it sits) and reads the light there × how squarely it faces up; a touch sensor
+// default: straight out from where it sits) and sees within a cone `cone` degrees wide (default 180): it reads the
+// light there × how squarely it faces up, scaled to its cone (a narrow eyespot is precise, a wide one vague); a touch sensor
 // reads 1 while another species touches its spot; a proximity sensor reads how close another species is within
 // `range` µm (1 touching, 0 at the range).
 // Any joint can be wired to a sensor: control: { sensor: id, min = 0, max = 1 }: a motor runs only while the reading
@@ -27,9 +28,12 @@
 //   { type: 'fixed' }                                    (default) rigid
 //   { type: 'hinge', stiffness = 0, rest = 0, latched = false }  springy (pN·µm/rad; rest angle in degrees, starts
 //       at 0). Latched, it is held at its angle until released (a trigger: a cocked spring waits).
-//   { type: 'motor', rate, swing, stroke = 0.5, phase = 0, on = true }
+//   { type: 'motor', rate, swing, stroke = 0.5, phase = 0, on = true, burst? }
 //       beats `rate` times a second, `swing` degrees each side; the forward stroke takes `stroke` of the cycle
 //       and the recovery the rest. Off, it holds its angle.
+//       burst: { duration, recharge } makes it a burst organ: it waits charged, and when fired (by hand, or by its
+//       control) beats for `duration` s, then stops and needs `recharge` s before it can fire again. Motors of one
+//       organ that share a `group` fire together.
 //   { type: 'extend', stiffness, rest = length, start = 0, latched = false }
 //       the segment slides out of the parent along its own axis (a ribbon unrolling, a stalk pushing out): its
 //       exposed length is the unknown, from 0 to `length`, pushed toward `rest` by a spring (pN/µm). Latched,
@@ -76,7 +80,8 @@ function parseJoint(j, pieceIndex) {
     if (!(stroke > 0 && stroke < 1)) throw new Error('motor stroke must be between 0 and 1');
     // clock: how long it has beaten; it stops while the motor is off, so the beat resumes where it froze
     return { type: 'motor', piece: pieceIndex, rate: j.rate, swing: (j.swing || 0) * DEG, stroke,
-      phase: j.phase || 0, on: j.on !== false, clock: 0 };
+      phase: j.phase || 0, on: j.on !== false && !j.burst, clock: 0,
+      burst: j.burst ? { duration: j.burst.duration, recharge: j.burst.recharge, group: j.burst.group, state: 'charged', t: 0 } : null };
   }
   throw new Error(`unknown joint type: ${j.type}`);
 }
@@ -157,7 +162,8 @@ export function buildCell(design) {
       if (!['light', 'touch', 'near'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
       const facing = part.angle !== undefined ? part.angle * DEG : Math.atan2(y, x);
       const range = part.range || (kind === 'near' ? PARAMS.sensor.nearRange : PARAMS.sensor.touchRange);
-      sensors.push({ id: part.id, piece: parent, x, y, facing, kind, range, value: 0 });
+      const cone = Math.min(Math.max(part.cone || 180, 10), 180) * DEG;
+      sensors.push({ id: part.id, piece: parent, x, y, facing, kind, range, cone, value: 0 });
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
       if (kind !== 'kin' && kind !== 'mucus') throw new Error(`unknown pad kind: ${kind}`);

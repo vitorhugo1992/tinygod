@@ -240,6 +240,25 @@ export function planSubsteps(cell) {
   updatePose(cell);
 }
 
+// Burst organs: charged -> firing (beating) for its duration -> recharging -> charged
+export function fire(cell, group) {
+  let any = false;
+  for (const jt of cell.joints) {
+    if (!jt.burst || jt.burst.state !== 'charged' || (group !== undefined && jt.burst.group !== group)) continue;
+    jt.burst.state = 'firing'; jt.burst.t = 0; jt.on = true; any = true;
+  }
+  return any;
+}
+function burst(cell) {
+  for (const jt of cell.joints) {
+    const b = jt.burst;
+    if (!b || b.state === 'charged') continue;
+    b.t += DT;
+    if (b.state === 'firing' && b.t >= b.duration) { b.state = 'recharging'; b.t = 0; jt.on = false; }
+    else if (b.state === 'recharging' && b.t >= b.recharge) { b.state = 'charged'; b.t = 0; }
+  }
+}
+
 // Sap vacuoles pump toward their target density at a limited rate; moving ions costs energy
 function pump(cell) {
   for (const inc of cell.pieces[0].inclusions) {
@@ -258,7 +277,12 @@ function pump(cell) {
 export function stepCell(cell, t, gravity = true) {
   const { q, v, n } = cell;
   const q0 = cell.q0 || (cell.q0 = new Float64Array(n));
-  const sub = cell.sub || 1, h = DT / sub;
+  burst(cell);
+  // sub-steps: the design's (stiff springs), more while a fast motor runs
+  let sub = cell.sub || 1;
+  for (const jt of cell.joints) if (jt.type === 'motor' && jt.on) sub = Math.max(sub, Math.ceil(jt.rate * PARAMS.time.stepsPerBeat * DT));
+  if (sub > PARAMS.time.maxSub) sub = PARAMS.time.maxSub;
+  const h = DT / sub;
   pump(cell);
   IMP = h;
   let energy = 0;

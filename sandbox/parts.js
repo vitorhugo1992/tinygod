@@ -57,6 +57,15 @@ export const PART_TEMPLATES = {
     { type: 'segment', id, label: 'Latched spring', at: surfacePoint(body, deg), angle: deg + tilt, length: 30, radius: 0.4,
       joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true } },
   ],
+  'Burst organ (escape)': (body, deg, id, size, tilt) => {
+    // a short coiled tail that, fired, beats extremely fast for a moment (like Mesodinium's escape), then recharges
+    const parts = chain(id, surfacePoint(body, deg), deg + tilt, 4, 5, (i) => ({
+      type: 'motor', rate: 500, swing: 40, phase: -i * 0.2,
+      burst: { duration: Math.round(20 * size) / 10, recharge: 3, group: id } }));
+    for (const p of parts) p.radius = 0.3;
+    parts[0].label = 'Burst organ';
+    return parts;
+  },
   'Ejectisome, latched (Release)': (body, deg, id, size, tilt) => [
     { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(200 * size), radius: 0.3,
       joint: { type: 'extend', stiffness: 20, latched: true } },
@@ -68,7 +77,8 @@ export const PART_TEMPLATES = {
   'Kin pad': (body, deg, id) => [{ type: 'pad', id, label: 'Kin pad', at: surfacePoint(body, deg), kind: 'kin' }],
   'Mucus pad': (body, deg, id) => [{ type: 'pad', id, label: 'Mucus pad', at: surfacePoint(body, deg), kind: 'mucus' }],
   'Light sensor (eyespot)': (body, deg, id, size, tilt) =>
-    [{ type: 'sensor', id, label: 'Light sensor', at: surfacePoint(body, deg), angle: deg + tilt, kind: 'light' }],
+    [{ type: 'sensor', id, label: 'Light sensor', at: surfacePoint(body, deg), angle: deg + tilt, kind: 'light',
+      cone: Math.max(20, Math.round(180 * size)) }],
   'Touch sensor (another species)': (body, deg, id) =>
     [{ type: 'sensor', id, label: 'Touch sensor', at: surfacePoint(body, deg), kind: 'touch' }],
   'Proximity sensor (another species)': (body, deg, id, size) =>
@@ -80,9 +90,10 @@ export const CONTROLS = {
   'Wave tail (swims)': { tilt: true }, 'Flexible oar (swims)': { tilt: true }, 'Stiff flap (goes nowhere)': { tilt: true },
   'Spine, protein': { tilt: true, size: 'length, up to 100 µm' }, 'Spine, glass': { tilt: true, size: 'length, up to 100 µm' },
   'Spring, latched (Release)': { tilt: true }, 'Ejectisome, latched (Release)': { tilt: true, size: 'length, up to 200 µm' },
+  'Burst organ (escape)': { tilt: true, size: 'burst length, up to 2 s', sizeDefault: 40 },
   'Oil droplet': { size: 'share of the room inside', inside: true }, 'Sap vacuole (slider)': { size: 'share of the room inside', inside: true },
   'Kin pad': {}, 'Mucus pad': {},
-  'Light sensor (eyespot)': { tilt: true }, 'Touch sensor (another species)': {},
+  'Light sensor (eyespot)': { tilt: true, size: 'cone width, 20-180°', sizeDefault: 100 }, 'Touch sensor (another species)': {},
   'Proximity sensor (another species)': { size: 'range, up to 200 µm' },
 };
 
@@ -90,7 +101,7 @@ export const CONTROLS = {
 export const CATEGORIES = {
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)', 'Stiff flap (goes nowhere)'],
   'Spines & appendages': ['Spine, protein', 'Spine, glass'],
-  'Springs & ejectors': ['Spring, latched (Release)', 'Ejectisome, latched (Release)'],
+  'Springs & ejectors': ['Burst organ (escape)', 'Spring, latched (Release)', 'Ejectisome, latched (Release)'],
   'Vacuoles & droplets': ['Oil droplet', 'Sap vacuole (slider)'],
   'Pads': ['Kin pad', 'Mucus pad'],
   'Sensors': ['Light sensor (eyespot)', 'Touch sensor (another species)', 'Proximity sensor (another species)'],
@@ -102,7 +113,7 @@ export function categoryOf(p) {
   if (p.type === 'pad') return 'Pads';
   if (p.type === 'sensor') return 'Sensors';
   const j = p.joint && p.joint.type;
-  if (j === 'motor') return 'Flagella';
+  if (j === 'motor') return p.joint.burst ? 'Springs & ejectors' : 'Flagella';
   if (j === 'hinge' || j === 'extend') return 'Springs & ejectors';
   return 'Spines & appendages';
 }

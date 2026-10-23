@@ -4,6 +4,7 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld } from '../sim/world.js';
 import { cellWeight } from '../sim/build.js';
 import { PRESETS } from '../sim/presets.js';
+import { fire } from '../sim/physics.js';
 
 const DT = PARAMS.time.dt;
 const MU = PARAMS.water.viscosity;
@@ -407,7 +408,48 @@ const eyeTail = (min, max) => ({
     `side by side: ${apart}; overlapping: "${stacked}"`);
 }
 
-// 23. Speed (not a pass test yet)
+// 23. An eyespot's cone: a narrow one sees only when pointed almost straight up (precise), a wide one more loosely
+{
+  const read = (cone, tiltDeg) => {
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, { body: { radius: 8 }, parts: [{ type: 'sensor', at: [8, 0], kind: 'light', cone }] }, 300, 1990, 90 + tiltDeg);
+    stepWorld(w);
+    return c.sensors[0].value;
+  };
+  const narrow = [0, 10, 30].map((t) => read(40, t)), wide = [0, 10, 30].map((t) => read(180, t));
+  check('a narrow eyespot sees only near straight up; a wide one falls off gently',
+    narrow[2] === 0 && wide[2] > 0.8 && narrow[0] > 0.98 && narrow[1] < wide[1],
+    `tilted 0/10/30° from up: 40° cone ${narrow.map((v) => fmt(v)).join(' / ')}, 180° cone ${wide.map((v) => fmt(v)).join(' / ')}`);
+}
+
+// 24. A burst organ: fired, a 20 µm coiled tail beats very fast for a moment and throws the cell ~200 µm, then stops
+// dead; it can't fire again until it has recharged; it costs much more than ordinary swimming
+{
+  const organ = { body: { radius: 8 }, parts: Array.from({ length: 4 }, (_, i) => ({
+    type: 'segment', id: `b${i}`, parent: i ? `b${i - 1}` : 'body', at: i ? [2.5, 0] : [-8, 0], angle: i ? 0 : 180,
+    length: 5, radius: 0.3, joint: { type: 'motor', rate: 500, swing: 40, phase: -i * 0.2, burst: { duration: 0.8, recharge: 3, group: 'b' } } })) };
+  const w = makeWorld(1, { gravity: false });
+  const c = addCell(w, organ, 300, 1000, 0);
+  for (let i = 0; i < 100; i++) stepWorld(w);
+  const idle = Math.hypot(c.q[0] - 300, c.q[1] - 1000);
+  fire(c);
+  for (let i = 0; i < 800; i++) stepWorld(w);
+  const thrown = Math.hypot(c.q[0] - 300, c.q[1] - 1000);
+  const x1 = c.q[0], y1 = c.q[1];
+  for (let i = 0; i < 500; i++) stepWorld(w);
+  const after = Math.hypot(c.q[0] - x1, c.q[1] - y1);
+  const again = fire(c);
+  for (let i = 0; i < 3000; i++) stepWorld(w);
+  const recharged = c.joints[0].burst.state === 'charged';
+  const swimFw = 263;   // the Wave tail's swimming power (check 10), fW
+  check('a burst organ throws the cell ~200 µm, stops dead, must recharge, and costs a lot',
+    idle === 0 && thrown > 180 && after < 0.5 && !again && recharged,
+    `charged, it waits (moved ${fmt(idle, 1)} µm); fired: ${fmt(thrown, 0)} µm in 0.8 s; then ${fmt(after, 2)} µm in 0.5 s; ` +
+    `fire again at once: ${again ? 'fired' : 'refused, recharging'}; charged again after 3 s: ${recharged}\n      ` +
+    `the burst cost ${fmt(c.energy.motor / 1000, 0)} fJ, as much as ${fmt(c.energy.motor / (swimFw * 1000), 0)} s of wave-tail swimming`);
+}
+
+// 25. Speed (not a pass test yet)
 {
   for (const name of ['Spiny cell', 'Wave tail']) {
     const w = makeWorld(1); addCell(w, PRESETS[name], 300, 1500, 0);
