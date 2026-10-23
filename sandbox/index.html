@@ -39,6 +39,8 @@
   h2 { font-size: 11px; margin: 6px 0 0; color: var(--accent); letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
   label { color: var(--dim); display: flex; align-items: center; gap: 6px; }
   .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  button:disabled { opacity: .4; cursor: default; } button:disabled:hover { border-color: var(--line); }
+  #history { margin-top: 4px; }
   .slider { display: grid; grid-template-columns: 52px 1fr 92px; align-items: center; gap: 6px; color: var(--dim); }
   .slider input { width: 100%; padding: 0; }
   .slider span { color: var(--text); font-size: 12px; }
@@ -120,6 +122,11 @@
 <div id="panel">
   <h1>TINYGOD · SANDBOX</h1>
   <div id="phone" hidden title="Open this on a phone on the same Wi-Fi; on the phone, ⋮ → Add to Home screen pins it"></div>
+  <div class="row" id="history">
+    <button id="undo" title="Undo the last change to the design">↶ Undo</button>
+    <button id="redo" title="Redo what was undone">↷ Redo</button>
+    <button id="clearParts" title="Remove every part, keep the body (Undo brings them back)">🗑 Delete all</button>
+  </div>
 
   <h2>Body</h2>
   <div class="slider">Radius <input type="range" id="bodyRadius" min="1" max="50" step="0.5"><span id="bodyRadiusOut"></span></div>
@@ -130,6 +137,7 @@
   <div id="chips"></div>
   <div class="slider" title="Where on the body: 0° front (right), 180° back">Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180"><span id="partAngleOut"></span></div>
   <div class="slider" id="tiltRow" title="Turn the part away from pointing straight out (a side flagellum needs tilt to turn the cell)">Tilt <input type="range" id="partTilt" min="-90" max="90" step="5" value="0"><span id="partTiltOut"></span></div>
+  <div class="row" id="flipRow"><button id="flipBtn" title="Mirror the part about its own line: it beats or kicks the other way">⇅ Flip</button></div>
   <div class="slider" id="insideRow" title="0 = centre, 100 = against the wall; droplets and vacuoles can't overlap">Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100"><span id="partInsideOut"></span></div>
   <div class="row" id="feelsRow" title="What a touch or proximity sensor reacts to">Feels <span class="seg" id="feelsSeg"></span></div>
   <div class="slider" id="sizeRow">Size <input type="range" id="partSize" min="10" max="100" step="5" value="40"><span id="partSizeOut"></span></div>
@@ -159,6 +167,7 @@
   <select id="viewMode" hidden><option value="follow" selected>Follow</option><option value="fit">Fit</option><option value="free">Free</option></select>
   <select id="partFeels" hidden><option value="strangers" selected>Other species</option><option value="anything">Anything (cells, walls)</option></select>
   <select id="bodyWall" hidden><option value="protein">Protein</option><option value="glass">Glass</option></select>
+  <input type="checkbox" id="partFlip" hidden>
   <input type="checkbox" id="gravity" checked hidden>
   <input type="checkbox" id="light" checked hidden>
   <input type="checkbox" id="day" checked hidden>

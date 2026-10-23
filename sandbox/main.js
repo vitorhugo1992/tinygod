@@ -2,11 +2,11 @@
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
-import { updatePose, fire, motorAngle } from '../sim/physics.js';
-import { rewire, controlsOf } from '../sim/build.js';
+import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
+import { rewire, controlsOf, buildCell } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel } from '../sim/sense.js';
-import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS } from './parts.js';
+import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 const $ = (id) => document.getElementById(id);
@@ -40,16 +40,52 @@ function load(d) {
 }
 
 // Try a changed design; if it doesn't build, keep the old one and say why. The rebuilt cell stays where the selected
-// one was, facing the same way.
-function applyDesign(d) {
+// one was, facing the same way. A change that builds can be undone (record = false when undoing or redoing).
+function applyDesign(d, record = true) {
   const old = design, pose = cell ? { x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI } : null;
   design = d;
   if (!reset(pose)) { const msg = $('err').textContent; design = old; reset(pose); $('err').textContent = msg; $('buildErr').textContent = msg; return false; }
+  if (record) remember(old);
   $('buildErr').textContent = '';
   $('json').value = JSON.stringify(d, null, 2);
   listParts();
+  updatePreview();
   return true;
 }
+
+// ----- undo and redo: the designs as they were (JSON), up to UNDO_STEPS back -----
+const UNDO_STEPS = 50;
+const past = [], future = [];
+function remember(d) {
+  past.push(JSON.stringify(d));
+  if (past.length > UNDO_STEPS) past.shift();
+  future.length = 0;
+}
+// the design without its wiring: if only the wiring differs, the cells in the tank are rewired, not rebuilt
+const shape = (d) => JSON.stringify(d, (k, v) => (k === 'controls' || k === 'control' ? undefined : v));
+function travel(from, to) {
+  if (!from.length) return;
+  const d = JSON.parse(from.pop());
+  to.push(JSON.stringify(design));
+  editing = null; $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true;
+  if (shape(d) === shape(design)) {
+    for (const c of world.cells) {
+      if (c.design !== design) continue;
+      c.design = d;
+      (d.parts || []).forEach((p, k) => { if (p.joint) rewire(c, k, controlsOf(p.joint)); });
+    }
+    design = d;
+    $('json').value = JSON.stringify(d, null, 2);
+    listParts();
+  } else applyDesign(d, false);
+}
+$('undo').onclick = () => travel(past, future);
+$('redo').onclick = () => travel(future, past);
+$('clearParts').onclick = () => {
+  if (!(design.parts || []).length) return;
+  editing = null; $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true;
+  applyDesign({ ...JSON.parse(JSON.stringify(design)), parts: [] });
+};
 
 // ----- the body: radius, length (0 = round), wall. Parts on it keep their angle; inclusions scale with it -----
 function showBody() {
@@ -105,39 +141,50 @@ const showControls = () => {
   $('sizeRow').style.display = c.size ? '' : 'none';
   $('insideRow').style.display = c.inside ? '' : 'none';
   $('feelsRow').style.display = c.feels ? '' : 'none';
+  $('flipRow').style.display = c.flip ? '' : 'none';
   if (c.sizeDefault && !editing) $('partSize').value = c.sizeDefault;
   showSize();
 };
-$('partWhat').onchange = () => { showControls(); if (editing) updateEdited(); }; showControls();
+$('partWhat').onchange = () => { showControls(); if (editing) updateEdited(); else updatePreview(); }; showControls();
+$('flipBtn').onclick = () => { $('partFlip').checked = !$('partFlip').checked; $('partFlip').dispatchEvent(new Event('change')); };
 let partCount = 0;
 let editing = null;   // the id of the part being edited, or null when adding
 // Make a part from the Build controls; its first piece remembers how (build), so it can be edited later
 function makePart(body, id) {
+  const c = CONTROLS[$('partWhat').value] || {};
   const b = { tpl: $('partWhat').value, where: Number($('partAngle').value), tilt: Number($('partTilt').value),
-    size: Number($('partSize').value) / 100, depth: Number($('partInside').value) / 100, feels: $('partFeels').value, id };
+    size: Number($('partSize').value) / 100, depth: Number($('partInside').value) / 100, feels: $('partFeels').value,
+    flip: !!c.flip && $('partFlip').checked, id };
   const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels);
+  if (b.flip) flipPart(parts);
   parts[0].build = b;
   return parts;
 }
-$('addPart').onclick = () => {
-  if (editing) { stopEditing(); return; }
-  const d = JSON.parse(JSON.stringify(design));
-  d.parts = (d.parts || []).concat(makePart(d.body, `p${Date.now() % 100000}_${++partCount}`));
-  applyDesign(d);
-};
-// Replace the part being edited with one made from the controls now; keep its id and its wiring
-function updateEdited() {
-  const d = JSON.parse(JSON.stringify(design));
+// The design with `fresh` added, or put in place of the part being edited (keeping its wiring); null if that is gone
+function withPart(d, fresh) {
+  if (!editing) { d.parts = (d.parts || []).concat(fresh); return d; }
   const g = partGroups(d.parts).find((x) => x.members[0].build && x.members[0].build.id === editing);
-  if (!g) { stopEditing(); return; }
-  const fresh = makePart(d.body, editing);
+  if (!g) return null;
   g.members.forEach((m, i) => {
     if (m.joint && controlsOf(m.joint).length && fresh[i] && fresh[i].joint) fresh[i].joint.controls = controlsOf(m.joint);
   });
   const at = d.parts.indexOf(g.members[0]);
   d.parts = d.parts.filter((p) => !g.members.includes(p));
   d.parts.splice(at, 0, ...fresh);
-  applyDesign(d);
+  return d;
+}
+$('addPart').onclick = () => {
+  if (editing) { stopEditing(); return; }
+  const d = JSON.parse(JSON.stringify(design));
+  previewOn = false;
+  if (!applyDesign(withPart(d, makePart(d.body, `p${Date.now() % 100000}_${++partCount}`)))) { previewOn = true; updatePreview(); }
+};
+// Replace the part being edited with one made from the controls now; keep its id and its wiring
+function updateEdited() {
+  const d = JSON.parse(JSON.stringify(design));
+  const next = withPart(d, makePart(d.body, editing));
+  if (!next) { stopEditing(); return; }
+  applyDesign(next);
 }
 function startEditing(b) {
   editing = b.id;
@@ -145,18 +192,69 @@ function startEditing(b) {
   $('partAngle').value = b.where; $('partTilt').value = b.tilt;
   $('partSize').value = Math.round(b.size * 100); $('partInside').value = Math.round(b.depth * 100);
   if (b.feels) $('partFeels').value = b.feels;
+  $('partFlip').checked = !!b.flip;
   showAngle(); showTilt(); showSize(); showInside();
   $('addPart').textContent = '✓ Done editing'; $('cancelEdit').hidden = false;
-  listParts();
+  previewOn = true;
+  listParts(); updatePreview();
 }
 function stopEditing() {
   editing = null;
   $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true;
-  listParts();
+  previewOn = false;
+  listParts(); updatePreview();
 }
 $('cancelEdit').onclick = stopEditing;
 // while editing, letting go of a slider (or picking another part type) updates the part at once
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partFeels']) $(id).onchange = () => { if (editing) updateEdited(); };
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partFeels', 'partFlip']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
+// while dragging, the ghost follows the slider
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
+
+// ----- the ghost: the part as it would be added (or the edited part as it would become), drawn see-through on the
+// selected cell before anything is built; red when it would not fit. Nothing is simulated. -----
+let previewOn = false;   // armed by picking a part or moving a slider; off after Add or tapping the lit part again
+let preview = null;      // { cell: the body with only the new part, built and posed; bad: why it would not fit, or '' }
+function updatePreview() {
+  preview = null;
+  if (!previewOn || !design) { $('buildErr').textContent = ''; return; }
+  const id = editing || 'ghost';
+  let bad = '';
+  try { const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, id)); if (d) buildCell(d); }
+  catch (e) { bad = e.message; }
+  $('buildErr').textContent = bad ? `won't fit: ${bad}` : '';
+  let c;
+  try { c = buildCell({ body: design.body, parts: makePart(design.body, id) }); } catch (e) { return; }
+  // beating parts at the middle of their stroke, springs at their rest, extenders as they start
+  c.joints.forEach((j, i) => { c.q[3 + i] = j.type === 'extend' ? j.start : 0; });
+  preview = { cell: c, bad };
+}
+function drawPreview(X, Y, s) {
+  if (!preview || !cell) return;
+  const c = preview.cell;
+  c.q[0] = cell.q[0]; c.q[1] = cell.q[1]; c.q[2] = cell.q[2];
+  updatePose(c);
+  ctx.save();
+  ctx.strokeStyle = ctx.fillStyle = preview.bad ? COLOR.starving : COLOR.selected;
+  ctx.globalAlpha = 0.7; ctx.setLineDash([4, 3]); ctx.lineCap = 'round';
+  for (let i = 1; i < c.pieces.length; i++) {
+    const p = c.pieces[i], h = p.L / 2;
+    ctx.lineWidth = Math.max(2 * p.a * s, 1.5);
+    ctx.beginPath();
+    ctx.moveTo(X(c.cx[i] - c.cs[i] * h), Y(c.cy[i] - c.sn[i] * h)); ctx.lineTo(X(c.cx[i] + c.cs[i] * h) + 0.01, Y(c.cy[i] + c.sn[i] * h));
+    ctx.stroke();
+  }
+  ctx.lineWidth = 1.5;
+  for (const inc of c.pieces[0].inclusions) {
+    const [ix, iy] = pieceToWorld(c, 0, inc.x, inc.y);
+    ctx.beginPath(); ctx.arc(X(ix), Y(iy), Math.max(inc.r * s, 2), 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  for (const d of [...c.sensors, ...c.pads]) {
+    const [px, py] = pieceToWorld(c, d.piece, d.x, d.y);
+    ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
 // Wiring for a group's motors (runs) or latched springs (released): a sensor, and the range of its reading (0-1)
 // in which the part runs or fires
 const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1] };   // a sensible start when a sensor is picked
@@ -181,6 +279,7 @@ function wiring(g, wired) {
   const write = (next) => {
     if (next.some((c) => !(c.min <= c.max))) { $('buildErr').textContent = 'a range must run from low to high'; return; }
     $('buildErr').textContent = '';
+    remember(design);
     // only true marks are stored, and the first condition never starts a new group
     const clean = next.map((c, i) => ({ sensor: c.sensor, min: c.min, max: c.max,
       ...(c.not ? { not: true } : {}), ...(i > 0 && c.or ? { or: true } : {}) }));
@@ -293,14 +392,22 @@ function listParts() {
     const row = document.createElement('div');
     row.className = 'part';
     const b = g.members[0].build;
-    row.innerHTML = `<span>${g.name} at ${g.deg}°${g.more ? ` (+${g.more} pieces)` : ''}</span>
-      <span>${b ? '<button class="edit">Edit</button> ' : ''}<button class="remove">Remove</button></span>`;
+    row.innerHTML = `<span>${g.name} at ${g.deg}°${b && b.flip ? ' (flipped)' : ''}${g.more ? ` (+${g.more} pieces)` : ''}</span>
+      <span>${b ? '<button class="edit">Edit</button> ' : ''}<button class="mirror" data-axis="90" title="Add a mirror copy on the other side: left ↔ right">⇆</button>
+        <button class="mirror" data-axis="0" title="Add a mirror copy on the other side: top ↔ bottom">⇅</button>
+        <button class="remove">Remove</button></span>`;
     if (b && b.id === editing) row.classList.add('editing');
     if (b) row.querySelector('.edit').onclick = () => (editing === b.id ? stopEditing() : startEditing(b));
+    for (const m of row.querySelectorAll('.mirror')) m.onclick = () => {
+      const d = JSON.parse(JSON.stringify(design));
+      const k = design.parts.indexOf(g.members[g.members.length - 1]);
+      d.parts.splice(k + 1, 0, ...mirrorGroup(g.members, Number(m.dataset.axis), `p${Date.now() % 100000}_${++partCount}`));
+      applyDesign(d);
+    };
     const wired = g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.latched));
     if (wired.length) row.appendChild(wiring(g, wired));
     row.querySelector('.remove').onclick = () => {
-      if (b && b.id === editing) { editing = null; $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true; }
+      if (b && b.id === editing) { editing = null; previewOn = false; $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true; }
       const d = JSON.parse(JSON.stringify(design));
       const gone = new Set(g.members.map((m) => design.parts.indexOf(m)));
       d.parts = d.parts.filter((_, i) => !gone.has(i));
@@ -606,6 +713,7 @@ function draw() {
   }
   const spd = playing ? Number($('speed').value) : 0;
   for (const c of world.cells) drawCell(calmPose(c, lastReal, spd) || c, X, Y, s, c);
+  drawPreview(X, Y, s);
   drawLinks(X, Y, s);
   drawScale(W, H, s);
   drawMinimap(W, H);
@@ -890,7 +998,11 @@ for (const [cat, names] of Object.entries(CATEGORIES)) {
   for (const name of names) {
     const b = document.createElement('button');
     b.textContent = SHORT[name] || name; b.title = name; b.dataset.v = name;
-    b.onclick = () => { $('partWhat').value = name; $('partWhat').dispatchEvent(new Event('change')); };
+    b.onclick = () => {   // picking a part shows its ghost; tapping the lit one again hides it
+      if (!editing && previewOn && $('partWhat').value === name) { previewOn = false; updatePreview(); return; }
+      previewOn = true;
+      $('partWhat').value = name; $('partWhat').dispatchEvent(new Event('change'));
+    };
     chips.appendChild(b);
   }
   $('chips').append(head, chips);
@@ -907,6 +1019,9 @@ function syncButtons() {
   $('dayBtn').classList.toggle('on', $('day').checked);
   $('calmBtn').classList.toggle('on', calmBeats);
   $('infoBtn').classList.toggle('on', !$('stats').hidden);
+  $('flipBtn').classList.toggle('on', $('partFlip').checked);
+  $('undo').disabled = !past.length; $('redo').disabled = !future.length;
+  $('clearParts').disabled = !(design.parts || []).length;
 }
 
 // The phone address, when the server shares the sandbox on the Wi-Fi (shown on the computer, not on the phone)

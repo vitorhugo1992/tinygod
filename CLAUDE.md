@@ -11,7 +11,7 @@ whole sandbox build happened in one long chat (2026-10-21 to 23); this file hold
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
-`node tools/check.mjs`: 32 physics checks, all passing (~2 min).
+`node tools/check.mjs`: 33 physics checks, all passing (~2 min).
 
 **Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
 springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
@@ -21,6 +21,14 @@ sensors (eyespot with cone width; touch and proximity feeling other species or a
 **metabolism v0** (energy only: plastids earn by light; upkeep; starch and oil fill and burn automatically and change
 buoyancy; starving stops motors). Viewer: one-tap toolbar, Build panel (body shape, parts by category, where / tilt /
 inside / size / feels, edit in place, live rewiring), budget panel, phone layout with pinch zoom.
+**Building tools** (author asked, 2026-10-23): a **ghost** (the part drawn dashed on the cell while picking and
+dragging sliders, red with "won't fit" when it would not build; nothing simulated; tapping the lit part hides it);
+**⇅ Flip** while placing (the part mirrored about its own line: it beats or kicks the other way); **⇆ / ⇅ on each
+part's row** add a mirror copy across the left-right or top-bottom line (an independent part, still editable; exact
+reflection: positions, angles, and every motor's swing and spring's rest negated, sandbox/parts.js `mirrorGroup`;
+a mirrored pair of oars swims straight, the check proves a copy swims as the exact mirror image); **↶ Undo / ↷ Redo**
+(the last 50 design changes; undoing only wiring rewires the tank without a reset) and **🗑 Delete all** (keeps the
+body; undoable, so no confirm).
 
 **v0 pass tests (below):** 1, physics honest: **passed** (checks). 2, fun and depth: **for the author to judge**
 (candidate ways to hold a depth: eyespot-wired tail, buoyancy, starch sinking at dusk, burst organ, chains;

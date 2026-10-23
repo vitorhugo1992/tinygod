@@ -6,6 +6,7 @@ import { cellWeight } from '../sim/build.js';
 import { PRESETS } from '../sim/presets.js';
 import { fire } from '../sim/physics.js';
 import { clock, daylight } from '../sim/light.js';
+import { PART_TEMPLATES, mirrorGroup } from '../sandbox/parts.js';
 
 const DT = PARAMS.time.dt;
 const MU = PARAMS.water.viscosity;
@@ -575,6 +576,23 @@ const runDay = (design, y, seconds, opts = {}) => {
     r.join('|') === 'on far, off near|off far, on near|off far, off near|on far, on near|off far, on near',
     `NOT near: ${r[0]}; hungry OR near: ${r[1]}; hungry AND near: ${r[2]}; near OR NOT hungry: ${r[3]}; ` +
     `an "or" on the first condition is ignored: ${r[4]}`);
+}
+
+// 28e. A mirror copy (the Build panel's ⇅) swims as the exact reflection of the original
+{
+  const oar = PART_TEMPLATES['Flexible oar (swims)']({ radius: 8 }, 150, 'oar', 0.4, 20);   // off-axis: it swims in a curve
+  const swim = (parts) => {
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, { body: { radius: 8 }, parts }, 1000, 1000, 0);
+    for (let i = 0; i < 5 / DT; i++) stepWorld(w);
+    return [c.q[0] - 1000, c.q[1] - 1000, c.q[2] * 180 / Math.PI];
+  };
+  const a = swim(oar), b = swim(mirrorGroup(oar, 0, 'copy'));
+  const off = Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] + b[1]));
+  check('a mirrored part swims as the mirror image of the original',
+    Math.hypot(a[0], a[1]) > 5 && off < 1e-6 && Math.abs(a[2] + b[2]) < 1e-6,
+    `flexible oar at 150°, tilt 20°, 5 s: moved (${fmt(a[0], 1)}, ${fmt(a[1], 1)}) µm, turned ${fmt(a[2], 1)}°; ` +
+    `its mirror (${fmt(b[0], 1)}, ${fmt(b[1], 1)}) µm, ${fmt(b[2], 1)}° (off by ${off.toExponential(1)} µm)`);
 }
 
 // 29. Determinism with day, metabolism and stores

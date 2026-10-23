@@ -90,12 +90,71 @@ export const PART_TEMPLATES = {
       range: Math.round(200 * size), feels }],
 };
 
+// ----- mirror images. A reflection keeps the physics honest: positions and angles reflect, and every joint turns the
+// other way (a motor's stroke and a spring's rest angle change sign), so a mirrored part beats or kicks the other way.
+const neg = (v) => -v + 0;   // + 0 turns -0 into 0
+const negJoint = (p) => {
+  if (!p.joint) return;
+  if (p.joint.swing) p.joint.swing = -p.joint.swing;
+  if (p.joint.rest) p.joint.rest = -p.joint.rest;
+};
+
+// Flip a freshly made part about its own line: where it sits and points stay, what hangs from it and how its joints
+// turn are mirrored (an oar that beat one way beats the other)
+export function flipPart(parts) {
+  for (const p of parts) {
+    negJoint(p);
+    if (p.parent && p.parent !== 'body') {
+      if (p.at) p.at = [p.at[0], neg(p.at[1])];
+      if (p.angle) p.angle = neg(p.angle);
+    }
+  }
+  return parts;
+}
+
+// A mirror copy of a part group (its root on the body and everything hanging from it) across a line through the body's
+// centre at `axis` degrees (90: left <-> right, 0: top <-> bottom), with fresh ids from `id`. A part made in the Build
+// panel stays editable: its copy is where it would be made at the mirrored angle, tilt negated, flipped.
+export function mirrorGroup(members, axis, id) {
+  const copy = JSON.parse(JSON.stringify(members));
+  const b = copy[0].build;
+  const ids = new Map();
+  copy.forEach((p, k) => {
+    if (!p.id) return;
+    ids.set(p.id, b && p.id.startsWith(b.id) ? id + p.id.slice(b.id.length) : `${id}_${k}`);
+  });
+  // exact for the two mirror lines the panel offers (no rounding noise), trigonometry for any other
+  const t = 2 * axis * Math.PI / 180;
+  const c = axis % 180 === 0 ? 1 : axis % 180 === 90 ? -1 : Math.cos(t), s = axis % 90 === 0 ? 0 : Math.sin(t);
+  const norm = (deg) => ((deg % 360) + 540) % 360 - 180;
+  for (const p of copy) {
+    negJoint(p);
+    if (p.id) p.id = ids.get(p.id);
+    if (p.joint && p.joint.burst && p.joint.burst.group !== undefined) {
+      const g = p.joint.burst.group;
+      p.joint.burst.group = ids.get(g) || (b && String(g).startsWith(b.id) ? id + String(g).slice(b.id.length) : `${id}_burst`);
+    }
+    if (p.parent && p.parent !== 'body') {   // in its parent's own frame, which the reflection flips
+      p.parent = ids.get(p.parent) || p.parent;
+      if (p.at) p.at = [p.at[0], neg(p.at[1])];
+      if (p.angle) p.angle = neg(p.angle);
+    } else {                                 // on the body: reflect the point and the direction
+      const [x, y] = p.at || [0, 0];
+      p.at = [x * c + y * s + 0, x * s - y * c + 0];
+      if (p.type === 'segment') p.angle = norm(2 * axis - (p.angle || 0));
+      else if (p.type === 'sensor' && p.angle !== undefined) p.angle = norm(2 * axis - p.angle);
+    }
+  }
+  if (b) Object.assign(b, { id, where: ((2 * axis - b.where) % 360 + 360) % 360, tilt: -b.tilt + 0, flip: !b.flip });
+  return copy;
+}
+
 // Which Build controls mean something for each part, and what Size means for it
 export const CONTROLS = {
-  'Wave tail (swims)': { tilt: true }, 'Flexible oar (swims)': { tilt: true }, 'Stiff flap (goes nowhere)': { tilt: true },
+  'Wave tail (swims)': { tilt: true, flip: true }, 'Flexible oar (swims)': { tilt: true, flip: true }, 'Stiff flap (goes nowhere)': { tilt: true, flip: true },
   'Spine, protein': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` }, 'Spine, glass': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },
-  'Spring, latched (Release)': { tilt: true }, 'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
-  'Burst organ (escape)': { tilt: true, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
+  'Spring, latched (Release)': { tilt: true, flip: true }, 'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
+  'Burst organ (escape)': { tilt: true, flip: true, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
   'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
