@@ -135,8 +135,9 @@ tracked; nitrate from the water), buoyancy as a side effect of what is stored (d
 *Trichodesmium*'s carbohydrate ballast), speed vs density (starch fast but heavy and bulky, oil compact and light but
 slow), shared room (reserves take space from plastids and vacuole), reserves buy time (survive dark or poor water),
 division splits them. This is the bridge into step 1 (plastids, light as food, growth, starving, dividing).
-Open: who decides when a store fills or empties: the cell's physiology, the player by wiring to a hunger sensor
-(reads the energy pool), or automatic with optional wiring (proposed).
+**Decided (author, 2026-10-23): automatic, wiring optional.** Stores fill with surplus and are burned when short, on
+their own (the player chooses which stores and how big); a player who wants to can wire a store to a **hunger sensor**
+(reads the cell's energy pool) to set when it fills or burns.
 
 **Escape jumps: the burst organ (decided, author 2026-10-23).** The author's target: a ~20 µm spring should throw
 the cell **at least 200 µm**, a high burst of energy that feels rewarding. A single push can't (at low Reynolds
