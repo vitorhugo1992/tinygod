@@ -224,14 +224,18 @@ function updatePreview() {
   $('buildErr').textContent = bad ? `won't fit: ${bad}` : '';
   let c;
   try { c = buildCell({ body: design.body, parts: makePart(design.body, id) }); } catch (e) { return; }
-  // beating parts at the middle of their stroke, springs at their rest, extenders as they start
-  c.joints.forEach((j, i) => { c.q[3 + i] = j.type === 'extend' ? j.start : 0; });
+  // as the part starts: springs at their rest, extenders as they start, a burst organ at the start of its stroke
+  c.joints.forEach((j, i) => { c.q[3 + i] = j.type === 'extend' ? j.start : j.type === 'motor' ? motorAngle(j, 0) : 0; });
   preview = { cell: c, bad };
 }
 function drawPreview(X, Y, s) {
   if (!preview || !cell) return;
   const c = preview.cell;
-  c.q[0] = cell.q[0]; c.q[1] = cell.q[1]; c.q[2] = cell.q[2];
+  c.q[0] = cell.q[0]; c.q[1] = cell.q[1];
+  c.q[2] = cell.vis && calmBeats ? cell.vis.q[2] : cell.q[2];   // turned as the cell is drawn
+  // beating parts beat as the real part will be drawn: from the start of the stroke, VIS_BEATS strokes a second
+  const t = performance.now() / 1000;
+  c.joints.forEach((j, i) => { if (j.type === 'motor' && !j.burst) c.q[3 + i] = motorAngle(j, t * VIS_BEATS / j.rate); });
   updatePose(c);
   ctx.save();
   ctx.strokeStyle = ctx.fillStyle = preview.bad ? COLOR.starving : COLOR.selected;
