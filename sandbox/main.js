@@ -14,6 +14,7 @@ const COLOR = {
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
+  eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,',
 };
 
 let design, world, cell, playing = true, acc = 0, lagging = false;   // cell: the selected one (followed, measured)
@@ -88,15 +89,42 @@ for (const [cat, names] of Object.entries(CATEGORIES)) {
 }
 const showAngle = () => { $('partAngleOut').textContent = `${$('partAngle').value}°`; };
 $('partAngle').oninput = showAngle; showAngle();
+const showTilt = () => { $('partTiltOut').textContent = `${$('partTilt').value}°`; };
+$('partTilt').oninput = showTilt; showTilt();
 const showSize = () => { $('partSizeOut').textContent = `${$('partSize').value}%`; };
 $('partSize').oninput = showSize; showSize();
 let partCount = 0;
 $('addPart').onclick = () => {
   const d = JSON.parse(JSON.stringify(design));
   d.parts = (d.parts || []).concat(PART_TEMPLATES[$('partWhat').value](d.body, Number($('partAngle').value), `p${Date.now() % 100000}_${++partCount}`,
-    Number($('partSize').value) / 100));
+    Number($('partSize').value) / 100, Number($('partTilt').value)));
   applyDesign(d);
 };
+// A menu wiring a group's motors (runs) or latched springs (released) to a light sensor
+function wiring(g, wired) {
+  const sel = document.createElement('select');
+  const motor = wired[0].joint.type === 'motor';
+  sel.add(new Option(motor ? 'runs always' : 'released by hand', ''));
+  const sensors = partGroups(design.parts || []).filter((x) => x.category === 'Sensors');
+  for (const s of sensors) {
+    const id = s.members[0].id, where = `${s.name.toLowerCase()} at ${s.deg}°`;
+    sel.add(new Option(`${motor ? 'runs' : 'released'} when ${where} sees light`, `${id}|light`));
+    sel.add(new Option(`${motor ? 'runs' : 'released'} when ${where} is dark`, `${id}|dark`));
+  }
+  const c = wired[0].joint.control;
+  sel.value = c ? `${c.sensor}|${c.when}` : '';
+  sel.onchange = () => {
+    const d = JSON.parse(JSON.stringify(design));
+    for (const m of wired) {
+      const joint = d.parts[design.parts.indexOf(m)].joint;
+      if (sel.value) { const [sensor, when] = sel.value.split('|'); joint.control = { sensor, when }; } else delete joint.control;
+    }
+    applyDesign(d);
+  };
+  sel.className = 'wire';
+  return sel;
+}
+
 function listParts() {
   showBody();
   const box = $('partList');
@@ -107,6 +135,8 @@ function listParts() {
     const row = document.createElement('div');
     row.className = 'part';
     row.innerHTML = `<span>${g.name} at ${g.deg}°${g.more ? ` (+${g.more} pieces)` : ''}</span> <button>Remove</button>`;
+    const wired = g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.latched));
+    if (wired.length) row.appendChild(wiring(g, wired));
     row.querySelector('button').onclick = () => {
       const d = JSON.parse(JSON.stringify(design));
       const gone = new Set(g.members.map((m) => design.parts.indexOf(m)));
@@ -121,7 +151,7 @@ function listParts() {
 function reset() {
   $('err').textContent = '';
   const s = design.start || {};
-  const w = makeWorld(1, { gravity: $('gravity').checked });
+  const w = makeWorld(1, { gravity: $('gravity').checked, light: $('light').checked });
   try {
     cell = addCell(w, design, s.x ?? TW / 2, s.y ?? TH * 0.6, s.angle ?? 0);
   } catch (e) {
@@ -188,6 +218,7 @@ function rotate(c, deg) {
   updatePose(c);
 }
 $('gravity').onchange = () => { if (world) world.gravity = $('gravity').checked; };
+$('light').onchange = () => { if (world) world.light = $('light').checked; };
 
 // ----- simulation -----
 function advance(steps) {
@@ -250,6 +281,9 @@ function stats() {
     const together = world.cells.filter((c) => c.group === cell.group).length;
     lines.push(`cells     ${world.cells.length}, pad links ${world.links.length}, this one's group ${together}`);
   }
+  cell.sensors.forEach((sn, i) => lines.push(`eyespot ${i + 1}  ${sn.value.toFixed(2)} ${sn.lit ? '(lit)' : '(dark)'}`));
+  const motors = cell.joints.filter((j) => j.type === 'motor');
+  if (motors.length) lines.push(`motors    ${motors.filter((j) => j.on).length} of ${motors.length} running`);
   for (const inc of cell.pieces[0].inclusions) if (inc.show) inc.show();
   $('stats').textContent = lines.join('\n');
 }
@@ -285,6 +319,14 @@ function draw() {
   ctx.fillStyle = COLOR.label; ctx.font = '11px system-ui';
   for (let gy = Math.ceil(Math.max(y0, 0) / 100) * 100; gy <= Math.min(y1, TH); gy += 100) ctx.fillText(`${TH - gy} µm deep`, X(Math.max(x0, 0)) + 4, Y(gy) - 3);
 
+  if (world.light) {   // light from above: a glow down from the surface, and a sign in the corner
+    const top = Y(TH), g = ctx.createLinearGradient(0, Math.max(top, 0), 0, Math.max(top, 0) + 140);
+    g.addColorStop(0, COLOR.light + '.22)'); g.addColorStop(1, COLOR.light + '0)');
+    ctx.fillStyle = g; ctx.fillRect(X(0), Math.max(top, 0), TW * s, 140);
+    if (top > 0) { ctx.fillStyle = COLOR.light + '.8)'; ctx.fillRect(X(0), top - 2, TW * s, 3); }
+    ctx.fillStyle = COLOR.light + '.85)'; ctx.font = '12px system-ui';
+    ctx.fillText('☀ light from above ↓', 12, 18);
+  }
   // trail
   ctx.fillStyle = COLOR.trail;
   for (const [tx, ty] of trail) ctx.fillRect(X(tx) - 1, Y(ty) - 1, 2, 2);
@@ -333,6 +375,14 @@ function drawCell(c, X, Y, s) {
     ctx.fillStyle = COLOR[c.joints[p.joint].type] || COLOR.motor;
     ctx.beginPath(); ctx.arc(X(c.jx[i]), Y(c.jy[i]), Math.max(0.8 * s, 2), 0, Math.PI * 2); ctx.fill();
   }
+  for (const sn of c.sensors) {   // eyespots: dark red, bright orange when lit, a tick the way they face
+    const i = sn.piece, px = c.cx[i] + c.cs[i] * sn.x - c.sn[i] * sn.y, py = c.cy[i] + c.sn[i] * sn.x + c.cs[i] * sn.y;
+    const dir = c.phi[i] + sn.facing;
+    ctx.strokeStyle = sn.lit ? COLOR.eyeLit : COLOR.eyeDark; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(X(px), Y(py)); ctx.lineTo(X(px + Math.cos(dir) * 4), Y(py + Math.sin(dir) * 4)); ctx.stroke();
+    ctx.fillStyle = sn.lit ? COLOR.eyeLit : COLOR.eyeDark;
+    ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2); ctx.fill();
+  }
   for (const pad of c.pads) {
     const [px, py] = padWorld(c, pad);
     ctx.strokeStyle = COLOR[pad.kind]; ctx.lineWidth = 1.5;
@@ -341,8 +391,10 @@ function drawCell(c, X, Y, s) {
   if (c === cell && c.design === design) {      // where the Build panel would put the next part
     const [mx, my] = surfacePoint(design.body, Number($('partAngle').value));
     const [wx, wy] = [c.cx[0] + c.cs[0] * mx - c.sn[0] * my, c.cy[0] + c.sn[0] * mx + c.cs[0] * my];
-    ctx.fillStyle = COLOR.selected;
+    ctx.fillStyle = COLOR.selected; ctx.strokeStyle = COLOR.selected; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(X(wx), Y(wy), 3, 0, Math.PI * 2); ctx.fill();
+    const dir = c.phi[0] + (Number($('partAngle').value) + Number($('partTilt').value)) * Math.PI / 180;
+    ctx.beginPath(); ctx.moveTo(X(wx), Y(wy)); ctx.lineTo(X(wx + Math.cos(dir) * 8), Y(wy + Math.sin(dir) * 8)); ctx.stroke();
   }
   if (c === cell && world.cells.length > 1) {   // a ring round the selected cell
     ctx.strokeStyle = COLOR.selected; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);

@@ -166,10 +166,10 @@ function solve(A, b, n, x) {
   }
 }
 
-// Velocities of every unknown at the cell's current pose; motors go from their angle in `from` to their angle
-// at tEnd in time h.
+// Velocities of every unknown at the cell's current pose; running motors go from their angle in `from` to their
+// angle `ahead` seconds further on their clock, in time h.
 // Returns the motors' power (only positive work costs).
-function velocities(cell, from, tEnd, h, gravity) {
+function velocities(cell, from, ahead, h, gravity) {
   updatePose(cell);
   assemble(cell, gravity);
   const { q, v, n, A, f, A0, f0, joints } = cell;
@@ -189,7 +189,7 @@ function velocities(cell, from, tEnd, h, gravity) {
     const jt = joints[j];
     if (jt.type !== 'motor' && !jt.latched) continue;
     const p = 3 + j;
-    const r = jt.type === 'motor' && jt.on ? (motorAngle(jt, tEnd) - from[p]) / h : 0;
+    const r = jt.type === 'motor' && jt.on ? (motorAngle(jt, jt.clock + ahead) - from[p]) / h : 0;
     for (let i = 0; i < n; i++) {
       if (i === p) continue;
       f[i] -= A[i * n + p] * r;
@@ -263,14 +263,14 @@ export function stepCell(cell, t, gravity = true) {
   IMP = h;
   let energy = 0;
   for (let k = 0; k < sub; k++) {
-    const ts = t + k * h;
     q0.set(q);
-    velocities(cell, q0, ts + h / 2, h / 2, gravity);
+    velocities(cell, q0, h / 2, h / 2, gravity);
     for (let i = 0; i < n; i++) q[i] = q0[i] + h / 2 * v[i];
     // from the midpoint, motors aim for their angle at the end of the sub-step, measured from its start
-    const power = velocities(cell, q0, ts + h, h, gravity);
+    const power = velocities(cell, q0, h, h, gravity);
     for (let i = 0; i < n; i++) q[i] = q0[i] + h * v[i];
     energy += power * h;
+    for (const jt of cell.joints) if (jt.type === 'motor' && jt.on) jt.clock += h;
   }
   cell.power = energy / DT;
   cell.energy.motor += energy;

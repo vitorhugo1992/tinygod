@@ -315,7 +315,44 @@ const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
   check('a world of meeting cells runs bit-identical twice', a.every((x, i) => x === b[i]), `${a.length / 8} numbers compared after 5 s`);
 }
 
-// 19. Speed (not a pass test yet)
+// 19. A light sensor reads the light by the way it faces; a motor wired to it runs only while it is lit, and its
+// beat resumes where it froze (no jump)
+{
+  const eyeTail = {
+    body: { radius: 8 },
+    parts: [
+      { type: 'sensor', id: 'eye', at: [8, 0], kind: 'light' },
+      ...PRESETS['Wave tail'].parts.map((p) => ({ ...p, joint: { ...p.joint, control: { sensor: 'eye', when: 'light' } } })),
+    ],
+  };
+  const readAt = (deg, light = true) => {
+    const w = makeWorld(1, { gravity: false, light });
+    const c = addCell(w, eyeTail, 300, 1000, deg);
+    stepWorld(w);
+    return { w, c, value: c.sensors[0].value, on: c.joints[0].on };
+  };
+  const up = readAt(90), side = readAt(0), down = readAt(-90), off = readAt(90, false);
+  // facing up it swims; turned down mid-run its motors stop with the tail where it was, and resume from there
+  const r = readAt(90);
+  for (let i = 0; i < 500; i++) stepWorld(r.w);
+  const y1 = r.c.q[1];
+  r.c.q[2] = -Math.PI / 2;
+  stepWorld(r.w);
+  const frozen = Array.from(r.c.q.slice(3));
+  for (let i = 0; i < 500; i++) stepWorld(r.w);
+  const still = r.c.q.slice(3).every((a, i) => a === frozen[i]);
+  r.c.q[2] = Math.PI / 2;
+  stepWorld(r.w);
+  const jump = Math.max(...Array.from(r.c.q.slice(3)).map((a, i) => Math.abs(a - frozen[i])));
+  const j0 = r.c.joints[0], beatStep = j0.swing * Math.PI / Math.min(j0.stroke, 1 - j0.stroke) * j0.rate * DT;  // most a beating joint moves in a step
+  check('a light sensor reads by the way it faces; a motor wired to it runs only while lit, resuming without a jump',
+    up.value > 0.99 && side.value < 1e-6 && down.value === 0 && off.value === 0 && up.on && !down.on && y1 > 1010 && still && jump <= beatStep * 1.001,
+    `facing up ${fmt(up.value)}, sideways ${fmt(side.value)}, down ${fmt(down.value)}, light off ${fmt(off.value)}; ` +
+    `swam ${fmt(y1 - 1000, 1)} µm up in 0.5 s; turned down: tail frozen ${still ? 'in place' : 'NOT in place'}; ` +
+    `turned back up, the tail's first step moves ${fmt(jump * 180 / Math.PI, 2)}° (an ordinary beat step is up to ${fmt(beatStep * 180 / Math.PI, 2)}°)`);
+}
+
+// 20. Speed (not a pass test yet)
 {
   for (const name of ['Spiny cell', 'Wave tail']) {
     const w = makeWorld(1); addCell(w, PRESETS[name], 300, 1500, 0);

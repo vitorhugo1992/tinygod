@@ -8,13 +8,18 @@
 //     { type: 'segment', id?, parent = 'body', at: [x, y], angle, length, radius, material, joint? },
 //     { type: 'inclusion', parent = 'body', at: [x, y], radius, material, density? },
 //     { type: 'pad', parent = 'body', at: [x, y], radius = 1, kind = 'kin' | 'mucus' },
+//     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' },
 //   ]
 // }
 // `at` is a point in the parent's own frame (x along its axis, from its centre). A segment grows from that point
 // in direction `angle` (degrees, relative to the parent's axis). An inclusion is a sphere inside the body; a sap
 // inclusion can be pumped toward a target density (inclusion.target), at a cost. On an extending segment, children's
 // `at` is measured from its tip. A pad is a sticky patch (see interact.js): kin pads hold kin pads of the same
-// species, mucus pads hold any surface.
+// species, mucus pads hold any surface. A light sensor (an eyespot) faces `angle` (degrees, relative to its parent's
+// axis; default: straight out from where it sits) and reads 1 facing straight up into the light, 0 facing sideways
+// or down (sense.js).
+// Any joint can be wired to a sensor: control: { sensor: id, when: 'light' | 'dark' }. A motor then runs only while
+// that holds; a latched hinge or extender is released the first time it holds.
 // A segment's joint, at `at`:
 //   { type: 'fixed' }                                    (default) rigid
 //   { type: 'hinge', stiffness = 0, rest = 0, latched = false }  springy (pN·µm/rad; rest angle in degrees, starts
@@ -66,8 +71,9 @@ function parseJoint(j, pieceIndex) {
   if (j.type === 'motor') {
     const stroke = j.stroke === undefined ? 0.5 : j.stroke;
     if (!(stroke > 0 && stroke < 1)) throw new Error('motor stroke must be between 0 and 1');
+    // clock: how long it has beaten; it stops while the motor is off, so the beat resumes where it froze
     return { type: 'motor', piece: pieceIndex, rate: j.rate, swing: (j.swing || 0) * DEG, stroke,
-      phase: j.phase || 0, on: j.on !== false };
+      phase: j.phase || 0, on: j.on !== false, clock: 0 };
   }
   throw new Error(`unknown joint type: ${j.type}`);
 }
@@ -76,6 +82,8 @@ export function buildCell(design) {
   const pieces = [];
   const joints = [];
   const pads = [];
+  const sensors = [];
+  const controls = [];   // [joint, control] pairs, resolved once every sensor is known
   const ids = new Map();
   const C = PARAMS.cell;
 
@@ -104,6 +112,7 @@ export function buildCell(design) {
       const v = capsuleVolume(L, a);
       const joint = parseJoint(part.joint, pieces.length);
       if (joint) joints.push(joint);
+      if (joint && part.joint.control) controls.push([joint, part.joint.control]);
       const piece = {
         kind: 'segment', parent, ax: x, ay: y, mount: (part.angle || 0) * DEG, offset: L / 2,
         joint: joint ? joints.length - 1 : -1,
@@ -137,6 +146,11 @@ export function buildCell(design) {
       host.wpts.push(wpt);
       host.inclusions.push({ x, y, r, v, wpt, material: part.material, density: rho, target: rho,
         pumpable: mat.min !== undefined, min: mat.min, max: mat.max });
+    } else if (part.type === 'sensor') {
+      const kind = part.kind || 'light';
+      if (kind !== 'light') throw new Error(`unknown sensor kind: ${kind}`);
+      const facing = part.angle !== undefined ? part.angle * DEG : Math.atan2(y, x);
+      sensors.push({ id: part.id, piece: parent, x, y, facing, kind, value: 0 });
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
       if (kind !== 'kin' && kind !== 'mucus') throw new Error(`unknown pad kind: ${kind}`);
@@ -155,6 +169,13 @@ export function buildCell(design) {
     p.cols = Int32Array.from(base);
   }
 
+  for (const [joint, c] of controls) {
+    const s = sensors.findIndex((x) => x.id === c.sensor);
+    if (s < 0) throw new Error(`no sensor called ${c.sensor}`);
+    if (c.when !== 'light' && c.when !== 'dark') throw new Error('control.when must be light or dark');
+    joint.control = { sensor: s, when: c.when };
+  }
+
   // how far the cell can reach from its body centre, for finding neighbours
   const reachOf = [];
   pieces.forEach((p, i) => {
@@ -171,7 +192,7 @@ export function buildCell(design) {
 
   const np = pieces.length;
   return {
-    design, pieces, joints, pads, n, colTurn, reach,
+    design, pieces, joints, pads, sensors, n, colTurn, reach,
     species: design.species || design.name || 'A',
     ext: [],                 // this step's contacts and pad pulls from other cells (interact.js)
     jointPiece: Int32Array.from(joints.map((j) => j.piece)),

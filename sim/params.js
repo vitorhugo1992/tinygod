@@ -26,6 +26,14 @@ export const PARAMS = {
     stiffness: 20,          // pN/µm, walls and floor (treated implicitly, so stiff is stable)
     cells: 20,              // pN/µm, cell against cell
   },
+  light: {
+    strength: 1,            // light from above, at the surface (relative)
+    attenuation: 0,         // per µm; 0 in the 2 mm sandbox, where light gives direction only
+  },
+  sensor: {
+    threshold: 0.5,         // a light sensor counts as lit above this reading...
+    hysteresis: 0.05,       // ...and as dark only once it falls this much below (no flicker at the edge)
+  },
   pads: {
     stiffness: 5,           // pN/µm, the spring of a stuck pad
     kinBreak: 40,           // pN a kin pad holds before it snaps

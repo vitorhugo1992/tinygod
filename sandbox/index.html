@@ -28,7 +28,9 @@
   .cat { color: var(--accent); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
   #partList .cat { color: var(--dim); }
   .part { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; }
+  .part { flex-wrap: wrap; }
   .part button { padding: 1px 6px; font-size: 11px; }
+  .part .wire { font-size: 11px; padding: 1px 4px; width: 100%; }
   #stats { font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; background: #0d1626;
     border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
   textarea { width: 100%; height: 260px; font: 11px/1.35 ui-monospace, Consolas, monospace; resize: vertical; }
@@ -66,11 +68,18 @@
         <span id="partAngleOut"></span></label>
     </div>
     <div class="row">
+      <label>Tilt <input type="range" id="partTilt" min="-90" max="90" step="5" value="0" style="width:120px">
+        <span id="partTiltOut"></span></label>
+    </div>
+    <div class="row">
       <label>Size <input type="range" id="partSize" min="10" max="100" step="5" value="40" style="width:120px">
         <span id="partSizeOut"></span></label>
       <button id="addPart">Add to body</button>
     </div>
-    <div class="hint">The white dot on the cell shows where. 0° is the front (right), 180° the back. Size: how much
+    <div class="hint">The white dot on the cell shows where, its line which way the part points. 0° is the front
+      (right), 180° the back. Tilt turns the part away from pointing straight out (a side flagellum pointing straight
+      out pushes through the centre and can't turn the cell). Wire flagella and springs to a light sensor in the list
+      below: an eyespot reads 1 facing straight up into the light, 0 facing sideways or down; lit above 0.5. Size: how much
       of the cell an oil droplet or vacuole fills, or how long a spine (up to 100 µm) or ejectisome (up to 200 µm) is.
       Oil's density is fixed (920, seawater 1025): a cell floats by holding more of it, about a quarter of its volume.</div>
     <div id="buildErr" style="color:var(--bad)"></div>
@@ -94,6 +103,7 @@
   </div>
   <div class="row">
     <label><input type="checkbox" id="gravity" checked> gravity</label>
+    <label><input type="checkbox" id="light" checked> light from above</label>
     <label>View <select id="view">
       <option value="follow" selected>follow selected</option><option value="fit">fit all cells</option>
       <option value="free">free</option>

@@ -28,34 +28,36 @@ const chain = (id, at, deg, n, length, joint) => Array.from({ length: n }, (_, i
   angle: i ? 0 : deg, length, radius: 0.25, material: 'protein', joint: joint(i),
 }));
 
+// Each template: (body, where, id, size, tilt). `where` is the angle round the body; the part points straight out
+// from there, turned by `tilt` degrees.
 export const PART_TEMPLATES = {
-  'Wave tail (swims)': (body, deg, id) => {
-    const parts = chain(id, surfacePoint(body, deg), deg, 6, 8, (i) => ({ type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 }));
+  'Wave tail (swims)': (body, deg, id, size, tilt) => {
+    const parts = chain(id, surfacePoint(body, deg), deg + tilt, 6, 8, (i) => ({ type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 }));
     parts[0].label = 'Wave tail';
     return parts;
   },
-  'Flexible oar (swims)': (body, deg, id) => [
-    { type: 'segment', id: `${id}_0`, label: 'Flexible oar', at: surfacePoint(body, deg), angle: deg, length: 15, radius: 0.25,
+  'Flexible oar (swims)': (body, deg, id, size, tilt) => [
+    { type: 'segment', id: `${id}_0`, label: 'Flexible oar', at: surfacePoint(body, deg), angle: deg + tilt, length: 15, radius: 0.25,
       joint: { type: 'motor', rate: 20, swing: 60, stroke: 0.25 } },
     { type: 'segment', id: `${id}_1`, parent: `${id}_0`, at: [7.5, 0], length: 25, radius: 0.25,
       joint: { type: 'hinge', stiffness: 700 } },
   ],
-  'Stiff flap (goes nowhere)': (body, deg, id) => [
-    { type: 'segment', id, label: 'Stiff flap', at: surfacePoint(body, deg), angle: deg, length: 40, radius: 0.25,
+  'Stiff flap (goes nowhere)': (body, deg, id, size, tilt) => [
+    { type: 'segment', id, label: 'Stiff flap', at: surfacePoint(body, deg), angle: deg + tilt, length: 40, radius: 0.25,
       joint: { type: 'motor', rate: 20, swing: 45, stroke: 0.25 } },
   ],
-  'Spine, protein': (body, deg, id, size) => [
-    { type: 'segment', id, label: 'Protein spine', at: surfacePoint(body, deg), angle: deg, length: Math.round(100 * size), radius: 0.5, material: 'protein' },
+  'Spine, protein': (body, deg, id, size, tilt) => [
+    { type: 'segment', id, label: 'Protein spine', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(100 * size), radius: 0.5, material: 'protein' },
   ],
-  'Spine, glass': (body, deg, id, size) => [
-    { type: 'segment', id, label: 'Glass spine', at: surfacePoint(body, deg), angle: deg, length: Math.round(100 * size), radius: 0.5, material: 'glass' },
+  'Spine, glass': (body, deg, id, size, tilt) => [
+    { type: 'segment', id, label: 'Glass spine', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(100 * size), radius: 0.5, material: 'glass' },
   ],
-  'Spring, latched (Release)': (body, deg, id) => [
-    { type: 'segment', id, label: 'Latched spring', at: surfacePoint(body, deg), angle: deg, length: 30, radius: 0.4,
+  'Spring, latched (Release)': (body, deg, id, size, tilt) => [
+    { type: 'segment', id, label: 'Latched spring', at: surfacePoint(body, deg), angle: deg + tilt, length: 30, radius: 0.4,
       joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true } },
   ],
-  'Ejectisome, latched (Release)': (body, deg, id, size) => [
-    { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg, length: Math.round(200 * size), radius: 0.3,
+  'Ejectisome, latched (Release)': (body, deg, id, size, tilt) => [
+    { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(200 * size), radius: 0.3,
       joint: { type: 'extend', stiffness: 20, latched: true } },
   ],
   'Oil droplet': (body, deg, id, size) => [{ type: 'inclusion', id, label: 'Oil droplet', ...inside(body, deg, size), material: 'oil' }],
@@ -63,6 +65,8 @@ export const PART_TEMPLATES = {
     [{ type: 'inclusion', id, label: 'Sap vacuole', ...inside(body, deg, size), material: 'sap', density: 1025 }],
   'Kin pad': (body, deg, id) => [{ type: 'pad', id, label: 'Kin pad', at: surfacePoint(body, deg), kind: 'kin' }],
   'Mucus pad': (body, deg, id) => [{ type: 'pad', id, label: 'Mucus pad', at: surfacePoint(body, deg), kind: 'mucus' }],
+  'Light sensor (eyespot)': (body, deg, id, size, tilt) =>
+    [{ type: 'sensor', id, label: 'Light sensor', at: surfacePoint(body, deg), angle: deg + tilt, kind: 'light' }],
 };
 
 // How the Build panel sorts parts
@@ -72,12 +76,14 @@ export const CATEGORIES = {
   'Springs & ejectors': ['Spring, latched (Release)', 'Ejectisome, latched (Release)'],
   'Vacuoles & droplets': ['Oil droplet', 'Sap vacuole (slider)'],
   'Pads': ['Kin pad', 'Mucus pad'],
+  'Sensors': ['Light sensor (eyespot)'],
 };
 
 // The category of a part already on the body, from what it is
 export function categoryOf(p) {
   if (p.type === 'inclusion') return 'Vacuoles & droplets';
   if (p.type === 'pad') return 'Pads';
+  if (p.type === 'sensor') return 'Sensors';
   const j = p.joint && p.joint.type;
   if (j === 'motor') return 'Flagella';
   if (j === 'hinge' || j === 'extend') return 'Springs & ejectors';
@@ -98,7 +104,7 @@ export function partGroups(parts) {
     }
     const [x, y] = p.at || [0, 0];
     const name = p.label || (p.type === 'segment' ? `${p.material || 'protein'} segment${p.joint ? ` (${p.joint.type})` : ''}`
-      : p.type === 'inclusion' ? `${p.material} inclusion` : `${p.kind || 'kin'} pad`);
+      : p.type === 'inclusion' ? `${p.material} inclusion` : p.type === 'sensor' ? 'light sensor' : `${p.kind || 'kin'} pad`);
     groups.push({ name, members, category: categoryOf(p), more: members.length - 1, deg: Math.round(Math.atan2(y, x) * 180 / Math.PI + 360) % 360 });
   }
   return groups;

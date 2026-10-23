@@ -6,8 +6,9 @@ authoritative.
 
 **Status (2026-10-23): building step 0, the physics sandbox** (author's go given). Done: sinking, joints, motors,
 latched springs, extending parts (ejectisome), pumped sap vacuoles, cells touching, kin and mucus pads, chains with
-the hidden cap, a viewer with presets, tweezers and copies; 18 physics checks pass. Held back: sensors (what
-switches parts on is open), light (author: too soon for the sandbox).
+the hidden cap, light from above (direction only) and a light sensor (eyespot) that flagella and springs can be wired
+to; a viewer with a Build panel (body shape, parts by category, where, tilt, size, wiring), presets, tweezers, any
+number of cells; 19 physics checks pass.
 
 ---
 
@@ -87,6 +88,10 @@ must too. Costs, not limits, keep designs in check.
 physics already supports it (a motor can be off and holds its angle; a hinge can start latched until released).
 **What switches a part on or off is open, for a future discussion with the author**: sensors (the Sensor block
 below) are one proposal, not decided. Until then the sandbox switches parts by hand (Release button).
+**First switch built (author asked, 2026-10-23):** a light sensor (eyespot) that motors and latched springs can be
+wired to: a motor runs only while it is lit (or only while dark), a latched spring is released the first time it
+holds. A stopped motor freezes mid-beat and resumes from there (each motor keeps its own clock). Other switches
+(clock, depth, touch, tilt) are still open.
 
 **Escape jumps are too short (open problem, author 2026-10-23):** an escape should carry a cell **close to 100 µm**,
 enough to evade a predator. As built, a released spring hops ~5 µm and a 30 µm ejectisome ribbon ~6 µm (a 60 µm
@@ -156,7 +161,8 @@ runs headless in Node for tests (and later the optimiser).
 - **Blocks:** Body, Segment, Joint, Motor, Inclusion, Pad, Sensor. **Materials:** protein, glass, sap, oil.
 - **Water: still.** A tall tank with gravity, walls and floor. A simple **shear or eddy flow** comes later as a
   switch.
-- **No light in the sandbox yet** (author, 2026-10-23: too soon). Planned: three colour bands (blue, green, red)
+- **Light from above, direction only** (author asked for it, 2026-10-23, to wire an eyespot): it does not fade
+  over the 2 mm tank (PARAMS.light.attenuation 0); a switch turns it off. Planned for later: three colour bands (blue, green, red)
   fading with depth at different rates, with a day/night clock. **Open question:** how the 2 mm tank relates to a
   real water column (light changes over metres). Proposed: the sandbox stays a microscope (real µm and seconds;
   light as one adjustable setting) and the real column with its light lives in step 1, where each design's

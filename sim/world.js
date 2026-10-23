@@ -5,19 +5,19 @@ import { DEG } from './dmath.js';
 import { buildCell } from './build.js';
 import { stepCell, updatePose, motorAngle, planSubsteps } from './physics.js';
 import { interact } from './interact.js';
+import { sense } from './sense.js';
 
-// gravity: false switches weight and buoyancy off, to watch swimming alone
-export function makeWorld(seed = 1, { gravity = true } = {}) {
-  return { seed, steps: 0, gravity, rng: new Rng(seed), cells: [], links: [] };
+// gravity: false switches weight and buoyancy off, to watch swimming alone; light: false turns the light off
+export function makeWorld(seed = 1, { gravity = true, light = true } = {}) {
+  return { seed, steps: 0, gravity, light, rng: new Rng(seed), cells: [], links: [] };
 }
 
 // Drop a design into the tank at (x, y) µm (y up from the floor), turned by `angle` degrees
 export function addCell(world, design, x, y, angle = 0) {
   const cell = buildCell(design);
   cell.q[0] = x; cell.q[1] = y; cell.q[2] = angle * DEG;
-  const t = worldTime(world);
   cell.joints.forEach((j, i) => {
-    if (j.type === 'motor') cell.q[3 + i] = motorAngle(j, t);
+    if (j.type === 'motor') cell.q[3 + i] = motorAngle(j, 0);
     if (j.type === 'extend') cell.q[3 + i] = j.start;
   });
   planSubsteps(cell);
@@ -28,7 +28,7 @@ export function addCell(world, design, x, y, angle = 0) {
 
 export function stepWorld(world) {
   const t = worldTime(world);
-  for (const cell of world.cells) updatePose(cell);
+  for (const cell of world.cells) { updatePose(cell); sense(world, cell); }
   if (world.cells.length > 1) interact(world);
   for (const cell of world.cells) stepCell(cell, t, world.gravity);
   world.steps++;
