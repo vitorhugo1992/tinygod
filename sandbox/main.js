@@ -195,9 +195,9 @@ function wiring(g, wired) {
     const span = document.createElement('div');
     span.className = 'range';
     span.innerHTML = `<div class="rlabel">${motor ? 'on' : 'fires'} while it reads <b class="lohi"></b> · now <b data-live="${c.sensor}">–</b></div>
-      <div class="dual"><div class="track"><div class="band"></div><div class="now" data-livebar="${c.sensor}"></div></div>
+      <div class="dual"><div class="track"><div class="band"></div>${kind === 'light' ? '<div class="most"></div>' : ''}<div class="now" data-livebar="${c.sensor}"></div></div>
         <input type="range" min="0" max="1" step="0.05" value="${lo}"><input type="range" min="0" max="1" step="0.05" value="${hi}"></div>
-      <div class="rscale">${SCALE[kind]}</div>`;
+      <div class="rscale">${SCALE[kind]}${kind === 'light' ? `<span data-livemax="${c.sensor}"></span>` : ''}</div>`;
     const [a, b] = span.querySelectorAll('input');
     const band = span.querySelector('.band'), lohi = span.querySelector('.lohi');
     const show = () => {
@@ -346,7 +346,7 @@ function frame(now) {
     acc -= want * DT;
     lagging = done < want;                     // the computer can't keep up with this speed
   }
-  if (world) { draw(); if (!$('stats').hidden) stats(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
+  if (world) { draw(); if (!$('stats').hidden) stats(); liveReadings(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
   requestAnimationFrame(frame);
 }
 
@@ -389,17 +389,31 @@ function stats() {
   const motors = cell.joints.filter((j) => j.type === 'motor' && !j.burst);
   if (motors.length) lines.push(`motors    ${motors.filter((j) => j.on).length} of ${motors.length} running`);
   for (const inc of cell.pieces[0].inclusions) if (inc.show) inc.show();
-  // live readings beside the wiring (for the selected cell, if it is this design)
+  $('stats').textContent = lines.join('\n');
+}
+
+// Live sensor readings beside the wiring, for the selected cell if it is this design (always, numbers shown or not).
+// For a light sensor, also the most it could read at this depth (facing straight up), as a faint mark on the bar.
+function liveReadings() {
+  const find = (id) => cell.design === design && cell.sensors.find((x) => x.id === id);
   for (const el of document.querySelectorAll('[data-live]')) {
-    const sn = cell.design === design && cell.sensors.find((x) => x.id === el.dataset.live);
+    const sn = find(el.dataset.live);
     el.textContent = sn ? sn.value.toFixed(2) : '–';
   }
   for (const el of document.querySelectorAll('[data-livebar]')) {
-    const sn = cell.design === design && cell.sensors.find((x) => x.id === el.dataset.livebar);
+    const sn = find(el.dataset.livebar);
     el.style.display = sn ? '' : 'none';
     if (sn) el.style.left = `${Math.min(Math.max(sn.value, 0), 1) * 100}%`;
   }
-  $('stats').textContent = lines.join('\n');
+  for (const el of document.querySelectorAll('[data-livemax]')) {
+    const sn = find(el.dataset.livemax);
+    if (!sn) { el.textContent = ''; continue; }
+    const i = sn.piece, y = cell.cy[i] + cell.sn[i] * sn.x + cell.cs[i] * sn.y;
+    const most = world.light ? Math.exp(-PARAMS.light.attenuation * (TH - y)) : 0;
+    el.textContent = ` · facing straight up here it would read ${most.toFixed(2)}`;
+    const mark = el.closest('.range').querySelector('.most');
+    if (mark) mark.style.left = `${most * 100}%`;
+  }
 }
 
 // ----- drawing -----
