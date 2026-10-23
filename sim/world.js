@@ -3,7 +3,7 @@ import { PARAMS } from './params.js';
 import { Rng } from './rng.js';
 import { DEG } from './dmath.js';
 import { buildCell } from './build.js';
-import { stepCell, updatePose, motorAngle } from './physics.js';
+import { stepCell, updatePose, motorAngle, planSubsteps } from './physics.js';
 
 // gravity: false switches weight and buoyancy off, to watch swimming alone
 export function makeWorld(seed = 1, { gravity = true } = {}) {
@@ -16,6 +16,7 @@ export function addCell(world, design, x, y, angle = 0) {
   cell.q[0] = x; cell.q[1] = y; cell.q[2] = angle * DEG;
   const t = worldTime(world);
   cell.joints.forEach((j, i) => { if (j.type === 'motor') cell.q[3 + i] = motorAngle(j, t); });
+  planSubsteps(cell);
   updatePose(cell);
   world.cells.push(cell);
   return cell;

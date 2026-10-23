@@ -15,7 +15,7 @@ const COLOR = {
 };
 
 let design, world, cell, playing = true, acc = 0, lagging = false;
-let trail = [], samples = [];
+let trail = [], samples = [], released = null;   // released: where and when latches were let go
 let cam = { x: TW / 2, y: TH / 2 };
 
 // ----- loading and resetting -----
@@ -40,7 +40,7 @@ function reset() {
     $('err').textContent = e.message;
     return false;
   }
-  world = w; acc = 0; trail = []; samples = [];
+  world = w; acc = 0; trail = []; samples = []; released = null;
   cam = { x: cell.q[0], y: cell.q[1] };
   return true;
 }
@@ -56,6 +56,11 @@ $('apply').onclick = () => {
 $('reset').onclick = reset;
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; };
 $('step').onclick = () => { playing = false; $('play').textContent = 'Play'; advance(10); };
+$('release').onclick = () => {
+  let any = false;
+  for (const j of cell.joints) if (j.latched) { j.latched = false; any = true; }
+  if (any) released = { x: cell.q[0], y: cell.q[1], t: worldTime(world) };
+};
 $('gravity').onchange = () => { if (world) world.gravity = $('gravity').checked; };
 
 // ----- simulation -----
@@ -113,6 +118,7 @@ function stats() {
       `power     ${((now.e - then.e) / dt / 1000).toFixed(1)} fW (motors)`,
     );
   } else lines.push('speed     (measuring over 1 s...)');
+  if (released) lines.push(`released  ${Math.hypot(cell.q[0] - released.x, cell.q[1] - released.y).toFixed(2)} µm from the cross, ${((worldTime(world) - released.t) * 1000).toFixed(0)} ms ago`);
   lines.push(`spent     ${(cell.energy.motor / 1000).toFixed(1)} fJ in total`);
   $('stats').textContent = lines.join('\n');
 }
@@ -150,6 +156,11 @@ function draw() {
   ctx.fillStyle = COLOR.trail;
   for (const [tx, ty] of trail) ctx.fillRect(X(tx) - 1, Y(ty) - 1, 2, 2);
 
+  if (released) {   // a cross where the latches were let go
+    ctx.strokeStyle = COLOR.motor; ctx.lineWidth = 1.5; ctx.beginPath();
+    ctx.moveTo(X(released.x) - 6, Y(released.y)); ctx.lineTo(X(released.x) + 6, Y(released.y));
+    ctx.moveTo(X(released.x), Y(released.y) - 6); ctx.lineTo(X(released.x), Y(released.y) + 6); ctx.stroke();
+  }
   drawCell(cell, X, Y, s);
   drawScale(W, H, s);
   drawMinimap(W, H);

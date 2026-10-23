@@ -181,6 +181,7 @@ const flapper = (stroke, stiffness) => ({ body: { radius: 8 }, parts: stiffness 
 
   const w = makeWorld(1, { gravity: false });
   const c = addCell(w, PRESETS['Spring jump'], 300, 1000, 0);
+  for (const j of c.joints) j.latched = false;
   const p0 = [c.q[0], c.q[1]];
   let tStop = null;
   for (let i = 0; i < 2000; i++) { stepWorld(w); if (tStop === null && Math.hypot(c.v[0], c.v[1]) < 0.01) tStop = (i + 1) * DT; }
@@ -191,7 +192,23 @@ const flapper = (stroke, stiffness) => ({ body: { radius: 8 }, parts: stiffness 
     `spring jump: ${fmt(hop, 1)} µm (cell 12 µm across), under 0.01 µm/s after ${tStop === null ? '-' : fmt(tStop * 1000, 0) + ' ms'}`);
 }
 
-// 12. Speed (not a pass test yet)
+// 12. One flick goes as far whatever its force: a stronger spring hops faster, not farther (only the shape change counts)
+{
+  const hop = (stiffness) => {
+    const d = JSON.parse(JSON.stringify(PRESETS['Spring jump']));
+    d.parts[0].joint.stiffness = stiffness; d.parts[0].joint.latched = false;
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, d, 300, 1000, 0);
+    let t90 = null;
+    for (let i = 0; i < 3000; i++) { stepWorld(w); if (t90 === null && c.q[3] > 0.9 * d.parts[0].joint.rest * Math.PI / 180) t90 = (i + 1) * DT; }
+    return { d: Math.hypot(c.q[0] - 300, c.q[1] - 1000), t90 };
+  };
+  const r = [500, 2000, 8000].map(hop);
+  check('a stronger spring hops faster, not farther', Math.max(...r.map((x) => x.d)) / Math.min(...r.map((x) => x.d)) < 1.01 && r[2].t90 < r[0].t90,
+    [500, 2000, 8000].map((k, i) => `k ${k}: ${fmt(r[i].d, 3)} µm, 90% sprung in ${fmt(r[i].t90 * 1000, 0)} ms`).join('; '));
+}
+
+// 13. Speed (not a pass test yet)
 {
   for (const name of ['Spiny cell', 'Wave tail']) {
     const w = makeWorld(1); addCell(w, PRESETS[name], 300, 1500, 0);

@@ -13,7 +13,8 @@
 // in direction `angle` (degrees, relative to the parent's axis). An inclusion is a sphere inside the body.
 // A segment's joint, at `at`:
 //   { type: 'fixed' }                                    (default) rigid
-//   { type: 'hinge', stiffness = 0, rest = 0 }           springy (pN·µm/rad; rest angle in degrees, starts at 0)
+//   { type: 'hinge', stiffness = 0, rest = 0, latched = false }  springy (pN·µm/rad; rest angle in degrees, starts
+//       at 0). Latched, it is held at its angle until released (a trigger: a cocked spring waits).
 //   { type: 'motor', rate, swing, stroke = 0.5, phase = 0, on = true }
 //       beats `rate` times a second, `swing` degrees each side; the forward stroke takes `stroke` of the cycle
 //       and the recovery the rest. Off, it holds its angle.
@@ -47,7 +48,8 @@ function capsuleDrag(L, a) {
 function parseJoint(j, pieceIndex) {
   if (!j || j.type === 'fixed') return null;
   if (j.type === 'hinge') {
-    return { type: 'hinge', piece: pieceIndex, stiffness: j.stiffness || 0, rest: (j.rest || 0) * DEG };
+    return { type: 'hinge', piece: pieceIndex, stiffness: j.stiffness || 0, rest: (j.rest || 0) * DEG,
+      latched: !!j.latched };
   }
   if (j.type === 'motor') {
     const stroke = j.stroke === undefined ? 0.5 : j.stroke;

@@ -16,6 +16,7 @@
   canvas { display: block; width: 100%; height: 100%; }
   #panel { width: 340px; flex: none; background: var(--panel); border-left: 1px solid var(--line);
     padding: 12px 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  #panel > * { flex-shrink: 0; }
   h1 { font-size: 15px; margin: 0; letter-spacing: .04em; }
   label { color: var(--dim); display: flex; align-items: center; gap: 6px; }
   select, button, input, textarea { font: inherit; color: var(--text); background: #0d1626; border: 1px solid var(--line);
@@ -45,6 +46,7 @@
     <button id="play">Pause</button>
     <button id="step">Step</button>
     <button id="reset">Reset</button>
+    <button id="release" title="Let go of latched springs">Release</button>
     <label>Speed <select id="speed">
       <option value="0.02">0.02×</option><option value="0.1">0.1×</option><option value="0.25">0.25×</option>
       <option value="1" selected>1× real</option><option value="5">5×</option><option value="20">20×</option>

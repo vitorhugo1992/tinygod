@@ -7,7 +7,11 @@ export const PARAMS = {
   },
   gravity: 9.81,            // m/s²
   tank: { w: 600, h: 2000 },// still water, y up from the floor
-  time: { dt: 1 / 1000 },   // fixed physics step (s), midpoint method; motors up to ~50 Hz get >= 20 steps a beat
+  time: {
+    dt: 1 / 1000,           // fixed physics step (s), midpoint method; motors up to ~50 Hz get >= 20 steps a beat
+    subPerRelax: 16,        // a stiff spring gets sub-steps of at most 1/16 of its relaxation time
+    maxSub: 64,
+  },
   cell: {
     cytoplasm: 1060,        // density of the living cell without wall or inclusions
     wallThickness: 0.3,     // µm; the wall material's share of the body

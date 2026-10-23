@@ -49,9 +49,10 @@ export const PRESETS = {
     })),
   },
   'Spring jump': {
-    note: 'A cocked spring snaps once (like a cryptophyte ejectisome): a short hop, then a dead stop.',
+    note: 'A cocked spring, latched. Set speed to 0.02x, untick gravity, then press Release: it snaps once (like a ' +
+      'cryptophyte ejectisome), hops a short way and stops dead.',
     body: { radius: 6 },
     parts: [{ type: 'segment', at: [-6, 0], angle: 180, length: 30, radius: 0.4,
-      joint: { type: 'hinge', stiffness: 2000, rest: 150 } }],
+      joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true } }],
   },
 };

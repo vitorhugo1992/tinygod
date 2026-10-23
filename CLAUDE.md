@@ -78,6 +78,10 @@ faster than single cells).
 **Blocks** are shapes and functions; **materials** (unlockable) set density, stiffness, cost and one special
 property. The lab grows by adding materials, not new rules.
 
+**Total freedom of placement** (author, 2026-10-23): any number of any block, anywhere: several flagella, springs
+or spines on the body, parts on parts, at any point and angle. The design format already allows it; the editor
+must too. Costs, not limits, keep designs in check.
+
 | Block | What it is | What the physics does with it |
 |---|---|---|
 | **Body** | the cell: round or elongated, any size | holds most of the mass; everything attaches to it |

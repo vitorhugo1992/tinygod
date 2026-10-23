@@ -10,6 +10,9 @@ const DT = PARAMS.time.dt;
 const KC = PARAMS.contact.stiffness;
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 
+// Step length used for the implicit spring and contact terms (the current sub-step)
+let IMP = DT;
+
 // Scratch: velocity of one point per unit rate of each of a piece's columns
 const MAXC = 64;
 const UX = new Float64Array(MAXC), UY = new Float64Array(MAXC);
@@ -59,7 +62,7 @@ function contact(cell, cols, px, py, nx, ny, pen) {
     const gk = UX[k] * nx + UY[k] * ny;
     if (gk === 0) continue;
     f[cols[k]] += gk * KC * pen;
-    for (let l = 0; l < m; l++) A[cols[k] * n + cols[l]] += DT * KC * gk * (UX[l] * nx + UY[l] * ny);
+    for (let l = 0; l < m; l++) A[cols[k] * n + cols[l]] += IMP * KC * gk * (UX[l] * nx + UY[l] * ny);
   }
 }
 
@@ -144,16 +147,16 @@ function velocities(cell, from, tEnd, h, gravity) {
     if (jt.type !== 'hinge' || jt.stiffness === 0) continue;
     const p = 3 + j;
     f[p] -= jt.stiffness * (q[p] - jt.rest);
-    A[p * n + p] += DT * jt.stiffness;
+    A[p * n + p] += IMP * jt.stiffness;
   }
 
-  // motors: the joint's rate is known; move it to the right-hand side (keeps the system symmetric)
+  // motors and latches: the joint's rate is known; move it to the right-hand side (keeps the system symmetric)
   A0.set(A); f0.set(f);
   for (let j = 0; j < joints.length; j++) {
     const jt = joints[j];
-    if (jt.type !== 'motor') continue;
+    if (jt.type !== 'motor' && !jt.latched) continue;
     const p = 3 + j;
-    const r = jt.on ? (motorAngle(jt, tEnd) - from[p]) / h : 0;
+    const r = jt.type === 'motor' && jt.on ? (motorAngle(jt, tEnd) - from[p]) / h : 0;
     for (let i = 0; i < n; i++) {
       if (i === p) continue;
       f[i] -= A[i * n + p] * r;
@@ -177,18 +180,45 @@ function velocities(cell, from, tEnd, h, gravity) {
   return power;
 }
 
-// Step one cell from time t to t + dt by the midpoint method: velocities at the start take it halfway, the
-// velocities there take the whole step. Its error falls with dt² (simple Euler's falls with dt and leaked a
-// steady drift into strokes that should go nowhere).
+// Stiff springs relax fast; their sub-step must be a small share of that time or the error grows with
+// stiffness × step (measured: a stiff spring's hop came out 14% too long at 1 ms). Fixed once per design, from
+// its build pose, so it stays deterministic.
+export function planSubsteps(cell) {
+  updatePose(cell);
+  IMP = DT;
+  assemble(cell, false);
+  // relaxation time: the joint's drag with everything else free to move (1 / (A⁻¹)pp), over its stiffness
+  const { n } = cell, A = new Float64Array(n * n), b = new Float64Array(n), x = new Float64Array(n);
+  let fastest = Infinity;
+  cell.joints.forEach((jt, j) => {
+    if (jt.type !== 'hinge' || jt.stiffness === 0) return;
+    const p = 3 + j;
+    A.set(cell.A); b.fill(0); b[p] = 1;
+    solve(A, b, n, x);
+    fastest = Math.min(fastest, 1 / x[p] / jt.stiffness);
+  });
+  cell.sub = Math.min(Math.max(Math.ceil(PARAMS.time.subPerRelax * DT / fastest), 1), PARAMS.time.maxSub);
+}
+
+// Step one cell from time t to t + dt in cell.sub sub-steps, each by the midpoint method: velocities at the start
+// take it halfway, the velocities there take the whole sub-step. Its error falls with dt² (simple Euler's falls
+// with dt and leaked a steady drift into strokes that should go nowhere).
 export function stepCell(cell, t, gravity = true) {
   const { q, v, n } = cell;
   const q0 = cell.q0 || (cell.q0 = new Float64Array(n));
-  q0.set(q);
-  velocities(cell, q0, t + DT / 2, DT / 2, gravity);
-  for (let i = 0; i < n; i++) q[i] = q0[i] + DT / 2 * v[i];
-  // from the midpoint, motors aim for their angle at the end of the step, measured from the start
-  const power = velocities(cell, q0, t + DT, DT, gravity);
-  for (let i = 0; i < n; i++) q[i] = q0[i] + DT * v[i];
-  cell.power = power;
-  cell.energy.motor += power * DT;
+  const sub = cell.sub || 1, h = DT / sub;
+  IMP = h;
+  let energy = 0;
+  for (let k = 0; k < sub; k++) {
+    const ts = t + k * h;
+    q0.set(q);
+    velocities(cell, q0, ts + h / 2, h / 2, gravity);
+    for (let i = 0; i < n; i++) q[i] = q0[i] + h / 2 * v[i];
+    // from the midpoint, motors aim for their angle at the end of the sub-step, measured from its start
+    const power = velocities(cell, q0, ts + h, h, gravity);
+    for (let i = 0; i < n; i++) q[i] = q0[i] + h * v[i];
+    energy += power * h;
+  }
+  cell.power = energy / DT;
+  cell.energy.motor += energy;
 }
