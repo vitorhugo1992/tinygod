@@ -29,9 +29,13 @@ number of cells; a burst organ for escapes, eyespot cone width, touch and proxim
 - **Systemic, not scripted.** A few physical building blocks whose function comes out of the simulation. No
   predefined abilities, no behaviour rules where physics can do the job (e.g. **no chain rule**: chains come from
   pads, meetings and the water pulling them apart).
+- **Gameplay balance first; biology gives the shape** (author, 2026-10-23: "more important to be balanced for
+  gameplay... not go into scientific rabbit holes"). Biology decides what costs what and what trades against what;
+  the numbers are round and tuned for play (by playing, later by the optimiser), not researched to precision. Flag
+  proposals that drift into rabbit holes.
 - **No free lunch.** Every part costs something. Forms balance only when each wins in one kind of water and pays
   in another (MONAD's lesson: every strictly-better form took over until it got a cost).
-- **Costs are honest, and shown** (decided, author 2026-10-23). In real cells running parts is nearly free: a cell
+- **Costs are honest in kind, and shown** (decided, author 2026-10-23; numbers tuned for play, see above). In real cells running parts is nearly free: a cell
   ~20 µm across catches ~200 pW by photosynthesis (~500-700 pg C growing ~1/day), the wave tail spends 0.26 pW
   (~0.1%; flagellar motion is well under 1% of a flagellate's budget, e.g. Raven & Richardson 1984) and a burst
   less than a tenth of a second of income. So parts cost what real ones cost: **materials to build** (nitrogen for
