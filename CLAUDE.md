@@ -62,6 +62,21 @@ faking it; the flexible oar's stiffness sweet spot; longer ribbons throw disprop
 **failed** (~170-520 ms per simulated minute per cell vs < 1 ms); plan for step 1: measure each design's movement
 once in full physics and let the ecology reuse it (to decide).
 
+**Claude's species, Vesperella** (author's challenge, 2026-10-24; the sandbox now opens with it, preset "Vesperella
+(Claude's species)", built only from Build-panel parts so it edits): a daily migrator, r 9 µm, wave tail 48 µm at
+the back, a wide eyespot (180°) at the front, two plastids (top and bottom), a starch granule behind and strong gas
+vesicles in front (on the axis, keeping it upright), a 60 µm protein spine in front. Rule: tail runs when the eyespot
+reads 0.05-1 (any light) AND energy 0.2-1. Day: rests just under the surface, starch fills; dusk: tail stops, the
+starch carries it down (~600 µm by dawn), burned overnight; first light: climbs back. Steady over 3 days in Node and
+seen in the page. **What designing it taught (good candidate surprises for test 2):** (1) **the shuttlecock**: a
+cell heavier than water with a long tail behind tips over as it sinks (the tail's drag lifts it), front down, so its
+eyespot never sees dawn; a float in front was not enough; a **spine in front balancing the tail's drag** fixed it.
+(2) A pusher is stable in whatever direction it swims; only gravity turns it up (gyrotaxis). (3) The energy budget
+is tight: plastids ~8% of the body barely pay for a night of starch; a bigger body costs as much more as it earns.
+(4) A statolith-driven side tail as a righting reflex overshot and spun the cell (needs damping or a narrower
+range). (5) A rule like "eyespot below 0.6" is also true in the dark: the tail ran all night until the rule asked
+for some light.
+
 **Built 2026-10-24 (author: "implement all those with the exception of memory, the nucleus brain and step 1"):**
 - **Gas vesicles wear out** (half their lift in about a sandbox day) and are **rebuilt automatically from the energy
   pool** while it is above burnBelow (400 pJ per µm³; the budget shows it): a fed cell keeps floating, a starving one

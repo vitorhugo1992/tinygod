@@ -1450,5 +1450,5 @@ fetch('/lan').then((r) => r.json()).then((urls) => {
 
 resize();
 const asked = new URLSearchParams(location.search).get('preset');   // ?preset=Wave%20tail opens that design
-load(preset(asked && PRESETS[asked] ? asked : 'Round cell'));
+load(preset(asked && PRESETS[asked] ? asked : "Vesperella (Claude's species)"));   // the sandbox opens with Claude's species
 requestAnimationFrame(frame);
