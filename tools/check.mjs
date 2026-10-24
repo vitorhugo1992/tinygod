@@ -659,6 +659,49 @@ const runDay = (design, y, seconds, opts = {}) => {
     `(a bare cell ${fmt(bareV, 1)}); strong ones 1300 µm down: intact, rise ${fmt(strongDeep.v, 1)} µm/s`);
 }
 
+// 28i. Gas vesicles wear out; a fed cell rebuilds them, a starving one slowly loses its float
+{
+  const float = (plastid) => ({ body: { radius: 10 }, parts: [
+    { type: 'inclusion', id: 'g', material: 'gas', at: [-4, 0], radius: 4, strength: 1 },
+    ...(plastid ? [{ type: 'inclusion', id: 'p', material: 'plastid', at: [4, 0], radius: 4 }] : [])] });
+  const left = (plastid, light) => {
+    const w = makeWorld(1, { gravity: false, metab: true, light });
+    const c = addCell(w, float(plastid), 800, PARAMS.tank.h - 50, 0);
+    for (let i = 0; i < PARAMS.metab.day / DT; i++) stepWorld(w);
+    return c.pieces[0].inclusions[0].fill;
+  };
+  const fed = left(true, true), starving = left(false, false);
+  check('gas vesicles wear out: a fed cell keeps rebuilding them, a starving one loses about half its float in a day',
+    fed > 0.97 && starving > 0.4 && starving < 0.65,
+    `after one sandbox day: a cell with a plastid in the light keeps ${fmt(100 * fed, 0)}% of its vesicles; ` +
+    `one in the dark without a plastid ${fmt(100 * starving, 0)}% (it rebuilt them until its pool ran low)`);
+}
+
+// 28j. A compare module weighs two sensors; a light-change sensor reads dawn and dusk (and steady light as 0.5)
+{
+  const cmp = (angle, a, b) => {
+    const w = makeWorld(1);
+    const c = addCell(w, { body: { radius: 10 }, parts: [
+      { type: 'inclusion', id: 'st', material: 'statolith', at: [-4, 0], radius: 3 },
+      { type: 'sensor', id: 'cmp', kind: 'compare', at: [4, 0], a, b }] }, 800, 1000, angle);
+    stepWorld(w);
+    return c.sensors[1].value;
+  };
+  const r = [cmp(90, 'st', 'energy'), cmp(-90, 'st', 'energy'), cmp(-90, 'energy', 'st'), cmp(0, 'st', undefined)];
+  const w = makeWorld(1, { gravity: false, day: true });
+  const c = addCell(w, { body: { radius: 10 }, parts: [{ type: 'sensor', id: 'ch', kind: 'change', at: [0, 10], angle: 90 }] },
+    800, PARAMS.tank.h - 100, 0);
+  const at = (s) => { while (worldTime(w) < s - 1e-9) stepWorld(w); return c.sensors[0].value; };
+  const day = PARAMS.metab.day, phase = PARAMS.metab.dawn;   // sunrise when the phase passes a whole day
+  const noon = at((0.25 - phase) * day), dusk = at((0.48 - phase) * day), dawn = at((1.02 - phase) * day);
+  check('a compare module weighs two sensors; a light-change sensor reads steady noon as 0.5, dusk low, dawn high',
+    Math.abs(r[0] - 0.5) < 1e-6 && Math.abs(r[1]) < 1e-6 && Math.abs(r[2] - 1) < 1e-6 && r[3] === 0.5
+      && Math.abs(noon - 0.5) < 0.03 && dusk < 0.35 && dawn > 0.65,
+    `statolith (up 1, down 0) against the energy level (1): front up ${fmt(r[0])}, down ${fmt(r[1])}, inputs swapped ` +
+    `${fmt(r[2])}, one input missing ${fmt(r[3])}. Light change: noon ${fmt(noon)}, just before sunset ${fmt(dusk)}, ` +
+    `just after sunrise ${fmt(dawn)}`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

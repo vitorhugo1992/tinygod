@@ -8,6 +8,8 @@
 // - chem: the nutrients where it is (nutrient.js: poor at the surface, rich deep).
 // - statolith: a loose grain in a chamber rolls to the lower wall; it reads how far the chamber's direction points up
 //   (1 straight up, 0 down, 0.5 sideways or with gravity off).
+// - change: an eyespot that gets used to the light: 0.5 in steady light, more while brightening, less while dimming.
+// - compare: two other readings weighed: 0.5 when equal, toward 1 as the first reads more, toward 0 as the second does.
 // - timer: 0 the moment its trigger (conditions, as for a part) comes true, rising to 1 after its span; 1 before it
 //   ever started. Reset by an eyespot at dawn it is a clock; by touch, a "for a while after" switch.
 // Every cell also has its energy level built in (no part): how full its energy pool is, 0 empty, 1 full (1 with
@@ -77,28 +79,44 @@ export function sense(world, cell) {
     const i = s.piece, c = cell.cs[i], n = cell.sn[i];
     const x = cell.cx[i] + c * s.x - n * s.y, y = cell.cy[i] + n * s.x + c * s.y;
     if (s.kind === 'hunger') { s.value = energyLevel(world, cell); continue; }   // old designs: same as the built-in
-    if (s.kind === 'timer') continue;   // below, once every other sensor has read
+    if (s.kind === 'timer' || s.kind === 'compare') continue;   // below, once every other sensor has read
     if (s.kind === 'chem') { s.value = nutrientAt(y); continue; }
     if (s.kind === 'statolith') {   // the grain lies on the lower wall: how far its direction points up (no weight: 0.5)
       s.value = world.gravity ? (1 + dsin(cell.phi[i] + s.facing)) / 2 : 0.5;
       continue;
     }
-    if (s.kind === 'light') {
-      if (!world.light) { s.value = 0; continue; }
-      // how far it faces from straight up, against half its cone: full facing up, nothing at the cone's edge
-      let off = cell.phi[i] + s.facing - Math.PI / 2;
-      off -= 2 * Math.PI * Math.floor(off / (2 * Math.PI) + 0.5);
-      if (off < 0) off = -off;
-      const half = s.cone / 2;
-      s.value = off < half ? dcos(off / half * Math.PI / 2) * lightAt(world, y) : 0;
+    if (s.kind === 'light' || s.kind === 'change') {
+      let L = 0;
+      if (world.light) {
+        // how far it faces from straight up, against half its cone: full facing up, nothing at the cone's edge
+        let off = cell.phi[i] + s.facing - Math.PI / 2;
+        off -= 2 * Math.PI * Math.floor(off / (2 * Math.PI) + 0.5);
+        if (off < 0) off = -off;
+        const half = s.cone / 2;
+        L = off < half ? dcos(off / half * Math.PI / 2) * lightAt(world, y) : 0;
+      }
+      if (s.kind === 'light') { s.value = L; continue; }
+      // light change: the light now against what it got used to, as a share of that (a photoreceptor adapts)
+      if (s.avg === null) s.avg = L;
+      const rel = (L - s.avg) / (s.avg + S.changeFloor);
+      s.avg += (L - s.avg) * PARAMS.time.dt / S.changeTau;
+      const v = 0.5 + 0.5 * S.changeGain * rel;
+      s.value = v < 0 ? 0 : v > 1 ? 1 : v;
     } else {
       const d = nearest(world, cell, x, y, s.range, s.feels === 'anything');
       s.value = s.kind === 'touch' ? (d <= s.range ? 1 : 0) : (d >= s.range ? 0 : d <= 0 ? 1 : 1 - d / s.range);
     }
   }
-  // timers, in order: each starts again the moment its trigger comes true (a timer may watch an earlier one)
+  // compare modules and timers, in order (one may read an earlier one): a compare module weighs its two inputs; a timer
+  // starts again the moment its trigger comes true
   const t = worldTime(world);
+  const read = (k) => (k === -2 ? energyLevel(world, cell) : k >= 0 ? cell.sensors[k].value : null);
   for (const s of cell.sensors) {
+    if (s.kind === 'compare') {
+      const a = read(s.a), b = read(s.b);
+      s.value = a === null || b === null ? 0.5 : 0.5 + (a - b) / 2;
+      continue;
+    }
     if (s.kind !== 'timer') continue;
     const now = s.trigger.length > 0 && holdsAll(world, cell, s.trigger);
     if (now && !s.was) s.start = t;

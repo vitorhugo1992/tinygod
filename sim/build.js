@@ -30,6 +30,10 @@
 // while its direction `angle` (degrees from the body's axis, default 0: the front) points straight up, 0 down.
 // Gas vesicles are an inclusion (material 'gas') with a `strength` (0-1, default 0.5): stronger ones lift less but
 // survive deeper (PARAMS.gas); below their depth they are crushed for good.
+// A light-change sensor (kind 'change') is an eyespot that gets used to the light: it reads 0.5 in steady light, more
+// while it brightens (dawn, climbing) and less while it dims (dusk, sinking), against its recent light (PARAMS.sensor).
+// A compare module (kind 'compare', placed inside) reads two sensors `a` and `b`: 0.5 when they read the same, toward 1
+// as a reads more than b, toward 0 as b does (e.g. two eyespots, to turn toward the light).
 // Any joint can be wired to sensors: controls: [{ sensor: id, min = 0, max = 1 }, ...] (sensor 'energy': the cell's own
 // energy level, built into every cell: 0 empty, 1 full; one control: { ... } is the same as a list of one). A
 // condition holds while the reading is between min and max (with not: true, while it is outside them). Conditions
@@ -122,6 +126,15 @@ export function rewire(cell, partIndex, controls) {
   }
 }
 
+// A compare module's two inputs, by sensor id ('energy': the built-in level; missing or itself: none)
+function setInputs(s, sensors, a, b) {
+  const find = (id) => (id === 'energy' ? -2 : id && id !== s.id ? sensors.findIndex((x) => x.id === id) : -1);
+  s.a = find(a); s.b = find(b);
+}
+export function recompare(cell, partIndex, a, b) {
+  for (const s of cell.sensors) if (s.part === partIndex && s.kind === 'compare') setInputs(s, cell.sensors, a, b);
+}
+
 // Set the trigger of a living cell's timer that came from design part `partIndex`, without rebuilding it
 export function retrigger(cell, partIndex, trigger) {
   for (const s of cell.sensors) {
@@ -137,6 +150,7 @@ export function buildCell(design) {
   const sensors = [];
   const controls = [];   // [joint, control] pairs, resolved once every sensor is known
   const triggers = [];   // [timer, trigger] pairs, the same
+  const compares = [];   // [compare module, design part] pairs, the same
   const ids = new Map();
   const C = PARAMS.cell;
 
@@ -218,7 +232,7 @@ export function buildCell(design) {
         facing: (part.angle || 0) * DEG, r, value: 0.5, part: design.parts.indexOf(part) });
     } else if (part.type === 'sensor') {
       const kind = part.kind || 'light';
-      if (!['light', 'touch', 'near', 'hunger', 'chem', 'timer'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
+      if (!['light', 'touch', 'near', 'hunger', 'chem', 'timer', 'change', 'compare'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
       const facing = part.angle !== undefined ? part.angle * DEG : Math.atan2(y, x);
       const range = part.range || (kind === 'near' ? PARAMS.sensor.nearRange : PARAMS.sensor.touchRange);
       const cone = Math.min(Math.max(part.cone || 180, 10), 180) * DEG;
@@ -228,6 +242,8 @@ export function buildCell(design) {
         Object.assign(s, { span: part.span || PARAMS.sensor.timerSpan, start: null, was: false, value: 1, trigger: [] });
         if ((part.trigger || []).length) triggers.push([s, part.trigger]);
       }
+      if (kind === 'change') s.avg = null;
+      if (kind === 'compare') { Object.assign(s, { a: -1, b: -1, value: 0.5 }); compares.push([s, part]); }
       sensors.push(s);
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
@@ -249,6 +265,7 @@ export function buildCell(design) {
 
   for (const [joint, cs] of controls) joint.controls = cs.map((c) => resolveControl(sensors, c));
   for (const [s, cs] of triggers) s.trigger = cs.filter((c) => c.sensor !== s.id).map((c) => resolveControl(sensors, c));
+  for (const [s, part] of compares) setInputs(s, sensors, part.a, part.b);
 
   // how far the cell can reach from its body centre, for finding neighbours
   const reachOf = [];

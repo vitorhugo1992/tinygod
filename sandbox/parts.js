@@ -76,6 +76,22 @@ export const PART_TEMPLATES = {
     [{ type: 'inclusion', id, label: 'Oil droplet', ...inside(body, deg, size, depth), material: 'oil' }],
   'Sap vacuole (slider)': (body, deg, id, size, tilt, depth) =>
     [{ type: 'inclusion', id, label: 'Sap vacuole', ...inside(body, deg, size, depth), material: 'sap', density: 1025 }],
+  // one part for every store and float: what it holds decides what it does (the lab grows by materials, not new blocks)
+  'Vacuole (store or float)': (body, deg, id, size, tilt, depth, feels, len, strength = 0.5, content = 'starch') => {
+    const at = inside(body, deg, size, depth);
+    const what = {
+      starch: { label: 'Starch granule', material: 'starch', fill: 0.5 },
+      oil: { label: 'Oil droplet', material: 'oil' },
+      sap: { label: 'Sap vacuole', material: 'sap', density: 1025 },
+      gas: { label: 'Gas vesicles', material: 'gas', strength },
+    }[content];
+    return [{ type: 'inclusion', id, ...at, ...what }];
+  },
+  'Light-change sensor': (body, deg, id, size, tilt) =>
+    [{ type: 'sensor', id, label: 'Light-change sensor', at: surfacePoint(body, deg), angle: deg + tilt, kind: 'change',
+      cone: Math.max(20, Math.round(180 * size)) }],
+  'Compare (two sensors)': (body, deg, id, size, tilt, depth) =>
+    [{ type: 'sensor', id, label: 'Compare', at: inside(body, deg, 0.15, depth).at, kind: 'compare' }],
   'Gas vesicles (float, crush deep)': (body, deg, id, size, tilt, depth, feels, len, strength = 0.5) =>
     [{ type: 'inclusion', id, label: 'Gas vesicles', ...inside(body, deg, size, depth), material: 'gas', strength }],
   'Statolith (which way is up)': (body, deg, id, size, tilt, depth) =>   // `tilt` here: the direction it reads, 0 = the front
@@ -161,6 +177,9 @@ const room = (s) => `${Math.round(100 * s)}% of room`;
 
 // Which Build controls mean something for each part, and what Size means for it
 export const CONTROLS = {
+  'Vacuole (store or float)': { size: room, inside: true, content: true, sizeDefault: 30 },
+  'Light-change sensor': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 },
+  'Compare (two sensors)': { inside: true },
   'Gas vesicles (float, crush deep)': { size: room, inside: true, strength: true, sizeDefault: 30 },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
   'Timer (clock)': { size: spanLabel, inside: true, sizeDefault: 100 },
@@ -179,15 +198,23 @@ export const CONTROLS = {
   'Proximity sensor': { size: (s) => `${Math.round(200 * s)} µm range`, feels: true },
 };
 
-// How the Build panel sorts parts
+// What each vacuole content does (a tip under the Content choice)
+export const CONTENT_TIPS = {
+  starch: 'Quick energy store: fills and burns fast, but heavy (a full cell sinks)',
+  oil: 'Slow energy store: holds more energy, and light (a full cell floats a little)',
+  sap: 'Adjustable buoyancy: pump it lighter or heavier (slider under the parts); costs energy, works slowly',
+  gas: 'Strong float, always on: wears out and is rebuilt from energy; crushed for good below its depth',
+};
+
+// How the Build panel sorts parts (parts made with older templates, such as 'Oil droplet', still edit)
 export const CATEGORIES = {
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)', 'Stiff flap (goes nowhere)'],
   'Spines & appendages': ['Spine, protein', 'Spine, glass'],
   'Escapes': ['Burst organ (escape)', 'Ejectisome, latched (Release)'],
-  'Inside the cell': ['Plastid (makes energy)', 'Starch granule (quick store, heavy)', 'Oil droplet', 'Sap vacuole (slider)',
-    'Gas vesicles (float, crush deep)'],
+  'Inside the cell': ['Plastid (makes energy)', 'Vacuole (store or float)'],
   'Pads': ['Kin pad', 'Mucus pad'],
-  'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Touch sensor', 'Proximity sensor', 'Nutrient sensor', 'Timer (clock)'],
+  'Sensors': ['Light sensor (eyespot)', 'Light-change sensor', 'Statolith (which way is up)', 'Touch sensor', 'Proximity sensor',
+    'Nutrient sensor', 'Timer (clock)', 'Compare (two sensors)'],
 };
 
 // The category of a part already on the body, from what it is

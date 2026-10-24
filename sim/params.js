@@ -56,11 +56,17 @@ export const PARAMS = {
     touchRange: 2,          // µm from a touch sensor's spot that counts as touching
     nearRange: 60,          // µm a proximity sensor feels another species from (default)
     timerSpan: 600,         // s a timer counts by default (one sandbox day: a clock reset at dawn)
+    changeTau: 10,          // s a light-change sensor takes to get used to the light (it reads change against that)...
+    changeGain: 2,          // ...how strongly a relative change moves its reading from 0.5...
+    changeFloor: 0.02,      // ...and the dimmest light it still compares against (so the dark doesn't divide by zero)
   },
   // Gas vesicles (made playable): stronger ones survive deeper but lift less (more protein per bubble)
   gas: {
     weak: 150,              // kg/m³ of the weakest vesicles (strength 0)...
     strong: 600,            // ...and of the strongest (strength 1)
+    wear: 0.00116,          // per s: vesicles wear out, losing half their lift in about a sandbox day (600 s)...
+    rebuild: 1 / 300,       // ...and are rebuilt (share of full per s) while the energy pool is above metab.burnBelow,
+    cost: 400,              // pJ per µm³ of vesicles rebuilt (with metabolism on; off, they neither wear nor cost)
     shallowest: 0.45,       // the weakest are crushed this far down the tank (share of its depth; new cells start at 0.4); the
                             // strongest at the floor
   },

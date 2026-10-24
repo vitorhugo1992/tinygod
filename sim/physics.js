@@ -278,7 +278,7 @@ function crush(cell) {
     if (inc.crushed !== false) continue;
     const y = cell.cy[0] + cell.sn[0] * inc.x + cell.cs[0] * inc.y;
     if (PARAMS.tank.h - y <= inc.crush) continue;
-    inc.crushed = true; inc.density = CYTO; inc.wpt.w = 0;
+    inc.crushed = true; inc.density = CYTO; inc.fill = 0; inc.wpt.w = 0;
   }
 }
 

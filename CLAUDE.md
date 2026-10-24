@@ -11,7 +11,7 @@ whole sandbox build happened in one long chat (2026-10-21 to 23); this file hold
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
-`node tools/check.mjs`: 36 physics checks, all passing (~2 min).
+`node tools/check.mjs`: 38 physics checks, all passing (~2 min).
 
 **Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
 springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
@@ -62,24 +62,30 @@ faking it; the flexible oar's stiffness sweet spot; longer ribbons throw disprop
 **failed** (~170-520 ms per simulated minute per cell vs < 1 ms); plan for step 1: measure each design's movement
 once in full physics and let the ecology reuse it (to decide).
 
-**Build queue (approved by the author, 2026-10-24; start after the author has tried the current sandbox and says go):**
-1. **Gas vesicles wear out** (lose about half their lift over a sandbox day) and are **rebuilt automatically from the
-   energy pool**, like stores fill: a fed cell keeps floating, a starving one slowly sinks. (Not leaking: vesicle walls
-   pass gas freely; real lift is lost by collapse and by dilution and turnover.)
-2. **One "Vacuole" part with a Content choice** (Starch · Oil · Sap · Gas) instead of four chips: a one-line tip per
-   content, sliders that fit it (Strength for gas). Plastid and statolith stay separate parts. The physics already is
-   one block (an inclusion) with a material.
-3. **The nucleus** (see Notes to carry: the box is the nucleus; every module inside it, cables only inside; tapping it
-   opens the patch view).
-Candidates, not yet approved: a **compare module** (A − B of two sensors, e.g. two eyespots to turn toward the light;
-author asked 2026-10-24 whether sensors could be wired to sensors), the **memory switch**, the **light-change
-sensor**, stores drawn as filling containers.
+**Built 2026-10-24 (author: "implement all those with the exception of memory, the nucleus brain and step 1"):**
+- **Gas vesicles wear out** (half their lift in about a sandbox day) and are **rebuilt automatically from the energy
+  pool** while it is above burnBelow (400 pJ per µm³; the budget shows it): a fed cell keeps floating, a starving one
+  slowly sinks; worn vesicles are drawn as fewer bubbles. (Not leaking: vesicle walls pass gas freely; real lift is
+  lost by collapse and by dilution and turnover.) With metabolism off they neither wear nor cost.
+- **One "Vacuole" part with a Content choice** (Starch · Oil · Sap · Gas) and a one-line tip; Strength appears for
+  gas. Plastid and statolith stay separate parts. Old designs' separate templates still edit.
+- **Stores drawn as containers** filling from the bottom (starch cream, oil yellow); a sap vacuole pale while lighter
+  than seawater, deep blue while heavier.
+- **Compare module** (Sensors, placed inside, a diamond): reads 0.5 + (A − B)/2 of two inputs (any sensor or the
+  energy level), chosen in the list under it or patched into its A and B boxes in the patch view. Two eyespots on
+  opposite sides + a compare module wired to a side tail = turning toward the light, built not given.
+- **Light-change sensor** (violet eyespot): gets used to the light over ~10 s and reads change relative to it
+  (Weber-like): 0.5 steady, toward 1 brightening (dawn, climbing), toward 0 dimming (dusk, sinking); measured noon
+  0.51, just before sunset 0.27, just after sunrise 1.00.
+**Build queue:** **the nucleus** (see Notes to carry: the box is the nucleus; every module inside it, cables only
+inside; tapping it opens the patch view), after the author tries the sandbox. Not wanted for now: the memory switch
+(author: "still not convinced").
 
 **Left in the sandbox (none blocks v0):**
 - Wiring stores to the energy level (decided optional).
 - Saving designs (now they live until reload, except via the JSON box under Advanced).
 - A rebuild (any part change) resets the clock to dawn and clears other cells.
-- Planned, not done: force arrows; tips while building; more materials (chalk, mucus); a light-change sensor; a memory
+- Planned, not done: force arrows; tips while building; more materials (chalk, mucus); a memory
   switch (kept for later: drifts toward electronics).
 - **Moving water is for v1** (author, 2026-10-23): the tank is still. The physics decision says "the big water moves
   everything"; a Water switch (shear, gentle eddies) would break chains and pads, make spines sea anchors and gather
