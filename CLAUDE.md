@@ -415,9 +415,14 @@ runs headless in Node for tests (and later the optimiser).
   nucleus**, an organelle placed and sized inside the cell like the others, so a bigger "brain" takes room from
   plastids and vacuoles (an honest cost; dinoflagellates do carry huge nuclei); the modules and all the wiring fit
   inside it, and the player keeps the freedom to size and place everything in the cell. Progress unlocks how big a
-  nucleus may get. Sketch, to discuss: sensors stay where they sense (an eyespot on the surface, a statolith in its
-  chamber), and their cables run into the nucleus; logic and timers are modules inside it; the patch view becomes the
-  nucleus opened up.
+  nucleus may get. How it works (author, 2026-10-24): every sensor placed on the cell (an eyespot on the surface, a
+  statolith in its chamber) also has its **module inside the nucleus**, like its part of the brain; logic and timers
+  are modules there too. **Cables run only between modules inside the nucleus** and are never drawn on the cell.
+  **Tapping the nucleus opens the patch view**: the nucleus opened up, its size the board's edge.
+  **Queued to build** (author, 2026-10-24: not yet, after trying the current sandbox).
+- **Division (for notes, author 2026-10-24; step 1):** a cell divides when it reaches a certain energy store, size or
+  other parameter (which, and whether the player chooses or wires the trigger like a part's rule, to discuss).
+  Division splits stores (already noted under reserves), and chains can form at division.
 - **Progress across generations (decided, author 2026-10-24): the safer form.** No mutations that stray from the
   player's design ("can be frustrating"). A species that survives long earns upgrades the player can use when
   designing its next version (e.g. a bigger nucleus, new module types), so generations feel improved while the design
