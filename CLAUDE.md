@@ -407,6 +407,14 @@ runs headless in Node for tests (and later the optimiser).
   here: real plankton physiology, real low-Reynolds physics, designs competing in one deterministic ocean.
 - **Parked idea:** viruses that track genotypes; lineages with more mutation and diversity resist them (Red
   Queen), a real trade-off if players choose a mutation rate.
+- **Parked idea (author, 2026-10-24): a "brain box" for modules.** An empty rectangle where the player drops sensor and
+  logic modules (and fits them in by hand, like a puzzle), so its size limits how many the cell can carry and how much
+  wiring it can do. The box grows with points or longevity: a bigger box is a more intelligent, more advanced cell.
+  Open: whether it scales with cell size (sensors and logic need little room; plastids and vacuoles need a lot);
+  the clash with placing organelles inside the cell by hand. A possible way to join the two (Claude's suggestion, not
+  decided): make the box the **nucleus**, an organelle placed and sized inside the cell like the others, so a bigger
+  "brain" takes room from plastids and vacuoles (an honest cost, and dinoflagellates do carry huge nuclei), while
+  progress unlocks how big a nucleus may get.
 - **The niche radar** (MONAD's species page, eight traits scored 0–4) is a natural way to compare designs.
 - **Tips while building** (author, 2026-10-23): when a player places a part or picks a material, a short true tip
   says what it does physically ("gas is much lighter than water: it floats the cell, but crushes below a certain
