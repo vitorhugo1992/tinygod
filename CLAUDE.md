@@ -4,16 +4,44 @@ Players **design their own phytoplankton species** from parts and try to make it
 The author is a **phytoplankton researcher**: the biology carries weight, and their corrections on biology are
 authoritative.
 
-## Start here (handoff, 2026-10-23)
+## Start here (handoff, 2026-10-24)
 
-**Where we are:** step 0, the physics sandbox, is built and close to done. The first design conversation and the
-whole sandbox build happened in one long chat (2026-10-21 to 23); this file holds every decision from it.
+**Where we are:** step 0, the physics sandbox, is built and being played with by the author; step 1 (the ecology) is
+next once they are happy with it. Two long chats so far (2026-10-21 to 23: design and sandbox; 2026-10-23 to 24:
+building tools, sensors, rules, journal). Every decision is in this file; the sections below the handoff are a
+chronological log, newest additions last in each block.
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
-the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
-`node tools/check.mjs`: 42 physics checks, all passing (~2 min).
+the phone uses http://192.168.1.69:5180/sandbox/ (home Wi-Fi; the page shows it under its title). Restart the server
+after changing tools/serve.mjs. `node tools/check.mjs`: 42 physics checks, all passing (~2 min). Check every change
+in the real page with headless Edge over the DevTools protocol at phone size (400×860) and look at screenshots.
 
-**Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
+**The sandbox today, in short:** a still 2 mm tank with light from above and a 10-minute day. Build a cell from parts:
+flagella (wave tail, with Pull; flexible oar; stiff flap; Length; Flip; mirror copies), spines, escapes (burst organ,
+ejectisome), inside (plastid Sun / Shade; one Vacuole part with Content Starch / Oil / Sap / Gas; any of them round or
+a rod), pads, sensors (eyespot, statolith, touch, proximity, nutrients, timer; built-in energy, starch and oil levels).
+Each moving part has a **rule card**: GO when / OR GO when / STOP if (the override), conditions "above / below /
+between / outside" or "more / less than" another sensor, and a BEAT SPEED that can follow a reading either way; the
+🎛 Wiring view shows the same rules as a modular synth (GO boxes, a red STOP box). Metabolism v0 (energy, upkeep,
+stores that fill and burn and change buoyancy, gas vesicles that wear and crush). Seeing why: 📈 day graph, "what
+happened" trouble log (ⓘ), ↗ force arrows, nights left; ⏩ Test a day forecasts. Ghost preview with nudge-to-fit,
+Undo/Redo, edits keep the time of day and the tank. 💾 Save (in the browser), 📤 Send to Claude (the server writes
+designs/<name>.json: when the author says they sent one, read designs/), 📥 From Claude (write designs/<name>.json as
+{ name, from: "Claude", note, design } and tell them to tap it). The sandbox opens with an empty cell; Claude's
+species Vesperella (a daily migrator) is a preset and starts in the saved designs.
+
+**Queue:** the **nucleus** as the cell's brain box (decided, waiting for a go: every module inside it, cables only
+inside, tapping it opens the wiring view; see Notes to carry). Not wanted now: memory switch, light-change sensor
+(both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith
+plates (Emiliania huxleyi), grazing, peduncle (latch and drain another cell; was offered for now, not picked yet), pads
+that sense and attract, progress as upgrades for the next design (no mutations), moving water, seasons, tips while
+building. Open: the timer feels "weird" to the author (asked which way; no answer yet); cables costing upkeep.
+
+**Working with the author (most important):** plan first and wait for an explicit go; one question at a time;
+recommend; plain words; phone-first UI; give tools, not finished builds (except when asked, as with Vesperella);
+gameplay balance first, biology gives the shape; commit after each finished step (noreply address).
+
+**Built (the log starts here):** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
 springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
 kin and mucus pads, chains (hidden cap 32), **light from above** fading with depth with a **10-minute day/night**,
 sensors (eyespot with cone width; touch and proximity feeling other species or anything incl. walls) and the
