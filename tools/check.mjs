@@ -677,32 +677,24 @@ const runDay = (design, y, seconds, opts = {}) => {
     `one in the dark without a plastid ${fmt(100 * starving, 0)}% (it rebuilt them until its pool ran low)`);
 }
 
-// 28j. A compare module weighs two sensors; a light-change sensor reads dawn and dusk (and steady light as 0.5)
+// 28j. A compare condition: a part runs while one sensor reads more than another (here two statoliths facing opposite
+// ways: the one facing up reads more)
 {
-  const cmp = (angle, a, b) => {
+  const on = (angle, not = false) => {
     const w = makeWorld(1);
     const c = addCell(w, { body: { radius: 10 }, parts: [
-      { type: 'inclusion', id: 'st', material: 'statolith', at: [-4, 0], radius: 3 },
-      { type: 'sensor', id: 'cmp', kind: 'compare', at: [4, 0], a, b }] }, 800, 1000, angle);
+      { type: 'inclusion', id: 'front', material: 'statolith', at: [-4, 0], radius: 3, angle: 0 },
+      { type: 'inclusion', id: 'back', material: 'statolith', at: [4, 0], radius: 3, angle: 180 },
+      ...PRESETS['Wave tail'].parts.map((p) => ({ ...p, joint: { ...p.joint, controls: [{ sensor: 'front', vs: 'back', not }] } }))] },
+      800, 1000, angle);
     stepWorld(w);
-    return c.sensors[1].value;
+    return c.joints[0].on;
   };
-  const r = [cmp(90, 'st', 'energy'), cmp(-90, 'st', 'energy'), cmp(-90, 'energy', 'st'), cmp(0, 'st', undefined)];
-  const w = makeWorld(1, { gravity: false, day: true });
-  // an eyespot's second reading, wired by 'eye:change' (here: a timer started when the light falls)
-  const c = addCell(w, { body: { radius: 10 }, parts: [{ type: 'sensor', id: 'eye', kind: 'light', at: [0, 10], angle: 90 },
-    { type: 'sensor', id: 'dusk', kind: 'timer', at: [0, 0], trigger: [{ sensor: 'eye:change', min: 0, max: 0.35 }] }] },
-    800, PARAMS.tank.h - 100, 0);
-  const at = (s) => { while (worldTime(w) < s - 1e-9) stepWorld(w); return c.sensors[0].change; };
-  const day = PARAMS.metab.day, phase = PARAMS.metab.dawn;   // sunrise when the phase passes a whole day
-  const noon = at((0.25 - phase) * day), noonTimer = c.sensors[1].start, dusk = at((0.48 - phase) * day), duskTimer = c.sensors[1].start;
-  const dawn = at((1.02 - phase) * day);
-  check('a compare module weighs two sensors; an eyespot reads the light changing: 0.5 at steady noon, low at dusk, high at dawn',
-    Math.abs(r[0] - 0.5) < 1e-6 && Math.abs(r[1]) < 1e-6 && Math.abs(r[2] - 1) < 1e-6 && r[3] === 0.5
-      && Math.abs(noon - 0.5) < 0.03 && dusk < 0.35 && dawn > 0.65 && noonTimer === null && duskTimer !== null,
-    `statolith (up 1, down 0) against the energy level (1): front up ${fmt(r[0])}, down ${fmt(r[1])}, inputs swapped ` +
-    `${fmt(r[2])}, one input missing ${fmt(r[3])}. Eyespot change: noon ${fmt(noon)}, just before sunset ${fmt(dusk)}, ` +
-    `just after sunrise ${fmt(dawn)}; a timer wired to it started at dusk (${duskTimer === null ? '-' : fmt(duskTimer, 0)} s), not before`);
+  const r = [on(60), on(-60), on(0), on(-60, true)];
+  check('a compare condition holds while one sensor reads more than another (and "is not" flips it)',
+    r.join() === 'true,false,false,true',
+    `tail runs while the front-facing statolith reads more than the back-facing one: front up ${r[0]}, front down ${r[1]}, ` +
+    `level (equal) ${r[2]}; "is not more than", front down ${r[3]}`);
 }
 
 // 29. Determinism with day, metabolism and stores

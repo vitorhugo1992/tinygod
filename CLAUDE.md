@@ -71,16 +71,17 @@ once in full physics and let the ecology reuse it (to decide).
   gas. Plastid and statolith stay separate parts. Old designs' separate templates still edit.
 - **Stores drawn as containers** filling from the bottom (starch cream, oil yellow); a sap vacuole pale while lighter
   than seawater, deep blue while heavier.
-- **Compare module** (Sensors, placed inside, a diamond): reads 0.5 + (A − B)/2 of two inputs (any sensor or the
-  energy level), chosen in the list under it or patched into its A and B boxes in the patch view. Two eyespots on
-  opposite sides + a compare module wired to a side tail = turning toward the light, built not given.
-- **Every eyespot reads its light changing** (first built as a separate light-change sensor; merged into the eyespot
-  the same day, author: "could be built inside the eyespot"; real eyespot photoreceptors adapt, and sudden changes
-  trigger the photophobic response): its photoreceptor gets used to the light over ~10 s and the second reading is
-  change relative to that (Weber-like): 0.5 steady, toward 1 brightening (dawn, climbing), toward 0 dimming (dusk,
-  sinking); measured noon 0.51, just before sunset 0.27, just after sunrise 1.00. Wired as 'id:change'; in the patch
-  view the eyespot is one module with two jacks; on the cell a ring flickers while its light changes (warm brightening,
-  cold dimming). Old designs with the separate part still work.
+- **Compare is a kind of condition**, not a part (author: "it shouldn't be a sensor but something inherent... closer
+  to logic functions"; first built as a placed Compare module, then turned into a condition the same day): a
+  condition is either "A **is** in a range" or "A **is more than** B" (by PARAMS.sensor.compareMargin, 0.05, so near
+  ties don't flicker; "is not" flips it). In the design: { sensor: A, vs: B }. In the list: an "in range / more than…"
+  button and a second sensor menu; in the patch view the second sensor's cable is dashed, the label reads "> 👁 B°".
+  Two eyespots on opposite sides and "side tail runs when the right eyespot is more than the left" = turning toward the
+  light, built not given.
+- **Light changing removed** (built, merged into the eyespot, then removed the same day; author: "it does nothing or
+  is kinda redundant"; Claude agreed: dusk and climbing are covered by brightness ranges and the dawn-reset timer, and
+  a reading about change was the hardest to understand). Easy to bring back if a build needs it (photoreceptor
+  adaptation: the light against a ~10 s running average, relative, Weber-like).
 **Build queue:** **the nucleus** (see Notes to carry: the box is the nucleus; every module inside it, cables only
 inside; tapping it opens the patch view), after the author tries the sandbox. Not wanted for now: the memory switch
 (author: "still not convinced").

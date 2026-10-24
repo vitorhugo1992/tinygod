@@ -87,11 +87,6 @@ export const PART_TEMPLATES = {
     }[content];
     return [{ type: 'inclusion', id, ...at, ...what }];
   },
-  'Light-change sensor': (body, deg, id, size, tilt) =>
-    [{ type: 'sensor', id, label: 'Light-change sensor', at: surfacePoint(body, deg), angle: deg + tilt, kind: 'change',
-      cone: Math.max(20, Math.round(180 * size)) }],
-  'Compare (two sensors)': (body, deg, id, size, tilt, depth) =>
-    [{ type: 'sensor', id, label: 'Compare', at: inside(body, deg, 0.15, depth).at, kind: 'compare' }],
   'Gas vesicles (float, crush deep)': (body, deg, id, size, tilt, depth, feels, len, strength = 0.5) =>
     [{ type: 'inclusion', id, label: 'Gas vesicles', ...inside(body, deg, size, depth), material: 'gas', strength }],
   'Statolith (which way is up)': (body, deg, id, size, tilt, depth) =>   // `tilt` here: the direction it reads, 0 = the front
@@ -178,8 +173,6 @@ const room = (s) => `${Math.round(100 * s)}% of room`;
 // Which Build controls mean something for each part, and what Size means for it
 export const CONTROLS = {
   'Vacuole (store or float)': { size: room, inside: true, content: true, sizeDefault: 30 },
-  'Light-change sensor': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 },
-  'Compare (two sensors)': { inside: true },
   'Gas vesicles (float, crush deep)': { size: room, inside: true, strength: true, sizeDefault: 30 },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
   'Timer (clock)': { size: spanLabel, inside: true, sizeDefault: 100 },
@@ -214,7 +207,7 @@ export const CATEGORIES = {
   'Inside the cell': ['Plastid (makes energy)', 'Vacuole (store or float)'],
   'Pads': ['Kin pad', 'Mucus pad'],
   'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Touch sensor', 'Proximity sensor',
-    'Nutrient sensor', 'Timer (clock)', 'Compare (two sensors)'],
+    'Nutrient sensor', 'Timer (clock)'],
 };
 
 // The category of a part already on the body, from what it is

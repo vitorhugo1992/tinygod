@@ -56,9 +56,7 @@ export const PARAMS = {
     touchRange: 2,          // µm from a touch sensor's spot that counts as touching
     nearRange: 60,          // µm a proximity sensor feels another species from (default)
     timerSpan: 600,         // s a timer counts by default (one sandbox day: a clock reset at dawn)
-    changeTau: 10,          // s a light-change sensor takes to get used to the light (it reads change against that)...
-    changeGain: 2,          // ...how strongly a relative change moves its reading from 0.5...
-    changeFloor: 0.02,      // ...and the dimmest light it still compares against (so the dark doesn't divide by zero)
+    compareMargin: 0.05,    // a compare condition holds once one reading is this much more than the other
   },
   // Gas vesicles (made playable): stronger ones survive deeper but lift less (more protein per bubble)
   gas: {
