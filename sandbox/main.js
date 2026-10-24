@@ -3,13 +3,14 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
-import { rewire, retrigger, controlsOf, buildCell } from '../sim/build.js';
+import { rewire, retrigger, respeed, controlsOf, buildCell } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
+import { note, nightsLeft, drawJournal, eventText, forecast } from './journal.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS, CONTENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
-const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
+const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
 const $ = (id) => document.getElementById(id);
 const canvas = $('c'), ctx = canvas.getContext('2d');
 
@@ -31,6 +32,7 @@ let cam = { x: TW / 2, y: TH / 2 };
 const addSelect = $('addWhat');
 addSelect.add(new Option('copy of this design', ''));
 for (const name of Object.keys(PRESETS)) addSelect.add(new Option(name, name));
+const savedGroup = document.createElement('optgroup'); savedGroup.label = 'Saved designs'; addSelect.appendChild(savedGroup);
 // each preset is its own species, so kin pads only hold copies of the same design
 const preset = (name) => Object.assign(JSON.parse(JSON.stringify(PRESETS[name])), { species: name });
 
@@ -46,8 +48,10 @@ function load(d) {
 function applyDesign(d, record = true) {
   const old = design, pose = cell ? { x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI } : null;
   design = d;
-  if (!reset(pose)) { const msg = $('err').textContent; design = old; reset(pose); $('err').textContent = msg; $('buildErr').textContent = msg; return false; }
+  const carry = world && cell ? { world, cell, design: old } : null;
+  if (!reset(pose, carry)) { const msg = $('err').textContent; design = old; reset(pose, carry); $('err').textContent = msg; $('buildErr').textContent = msg; return false; }
   if (record) remember(old);
+  clearForecast();
   $('buildErr').textContent = '';
   $('json').value = JSON.stringify(d, null, 2);
   listParts();
@@ -146,6 +150,7 @@ const showControls = () => {
   $('insideRow').style.display = c.inside ? '' : 'none';
   $('feelsRow').style.display = c.feels ? '' : 'none';
   $('flipRow').style.display = c.flip ? '' : 'none';
+  $('pullBtn').style.display = c.pull ? '' : 'none';
   $('lengthRow').style.display = c.length ? '' : 'none';
   const gas = c.strength || (c.content && $('partContent').value === 'gas');
   $('strengthRow').style.display = gas ? '' : 'none';
@@ -173,16 +178,18 @@ function showStrength() {
 $('partStrength').oninput = showStrength;
 $('partWhat').onchange = () => { showControls(); if (editing) updateEdited(); else updatePreview(); }; showControls();
 $('flipBtn').onclick = () => { $('partFlip').checked = !$('partFlip').checked; $('partFlip').dispatchEvent(new Event('change')); };
+$('pullBtn').onclick = () => { $('partPull').checked = !$('partPull').checked; $('partPull').dispatchEvent(new Event('change')); };
 // Make a part from the Build controls; its first piece remembers how (build), so it can be edited later
-function makePart(body, id) {
+function makePart(body, id, spot) {   // spot: { where, depth } instead of the sliders' (a nudge into free room)
   const c = CONTROLS[$('partWhat').value] || {};
-  const b = { tpl: $('partWhat').value, where: Number($('partAngle').value), tilt: Number($('partTilt').value),
-    size: Number($('partSize').value) / 100, depth: Number($('partInside').value) / 100, feels: $('partFeels').value,
+  const b = { tpl: $('partWhat').value, where: spot ? spot.where : Number($('partAngle').value), tilt: Number($('partTilt').value),
+    size: Number($('partSize').value) / 100, depth: spot ? spot.depth : Number($('partInside').value) / 100, feels: $('partFeels').value,
     flip: !!c.flip && $('partFlip').checked, id };
+  if (c.pull && $('partPull').checked) b.pull = true;
   if (c.length) b.length = Number($('partLength').value);
   if (c.content) b.content = $('partContent').value;
   if (c.strength || b.content === 'gas') b.strength = Number($('partStrength').value) / 100;
-  const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length, b.strength, b.content);
+  const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length, b.strength, b.content, b.pull);
   if (b.flip) flipPart(parts);
   parts[0].build = b;
   return parts;
@@ -203,6 +210,9 @@ function withPart(d, fresh) {
 }
 $('addPart').onclick = () => {
   if (editing) { stopEditing(); return; }
+  if (nudge) {   // it goes where the ghost showed it fits
+    $('partAngle').value = nudge.where; $('partInside').value = Math.round(nudge.depth * 100); showAngle(); showInside(); nudge = null;
+  }
   const d = JSON.parse(JSON.stringify(design));
   previewOn = false;
   if (!applyDesign(withPart(d, makePart(d.body, `p${Date.now() % 100000}_${++partCount}`)))) { previewOn = true; updatePreview(); }
@@ -222,6 +232,7 @@ function startEditing(b) {
   $('partSize').value = Math.round(b.size * 100); $('partInside').value = Math.round(b.depth * 100);
   if (b.feels) $('partFeels').value = b.feels;
   $('partFlip').checked = !!b.flip;
+  $('partPull').checked = !!b.pull;
   const lc = (CONTROLS[b.tpl] || {}).length;
   if (lc) $('partLength').value = b.length ?? lc.def;   // parts made before Length had the usual length
   if (b.strength !== undefined) $('partStrength').value = Math.round(b.strength * 100);
@@ -238,7 +249,7 @@ function stopEditing() {
 }
 $('cancelEdit').onclick = stopEditing;
 // while editing, letting go of a slider (or picking another part type) updates the part at once
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength', 'partFeels', 'partFlip']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength', 'partFeels', 'partFlip', 'partPull']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
 $('partContent').onchange = () => { showControls(); previewOn = true; if (editing) updateEdited(); else updatePreview(); };
 // while dragging, the ghost follows the slider
 for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
@@ -247,6 +258,18 @@ for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength
 // selected cell before anything is built; red when it would not fit. Nothing is simulated. -----
 let previewOn = false;   // armed by picking a part or moving a slider; off after Add or tapping the lit part again
 let preview = null;      // { cell: the body with only the new part, built and posed; bad: why it would not fit, or '' }
+// The nearest spot where the organelle being placed fits: round the body from where it was asked for, then nearer
+// the centre; null if none (a few dozen trial builds, only while it doesn't fit)
+let nudge = null;
+function findFit(id) {
+  const where = Number($('partAngle').value), depth = Number($('partInside').value) / 100;
+  for (let k = 0; k <= 18; k++) for (const sign of k ? [1, -1] : [1]) for (let dd = 0; dd <= 5; dd++) {   // down to the centre
+    const spot = { where: ((where + sign * k * 10) % 360 + 360) % 360, depth: Math.max(0, Math.round((depth - dd * 0.2) * 100) / 100) };
+    try { const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, id, spot)); if (d) { buildCell(d); return spot; } }
+    catch (e) { /* not here */ }
+  }
+  return null;
+}
 function updatePreview() {
   preview = null;
   if (!previewOn || !design) { $('buildErr').textContent = ''; return; }
@@ -254,9 +277,13 @@ function updatePreview() {
   let bad = '';
   try { const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, id)); if (d) buildCell(d); }
   catch (e) { bad = e.message; }
-  $('buildErr').textContent = bad ? `won't fit: ${bad}` : '';
+  nudge = bad && (CONTROLS[$('partWhat').value] || {}).inside ? findFit(id) : null;
+  $('buildErr').textContent = nudge ? `no room there: nudged to ${nudge.where}°, inside ${Math.round(nudge.depth * 100)}% (Add puts it there)`
+    : bad && (CONTROLS[$('partWhat').value] || {}).inside && /overlap|sticks out|overfill/.test(bad)
+      ? "won't fit: no free spot big enough anywhere inside (try a smaller size)" : bad ? `won't fit: ${bad}` : '';
+  if (nudge) bad = '';
   let c;
-  try { c = buildCell({ body: design.body, parts: makePart(design.body, id) }); } catch (e) { return; }
+  try { c = buildCell({ body: design.body, parts: makePart(design.body, id, nudge) }); } catch (e) { return; }
   // as the part starts: springs at their rest, extenders as they start, a burst organ at the start of its stroke
   c.joints.forEach((j, i) => { c.q[3 + i] = j.type === 'extend' ? j.start : j.type === 'motor' ? motorAngle(j, 0) : 0; });
   preview = { cell: c, bad };
@@ -365,7 +392,35 @@ function withoutRule(list, idx) {
 }
 const NONE = { runs: 'runs always', fires: 'fires by hand (Release)', starts: 'never starts: give it a trigger' };
 const ADD = { runs: '＋ wire it to a sensor', fires: '＋ fire it by a sensor', starts: '＋ start it by a sensor' };
-const WHILE = { runs: 'on while', fires: 'fires while', starts: 'starts when' };
+const WHILE = { runs: 'on while', fires: 'fires while', starts: 'starts when', speed: 'speeds up from stopped to full as it reads' };
+// A motor's beat speed: always full, or following a reading (stopped at the low end, full at the high end)
+function setSpeed(targets, speed) {
+  remember(design);
+  for (const m of targets) {
+    if (speed) m.joint.speed = { ...speed }; else delete m.joint.speed;
+    const k = design.parts.indexOf(m);
+    for (const c of world.cells) if (c.design === design) respeed(c, k, speed);
+  }
+  $('json').value = JSON.stringify(design, null, 2);
+  listParts();
+}
+function speedRow(targets, sensors) {
+  const sp = targets[0].joint.speed;
+  const box = document.createElement('div');
+  box.className = 'cond';
+  const top = document.createElement('div'); top.className = 'condhead';
+  const sel = document.createElement('select');
+  sel.add(new Option('beat speed: always full', ''));
+  for (const s of sensors) sel.add(new Option(`beat speed follows ${ICON[s.kind]} ${s.name}`, s.id));
+  sel.value = sp ? sp.sensor : '';
+  sel.title = 'Gradual control: the beat slows and quickens with a reading, instead of only switching on and off';
+  sel.onchange = () => setSpeed(targets, sel.value ? { sensor: sel.value, min: 0, max: 1 } : null);
+  top.appendChild(sel);
+  box.appendChild(top);
+  if (sp) box.appendChild(rangeBar({ sensor: sp.sensor, min: sp.min, max: sp.max, not: false }, 'speed', sensorKind(sp.sensor),
+    (lo, hi) => (lo < hi ? setSpeed(targets, { sensor: sp.sensor, min: lo, max: hi }) : listParts())));
+  return box;
+}
 
 // A living cell's reading of a sensor ('energy' or an id), as { value }; undefined if there is none
 function liveReading(c, id) {
@@ -444,6 +499,7 @@ function wiring(g, targets) {
     }));
     box.appendChild(cond);
   });
+  if (verb === 'runs') box.appendChild(speedRow(targets, sensors));
   const first = sensors[0].id;
   const add = document.createElement('button');
   add.className = 'addcond';
@@ -526,7 +582,7 @@ function drawPatch() {
     const tg = document.createElement('div');
     tg.className = 'pmod tgt'; tg.dataset.tgt = ti;
     tg.innerHTML = `<span class="pstate" data-pstate="${ti}"></span><div class="pname">${t.icon} ${t.name}</div>
-      <div class="pval">${!t.rules.length ? NONE[t.verb] : `${t.verb}${gs.length > 1 ? ' when any box holds' : ''}`}</div>`;
+      <div class="pval">${!t.rules.length ? NONE[t.verb] : `${t.verb}${gs.length > 1 ? ' when any box holds' : ''}`}${speedText(t.members[0])}</div>`;
     tg.onclick = (e) => { e.stopPropagation(); patchInto(ti, gs.length); };
     row.append(boxes, tg);
     rules.appendChild(row);
@@ -534,6 +590,13 @@ function drawPatch() {
   cols.append(src, rules);
   layoutWires();
   showPatchEdit();
+}
+// a target's speed rule, as a line (set in the list under the part)
+function speedText(m) {
+  const sp = m.joint && m.joint.speed;
+  if (!sp) return '';
+  const s = sensorList().find((x) => x.id === sp.sensor);
+  return `<br>speed follows ${s ? `${ICON[s.kind]} ${s.short}` : sp.sensor} ${sp.min}–${sp.max}`;
 }
 // patch the picked sensor into target ti's group gi (gi past the last: a new group)
 function patchInto(ti, gi) {
@@ -744,12 +807,39 @@ function listParts() {
   drawPatch();   // the patch view follows every change (when open)
 }
 
-function reset(pose) {
+// A new tank with the design. Rebuilding after an edit (carry: the old world, its selected cell and design) keeps the
+// time of day, the other cells as they are, and rebuilds this design's other copies where they were; the edited cell
+// keeps its share of energy. Reset (no carry) starts again at dawn.
+function reset(pose, carry) {
   $('err').textContent = '';
   const s = (pose && pose.x !== undefined ? pose : null) || design.start || {};
   const w = makeWorld(1, { gravity: $('gravity').checked, light: $('light').checked, day: $('day').checked, metab: true });
   try {
-    cell = addCell(w, design, s.x ?? TW / 2, s.y ?? TH * 0.6, s.angle ?? 0);
+    const next = addCell(w, design, s.x ?? TW / 2, s.y ?? TH * 0.6, s.angle ?? 0);
+    if (carry) {
+      w.steps = carry.world.steps;
+      const share = (c) => (c.metab ? c.metab.E / c.metab.C : M_START);
+      // stores and floats that are still there (the same design part) keep how full or worn they were
+      const keep = (from, to) => {
+        for (const i of to.pieces[0].inclusions) {
+          const o = from.pieces[0].inclusions.find((x) => x.part === i.part && x.material === i.material);
+          if (!o || !(i.store || i.crush)) continue;
+          i.fill = o.fill; if (i.crush) { i.crushed = o.crushed; if (o.crushed) i.density = o.density; }
+          i.wpt.w = (i.density - PARAMS.cell.cytoplasm) * i.v * i.fill * PARAMS.gravity * 1e-6;
+        }
+      };
+      keep(carry.cell, next);
+      next.metab.E = share(carry.cell) * next.metab.C;
+      next.journal = carry.cell.journal;   // the day graph goes on
+      for (const c of carry.world.cells) {
+        if (c === carry.cell) continue;
+        if (c.design === carry.design) {
+          const k = addCell(w, design, c.q[0], c.q[1], c.q[2] * 180 / Math.PI);
+          k.metab.E = share(c) * k.metab.C; k.journal = c.journal; keep(c, k);
+        } else { for (const p of c.pads) p.link = null; w.cells.push(c); }
+      }
+    }
+    cell = next;
   } catch (e) {
     $('err').textContent = e.message;
     return false;
@@ -796,7 +886,9 @@ $('release').onclick = () => {
   ghosts = world.cells.map(outline);
 };
 $('add').onclick = () => {   // another cell beside the selected one: a copy (kin), or any preset (its own species)
-  const d = addSelect.value ? preset(addSelect.value) : design;
+  const v = addSelect.value;
+  const d = v.startsWith('saved:') ? savedDesign(v.slice(6)) : v ? preset(v) : design;
+  if (!d) return;
   try {
     const c = addCell(world, d, cell.q[0], cell.q[1], (d.start || {}).angle ?? 0);
     c.q[0] = Math.min(Math.max(cell.q[0] + cell.reach + c.reach + 2, c.reach), TW - c.reach);
@@ -823,7 +915,7 @@ $('light').onchange = () => { if (world) world.light = $('light').checked; };
 function advance(steps) {
   for (let i = 0; i < steps; i++) {
     stepWorld(world);
-    for (const c of world.cells) remember1(c);
+    for (const c of world.cells) { remember1(c); note(world, c); }
     if (world.steps % 10 === 0) {              // every 10 ms: samples for beat-averaged speed and power
       samples.push({ t: worldTime(world), x: cell.q[0], y: cell.q[1], e: cell.energy.motor + cell.energy.pump });
       if (samples.length > 400) samples.shift();
@@ -944,6 +1036,8 @@ function stats() {
   }
   lines.push(`light here ${lightAt(world, cell.q[1]).toFixed(2)} (1 = full sun at the surface)`);
   budget(lines);
+  const ev = (cell.journal ? cell.journal.ev : []).slice(-6);
+  if (ev.length) { lines.push('what happened (latest last):'); for (const e of ev) lines.push(`  ${e.serious ? '⚠' : '·'} ${eventText(e)}`); }
   const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity', hunger: 'hunger', statolith: 'statolith', chem: 'nutrients', timer: 'timer' };
   cell.sensors.forEach((sn, i) => lines.push(`${NAME[sn.kind].padEnd(9)} ${sn.value.toFixed(2)}`));
   const bursts = cell.joints.filter((j) => j.burst);
@@ -1070,9 +1164,119 @@ function draw() {
   for (const c of world.cells) drawCell(calmPose(c, lastReal, spd) || c, X, Y, s, c);
   drawPreview(X, Y, s);
   drawLinks(X, Y, s);
-  drawScale(W, H, s);
+  drawForces(X, Y, s);
+  let bottom = H;   // the day graph sits along the bottom; the scale and the clock above it
+  if (graphOn) {
+    const gh = H < 500 ? 84 : 110;
+    drawJournal(ctx, forecastJ || cell.journal, 8, H - gh - 6, W - 60, gh, forecastJ ? 'forecast: the next day' : 'the last day');
+    bottom = H - gh - 8;
+  }
+  drawScale(W, bottom, s);
   drawMinimap(W, H);
-  drawHud(W, H);
+  drawHud(W, bottom);
+}
+
+// ----- saved designs: kept in this browser (they survive a reload; another phone or computer has its own) -----
+const SAVE_KEY = 'tinygod.saved';
+function savedList() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || '[]'); } catch (e) { return []; } }
+function writeSaved(list) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(list)); return true; } catch (e) { return false; } }
+// a saved design as its own species (copies of it are kin; other designs are strangers)
+function savedDesign(name) {
+  const s = savedList().find((x) => x.name === name);
+  return s ? Object.assign(JSON.parse(JSON.stringify(s.design)), { species: name }) : null;
+}
+function showSaved() {
+  const list = savedList(), sel = $('savedWhat');
+  sel.innerHTML = '';
+  sel.add(new Option(list.length ? `saved designs (${list.length})…` : 'no saved designs yet', ''));
+  for (const s of list) sel.add(new Option(s.name, s.name));
+  savedGroup.innerHTML = '';
+  for (const s of list) savedGroup.appendChild(new Option(s.name, `saved:${s.name}`));
+  $('deleteSaved').disabled = !sel.value;
+}
+$('saveDesign').onclick = () => {
+  const list = savedList();
+  const name = (prompt('Name this design', design.species && !PRESETS[design.species] ? design.species : `Design ${list.length + 1}`) || '').trim();
+  if (!name) return;
+  const d = JSON.parse(JSON.stringify(design)); delete d.species;
+  const rest = list.filter((x) => x.name !== name);
+  if (!writeSaved([...rest, { name, design: d, saved: Date.now() }])) { $('buildErr').textContent = 'this browser would not save it'; return; }
+  design.species = name;
+  showSaved(); $('savedWhat').value = name; $('deleteSaved').disabled = false;
+};
+$('savedWhat').onchange = () => {
+  $('deleteSaved').disabled = !$('savedWhat').value;
+  const d = $('savedWhat').value && savedDesign($('savedWhat').value);
+  if (d) applyDesign(d);   // in place of the selected cell: the tank and the time of day go on
+};
+$('deleteSaved').onclick = () => {
+  const name = $('savedWhat').value;
+  if (!name || !confirm(`Delete the saved design "${name}"?`)) return;
+  writeSaved(savedList().filter((x) => x.name !== name)); showSaved();
+};
+showSaved();
+
+// ----- the day graph and Test a day -----
+let graphOn = true, forecastJ = null, stopForecast = null;
+$('graphBtn').onclick = () => { graphOn = !graphOn; };
+$('testDay').onclick = () => {
+  if (stopForecast) { stopForecast(); stopForecast = null; }
+  if (forecastJ) { forecastJ = null; $('testDay').textContent = '⏩ Test a day'; return; }
+  graphOn = true;
+  const from = { steps: world.steps, x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI,
+    share: cell.metab ? cell.metab.E / cell.metab.C : undefined };
+  const settings = { gravity: world.gravity, light: world.light, day: world.day, metab: world.metab };
+  stopForecast = forecast(cell.design, from, settings, (p) => { $('testDay').textContent = `⏩ ${Math.round(100 * p)}%`; },
+    (j) => { stopForecast = null; forecastJ = j; $('testDay').textContent = '✕ Close forecast'; });
+};
+const clearForecast = () => { if (stopForecast) stopForecast(); stopForecast = null; forecastJ = null; $('testDay').textContent = '⏩ Test a day'; };
+
+// ----- force arrows: weight minus buoyancy (red down: it sinks; blue up: it floats), the way it moves (green), and which
+// way gravity turns it about its centre (orange arc; the turn it actually makes is the dashed one) -----
+let forcesOn = false;
+$('forcesBtn').onclick = () => { forcesOn = !forcesOn; };
+function arrow(x0, y0, x1, y1, color, label) {
+  const a = Math.atan2(y1 - y0, x1 - x0);
+  ctx.strokeStyle = ctx.fillStyle = color; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - 8 * Math.cos(a - 0.4), y1 - 8 * Math.sin(a - 0.4));
+  ctx.lineTo(x1 - 8 * Math.cos(a + 0.4), y1 - 8 * Math.sin(a + 0.4)); ctx.closePath(); ctx.fill();
+  if (label) { ctx.font = '11px system-ui'; ctx.fillText(label, x1 + 6, y1 + 4); }
+}
+function turnArc(cx, cy, r, sign, color, dashed, label) {
+  const a0 = -Math.PI / 2 - 0.9, a1 = -Math.PI / 2 + 0.9;   // over the top; on screen, y grows downward
+  const ccw = sign > 0;                                        // counterclockwise as seen
+  ctx.strokeStyle = ctx.fillStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dashed ? [4, 3] : []);
+  ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke(); ctx.setLineDash([]);
+  const end = ccw ? a0 : a1, ex = cx + r * Math.cos(end), ey = cy + r * Math.sin(end);
+  const dir = end + (ccw ? -Math.PI / 2 : Math.PI / 2);        // tangent, the way it turns
+  ctx.beginPath(); ctx.moveTo(ex + 7 * Math.cos(dir), ey + 7 * Math.sin(dir));
+  ctx.lineTo(ex + 6 * Math.cos(dir + 2.3), ey + 6 * Math.sin(dir + 2.3)); ctx.lineTo(ex + 6 * Math.cos(dir - 2.3), ey + 6 * Math.sin(dir - 2.3));
+  ctx.closePath(); ctx.fill();
+  if (label) { ctx.font = '11px system-ui'; ctx.fillText(label, cx + r + 6, cy - r * 0.6); }
+}
+function drawForces(X, Y, s) {
+  if (!forcesOn || !cell) return;
+  const c = cell, q = c.vis && calmBeats ? c.vis.q : c.q, cx = X(q[0]), cy = Y(q[1]);
+  let W = 0, tau = 0;
+  if (world.gravity) for (let i = 0; i < c.pieces.length; i++) for (const p of c.pieces[i].wpts) {
+    const [wx] = pieceToWorld(c, i, p.x, p.y);
+    W += p.w; tau -= (wx - c.q[0]) * p.w;   // weight pulls down: about the centre it turns by -dx × w
+  }
+  ctx.save();
+  if (Math.abs(W) > 1e-4) {
+    const len = Math.min(70, 14 + 30 * Math.sqrt(Math.abs(W)));
+    arrow(cx, cy, cx, cy + (W > 0 ? len : -len), W > 0 ? '#ff6a5a' : '#6ab8ff', `${W > 0 ? 'sinks' : 'floats'} ${Math.abs(W).toFixed(2)} pN`);
+  }
+  const vx = c.v[0], vy = c.v[1], sp = Math.hypot(vx, vy);
+  if (sp > 0.2) {
+    const len = Math.min(90, 10 + 3 * sp);
+    arrow(cx, cy, cx + len * vx / sp, cy - len * vy / sp, '#7fe08a', `${sp.toFixed(1)} µm/s`);
+  }
+  const r = Math.max(26, c.pieces[0].a * s + 14);
+  if (Math.abs(tau) > 1e-3) turnArc(cx, cy, r, tau, '#ffb54a', false, 'gravity turns it');
+  if (Math.abs(c.v[2]) > 0.02) turnArc(cx, cy, r + 9, c.v[2], 'rgba(255,181,74,.6)', true, '');
+  ctx.restore();
 }
 
 // Always on the tank (phones too): the time, the energy pool, the stores
@@ -1081,7 +1285,8 @@ function drawHud(W, H) {
   const sunny = world.day ? daylight(world) > 0 : true;
   let text = `${sunny ? '☀' : '☾'} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   if (world.metab) {
-    text += `   ⚡ ${(100 * m.E / m.C).toFixed(0)}%`;
+    const n = nightsLeft(cell);
+    text += `   ⚡ ${(100 * m.E / m.C).toFixed(0)}%${n !== null ? ` · ${n < 10 ? n.toFixed(1) : '10+'} nights` : ''}`;
     for (const inc of cell.pieces[0].inclusions) if (inc.store) text += `   ${inc.store} ${(100 * inc.fill).toFixed(0)}%`;
   }
   ctx.font = '12px system-ui';
@@ -1435,8 +1640,11 @@ function syncButtons() {
   $('lightBtn').classList.toggle('on', $('light').checked);
   $('dayBtn').classList.toggle('on', $('day').checked);
   $('calmBtn').classList.toggle('on', calmBeats);
+  $('graphBtn').classList.toggle('on', graphOn);
+  $('forcesBtn').classList.toggle('on', forcesOn);
   $('infoBtn').classList.toggle('on', !$('stats').hidden);
   $('flipBtn').classList.toggle('on', $('partFlip').checked);
+  $('pullBtn').classList.toggle('on', $('partPull').checked);
   $('undo').disabled = !past.length; $('redo').disabled = !future.length;
   $('clearParts').disabled = !(design.parts || []).length;
 }

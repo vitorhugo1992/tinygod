@@ -45,6 +45,8 @@
 //   { type: 'motor', rate, swing, stroke = 0.5, phase = 0, on = true, burst? }
 //       beats `rate` times a second, `swing` degrees each side; the forward stroke takes `stroke` of the cycle
 //       and the recovery the rest. Off, it holds its angle.
+//       speed: { sensor, min, max } makes its beat follow a reading: stopped at min (and below), full speed at max
+//       (and above), in between in proportion (a burst organ ignores it).
 //       burst: { duration, recharge } makes it a burst organ: it waits charged, and when fired (by hand, or by its
 //       control) beats for `duration` s, then stops and needs `recharge` s before it can fire again. Motors of one
 //       organ that share a `group` fire together.
@@ -94,7 +96,7 @@ function parseJoint(j, pieceIndex) {
     if (!(stroke > 0 && stroke < 1)) throw new Error('motor stroke must be between 0 and 1');
     // clock: how long it has beaten; it stops while the motor is off, so the beat resumes where it froze
     return { type: 'motor', piece: pieceIndex, rate: j.rate, swing: (j.swing || 0) * DEG, stroke,
-      phase: j.phase || 0, on: j.on !== false && !j.burst, clock: 0,
+      phase: j.phase || 0, on: j.on !== false && !j.burst, clock: 0, gain: 1,
       burst: j.burst ? { duration: j.burst.duration, recharge: j.burst.recharge, group: j.burst.group, state: 'charged', t: 0 } : null };
   }
   throw new Error(`unknown joint type: ${j.type}`);
@@ -132,6 +134,20 @@ export function rewire(cell, partIndex, controls) {
   }
 }
 
+// A motor's speed rule as the cell uses it (the sensor by index), or null
+function resolveSpeed(sensors, sp) {
+  if (!sp || sp.sensor === undefined) return null;
+  const min = sp.min ?? 0, max = sp.max ?? 1;
+  if (!(min < max)) throw new Error('speed: min must be below max');
+  return { sensor: sensorIndex(sensors, sp.sensor), min, max };
+}
+export function respeed(cell, partIndex, speed) {
+  for (const j of cell.joints) if (j.part === partIndex && j.type === 'motor') {
+    j.speed = resolveSpeed(cell.sensors, speed);
+    if (!j.speed) j.gain = 1;
+  }
+}
+
 // Set the trigger of a living cell's timer that came from design part `partIndex`, without rebuilding it
 export function retrigger(cell, partIndex, trigger) {
   for (const s of cell.sensors) {
@@ -147,6 +163,7 @@ export function buildCell(design) {
   const sensors = [];
   const controls = [];   // [joint, control] pairs, resolved once every sensor is known
   const triggers = [];   // [timer, trigger] pairs, the same
+  const speeds = [];     // [motor, speed] pairs, the same
   const ids = new Map();
   const C = PARAMS.cell;
 
@@ -177,6 +194,7 @@ export function buildCell(design) {
       if (joint) joints.push(joint);
       if (joint) joint.part = design.parts.indexOf(part);   // which design part it came from (for live rewiring)
       if (joint && controlsOf(part.joint).length) controls.push([joint, controlsOf(part.joint)]);
+      if (joint && part.joint.speed) speeds.push([joint, part.joint.speed]);
       const piece = {
         kind: 'segment', parent, ax: x, ay: y, mount: (part.angle || 0) * DEG, offset: L / 2,
         joint: joint ? joints.length - 1 : -1,
@@ -258,6 +276,7 @@ export function buildCell(design) {
   }
 
   for (const [joint, cs] of controls) joint.controls = cs.map((c) => resolveControl(sensors, c));
+  for (const [joint, sp] of speeds) joint.speed = resolveSpeed(sensors, sp);
   for (const [s, cs] of triggers) s.trigger = cs.filter((c) => c.sensor !== s.id && c.vs !== s.id).map((c) => resolveControl(sensors, c));
 
   // how far the cell can reach from its body centre, for finding neighbours

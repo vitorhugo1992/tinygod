@@ -157,6 +157,8 @@
     <button id="lightBtn" title="Light from above, fading with depth">☀ Light</button>
     <button id="calmBtn" title="Draw beating parts slowly so they are pleasant to watch (the physics is unchanged); off: the true beat">〰 Calm</button>
     <button id="dayBtn" title="The sun rises and sets (a day lasts 10 minutes at 1×); off: always noon">☾ Day</button>
+    <button id="graphBtn" class="on" title="The day graph: depth, energy, stores and float over the last day, and what went wrong">📈 Graph</button>
+    <button id="forcesBtn" title="Arrows: weight minus buoyancy, the way it moves, and which way gravity turns it">↗ Forces</button>
     <span class="seg"><button id="rotL" title="Turn the selected cell (or Q)">⟲</button><button id="rotR" title="Turn the selected cell (or E)">⟳</button></span>
     <span class="seg"><button id="zoomOut" title="Zoom out (or mouse wheel)">−</button><button id="zoomIn" title="Zoom in (or mouse wheel)">+</button></span>
   </div>
@@ -169,6 +171,10 @@
     <button id="undo" title="Undo the last change to the design">↶ Undo</button>
     <button id="redo" title="Redo what was undone">↷ Redo</button>
     <button id="clearParts" title="Remove every part, keep the body (Undo brings them back)">🗑 Delete all</button>
+    <button id="saveDesign" title="Save this design in this browser (it survives a reload)">💾 Save</button>
+    <select id="savedWhat" title="Load a saved design in place of the selected cell (the tank goes on)"></select>
+    <button id="deleteSaved" title="Delete the chosen saved design">✕</button>
+    <button id="testDay" title="Run this design a whole day ahead, from where it is now, and show the forecast in the graph">⏩ Test a day</button>
   </div>
 
   <h2>Body</h2>
@@ -181,7 +187,8 @@
   <div class="slider" title="Where on the body: 0° front (right), 180° back">Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180"><span id="partAngleOut"></span></div>
   <div class="slider" id="tiltRow" title="Turn the part away from pointing straight out (a side flagellum needs tilt to turn the cell)"><span id="tiltLabel">Tilt</span> <input type="range" id="partTilt" min="-90" max="90" step="5" value="0"><span id="partTiltOut"></span></div>
   <div class="slider" id="lengthRow" title="How long the part is: longer pushes harder, but drags more and costs more upkeep">Length <input type="range" id="partLength" min="10" max="100" step="5" value="40"><span id="partLengthOut"></span></div>
-  <div class="row" id="flipRow"><button id="flipBtn" title="Mirror the part about its own line: it beats or kicks the other way">⇅ Flip</button></div>
+  <div class="row" id="flipRow"><button id="flipBtn" title="Mirror the part about its own line: it beats or kicks the other way">⇅ Flip</button>
+    <button id="pullBtn" title="Pull: the wave runs from the tip toward the body, so the tail pulls the cell after it instead of pushing">⇠ Pull</button></div>
   <div class="slider" id="insideRow" title="0 = centre, 100 = against the wall; droplets and vacuoles can't overlap">Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100"><span id="partInsideOut"></span></div>
   <div class="row" id="feelsRow" title="What a touch or proximity sensor reacts to">Feels <span class="seg" id="feelsSeg"></span></div>
   <div class="slider" id="sizeRow">Size <input type="range" id="partSize" min="10" max="100" step="5" value="40"><span id="partSizeOut"></span></div>
@@ -216,6 +223,7 @@
   <select id="partFeels" hidden><option value="strangers" selected>Other species</option><option value="anything">Anything (cells, walls)</option></select>
   <select id="bodyWall" hidden><option value="protein">Protein</option><option value="glass">Glass</option></select>
   <input type="checkbox" id="partFlip" hidden>
+  <input type="checkbox" id="partPull" hidden>
   <select id="partContent" hidden><option value="starch">Starch</option><option value="oil">Oil</option><option value="sap">Sap</option><option value="gas">Gas</option></select>
   <input type="checkbox" id="gravity" checked hidden>
   <input type="checkbox" id="light" checked hidden>

@@ -697,6 +697,23 @@ const runDay = (design, y, seconds, opts = {}) => {
     `level (equal) ${r[2]}; "is not more than", front down ${r[3]}`);
 }
 
+// 28k. A wave running toward the body pulls the cell after the tail; a beat that follows a reading slows in proportion
+{
+  const go = (pull, speed) => {
+    const parts = PART_TEMPLATES['Wave tail (swims)']({ radius: 8 }, 180, 't', 0.4, 0, 1, 'strangers', 48, undefined, undefined, pull);
+    if (speed) for (const p of parts) p.joint.speed = speed;
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, { body: { radius: 8 }, parts }, 800, 1000, 0);
+    for (let i = 0; i < 5 / DT; i++) stepWorld(w);
+    return (c.q[0] - 800) / 5;
+  };
+  const push = go(false), pull = go(true), half = go(false, { sensor: 'energy', min: 0, max: 2 });
+  check('a pulling tail (wave toward the body) moves the cell toward the tail; a beat that follows a reading slows in proportion',
+    push > 10 && Math.abs(pull + push) < 1e-3 * push && Math.abs(half / push - 0.5) < 0.02,
+    `tail behind, pushing: ${fmt(push, 1)} µm/s forward; pulling: ${fmt(pull, 1)} µm/s (toward the tail); ` +
+    `speed following the energy level (1 of a 0-2 range): ${fmt(half, 1)} µm/s`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

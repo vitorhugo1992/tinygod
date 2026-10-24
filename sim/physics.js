@@ -189,7 +189,7 @@ function velocities(cell, from, ahead, h, gravity) {
     const jt = joints[j];
     if (jt.type !== 'motor' && !jt.latched) continue;
     const p = 3 + j;
-    const r = jt.type === 'motor' && jt.on ? (motorAngle(jt, jt.clock + ahead) - from[p]) / h : 0;
+    const r = jt.type === 'motor' && jt.on ? (motorAngle(jt, jt.clock + ahead * jt.gain) - from[p]) / h : 0;
     for (let i = 0; i < n; i++) {
       if (i === p) continue;
       f[i] -= A[i * n + p] * r;
@@ -306,7 +306,7 @@ export function stepCell(cell, t, gravity = true) {
     const power = velocities(cell, q0, h, h, gravity);
     for (let i = 0; i < n; i++) q[i] = q0[i] + h * v[i];
     energy += power * h;
-    for (const jt of cell.joints) if (jt.type === 'motor' && jt.on) jt.clock += h;
+    for (const jt of cell.joints) if (jt.type === 'motor' && jt.on) jt.clock += h * jt.gain;
   }
   cell.power = energy / DT;
   cell.energy.motor += energy;

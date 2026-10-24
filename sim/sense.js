@@ -108,6 +108,11 @@ export function sense(world, cell) {
     s.value = s.start === null ? 1 : Math.min(1, (t - s.start) / s.span);
   }
   for (const j of cell.joints) {
+    if (j.speed && !j.burst) {   // its beat follows a reading
+      const v = j.speed.sensor < 0 ? energyLevel(world, cell) : cell.sensors[j.speed.sensor].value;
+      const g = (v - j.speed.min) / (j.speed.max - j.speed.min);
+      j.gain = g < 0 ? 0 : g > 1 ? 1 : g;
+    }
     if (!j.controls) continue;
     const all = holdsAll(world, cell, j.controls);
     if (j.burst) { if (all) fire(cell, j.burst.group); }   // a burst organ fires when its sensors say so

@@ -63,7 +63,8 @@ export const PARAMS = {
     weak: 150,              // kg/m³ of the weakest vesicles (strength 0)...
     strong: 600,            // ...and of the strongest (strength 1)
     wear: 0.00116,          // per s: vesicles wear out, losing half their lift in about a sandbox day (600 s)...
-    rebuild: 1 / 300,       // ...and are rebuilt (share of full per s) while the energy pool is above metab.burnBelow,
+    rebuild: 1 / 300,       // ...and are rebuilt (share of full per s) while the energy pool is above rebuildAbove,
+    rebuildAbove: 0.1,      // (share of the pool; below metab.burnBelow, so stores burned at night keep them)
     cost: 400,              // pJ per µm³ of vesicles rebuilt (with metabolism on; off, they neither wear nor cost)
     shallowest: 0.45,       // the weakest are crushed this far down the tank (share of its depth; new cells start at 0.4); the
                             // strongest at the floor

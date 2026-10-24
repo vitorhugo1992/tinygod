@@ -33,9 +33,11 @@ const chain = (id, at, deg, n, length, joint) => Array.from({ length: n }, (_, i
 // straight out from there, turned by `tilt` degrees; an inclusion sits `depth` of the way from the centre to the wall;
 // `len` (µm) is a flagellum's or spring's length (default as before; the panel's range is CONTROLS[...].length).
 export const PART_TEMPLATES = {
-  'Wave tail (swims)': (body, deg, id, size, tilt, depth, feels, len = 48) => {   // more 8 µm pieces when longer
+  // more 8 µm pieces when longer; pull: the wave runs from the tip toward the body, so the tail pulls the cell after it
+  // (like the hairy flagella of some flagellates) instead of pushing it
+  'Wave tail (swims)': (body, deg, id, size, tilt, depth, feels, len = 48, strength, content, pull = false) => {
     const parts = chain(id, surfacePoint(body, deg), deg + tilt, Math.max(2, Math.round(len / 8)), 8,
-      (i) => ({ type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 }));
+      (i) => ({ type: 'motor', rate: 30, swing: 35, phase: (pull ? 1 : -1) * i * 0.15 + 0 }));
     parts[0].label = 'Wave tail';
     return parts;
   },
@@ -177,7 +179,7 @@ export const CONTROLS = {
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
   'Timer (clock)': { size: spanLabel, inside: true, sizeDefault: 100 },
   'Nutrient sensor': {},
-  'Wave tail (swims)': { tilt: true, flip: true, length: { min: 16, max: 96, step: 8, def: 48 } },
+  'Wave tail (swims)': { tilt: true, flip: true, pull: true, length: { min: 16, max: 96, step: 8, def: 48 } },
   'Flexible oar (swims)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
   'Stiff flap (goes nowhere)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
   'Spine, protein': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` }, 'Spine, glass': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },

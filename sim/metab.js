@@ -5,7 +5,8 @@
 // - Stores, automatic: while the pool is fuller than fillAbove, surplus goes into starch (quick) then oil (slow);
 //   while it is emptier than burnBelow, starch then oil are burned to refill it. A store's weight follows how full it
 //   is: starch is heavy, oil light, so buoyancy changes as the cell eats and fasts.
-// - Gas vesicles wear out and are rebuilt from the pool while it is above burnBelow: a starving cell slowly sinks.
+// - Gas vesicles wear out and are rebuilt from the pool while it holds a little (gas.rebuildAbove; below where stores
+//   are burned, so a night on starch keeps them): a starving cell slowly sinks.
 // - Starving: an empty pool stops the motors (and pumps) until energy comes back.
 // Numbers are round and tuned for play (CLAUDE.md), not measured.
 import { PARAMS } from './params.js';
@@ -59,7 +60,7 @@ export function metabolize(world, cell) {
   for (const inc of body.inclusions) {
     if (!inc.crush || inc.crushed) continue;
     inc.fill -= inc.fill * P.gas.wear * DT;
-    if (m.E > M.burnBelow * m.C && inc.fill < 1) {
+    if (m.E > P.gas.rebuildAbove * m.C && inc.fill < 1) {
       const add = Math.min(P.gas.rebuild * DT, 1 - inc.fill), cost = add * inc.v * P.gas.cost;
       if (cost < m.E) { m.E -= cost; inc.fill += add; m.gasBuild += cost / DT; }
     }

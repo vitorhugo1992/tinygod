@@ -11,7 +11,7 @@ whole sandbox build happened in one long chat (2026-10-21 to 23); this file hold
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
-`node tools/check.mjs`: 38 physics checks, all passing (~2 min).
+`node tools/check.mjs`: 39 physics checks, all passing (~2 min).
 
 **Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
 springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
@@ -101,12 +101,39 @@ for some light.
 inside; tapping it opens the patch view), after the author tries the sandbox. Not wanted for now: the memory switch
 (author: "still not convinced").
 
+**Built 2026-10-24 from Claude's debrief after designing Vesperella** (author: "add day graph, cause of death and all
+other suggestions"):
+- **Day graph** (📈 Graph, on by default): a strip along the bottom of the tank with the selected cell's last day:
+  depth (white, surface at the top), energy (yellow), starch, oil, float (blue), night shaded, serious moments as red
+  ticks and the latest one written out. sandbox/journal.js samples every cell once a sim second (two days kept).
+- **Trouble log** ("what happened", in the ⓘ panel; nothing dies yet, so it records the moments that explain a fate):
+  ran out of energy (motors stopped) and recovered, reached the floor / the surface, tipped over while sinking (front
+  down), at dawn its eyespot faced away from the light, gas vesicles crushed (depth), starch / oil used up, dawn, dusk.
+- **⏩ Test a day**: runs a copy of the selected cell (its design, place, time of day, energy share) a day ahead in
+  slices, and shows the forecast in the graph ("✕ Close forecast" returns to the last day). Caught a real case: a
+  Vesperella with a longer tail runs out of energy at 03:23.
+- **↗ Forces**: weight minus buoyancy (red down: sinks; blue up: floats, in pN), the way it moves (green, µm/s), and
+  which way gravity turns it about its centre (orange arc; the dashed arc is the turn it actually makes).
+- **Nights left** on the clock line: pool plus stores against the upkeep of a night (e.g. "80% · 0.6 nights").
+- **Rebuilds keep the time and the tank**: an edit no longer resets to dawn; other cells stay as they are, this
+  design's copies are rebuilt where they were, and each keeps its energy share, its stores' and floats' fill and its
+  journal. (Reset still starts again at dawn.)
+- **Organelles nudge into room**: when a vacuole or plastid doesn't fit where asked, the ghost shows the nearest spot
+  that does (round the body, then nearer the centre) and Add puts it there; if none, "no free spot big enough".
+- **Gradual wiring**: a motor's beat speed can follow a reading (stopped at the low end, full at the high end, in
+  proportion between: joint.speed { sensor, min, max }), set under the part; the patch view shows it.
+- **Pull** (wave tail): the wave runs from the tip toward the body, so the tail pulls the cell after it (like the
+  hairy flagella of some flagellates); measured the exact mirror of pushing (49.2 µm/s).
+- **Gas vesicles are rebuilt whenever the pool holds 10%** (was: above the 30% where stores burn, so on a starch night
+  they quietly wore out): a fed night keeps the float; a starving cell still loses it. Vesperella still migrates.
+- **Saving designs** (💾 Save, in this browser's storage, survives a reload): a list to load a saved design in place of
+  the selected cell (the tank goes on), ✕ to delete; saved designs are also in the Add-cell menu, as their own species,
+  to test side by side.
+
 **Left in the sandbox (none blocks v0):**
 - Wiring stores to the energy level (decided optional).
-- Saving designs (now they live until reload, except via the JSON box under Advanced).
-- A rebuild (any part change) resets the clock to dawn and clears other cells.
-- Planned, not done: force arrows; tips while building; more materials (chalk, mucus); a memory
-  switch (kept for later: drifts toward electronics).
+- Planned, not done: tips while building; more materials (chalk, mucus); a memory switch (author not convinced).
+- Ideas from the debrief not built: a "fit it" drag of organelles by finger inside the cell (the nudge stands in).
 - **Moving water is for v1** (author, 2026-10-23): the tank is still. The physics decision says "the big water moves
   everything"; a Water switch (shear, gentle eddies) would break chains and pads, make spines sea anchors and gather
   bottom-heavy swimmers into thin layers (gyrotaxis). The one basic left out of v0 on purpose.
