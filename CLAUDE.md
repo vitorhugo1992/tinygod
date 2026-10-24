@@ -411,17 +411,19 @@ runs headless in Node for tests (and later the optimiser).
   logic modules (and fits them in by hand, like a puzzle), so its size limits how many the cell can carry and how much
   wiring it can do. The box grows with points or longevity: a bigger box is a more intelligent, more advanced cell.
   Open: whether it scales with cell size (sensors and logic need little room; plastids and vacuoles need a lot);
-  the clash with placing organelles inside the cell by hand. A possible way to join the two (Claude's suggestion, not
-  decided): make the box the **nucleus**, an organelle placed and sized inside the cell like the others, so a bigger
-  "brain" takes room from plastids and vacuoles (an honest cost, and dinoflagellates do carry huge nuclei), while
-  progress unlocks how big a nucleus may get.
-- **Open (author, 2026-10-24): how many cables a module takes.** Fixed, raised by points, or improved through
-  reproduction (generations with better stats)? Claude's recommendation, not decided: no hard cap per module, but each
-  cable (condition) costs a little upkeep (honest in kind: regulation is proteins the cell must make), and the
-  nucleus box above limits how many modules fit; progress (points, longevity) unlocks a bigger nucleus and new module
-  types for the player's next design, not stats that grow inside a running lineage. Improvement through generations
-  belongs with step 1's division and mutation (does a player's species mutate, and can it drift from the design?);
-  for matches and the optimiser, a design should be scored as designed, so in-match self-improvement needs care.
+  the clash with placing organelles inside the cell by hand. **Decided (author, 2026-10-24): the box is the
+  nucleus**, an organelle placed and sized inside the cell like the others, so a bigger "brain" takes room from
+  plastids and vacuoles (an honest cost; dinoflagellates do carry huge nuclei); the modules and all the wiring fit
+  inside it, and the player keeps the freedom to size and place everything in the cell. Progress unlocks how big a
+  nucleus may get. Sketch, to discuss: sensors stay where they sense (an eyespot on the surface, a statolith in its
+  chamber), and their cables run into the nucleus; logic and timers are modules inside it; the patch view becomes the
+  nucleus opened up.
+- **Progress across generations (decided, author 2026-10-24): the safer form.** No mutations that stray from the
+  player's design ("can be frustrating"). A species that survives long earns upgrades the player can use when
+  designing its next version (e.g. a bigger nucleus, new module types), so generations feel improved while the design
+  stays the player's; matches and the optimiser score a design as designed. Open: how many cables a module takes;
+  Claude's suggestion (not decided): no hard cap, each cable costs a little upkeep (regulation is proteins), and the
+  nucleus limits how many modules fit.
 - **The niche radar** (MONAD's species page, eight traits scored 0–4) is a natural way to compare designs.
 - **Tips while building** (author, 2026-10-23): when a player places a part or picks a material, a short true tip
   says what it does physically ("gas is much lighter than water: it floats the cell, but crushes below a certain
