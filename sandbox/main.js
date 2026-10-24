@@ -785,6 +785,22 @@ function rangeBar(c, verb, kind, onSet) {
   }
 }
 
+// Unplug every cable from the sensors in `ids` (being removed): from the remaining parts' rules, timers' triggers and
+// speed settings, so the design still builds
+function unplug(d, ids) {
+  const keep = (c) => !ids.has(c.sensor) && !ids.has(c.vs);
+  const tidy = (list) => list.filter(keep).map((c, i) => (i === 0 && c.or ? (({ or, ...rest }) => rest)(c) : c));
+  for (const p of d.parts) {
+    if (p.joint) {
+      const cs = tidy(controlsOf(p.joint));
+      delete p.joint.control;
+      if (cs.length) p.joint.controls = cs; else delete p.joint.controls;
+      if (p.joint.speed && ids.has(p.joint.speed.sensor)) delete p.joint.speed;
+    }
+    if (p.trigger) { const t = tidy(p.trigger); if (t.length) p.trigger = t; else delete p.trigger; }
+  }
+}
+
 function listParts() {
   showBody();
   const box = $('partList');
@@ -814,6 +830,7 @@ function listParts() {
       const d = JSON.parse(JSON.stringify(design));
       const gone = new Set(g.members.map((m) => design.parts.indexOf(m)));
       d.parts = d.parts.filter((_, i) => !gone.has(i));
+      unplug(d, new Set(g.members.map((m) => m.id).filter(Boolean)));
       applyDesign(d);
     };
     box.appendChild(row);
@@ -1231,6 +1248,13 @@ $('deleteSaved').onclick = () => {
   if (!name || !confirm(`Delete the saved design "${name}"?`)) return;
   writeSaved(savedList().filter((x) => x.name !== name)); showSaved();
 };
+// the first visit in a browser: Claude's species starts in the saved designs, to load and edit
+try {
+  if (localStorage.getItem(SAVE_KEY) === null) {
+    const v = JSON.parse(JSON.stringify(PRESETS["Vesperella (Claude's species)"])); delete v.species; delete v.note;
+    writeSaved([{ name: "Vesperella (Claude's)", design: v, saved: Date.now() }]);
+  }
+} catch (e) { /* no storage here: it stays in the Add-cell menu */ }
 showSaved();
 // Send to Claude: the computer serving the sandbox keeps it as designs/<name>.json, where Claude can read it
 $('sendDesign').onclick = async () => {
@@ -1701,5 +1725,5 @@ fetch('/lan').then((r) => r.json()).then((urls) => {
 
 resize();
 const asked = new URLSearchParams(location.search).get('preset');   // ?preset=Wave%20tail opens that design
-load(preset(asked && PRESETS[asked] ? asked : "Vesperella (Claude's species)"));   // the sandbox opens with Claude's species
+load(preset(asked && PRESETS[asked] ? asked : 'Round cell'));   // an empty cell to build on (Claude's species is in the Add-cell menu)
 requestAnimationFrame(frame);

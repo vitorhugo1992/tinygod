@@ -62,7 +62,7 @@ faking it; the flexible oar's stiffness sweet spot; longer ribbons throw disprop
 **failed** (~170-520 ms per simulated minute per cell vs < 1 ms); plan for step 1: measure each design's movement
 once in full physics and let the ecology reuse it (to decide).
 
-**Claude's species, Vesperella** (author's challenge, 2026-10-24; the sandbox now opens with it, preset "Vesperella
+**Claude's species, Vesperella** (author's challenge, 2026-10-24; preset "Vesperella
 (Claude's species)", built only from Build-panel parts so it edits): a daily migrator, r 9 µm, wave tail 48 µm at
 the back, a wide eyespot (180°) at the front, two plastids (top and bottom), a starch granule behind and strong gas
 vesicles in front (on the axis, keeping it upright), a 60 µm protein spine in front. Rule: tail runs when the eyespot
@@ -147,6 +147,11 @@ readings like the energy level (0 used up, 1 full; offered when the design has s
 wiring); putting "starch 0.2-1" in the same box as the light condition is the override (AND). A box tapped on its
 own now explains itself (all its cables must hold; a sensor then the box adds one; a sensor then "+ or" adds an OR)
 and reads "all of (AND)". The followed camera keeps the cell above the day graph.
+
+**Fixes (author, 2026-10-24):** removing a part unplugs every cable from it (a wired timer or eyespot could not be
+removed: the rules left pointing at it broke the rebuild). The sandbox opens with an empty round cell; Vesperella is in
+the Add-cell menu and, on a browser's first visit, in its saved designs (to load and edit in place). Bigger flagella
+already cost more: upkeep by length (5 pJ/s per µm), the beat itself very little.
 
 **Left in the sandbox (none blocks v0):**
 - Wiring stores to the energy level (decided optional).
