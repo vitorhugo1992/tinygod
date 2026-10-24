@@ -62,6 +62,19 @@ faking it; the flexible oar's stiffness sweet spot; longer ribbons throw disprop
 **failed** (~170-520 ms per simulated minute per cell vs < 1 ms); plan for step 1: measure each design's movement
 once in full physics and let the ecology reuse it (to decide).
 
+**Build queue (approved by the author, 2026-10-24; start after the author has tried the current sandbox and says go):**
+1. **Gas vesicles wear out** (lose about half their lift over a sandbox day) and are **rebuilt automatically from the
+   energy pool**, like stores fill: a fed cell keeps floating, a starving one slowly sinks. (Not leaking: vesicle walls
+   pass gas freely; real lift is lost by collapse and by dilution and turnover.)
+2. **One "Vacuole" part with a Content choice** (Starch · Oil · Sap · Gas) instead of four chips: a one-line tip per
+   content, sliders that fit it (Strength for gas). Plastid and statolith stay separate parts. The physics already is
+   one block (an inclusion) with a material.
+3. **The nucleus** (see Notes to carry: the box is the nucleus; every module inside it, cables only inside; tapping it
+   opens the patch view).
+Candidates, not yet approved: a **compare module** (A − B of two sensors, e.g. two eyespots to turn toward the light;
+author asked 2026-10-24 whether sensors could be wired to sensors), the **memory switch**, the **light-change
+sensor**, stores drawn as filling containers.
+
 **Left in the sandbox (none blocks v0):**
 - Wiring stores to the energy level (decided optional).
 - Saving designs (now they live until reload, except via the JSON box under Advanced).
