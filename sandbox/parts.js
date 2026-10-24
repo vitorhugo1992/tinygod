@@ -76,6 +76,13 @@ export const PART_TEMPLATES = {
     [{ type: 'inclusion', id, label: 'Oil droplet', ...inside(body, deg, size, depth), material: 'oil' }],
   'Sap vacuole (slider)': (body, deg, id, size, tilt, depth) =>
     [{ type: 'inclusion', id, label: 'Sap vacuole', ...inside(body, deg, size, depth), material: 'sap', density: 1025 }],
+  'Gas vesicles (float, crush deep)': (body, deg, id, size, tilt, depth, feels, len, strength = 0.5) =>
+    [{ type: 'inclusion', id, label: 'Gas vesicles', ...inside(body, deg, size, depth), material: 'gas', strength }],
+  'Statolith (which way is up)': (body, deg, id, size, tilt, depth) =>   // `tilt` here: the direction it reads, 0 = the front
+    [{ type: 'inclusion', id, label: 'Statolith', ...inside(body, deg, size, depth), material: 'statolith', angle: tilt }],
+  'Timer (clock)': (body, deg, id, size, tilt, depth) =>
+    [{ type: 'sensor', id, label: 'Timer', at: inside(body, deg, 0.15, depth).at, kind: 'timer', span: timerSpan(size) }],
+  'Nutrient sensor': (body, deg, id) => [{ type: 'sensor', id, label: 'Nutrient sensor', at: surfacePoint(body, deg), kind: 'chem' }],
   'Kin pad': (body, deg, id) => [{ type: 'pad', id, label: 'Kin pad', at: surfacePoint(body, deg), kind: 'kin' }],
   'Mucus pad': (body, deg, id) => [{ type: 'pad', id, label: 'Mucus pad', at: surfacePoint(body, deg), kind: 'mucus' }],
   'Light sensor (eyespot)': (body, deg, id, size, tilt) =>
@@ -147,8 +154,17 @@ export function mirrorGroup(members, axis, id) {
   return copy;
 }
 
+// A timer's span from its Size (0.1-1): 1 s up to one sandbox day (600 s), evenly on a log scale
+export const timerSpan = (s) => { const t = 600 ** ((s - 0.1) / 0.9); return t < 10 ? Math.round(t * 10) / 10 : Math.round(t); };
+const spanLabel = (s) => { const t = timerSpan(s); return t >= 600 ? 'counts 1 day' : t >= 60 ? `counts ${(t / 600).toFixed(2)} day` : `counts ${t} s`; };
+const room = (s) => `${Math.round(100 * s)}% of room`;
+
 // Which Build controls mean something for each part, and what Size means for it
 export const CONTROLS = {
+  'Gas vesicles (float, crush deep)': { size: room, inside: true, strength: true, sizeDefault: 30 },
+  'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
+  'Timer (clock)': { size: spanLabel, inside: true, sizeDefault: 100 },
+  'Nutrient sensor': {},
   'Wave tail (swims)': { tilt: true, flip: true, length: { min: 16, max: 96, step: 8, def: 48 } },
   'Flexible oar (swims)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
   'Stiff flap (goes nowhere)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
@@ -168,14 +184,15 @@ export const CATEGORIES = {
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)', 'Stiff flap (goes nowhere)'],
   'Spines & appendages': ['Spine, protein', 'Spine, glass'],
   'Escapes': ['Burst organ (escape)', 'Ejectisome, latched (Release)'],
-  'Inside the cell': ['Plastid (makes energy)', 'Starch granule (quick store, heavy)', 'Oil droplet', 'Sap vacuole (slider)'],
+  'Inside the cell': ['Plastid (makes energy)', 'Starch granule (quick store, heavy)', 'Oil droplet', 'Sap vacuole (slider)',
+    'Gas vesicles (float, crush deep)'],
   'Pads': ['Kin pad', 'Mucus pad'],
-  'Sensors': ['Light sensor (eyespot)', 'Touch sensor', 'Proximity sensor'],
+  'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Touch sensor', 'Proximity sensor', 'Nutrient sensor', 'Timer (clock)'],
 };
 
 // The category of a part already on the body, from what it is
 export function categoryOf(p) {
-  if (p.type === 'inclusion') return 'Inside the cell';
+  if (p.type === 'inclusion') return p.material === 'statolith' ? 'Sensors' : 'Inside the cell';
   if (p.type === 'pad') return 'Pads';
   if (p.type === 'sensor') return 'Sensors';
   const j = p.joint && p.joint.type;

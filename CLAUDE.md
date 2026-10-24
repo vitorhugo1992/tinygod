@@ -11,7 +11,7 @@ whole sandbox build happened in one long chat (2026-10-21 to 23); this file hold
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
-`node tools/check.mjs`: 33 physics checks, all passing (~2 min).
+`node tools/check.mjs`: 36 physics checks, all passing (~2 min).
 
 **Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
 springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
@@ -35,6 +35,25 @@ pieces); the ghost beats like the real part (from the start of its stroke, the c
 utility"; it swung 150° through the body, spun the cell, hopped ~10 µm and stayed bent). The physics (a latched
 springy hinge) stays: the no-coasting and one-flick checks use it, and the Release button still frees one in an old
 design. The burst organ and ejectisome are the escape parts (Build heading "Escapes").
+**More puzzle pieces (author asked, 2026-10-24: "more sensors, more physical apparatuses, more combinations"):**
+- **Statolith** (sensor, placed inside like a droplet: takes room, a heavy grain): reads 1 while its direction ("Faces",
+  0° = the front) points up, 0 down, 0.5 level or with gravity off; the grain is drawn on the chamber's lower wall.
+- **Timer** (replaces the proposed clock; author: a dial "doesn't seem very biological... a bit weak and automatic"):
+  counts from the moment its **trigger** (a rule, wired like a part's) comes true: 0 then, 1 after its span (1 s to one
+  day), 1 before it ever started; drawn as a granule that glows on starting and fades. Reset by an eyespot at dawn it
+  is a circadian clock (real clocks are entrained by dawn; a cell kept too deep loses track of time); by touch, a
+  "for a while after" switch. Seasons would need day length to change (step 1, from MONAD).
+- **Gas vesicles** (inclusion): very light; **Strength** sets the crush depth, from 900 µm down (just below where new
+  cells start) to the floor; stronger lift less (density 150-600 kg/m³, round numbers). Crushed for good (grey dashes).
+- **Nutrient layer and sensor**: a fixed nutricline (poor above, rich below the tank's middle; sim/nutrient.js), drawn
+  as a faint tan haze, read by a surface sensor. Stands in for step 1's nutrients so night descent has a purpose.
+- Osmotic pressure: real (stretch-sensitive channels) but flat in open water; for an estuary water type in step 1.
+- **The patch view** ("🎛 Wiring view" under On this body; author chose the modular-synth idea): sensors with live
+  readings on the left, each part's rule as boxes (a box = conditions that all hold, AND; several boxes = OR) and
+  the parts on the right; cables carry a range label; **tap a sensor, then a box or a part** to patch, tap a label to
+  edit (range, is / is not, unplug). Cables, boxes and parts light up live; a part shows ON/OFF (timers: waiting,
+  counting, time up). Opens over the panel on a phone and over the lower tank on a computer (the camera keeps the cell
+  above it). The compact list under each part stays (sentences, icons, "is / is not", range ends named).
 
 **v0 pass tests (below):** 1, physics honest: **passed** (checks). 2, fun and depth: **for the author to judge**
 (candidate ways to hold a depth: eyespot-wired tail, buoyancy, starch sinking at dusk, burst organ, chains;
@@ -47,7 +66,8 @@ once in full physics and let the ecology reuse it (to decide).
 - Wiring stores to the energy level (decided optional).
 - Saving designs (now they live until reload, except via the JSON box under Advanced).
 - A rebuild (any part change) resets the clock to dawn and clears other cells.
-- Planned, not done: force arrows; tips while building; more materials (chalk, mucus, gas).
+- Planned, not done: force arrows; tips while building; more materials (chalk, mucus); a light-change sensor; a memory
+  switch (kept for later: drifts toward electronics).
 - **Moving water is for v1** (author, 2026-10-23): the tank is still. The physics decision says "the big water moves
   everything"; a Water switch (shear, gentle eddies) would break chains and pads, make spines sea anchors and gather
   bottom-heavy swimmers into thin layers (gyrotaxis). The one basic left out of v0 on purpose.

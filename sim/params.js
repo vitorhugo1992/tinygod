@@ -61,7 +61,8 @@ export const PARAMS = {
   gas: {
     weak: 150,              // kg/m³ of the weakest vesicles (strength 0)...
     strong: 600,            // ...and of the strongest (strength 1)
-    shallowest: 0.25,       // the weakest are crushed this far down the tank (share of its depth); the strongest at the floor
+    shallowest: 0.45,       // the weakest are crushed this far down the tank (share of its depth; new cells start at 0.4); the
+                            // strongest at the floor
   },
   // Nutrients (a fixed layer until step 1's ecology): poor at the surface, rich deep, a nutricline between
   nutrient: {

@@ -3,9 +3,10 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
-import { rewire, controlsOf, buildCell } from '../sim/build.js';
+import { rewire, retrigger, controlsOf, buildCell } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel } from '../sim/sense.js';
+import { nutrientAt } from '../sim/nutrient.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -17,6 +18,7 @@ const COLOR = {
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
+  statolith: 'rgba(200,215,230,.35)', grain: '#e8eef5', gas: '#cfe9ff', crushed: '#6b7680', chem: '#c8b26a', timer: '120,210,255',
   plastid: '#8fc94a', starch: '#ece3c4', starving: '#ff5a4a', eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
 
@@ -145,6 +147,10 @@ const showControls = () => {
   $('feelsRow').style.display = c.feels ? '' : 'none';
   $('flipRow').style.display = c.flip ? '' : 'none';
   $('lengthRow').style.display = c.length ? '' : 'none';
+  $('strengthRow').style.display = c.strength ? '' : 'none';
+  $('tiltLabel').textContent = c.tiltLabel || 'Tilt';   // a statolith's "tilt" is the direction it reads
+  $('partTilt').min = (c.tiltRange || [-90, 90])[0]; $('partTilt').max = (c.tiltRange || [-90, 90])[1];
+  showTilt(); showStrength();
   if (c.length) {   // this part's range; a new pick starts at its usual length
     const L = $('partLength'), keep = Number(L.value);
     L.min = c.length.min; L.max = c.length.max; L.step = c.length.step;
@@ -155,6 +161,12 @@ const showControls = () => {
 };
 function showLength() { $('partLengthOut').textContent = `${$('partLength').value} µm`; }
 $('partLength').oninput = showLength;
+// gas vesicles: how deep they are crushed (the same rule as sim/build.js)
+function showStrength() {
+  const s = Number($('partStrength').value) / 100, G = PARAMS.gas;
+  $('partStrengthOut').textContent = `crushed below ${Math.round(TH * (G.shallowest + (1 - G.shallowest) * s))} µm`;
+}
+$('partStrength').oninput = showStrength;
 $('partWhat').onchange = () => { showControls(); if (editing) updateEdited(); else updatePreview(); }; showControls();
 $('flipBtn').onclick = () => { $('partFlip').checked = !$('partFlip').checked; $('partFlip').dispatchEvent(new Event('change')); };
 // Make a part from the Build controls; its first piece remembers how (build), so it can be edited later
@@ -164,7 +176,8 @@ function makePart(body, id) {
     size: Number($('partSize').value) / 100, depth: Number($('partInside').value) / 100, feels: $('partFeels').value,
     flip: !!c.flip && $('partFlip').checked, id };
   if (c.length) b.length = Number($('partLength').value);
-  const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length);
+  if (c.strength) b.strength = Number($('partStrength').value) / 100;
+  const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length, b.strength);
   if (b.flip) flipPart(parts);
   parts[0].build = b;
   return parts;
@@ -176,6 +189,7 @@ function withPart(d, fresh) {
   if (!g) return null;
   g.members.forEach((m, i) => {
     if (m.joint && controlsOf(m.joint).length && fresh[i] && fresh[i].joint) fresh[i].joint.controls = controlsOf(m.joint);
+    if (m.trigger && fresh[i] && fresh[i].kind === 'timer') fresh[i].trigger = m.trigger;   // a timer keeps its trigger
   });
   const at = d.parts.indexOf(g.members[0]);
   d.parts = d.parts.filter((p) => !g.members.includes(p));
@@ -204,7 +218,8 @@ function startEditing(b) {
   $('partFlip').checked = !!b.flip;
   const lc = (CONTROLS[b.tpl] || {}).length;
   if (lc) $('partLength').value = b.length ?? lc.def;   // parts made before Length had the usual length
-  showAngle(); showTilt(); showSize(); showInside(); showLength();
+  if (b.strength !== undefined) $('partStrength').value = Math.round(b.strength * 100);
+  showAngle(); showTilt(); showSize(); showInside(); showLength(); showStrength();
   $('addPart').textContent = '✓ Done editing'; $('cancelEdit').hidden = false;
   previewOn = true;
   listParts(); updatePreview();
@@ -217,9 +232,9 @@ function stopEditing() {
 }
 $('cancelEdit').onclick = stopEditing;
 // while editing, letting go of a slider (or picking another part type) updates the part at once
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partFeels', 'partFlip']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength', 'partFeels', 'partFlip']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
 // while dragging, the ghost follows the slider
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
 
 // ----- the ghost: the part as it would be added (or the edited part as it would become), drawn see-through on the
 // selected cell before anything is built; red when it would not fit. Nothing is simulated. -----
@@ -271,49 +286,90 @@ function drawPreview(X, Y, s) {
   }
   ctx.restore();
 }
-// Wiring for a group's motors (runs) or latched springs (released): a sensor, and the range of its reading (0-1)
-// in which the part runs or fires
-const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1] };   // a sensible start when a sensor is picked
-const SCALE = {   // what the 0-1 reading means, shown beside the range
+// ----- wiring: which sensors drive a part. A rule is a list of conditions (a sensor and a range of its reading, or
+// outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
+// a burst organ, an ejectisome, or a timer (its trigger). Rewiring changes the design and the cells already in the tank
+// as they are: no reset. -----
+const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1], timer: [0, 0.5] };   // a sensible start
+const SCALE = {   // what the 0-1 reading means
   light: '0 = dark or facing away, 1 = facing up in full light',
   touch: '0 = nothing, 1 = touching',
   near: '0 = nothing in range, 1 = touching',
   energy: '0 = out of energy (starving), 1 = full',
+  statolith: '0 = its direction points down, 0.5 = level, 1 = up',
+  chem: '0 = poor water (near the surface), 1 = rich (deep)',
+  timer: '0 = it just started, 1 = its time is up (or it never started)',
 };
-// The wiring of a part: a list of conditions (a sensor and a range of its reading, or outside it), in groups: the part
-// runs (or fires) while every condition of any one group holds (AND inside a group, OR between groups). Rewiring
-// changes the design and the cells already in the tank as they are: no reset.
-function wiring(g, wired) {
-  const box = document.createElement('div');
-  box.className = 'wire';
-  const motor = wired[0].joint.type === 'motor' && !wired[0].joint.burst;
-  const sensors = partGroups(design.parts || []).filter((x) => x.category === 'Sensors');
-  const kindOf = (id) => (id === 'energy' ? 'energy' : (design.parts.find((p) => p.id === id) || {}).kind || 'light');
-  const list = controlsOf(wired[0].joint).map((c, i) => ({ sensor: c.sensor,
-    min: c.when === 'light' ? 0.5 : c.min ?? 0, max: c.when === 'dark' ? 0.5 : c.max ?? 1,
+const ENDS = { light: ['dark', 'bright'], touch: ['nothing', 'touching'], near: ['nothing near', 'touching'], energy: ['starving', 'full'],
+  statolith: ['points down', 'points up'], chem: ['poor water', 'rich water'], timer: ['just started', 'time up'] };
+const ICON = { light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪', timer: '⏱' };
+// what a sensor id is: 'energy' (built in), or the kind of the design part with that id
+function sensorKind(id) {
+  if (id === 'energy') return 'energy';
+  const p = (design.parts || []).find((x) => x.id === id) || {};
+  return p.material === 'statolith' ? 'statolith' : p.kind || 'light';
+}
+// the sensors a rule can read: every sensor part (but `except`), then the energy level
+function sensorList(except) {
+  const list = partGroups(design.parts || []).filter((x) => x.category === 'Sensors' && x.members[0].id !== except)
+    .map((x) => ({ id: x.members[0].id, name: `${x.name.toLowerCase()} at ${x.deg}°`, short: x.name, kind: sensorKind(x.members[0].id) }));
+  list.push({ id: 'energy', name: 'its energy level (built in)', short: 'Energy level', kind: 'energy' });
+  return list;
+}
+const isTimer = (m) => m.type === 'sensor' && m.kind === 'timer';
+const targetsOf = (g) => g.members.filter((m) => isTimer(m) || (m.joint && (m.joint.type === 'motor' || m.joint.latched)));
+// how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part), 'starts' (a timer)
+const verbOf = (m) => (isTimer(m) ? 'starts' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+function rulesOf(m) {
+  const raw = isTimer(m) ? (m.trigger || []) : controlsOf(m.joint);
+  return raw.map((c, i) => ({ sensor: c.sensor, min: c.when === 'light' ? 0.5 : c.min ?? 0, max: c.when === 'dark' ? 0.5 : c.max ?? 1,
     not: !!c.not, or: i > 0 && !!c.or }));
-  const write = (next) => {
-    if (next.some((c) => !(c.min <= c.max))) { $('buildErr').textContent = 'a range must run from low to high'; return; }
-    $('buildErr').textContent = '';
-    remember(design);
-    // only true marks are stored, and the first condition never starts a new group
-    const clean = next.map((c, i) => ({ sensor: c.sensor, min: c.min, max: c.max,
-      ...(c.not ? { not: true } : {}), ...(i > 0 && c.or ? { or: true } : {}) }));
-    for (const m of wired) {
+}
+function setRules(targets, next) {
+  if (next.some((c) => !(c.min <= c.max))) { $('buildErr').textContent = 'a range must run from low to high'; return; }
+  $('buildErr').textContent = '';
+  remember(design);
+  // only true marks are stored, and the first condition never starts a new group
+  const clean = next.map((c, i) => ({ sensor: c.sensor, min: c.min, max: c.max,
+    ...(c.not ? { not: true } : {}), ...(i > 0 && c.or ? { or: true } : {}) }));
+  for (const m of targets) {
+    const k = design.parts.indexOf(m);
+    if (isTimer(m)) {
+      if (clean.length) m.trigger = clean.map((c) => ({ ...c })); else delete m.trigger;
+      for (const c of world.cells) if (c.design === design) retrigger(c, k, clean);
+    } else {
       delete m.joint.control;
       if (clean.length) m.joint.controls = clean.map((c) => ({ ...c })); else delete m.joint.controls;
-      const k = design.parts.indexOf(m);
       for (const c of world.cells) if (c.design === design) rewire(c, k, clean);
     }
-    $('json').value = JSON.stringify(design, null, 2);
-    listParts();
-  };
+  }
+  $('json').value = JSON.stringify(design, null, 2);
+  listParts();
+}
+const freshRule = (id, or = false) => ({ sensor: id, min: RANGE[sensorKind(id)][0], max: RANGE[sensorKind(id)][1], not: false, or });
+// without condition idx: the next condition takes over the start of a group this one began
+function withoutRule(list, idx) {
+  const next = list.map((x) => ({ ...x }));
+  if (next[idx].or && next[idx + 1] && !next[idx + 1].or) next[idx + 1].or = true;
+  return next.filter((_, i) => i !== idx);
+}
+const NONE = { runs: 'runs always', fires: 'fires by hand (Release)', starts: 'never starts: give it a trigger' };
+const ADD = { runs: '＋ wire it to a sensor', fires: '＋ fire it by a sensor', starts: '＋ start it by a sensor' };
+const WHILE = { runs: 'on while', fires: 'fires while', starts: 'starts when' };
+
+// The compact list under a part: its rule as sentences, one condition each
+function wiring(g, targets) {
+  const box = document.createElement('div');
+  box.className = 'wire';
+  const verb = verbOf(targets[0]);
+  const sensors = sensorList(isTimer(targets[0]) ? targets[0].id : undefined);
+  const list = rulesOf(targets[0]);
+  const write = (next) => setRules(targets, next);
   const copy = () => list.map((x) => ({ ...x }));
   const groups = list.length ? 1 + list.filter((c) => c.or).length : 0;
   const head = document.createElement('div');
-  head.textContent = !list.length ? (motor ? 'runs always' : 'fires by hand (Release)')
-    : groups > 1 ? `${motor ? 'runs' : 'fires'} while all of one group hold:`
-    : list.length > 1 ? `${motor ? 'runs' : 'fires'} while all of these hold:` : `${motor ? 'runs' : 'fires'} while this holds:`;
+  head.textContent = !list.length ? NONE[verb] : groups > 1 ? `${verb} when all of one group hold:`
+    : list.length > 1 ? `${verb} when all of these hold:` : `${verb} when:`;
   box.appendChild(head);
   list.forEach((c, idx) => {
     if (c.or) {
@@ -326,63 +382,248 @@ function wiring(g, wired) {
     const top = document.createElement('div');
     top.className = 'condhead';
     const sel = document.createElement('select');
-    for (const s of sensors) sel.add(new Option(`${s.name.toLowerCase()} at ${s.deg}°`, s.members[0].id));
-    sel.add(new Option('its energy level (built in)', 'energy'));
+    for (const s of sensors) sel.add(new Option(`${ICON[s.kind]} ${s.name}`, s.id));
     sel.value = c.sensor;
-    sel.onchange = () => { const next = copy(); next[idx] = { ...next[idx], sensor: sel.value, min: RANGE[kindOf(sel.value)][0], max: RANGE[kindOf(sel.value)][1] }; write(next); };
+    sel.onchange = () => { const next = copy(); next[idx] = { ...freshRule(sel.value, c.or), not: c.not }; write(next); };
     const not = document.createElement('button');
-    not.className = 'notbtn'; not.textContent = c.not ? 'outside' : 'inside';
+    not.className = 'notbtn'; not.textContent = c.not ? 'is not' : 'is';
     not.title = c.not ? 'Holds while the reading is OUTSIDE the range (tap: inside)' : 'Holds while the reading is inside the range (tap: outside)';
     not.onclick = () => { const next = copy(); next[idx].not = !c.not; write(next); };
     const del = document.createElement('button');
     del.textContent = '✕'; del.title = 'Remove this condition';
-    del.onclick = () => {
-      const next = copy();
-      // the next condition takes over the start of a group this one began
-      if (c.or && next[idx + 1] && !next[idx + 1].or) next[idx + 1].or = true;
-      write(next.filter((_, i) => i !== idx));
-    };
+    del.onclick = () => write(withoutRule(list, idx));
     top.append(sel, not, del);
     cond.appendChild(top);
-    cond.appendChild(rangeBar(c, motor, kindOf(c.sensor), (lo, hi) => {
+    cond.appendChild(rangeBar(c, verb, sensorKind(c.sensor), (lo, hi) => {
       const next = copy(); next[idx].min = lo; next[idx].max = hi; write(next);
     }));
     box.appendChild(cond);
   });
-  const fresh = (or) => {
-    const first = sensors.length ? sensors[0].members[0].id : 'energy';
-    return { sensor: first, min: RANGE[kindOf(first)][0], max: RANGE[kindOf(first)][1], not: false, or };
-  };
+  const first = sensors[0].id;
   const add = document.createElement('button');
   add.className = 'addcond';
-  add.textContent = list.length ? '＋ and also…' : (motor ? '＋ wire it to a sensor' : '＋ fire it by a sensor');
+  add.textContent = list.length ? '＋ and also…' : ADD[verb];
   add.title = list.length ? 'Another condition in the last group: all of them must hold' : '';
-  add.onclick = () => write([...list, fresh(false)]);
+  add.onclick = () => write([...list, freshRule(first)]);
   box.appendChild(add);
   if (list.length) {
     const or = document.createElement('button');
     or.className = 'addcond';
     or.textContent = '＋ or instead…';
-    or.title = `A new group: the part ${motor ? 'runs' : 'fires'} when either group holds`;
-    or.onclick = () => write([...list, fresh(true)]);
+    or.title = `A new group: it ${verb} when either group holds`;
+    or.onclick = () => write([...list, freshRule(first, true)]);
     box.appendChild(or);
   }
   return box;
 }
 
-// One condition's range: a bar with two handles; the part is on (or fires) while the reading is inside the lit stretch;
-// the orange tick is the reading now
-function rangeBar(c, motor, kind, onSet) {
+// ----- the patch view: wiring as a modular synth. Sensors (with their live reading) sit on the left, parts on the right;
+// between them, each part's rule as boxes: a box is a group of conditions that must all hold (AND), and a part with
+// several boxes goes when any one does (OR). A cable from a sensor into a box is one condition; its chip shows the
+// range, and tapping it edits it. Patching is tap, tap: a sensor, then a box (another condition in that group) or a part
+// (a new group). The same rules as the list in the panel, drawn differently. -----
+let patchOpen = false;
+let patchPick = null;   // the sensor id picked, waiting for where to patch it
+let patchEdit = null;   // { t: target index, k: condition index } being edited
+let patchTargets = [];  // [{ name, members, verb, rules }] as drawn
+const PATCH_HINT = 'tap a sensor, then a box or a part · tap a cable’s label to edit it';
+$('patchBtn').onclick = () => { patchOpen = true; $('patch').hidden = false; patchPick = null; patchEdit = null; drawPatch(); };
+$('patchClose').onclick = () => { patchOpen = false; $('patch').hidden = true; };
+// split a rule into its groups, keeping each condition's index in the rule
+function groupsOf(rules) {
+  const gs = [];
+  rules.forEach((c, k) => { if (!gs.length || c.or) gs.push([]); gs[gs.length - 1].push(k); });
+  return gs;
+}
+const rangeText = (c) => `${c.not ? 'not ' : ''}${c.min.toFixed(2).replace(/0$/, '')}–${c.max.toFixed(2).replace(/0$/, '')}`;
+function drawPatch() {
+  if (!patchOpen) return;
+  const cols = $('patchCols');
+  cols.innerHTML = '';
+  $('patchHint').textContent = patchPick ? `now tap a box or a part to patch ${ICON[sensorKind(patchPick)]} into` : PATCH_HINT;
+  // sources
+  const src = document.createElement('div'); src.className = 'pcol src';
+  for (const s of sensorList()) {
+    const m = document.createElement('div');
+    m.className = 'pmod srcmod' + (patchPick === s.id ? ' picked' : ''); m.dataset.src = s.id;
+    m.title = SCALE[s.kind];
+    m.innerHTML = `<div class="pname">${ICON[s.kind]} ${s.short}</div><div class="pval">reads <b data-live="${s.id}">–</b></div>
+      <div class="pbar"><i data-patchbar="${s.id}"></i></div>`;
+    m.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; patchEdit = null; drawPatch(); };
+    src.appendChild(m);
+  }
+  // targets, each with its boxes
+  const rules = document.createElement('div'); rules.className = 'prules';
+  patchTargets = partGroups(design.parts || []).map((g) => ({ g, members: targetsOf(g) })).filter((t) => t.members.length)
+    .map((t) => ({ name: `${t.g.name} at ${t.g.deg}°`, members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]),
+      icon: isTimer(t.members[0]) ? ICON.timer : '' }));
+  if (!patchTargets.length) rules.innerHTML = '<div class="pval">No parts to wire yet: add a flagellum, a burst organ, an ejectisome or a timer.</div>';
+  patchTargets.forEach((t, ti) => {
+    const row = document.createElement('div'); row.className = 'prow';
+    const boxes = document.createElement('div'); boxes.className = 'pboxes';
+    const gs = groupsOf(t.rules);
+    gs.forEach((ks, gi) => {
+      const b = document.createElement('div');
+      b.className = 'pmod box'; b.dataset.box = `${ti}:${gi}`;
+      b.textContent = ks.length > 1 ? 'all of' : 'when';
+      b.onclick = (e) => { e.stopPropagation(); patchInto(ti, gi); };
+      boxes.appendChild(b);
+    });
+    const add = document.createElement('div');
+    add.className = 'pmod box add'; add.dataset.box = `${ti}:new`;
+    add.textContent = gs.length ? '＋ or' : '＋ when';
+    add.title = gs.length ? 'A new group: the part also goes when this holds' : 'Tap a sensor, then here';
+    add.onclick = (e) => { e.stopPropagation(); patchInto(ti, gs.length); };
+    boxes.appendChild(add);
+    const tg = document.createElement('div');
+    tg.className = 'pmod tgt'; tg.dataset.tgt = ti;
+    tg.innerHTML = `<span class="pstate" data-pstate="${ti}"></span><div class="pname">${t.icon} ${t.name}</div>
+      <div class="pval">${!t.rules.length ? NONE[t.verb] : `${t.verb}${gs.length > 1 ? ' when any box holds' : ''}`}</div>`;
+    tg.onclick = (e) => { e.stopPropagation(); patchInto(ti, gs.length); };
+    row.append(boxes, tg);
+    rules.appendChild(row);
+  });
+  cols.append(src, rules);
+  layoutWires();
+  showPatchEdit();
+}
+// patch the picked sensor into target ti's group gi (gi past the last: a new group)
+function patchInto(ti, gi) {
+  const t = patchTargets[ti];
+  if (!patchPick) { $('patchHint').textContent = 'first tap a sensor on the left'; return; }
+  if (isTimer(t.members[0]) && patchPick === t.members[0].id) { $('patchHint').textContent = 'a timer can’t start itself'; return; }
+  const gs = groupsOf(t.rules), next = t.rules.map((c) => ({ ...c }));
+  const fresh = freshRule(patchPick, gs.length > 0 && gi >= gs.length);
+  let at = next.length;
+  if (gi < gs.length) at = gs[gi][gs[gi].length - 1] + 1;   // at the end of that group
+  next.splice(at, 0, fresh);
+  patchPick = null;
+  patchEdit = { t: ti, k: at };
+  setRules(t.members, next);
+}
+// the cables, their chips, and each box's line to its part, drawn over the laid-out modules
+function layoutWires() {
+  const area = $('patchArea'), svg = $('patchWires');
+  for (const el of area.querySelectorAll('.pchip')) el.remove();
+  svg.innerHTML = '';
+  const base = area.getBoundingClientRect();
+  const at = (el, side) => { const r = el.getBoundingClientRect(); return [(side ? r.right : r.left) - base.left, r.top + r.height / 2 - base.top]; };
+  const path = (a, b, key) => {
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    const dx = Math.max(30, (b[0] - a[0]) / 2);
+    p.setAttribute('d', `M${a[0]},${a[1]} C${a[0] + dx},${a[1]} ${b[0] - dx},${b[1]} ${b[0]},${b[1]}`);
+    p.dataset.key = key;
+    svg.appendChild(p);
+  };
+  patchTargets.forEach((t, ti) => {
+    const tg = area.querySelector(`[data-tgt="${ti}"]`);
+    groupsOf(t.rules).forEach((ks, gi) => {
+      const box = area.querySelector(`[data-box="${ti}:${gi}"]`);
+      path(at(box, true), at(tg, false), `b${ti}:${gi}`);
+      ks.forEach((k) => {
+        const c = t.rules[k], s = area.querySelector(`[data-src="${c.sensor}"]`);
+        if (!s) return;
+        const a = at(s, true), b = at(box, false);
+        path(a, b, `c${ti}:${k}`);
+        const chip = document.createElement('div');
+        chip.className = 'pchip' + (patchEdit && patchEdit.t === ti && patchEdit.k === k ? ' on' : '');
+        chip.dataset.chip = `${ti}:${k}`;
+        chip.textContent = rangeText(c);
+        chip.title = `${t.name}: ${WHILE[t.verb]} it reads ${c.not ? 'outside ' : ''}${c.min}–${c.max}`;
+        chip.style.left = `${a[0] + (b[0] - a[0]) * 0.55}px`; chip.dataset.y = a[1] + (b[1] - a[1]) * 0.55;
+        chip.onclick = (e) => { e.stopPropagation(); patchEdit = { t: ti, k }; patchPick = null; drawPatch(); };
+        area.appendChild(chip);
+      });
+    });
+  });
+  // labels meet where cables converge: keep them at least a label's height apart, in cable order
+  const chips = [...area.querySelectorAll('.pchip')].sort((p, q) => p.dataset.y - q.dataset.y);
+  let last = -Infinity;
+  for (const c of chips) { const y = Math.max(Number(c.dataset.y), last + 18); c.style.top = `${y}px`; last = y; }
+  svg.setAttribute('height', area.scrollHeight);
+}
+// the editor under the patch: one condition's range, is / is not, remove
+function showPatchEdit() {
+  const box = $('patchEdit');
+  const t = patchEdit && patchTargets[patchEdit.t], c = t && t.rules[patchEdit.k];
+  if (!c) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false; box.innerHTML = '';
+  const kind = sensorKind(c.sensor), src = sensorList().find((s) => s.id === c.sensor);
+  const head = document.createElement('div');
+  head.innerHTML = `<b>${ICON[kind]} ${src ? src.short : c.sensor}</b> → <b>${t.icon} ${t.name}</b>`;
+  const write = (change) => { const next = t.rules.map((x) => ({ ...x })); Object.assign(next[patchEdit.k], change); setRules(t.members, next); };
+  const row = document.createElement('div'); row.className = 'row';
+  const not = document.createElement('button');
+  not.className = 'notbtn'; not.textContent = c.not ? 'is not' : 'is';
+  not.title = 'Holds while the reading is inside the range (is) or outside it (is not)';
+  not.onclick = () => write({ not: !c.not });
+  const del = document.createElement('button');
+  del.textContent = '✕ unplug';
+  del.onclick = () => { const k = patchEdit.k; patchEdit = null; setRules(t.members, withoutRule(t.rules, k)); };
+  const done = document.createElement('button');
+  done.textContent = 'Done';
+  done.onclick = () => { patchEdit = null; drawPatch(); };
+  row.append(not, del, done);
+  box.append(head, rangeBar(c, t.verb, kind, (lo, hi) => write({ min: lo, max: hi })), row);
+}
+$('patchBody').onclick = () => { if (patchPick || patchEdit) { patchPick = null; patchEdit = null; drawPatch(); } };
+window.addEventListener('resize', () => { if (patchOpen) layoutWires(); });
+// once a frame while open: cables, boxes and parts lit by what the selected cell (if it is this design) is doing
+function patchLive() {
+  if (!patchOpen) return;
+  const area = $('patchArea'), live = cell && cell.design === design ? cell : null;
+  for (const el of area.querySelectorAll('[data-patchbar]')) {
+    const id = el.dataset.patchbar, sn = live && (id === 'energy' ? { value: energyLevel(world, live) } : live.sensors.find((x) => x.id === id));
+    el.style.width = sn ? `${Math.min(Math.max(sn.value, 0), 1) * 100}%` : '0';
+  }
+  patchTargets.forEach((t, ti) => {
+    const k0 = design.parts.indexOf(t.members[0]);
+    let ctls = null, state = '', on = false;
+    if (live) {
+      if (isTimer(t.members[0])) {
+        const s = live.sensors.find((x) => x.part === k0);
+        if (s) { ctls = s.trigger; on = s.start !== null && s.value < 1; state = s.start === null ? 'waiting' : s.value < 1 ? 'counting' : 'time up'; }
+      } else {
+        const j = live.joints.find((x) => x.part === k0);
+        if (j) {
+          ctls = j.controls || null;
+          if (j.burst) { on = j.burst.state === 'firing'; state = j.burst.state; }
+          else if (j.type === 'motor') { on = j.on && !(world.metab && live.metab.starving); state = on ? 'ON' : 'OFF'; }
+          else { on = !j.latched; state = j.latched ? 'cocked' : 'released'; }
+        }
+      }
+    }
+    const st = area.querySelector(`[data-pstate="${ti}"]`);
+    if (st) st.textContent = state;
+    const tg = area.querySelector(`[data-tgt="${ti}"]`);
+    if (tg) tg.classList.toggle('lit', on);
+    groupsOf(t.rules).forEach((ks, gi) => {
+      let all = !!ctls;
+      for (const k of ks) {
+        const ctl = ctls && ctls[k], ok = !!ctl && ctl.holds !== null && ctl.holds !== ctl.not;
+        if (!ok) all = false;
+        const p = area.querySelector(`path[data-key="c${ti}:${k}"]`); if (p) p.classList.toggle('lit', ok);
+        const ch = area.querySelector(`[data-chip="${ti}:${k}"]`); if (ch) ch.classList.toggle('lit', ok);
+      }
+      const b = area.querySelector(`[data-box="${ti}:${gi}"]`); if (b) b.classList.toggle('lit', all);
+      const p = area.querySelector(`path[data-key="b${ti}:${gi}"]`); if (p) p.classList.toggle('lit', all);
+    });
+  });
+}
+
+// One condition's range: a bar with two handles, its ends named; the part goes while the reading is inside the lit
+// stretch (or outside it); the orange tick is the reading now
+function rangeBar(c, verb, kind, onSet) {
   {
     const lo = c.min, hi = c.max;
-    // one bar, two handles: the part is on (or fires) while the reading is inside the lit stretch; the orange tick is
-    // the reading now
     const span = document.createElement('div');
     span.className = 'range';
-    span.innerHTML = `<div class="rlabel">${motor ? 'on' : 'fires'} while it reads ${c.not ? 'outside ' : ''}<b class="lohi"></b> · now <b data-live="${c.sensor}">–</b></div>
+    span.title = SCALE[kind];
+    span.innerHTML = `<div class="rlabel">${WHILE[verb]} it reads ${c.not ? 'outside ' : ''}<b class="lohi"></b> · now <b data-live="${c.sensor}">–</b></div>
       <div class="dual"><div class="track${c.not ? ' out' : ''}"><div class="band"></div>${kind === 'light' ? '<div class="most"></div>' : ''}<div class="now" data-livebar="${c.sensor}"></div></div>
         <input type="range" min="0" max="1" step="0.05" value="${lo}"><input type="range" min="0" max="1" step="0.05" value="${hi}"></div>
-      <div class="rscale">${SCALE[kind]}${kind === 'light' ? `<span data-livemax="${c.sensor}"></span>` : ''}</div>`;
+      <div class="rends"><span>${ENDS[kind][0]}</span><span>${ENDS[kind][1]}</span></div>
+      ${kind === 'light' ? `<div class="rscale"><span data-livemax="${c.sensor}"></span></div>` : ''}`;
     const [a, b] = span.querySelectorAll('input');
     const band = span.querySelector('.band'), lohi = span.querySelector('.lohi');
     const show = () => {
@@ -420,8 +661,8 @@ function listParts() {
       d.parts.splice(k + 1, 0, ...mirrorGroup(g.members, Number(m.dataset.axis), `p${Date.now() % 100000}_${++partCount}`));
       applyDesign(d);
     };
-    const wired = g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.latched));
-    if (wired.length) row.appendChild(wiring(g, wired));
+    const targets = targetsOf(g);
+    if (targets.length) row.appendChild(wiring(g, targets));
     row.querySelector('.remove').onclick = () => {
       if (b && b.id === editing) { editing = null; previewOn = false; $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true; }
       const d = JSON.parse(JSON.stringify(design));
@@ -432,6 +673,7 @@ function listParts() {
     box.appendChild(row);
   });
   if (!box.children.length) box.textContent = 'No parts yet: just a body.';
+  drawPatch();   // the patch view follows every change (when open)
 }
 
 function reset(pose) {
@@ -600,7 +842,7 @@ function frame(now) {
     acc -= want * DT;
     lagging = done < want;                     // the computer can't keep up with this speed
   }
-  if (world) { draw(); if (!$('stats').hidden) stats(); liveReadings(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
+  if (world) { draw(); if (!$('stats').hidden) stats(); liveReadings(); patchLive(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
   requestAnimationFrame(frame);
 }
 
@@ -634,7 +876,7 @@ function stats() {
   }
   lines.push(`light here ${lightAt(world, cell.q[1]).toFixed(2)} (1 = full sun at the surface)`);
   budget(lines);
-  const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity', hunger: 'hunger' };
+  const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity', hunger: 'hunger', statolith: 'statolith', chem: 'nutrients', timer: 'timer' };
   cell.sensors.forEach((sn, i) => lines.push(`${NAME[sn.kind].padEnd(9)} ${sn.value.toFixed(2)}`));
   const bursts = cell.joints.filter((j) => j.burst);
   if (bursts.length) {
@@ -708,6 +950,8 @@ function draw() {
   if (view === 'follow') { const q = cell.vis ? cell.vis.q : cell.q; cam = { x: q[0], y: q[1] }; }   // the body as drawn
   else if (view === 'fit') fit(W, H);
   const s = Number($('zoom').value);                       // pixels per µm
+  // on a computer the patch view covers the lower half of the tank: keep a followed cell in the upper part
+  if (view === 'follow' && patchOpen && innerWidth > 760) cam = { x: cam.x, y: cam.y - H * 0.25 / s };
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
 
   ctx.fillStyle = COLOR.outside; ctx.fillRect(0, 0, W, H);
@@ -733,6 +977,11 @@ function draw() {
     if (top > 0) { ctx.fillStyle = COLOR.light + (0.8 * sun).toFixed(2) + ')'; ctx.fillRect(X(0), top - 2, TW * s, 3); }
   }
   if (sun < 1) { ctx.fillStyle = `rgba(2,4,10,${(0.45 * (1 - sun)).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }   // night
+  {   // the nutrients: a faint tan haze below the nutricline
+    const g = ctx.createLinearGradient(0, Y(TH), 0, Y(0));
+    for (let k = 0; k <= 8; k++) g.addColorStop(k / 8, `rgba(200,178,106,${(0.07 * nutrientAt(TH * (1 - k / 8))).toFixed(3)})`);
+    ctx.fillStyle = g; ctx.fillRect(X(0), Y(TH), TW * s, TH * s);
+  }
   // trail
   ctx.fillStyle = COLOR.trail;
   for (const [tx, ty] of trail) ctx.fillRect(X(tx) - 1, Y(ty) - 1, 2, 2);
@@ -773,6 +1022,22 @@ function drawHud(W, H) {
   if (world.metab && m.starving) { ctx.fillStyle = COLOR.starving; ctx.fillText('STARVING', 17 + tw - 82, H - 46); }
 }
 
+// Gas vesicles: a cluster of small bubbles; crushed, flat grey dashes
+function drawGas(ix, iy, inc, X, Y, s) {
+  const n = 7, b = inc.r * 0.32;
+  for (let k = 0; k < n; k++) {
+    const a = k * 2.4, d = k ? inc.r * 0.62 * Math.sqrt(k / n) : 0;   // a sunflower spiral: evenly packed
+    const bx = ix + Math.cos(a) * d, by = iy + Math.sin(a) * d;
+    if (inc.crushed) {
+      ctx.strokeStyle = COLOR.crushed; ctx.lineWidth = Math.max(0.3 * s, 1);
+      ctx.beginPath(); ctx.moveTo(X(bx - b), Y(by)); ctx.lineTo(X(bx + b), Y(by)); ctx.stroke();
+    } else {
+      ctx.fillStyle = COLOR.gas; ctx.globalAlpha = 0.8;
+      ctx.beginPath(); ctx.arc(X(bx), Y(by), Math.max(b * s, 1), 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
+}
+
 function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the cell itself
   ctx.lineCap = 'round';
   // segments first, body over them, then inclusions and joints
@@ -809,8 +1074,14 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
         ctx.strokeStyle = 'rgba(216,240,224,.25)'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.arc(X(ix), Y(iy), Math.max(inc.r * s, 1.5), 0, Math.PI * 2); ctx.stroke();
       }
+      if (inc.material === 'gas') { drawGas(ix, iy, inc, X, Y, s); continue; }
       ctx.fillStyle = COLOR[inc.material];
       if (r > 0.02) { ctx.beginPath(); ctx.arc(X(ix), Y(iy), Math.max(r * s, 1), 0, Math.PI * 2); ctx.fill(); }
+      if (inc.material === 'statolith') {   // the grain lies on the chamber's lower wall (in the middle with gravity off)
+        const g = 0.4 * inc.r, drop = world.gravity ? inc.r - g : 0;
+        ctx.fillStyle = COLOR.grain;
+        ctx.beginPath(); ctx.arc(X(ix), Y(iy - drop), Math.max(g * s, 1.5), 0, Math.PI * 2); ctx.fill();
+      }
     }
   }
   for (let i = 0; i < c.pieces.length; i++) {
@@ -821,6 +1092,25 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
   }
   for (const sn of c.sensors) {
     const i = sn.piece, px = c.cx[i] + c.cs[i] * sn.x - c.sn[i] * sn.y, py = c.cy[i] + c.sn[i] * sn.x + c.cs[i] * sn.y;
+    if (sn.kind === 'statolith') continue;   // drawn with the inclusions
+    if (sn.kind === 'timer') {   // a granule that glows when it starts and fades as its time runs out
+      const glow = 1 - sn.value, r = Math.max(1.3 * s, 3);
+      if (glow > 0.01) {
+        const g = ctx.createRadialGradient(X(px), Y(py), 0, X(px), Y(py), r * 3);
+        g.addColorStop(0, `rgba(${COLOR.timer},${(0.7 * glow).toFixed(3)})`); g.addColorStop(1, `rgba(${COLOR.timer},0)`);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X(px), Y(py), r * 3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = `rgba(${COLOR.timer},${(0.35 + 0.65 * glow).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(X(px), Y(py), r, 0, Math.PI * 2); ctx.fill();
+      continue;
+    }
+    if (sn.kind === 'chem') {   // a tan dot, filled as far as the water is rich
+      const r = Math.max(1.2 * s, 3);
+      ctx.strokeStyle = COLOR.chem; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(X(px), Y(py), r, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = COLOR.chem; ctx.beginPath(); ctx.arc(X(px), Y(py), r * Math.sqrt(sn.value), 0, Math.PI * 2); ctx.fill();
+      continue;
+    }
     if (sn.kind !== 'light') {   // touch and proximity: a blue dot, filled while it feels someone; the range, faint
       ctx.strokeStyle = COLOR.touch; ctx.fillStyle = COLOR.touch; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2);
@@ -1028,6 +1318,8 @@ const SHORT = {
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
   'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity',
+  'Gas vesicles (float, crush deep)': 'Gas vesicles', 'Statolith (which way is up)': 'Statolith', 'Timer (clock)': 'Timer',
+  'Nutrient sensor': 'Nutrients',
 };
 for (const [cat, names] of Object.entries(CATEGORIES)) {
   const head = document.createElement('div'); head.className = 'cat'; head.textContent = cat;

@@ -650,13 +650,13 @@ const runDay = (design, y, seconds, opts = {}) => {
     for (let i = 0; i < secs / DT; i++) stepWorld(w);
     return { v: (c.q[1] - y0) / secs, crushed: c.pieces[0].inclusions[0].crushed };
   };
-  const weakUp = go(0, 200), weakDeep = go(0, 900), strongDeep = go(1, 900), bare = run({ body: { radius: 10 } }, 5);
+  const weakUp = go(0, 200), weakDeep = go(0, 1300), strongDeep = go(1, 1300), bare = run({ body: { radius: 10 } }, 5);
   const bareV = -sinking(bare);
   check('gas vesicles float a cell; below their depth they are crushed for good, and strong ones survive deeper but lift less',
     weakUp.v > 0 && !weakUp.crushed && weakDeep.crushed && Math.abs(weakDeep.v - bareV) < 0.05 * Math.abs(bareV)
       && !strongDeep.crushed && strongDeep.v > 0 && strongDeep.v < weakUp.v,
-    `weak vesicles 200 µm down: rise ${fmt(weakUp.v, 1)} µm/s; 900 µm down: crushed, ${fmt(weakDeep.v, 1)} µm/s ` +
-    `(a bare cell ${fmt(bareV, 1)}); strong ones 900 µm down: intact, rise ${fmt(strongDeep.v, 1)} µm/s`);
+    `weak vesicles 200 µm down: rise ${fmt(weakUp.v, 1)} µm/s; 1300 µm down: crushed, ${fmt(weakDeep.v, 1)} µm/s ` +
+    `(a bare cell ${fmt(bareV, 1)}); strong ones 1300 µm down: intact, rise ${fmt(strongDeep.v, 1)} µm/s`);
 }
 
 // 29. Determinism with day, metabolism and stores

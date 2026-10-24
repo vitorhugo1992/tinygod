@@ -65,6 +65,7 @@
   .dual .track.out .band { background: #2a3a52; }
   .part .wire .rlabel b { color: var(--text); font-weight: 600; }
   .part .wire .rscale { color: var(--dim); }
+  .rends { display: flex; justify-content: space-between; color: var(--dim); font-size: 11px; margin: -2px 9px 0; }
   /* two handles on one bar; the track is inset by half a thumb so 0 and 1 sit under the thumbs' centres */
   .dual { position: relative; height: 26px; }
   .dual .track { position: absolute; left: 9px; right: 9px; top: 11px; height: 4px; background: #2a3a52; border-radius: 2px; }
@@ -82,7 +83,45 @@
   #partList .cat { margin-top: 4px; }
   details summary { color: var(--dim); cursor: pointer; }
   textarea { width: 100%; height: 220px; font: 11px/1.35 ui-monospace, Consolas, monospace; resize: vertical; margin-top: 6px; }
+  /* the patch view (over the tank on a computer, over the panel on a phone, so the cell stays in sight) */
+  #patchBtn { width: 100%; margin: 4px 0; }
+  #patch { position: fixed; left: 0; right: 330px; top: 52vh; bottom: 0; background: var(--bg); z-index: 20;
+    display: flex; flex-direction: column; border-right: 1px solid var(--line); border-top: 1px solid var(--line); }
+  #patch[hidden] { display: none; }
+  #patchHead { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  #patchHint { flex: 1; color: var(--dim); font-size: 12px; }
+  #patchBody { flex: 1; overflow: auto; }
+  #patchArea { position: relative; min-height: 100%; }
+  #patchWires { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  #patchWires path { fill: none; stroke: #3b4f6c; stroke-width: 2.5; }
+  #patchWires path.lit { stroke: var(--accent); }
+  #patchCols { position: relative; display: flex; gap: 18%; padding: 10px; align-items: flex-start; }
+  .pcol { display: flex; flex-direction: column; gap: 8px; }
+  .pcol.src { width: 34%; }
+  .prules { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .prow { display: flex; align-items: center; gap: 14%; }
+  .pboxes { width: 28%; display: flex; flex-direction: column; gap: 6px; }
+  .pmod { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 7px;
+    font-size: 11px; line-height: 1.25; cursor: pointer; user-select: none; }
+  .pmod .pname { font-weight: 600; font-size: 12px; }
+  .pmod .pval { color: var(--dim); }
+  .pmod .pbar { height: 3px; background: #2a3a52; border-radius: 2px; margin-top: 3px; position: relative; }
+  .pmod .pbar i { position: absolute; left: 0; top: 0; bottom: 0; background: #ff8a3c; border-radius: 2px; }
+  .pmod.picked { border-color: #ff8a3c; box-shadow: 0 0 0 2px rgba(255,138,60,.35); }
+  .pmod.box { text-align: center; color: var(--dim); }
+  .pmod.box.lit, .pmod.tgt.lit { border-color: var(--accent); color: var(--text); background: rgba(111,211,181,.08); }
+  .pmod.box.add { border-style: dashed; background: none; }
+  .pmod.tgt { flex: 1; }
+  .pmod .pstate { float: right; font-size: 10px; padding: 0 4px; border-radius: 3px; background: #2a3a52; }
+  .pmod.tgt.lit .pstate { background: var(--accent); color: #062018; }
+  .pchip { position: absolute; transform: translate(-50%, -50%); font-size: 10px; padding: 1px 5px; border-radius: 8px;
+    background: #1a2740; border: 1px solid #3b4f6c; cursor: pointer; white-space: nowrap; z-index: 2; }
+  .pchip.lit { border-color: var(--accent); }
+  .pchip.on { border-color: #ff8a3c; }
+  #patchEdit { border-top: 1px solid var(--line); padding: 8px 10px; background: var(--panel); font-size: 12px; }
+  #patchEdit .row { margin-top: 4px; }
   @media (max-width: 760px) {
+    #patch { right: 0; top: 46vh; top: 46dvh; border-right: 0; border-top: 1px solid var(--line); }
     /* the tank stays pinned on top; only the panel below it scrolls, so the cell is always in sight */
     body { flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
     #view { height: 46vh; height: 46dvh; flex: none; }
@@ -136,17 +175,19 @@
   <h2>Add a part</h2>
   <div id="chips"></div>
   <div class="slider" title="Where on the body: 0° front (right), 180° back">Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180"><span id="partAngleOut"></span></div>
-  <div class="slider" id="tiltRow" title="Turn the part away from pointing straight out (a side flagellum needs tilt to turn the cell)">Tilt <input type="range" id="partTilt" min="-90" max="90" step="5" value="0"><span id="partTiltOut"></span></div>
+  <div class="slider" id="tiltRow" title="Turn the part away from pointing straight out (a side flagellum needs tilt to turn the cell)"><span id="tiltLabel">Tilt</span> <input type="range" id="partTilt" min="-90" max="90" step="5" value="0"><span id="partTiltOut"></span></div>
   <div class="slider" id="lengthRow" title="How long the part is: longer pushes harder, but drags more and costs more upkeep">Length <input type="range" id="partLength" min="10" max="100" step="5" value="40"><span id="partLengthOut"></span></div>
   <div class="row" id="flipRow"><button id="flipBtn" title="Mirror the part about its own line: it beats or kicks the other way">⇅ Flip</button></div>
   <div class="slider" id="insideRow" title="0 = centre, 100 = against the wall; droplets and vacuoles can't overlap">Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100"><span id="partInsideOut"></span></div>
   <div class="row" id="feelsRow" title="What a touch or proximity sensor reacts to">Feels <span class="seg" id="feelsSeg"></span></div>
   <div class="slider" id="sizeRow">Size <input type="range" id="partSize" min="10" max="100" step="5" value="40"><span id="partSizeOut"></span></div>
+  <div class="slider" id="strengthRow" title="Stronger gas vesicles survive deeper but lift less (more protein per bubble)">Strength <input type="range" id="partStrength" min="0" max="100" step="5" value="50"><span id="partStrengthOut"></span></div>
   <button id="addPart">＋ Add to body</button>
   <button id="cancelEdit" hidden>Stop editing</button>
   <div id="buildErr"></div>
 
   <h2>On this body</h2>
+  <button id="patchBtn" title="Patch sensors to parts with cables, like a modular synth">🎛 Wiring view</button>
   <div id="partList"></div>
   <div id="sap"></div>
 
@@ -173,6 +214,12 @@
   <input type="checkbox" id="light" checked hidden>
   <input type="checkbox" id="day" checked hidden>
   <input type="range" id="zoom" min="0.3" max="20" step="any" value="5" hidden>
+</div>
+<!-- the patch view: sensors on the left, rules (AND boxes) in the middle, parts on the right; tap, tap to patch -->
+<div id="patch" hidden>
+  <div id="patchHead"><b>🎛 Wiring</b><span id="patchHint"></span><button id="patchClose" title="Close the wiring view">✕</button></div>
+  <div id="patchBody"><div id="patchArea"><svg id="patchWires"></svg><div id="patchCols"></div></div></div>
+  <div id="patchEdit" hidden></div>
 </div>
 <script type="module" src="main.js"></script>
 </body>
