@@ -1256,6 +1256,17 @@ try {
   }
 } catch (e) { /* no storage here: it stays in the Add-cell menu */ }
 showSaved();
+// From Claude: the designs Claude left in designs/ go into the saved designs (same name: replaced)
+$('getDesigns').onclick = async () => {
+  try {
+    const got = await (await fetch('/designs')).json();
+    if (!got.length) { $('buildErr').textContent = 'nothing from Claude yet'; return; }
+    const names = new Set(got.map((g) => g.name));
+    writeSaved([...savedList().filter((x) => !names.has(x.name)), ...got.map((g) => ({ name: g.name, design: g.design, saved: Date.now() }))]);
+    showSaved();
+    $('buildErr').textContent = `from Claude: ${got.map((g) => g.name).join(', ')}: pick it in the saved designs`;
+  } catch (e) { $('buildErr').textContent = 'could not reach the sandbox server'; }
+};
 // Send to Claude: the computer serving the sandbox keeps it as designs/<name>.json, where Claude can read it
 $('sendDesign').onclick = async () => {
   const name = (prompt('Name it for Claude', design.species && !PRESETS[design.species] ? design.species : 'my species') || '').trim();

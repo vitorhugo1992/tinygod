@@ -133,6 +133,15 @@ other suggestions"):
   designs/<name>.json in the project (JSON only, at most 256 KB, a file name from letters and digits only) so Claude can
   read the author's species. Works while the server runs (home Wi-Fi). **When the author says they sent one, look in
   designs/.**
+- **📥 From Claude**: GET /designs lists the designs Claude wrote in designs/ (marked "from": "Claude", with a note);
+  the button puts them in the author's saved designs (same name replaced). To hand the author a design, write
+  designs/<name>.json as { name, from: "Claude", note, design } and tell them to tap the button.
+- **The author's legged cell** (designs/my_species_incomplete.json; corrected in my_species_corrected.json, 2026-10-24):
+  two flexible oars underneath as legs and a statolith as a righting reflex. Its speed settings could not do it (speed
+  only rises with a reading). Working on/off wiring: back leg runs when eyespot 0.1-1 AND statolith 0-0.55, front leg
+  when eyespot 0.1-1 AND statolith 0.45-1: rights itself from 30° either way in ~4 s and climbs. Surprises: the BACK
+  leg must push when the front tips down (an oar pushes along its length and its beat twists the body); an upward
+  eyespot with a 0.5 threshold switched both legs off as soon as the cell tipped.
 
 **Rod-shaped inclusions** (author asked, 2026-10-24: elongated cells waste room with round vacuoles; real chloroplasts
 are often bands or plates): a plastid or vacuole (any content) can be a rod with rounded ends, Length its straight part

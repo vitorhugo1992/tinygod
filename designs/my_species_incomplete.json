@@ -1,0 +1,288 @@
+{
+  "name": "my species incomplete",
+  "sent": "2026-10-24T20:09:57.590Z",
+  "design": {
+    "note": "A plain sphere: sinks at its Stokes speed.",
+    "body": {
+      "radius": 10,
+      "length": 18,
+      "wall": "protein"
+    },
+    "parts": [
+      {
+        "type": "segment",
+        "id": "p62986_1",
+        "label": "Glass spine",
+        "at": [
+          -11.529858293016922,
+          9.674699841196807
+        ],
+        "angle": 140,
+        "length": 40,
+        "radius": 0.5,
+        "material": "glass",
+        "build": {
+          "tpl": "Spine, glass",
+          "where": 140,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "p62986_1"
+        }
+      },
+      {
+        "type": "segment",
+        "id": "p64986_2",
+        "label": "Glass spine",
+        "at": [
+          11.529858293016925,
+          9.674699841196805
+        ],
+        "angle": 40,
+        "length": 40,
+        "radius": 0.5,
+        "material": "glass",
+        "build": {
+          "tpl": "Spine, glass",
+          "where": 40,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "p64986_2"
+        }
+      },
+      {
+        "type": "sensor",
+        "id": "p91389_3",
+        "label": "Light sensor",
+        "at": [
+          6.123233995736766e-16,
+          10
+        ],
+        "angle": 90,
+        "kind": "light",
+        "cone": 180,
+        "build": {
+          "tpl": "Light sensor (eyespot)",
+          "where": 90,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "p91389_3"
+        }
+      },
+      {
+        "type": "segment",
+        "id": "p22118_4_0",
+        "label": "Flexible oar",
+        "at": [
+          -11.529858293016925,
+          -9.674699841196805
+        ],
+        "angle": 220,
+        "length": 18.75,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 20,
+          "swing": 60,
+          "stroke": 0.25,
+          "speed": {
+            "sensor": "p91248_10",
+            "min": 0.45,
+            "max": 1
+          },
+          "controls": [
+            {
+              "sensor": "p91389_3",
+              "min": 0.5,
+              "max": 1
+            }
+          ]
+        },
+        "build": {
+          "tpl": "Flexible oar (swims)",
+          "where": 220,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "p22118_4",
+          "length": 50
+        }
+      },
+      {
+        "type": "segment",
+        "id": "p22118_4_1",
+        "parent": "p22118_4_0",
+        "at": [
+          9.375,
+          0
+        ],
+        "length": 31.25,
+        "radius": 0.25,
+        "joint": {
+          "type": "hinge",
+          "stiffness": 700
+        }
+      },
+      {
+        "type": "segment",
+        "id": "p45387_7_0",
+        "label": "Flexible oar",
+        "at": [
+          11.529858293016925,
+          -9.674699841196805
+        ],
+        "angle": -40,
+        "length": 18.75,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 20,
+          "swing": -60,
+          "stroke": 0.25,
+          "speed": {
+            "sensor": "p91248_10",
+            "min": 0,
+            "max": 0.55
+          },
+          "controls": [
+            {
+              "sensor": "p91389_3",
+              "min": 0.5,
+              "max": 1
+            }
+          ]
+        },
+        "build": {
+          "tpl": "Flexible oar (swims)",
+          "where": 320,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": true,
+          "id": "p45387_7",
+          "length": 50
+        }
+      },
+      {
+        "type": "segment",
+        "id": "p45387_7_1",
+        "parent": "p45387_7_0",
+        "at": [
+          9.375,
+          0
+        ],
+        "length": 31.25,
+        "radius": 0.25,
+        "joint": {
+          "type": "hinge",
+          "stiffness": 700
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "p31670_5",
+        "label": "Plastid",
+        "at": [
+          -13.35,
+          0
+        ],
+        "radius": 5.3,
+        "material": "plastid",
+        "build": {
+          "tpl": "Plastid (makes energy)",
+          "where": 180,
+          "tilt": 90,
+          "size": 0.55,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "p31670_5",
+          "length": 0
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "p84650_6",
+        "at": [
+          9.79,
+          -0.86
+        ],
+        "radius": 5.3,
+        "length": 2,
+        "label": "Starch granule",
+        "material": "starch",
+        "fill": 0.5,
+        "build": {
+          "tpl": "Vacuole (store or float)",
+          "where": 355,
+          "tilt": 0,
+          "size": 0.55,
+          "depth": 0.8,
+          "feels": "strangers",
+          "flip": false,
+          "id": "p84650_6",
+          "length": 2,
+          "content": "starch"
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "p42874_9",
+        "at": [
+          -0.97,
+          3.63
+        ],
+        "radius": 5.3,
+        "label": "Gas vesicles",
+        "material": "gas",
+        "strength": 0.5,
+        "build": {
+          "tpl": "Vacuole (store or float)",
+          "where": 105,
+          "tilt": 0,
+          "size": 0.55,
+          "depth": 0.8,
+          "feels": "strangers",
+          "flip": false,
+          "id": "p42874_9",
+          "length": 0,
+          "content": "gas",
+          "strength": 0.5
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "p91248_10",
+        "label": "Statolith",
+        "at": [
+          -0.45,
+          -5.09
+        ],
+        "radius": 3.3,
+        "material": "statolith",
+        "angle": 0,
+        "build": {
+          "tpl": "Statolith (which way is up)",
+          "where": 265,
+          "tilt": 0,
+          "size": 0.35,
+          "depth": 0.8,
+          "feels": "strangers",
+          "flip": false,
+          "id": "p91248_10"
+        }
+      }
+    ]
+  }
+}

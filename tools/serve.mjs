@@ -2,9 +2,10 @@
 //   node tools/serve.mjs [port]          this computer only: http://localhost:5180/sandbox/
 //   node tools/serve.mjs --lan [port]    also phones and other devices on the same Wi-Fi (prints the address)
 // It serves only sandbox/ and sim/, never the rest of the project (notes, git history). The one thing it writes:
-// POST /design?name=... (the sandbox's Send to Claude) saves a design as designs/<name>.json, JSON only, at most 256 KB.
+// POST /design?name=... (the sandbox's Send to Claude) saves a design as designs/<name>.json, JSON only, at most 256 KB;
+// GET /designs lists the designs Claude wrote there (marked from: 'Claude'), for the sandbox's From Claude.
 import { createServer } from 'node:http';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { join, normalize, extname, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { networkInterfaces } from 'node:os';
@@ -35,11 +36,24 @@ async function saveDesign(req, res) {
   } catch (e) { res.writeHead(400); res.end(String(e.message)); }
 }
 
+// The designs Claude left in designs/ for the author
+async function listDesigns(res) {
+  const out = [];
+  try {
+    for (const f of await readdir(join(ROOT, 'designs'))) {
+      if (!f.endsWith('.json')) continue;
+      try { const j = JSON.parse(await readFile(join(ROOT, 'designs', f), 'utf8')); if (j.from === 'Claude' && j.design) out.push({ name: j.name, note: j.note, design: j.design }); } catch { /* not a design */ }
+    }
+  } catch { /* no designs yet */ }
+  res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(out));
+}
+
 createServer(async (req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (path === '/') { res.writeHead(302, { Location: '/sandbox/' }); res.end(); return; }
   if (path === '/lan') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(lanUrls())); return; }
   if (path === '/design' && req.method === 'POST') { await saveDesign(req, res); return; }
+  if (path === '/designs') { await listDesigns(res); return; }
   if (path.endsWith('/')) path += 'index.html';
   const file = normalize(join(ROOT, path));
   if (!SHARED.some((d) => file.startsWith(d))) { res.writeHead(404); res.end('not found'); return; }
