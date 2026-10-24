@@ -108,7 +108,9 @@
   .pmod .pval { color: var(--dim); }
   .pmod .pbar { height: 3px; background: #2a3a52; border-radius: 2px; margin-top: 3px; position: relative; }
   .pmod .pbar i { position: absolute; left: 0; top: 0; bottom: 0; background: #ff8a3c; border-radius: 2px; }
-  .pmod.picked { border-color: #ff8a3c; box-shadow: 0 0 0 2px rgba(255,138,60,.35); }
+  .pmod.picked, .pjack.picked { border-color: #ff8a3c; box-shadow: 0 0 0 2px rgba(255,138,60,.35); }
+  .pjack { border: 1px solid transparent; border-radius: 5px; margin: -2px -4px; padding: 2px 4px; }
+  .pjack + .pjack { margin-top: 4px; border-top: 1px dashed var(--line); border-radius: 0 0 5px 5px; }
   .pmod.box { text-align: center; color: var(--dim); }
   .pmod.box.lit, .pmod.tgt.lit { border-color: var(--accent); color: var(--text); background: rgba(111,211,181,.08); }
   .pmod.box.add { border-style: dashed; background: none; }

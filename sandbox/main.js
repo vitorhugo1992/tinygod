@@ -317,13 +317,20 @@ const ICON = { change: '🌗', compare: '⇄', light: '👁', touch: '✋', near
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
   if (id === 'energy') return 'energy';
+  if (String(id).endsWith(':change')) return 'change';   // an eyespot's second reading
   const p = (design.parts || []).find((x) => x.id === id) || {};
   return p.material === 'statolith' ? 'statolith' : p.kind || 'light';
 }
 // the sensors a rule can read: every sensor part (but `except`), then the energy level
 function sensorList(except) {
-  const list = partGroups(design.parts || []).filter((x) => x.category === 'Sensors' && x.members[0].id !== except)
-    .map((x) => ({ id: x.members[0].id, name: `${x.name.toLowerCase()} at ${x.deg}°`, short: x.name, kind: sensorKind(x.members[0].id) }));
+  const list = [];
+  for (const x of partGroups(design.parts || []).filter((g) => g.category === 'Sensors' && g.members[0].id !== except)) {
+    const id = x.members[0].id, kind = sensorKind(id);
+    list.push({ id, name: `${x.name.toLowerCase()} at ${x.deg}°`, short: x.name, kind });
+    // an eyespot also reads how its light is changing (its photoreceptor gets used to the light)
+    if (kind === 'light') list.push({ id: `${id}:change`, name: `${x.name.toLowerCase()} at ${x.deg}°: its light changing`,
+      short: 'light changing', kind: 'change', of: id });
+  }
   list.push({ id: 'energy', name: 'its energy level (built in)', short: 'Energy level', kind: 'energy' });
   return list;
 }
@@ -397,6 +404,15 @@ function compareInputs(m) {
   const b = document.createElement('div'); b.className = 'condhead'; b.append('B ', pick('b'));
   box.append(head, a, b);
   return box;
+}
+
+// A living cell's reading by key ('energy', an id, or 'id:change'), as { value } (the eyespot's own sensor for light);
+// undefined if there is none
+function liveReading(c, key) {
+  if (key === 'energy') return { value: energyLevel(world, c) };
+  const [id, ch] = String(key).split(':');
+  const s = c.sensors.find((x) => x.id === id);
+  return s && ch === 'change' ? { value: s.change } : s;
 }
 
 // The compact list under a part: its rule as sentences, one condition each
@@ -485,14 +501,20 @@ function drawPatch() {
   $('patchHint').textContent = patchPick ? `now tap a box or a part to patch ${ICON[sensorKind(patchPick)]} into` : PATCH_HINT;
   // sources
   const src = document.createElement('div'); src.className = 'pcol src';
+  let last = null;   // an eyespot's module: its second jack (light changing) goes in the same box
   for (const s of sensorList()) {
-    const m = document.createElement('div');
-    m.className = 'pmod srcmod' + (patchPick === s.id ? ' picked' : ''); m.dataset.src = s.id;
-    m.title = SCALE[s.kind];
-    m.innerHTML = `<div class="pname">${ICON[s.kind]} ${s.short}</div><div class="pval">reads <b data-live="${s.id}">–</b></div>
+    const jack = document.createElement('div');
+    jack.className = 'srcmod pjack' + (patchPick === s.id ? ' picked' : ''); jack.dataset.src = s.id;
+    jack.title = SCALE[s.kind];
+    jack.innerHTML = `<div class="pname">${ICON[s.kind]} ${s.short}</div><div class="pval">reads <b data-live="${s.id}">–</b></div>
       <div class="pbar"><i data-patchbar="${s.id}"></i></div>`;
-    m.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; patchEdit = null; drawPatch(); };
+    jack.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; patchEdit = null; drawPatch(); };
+    if (s.of && last) { last.appendChild(jack); continue; }
+    const m = document.createElement('div');
+    m.className = 'pmod';
+    m.appendChild(jack);
     src.appendChild(m);
+    last = m;
   }
   // targets, each with its boxes
   const rules = document.createElement('div'); rules.className = 'prules';
@@ -643,7 +665,7 @@ function patchLive() {
   if (!patchOpen) return;
   const area = $('patchArea'), live = cell && cell.design === design ? cell : null;
   for (const el of area.querySelectorAll('[data-patchbar]')) {
-    const id = el.dataset.patchbar, sn = live && (id === 'energy' ? { value: energyLevel(world, live) } : live.sensors.find((x) => x.id === id));
+    const sn = live && liveReading(live, el.dataset.patchbar);
     el.style.width = sn ? `${Math.min(Math.max(sn.value, 0), 1) * 100}%` : '0';
   }
   patchTargets.forEach((t, ti) => {
@@ -987,7 +1009,7 @@ function budget(lines) {
 // For a light sensor, also the most it could read at this depth (facing straight up), as a faint mark on the bar.
 function liveReadings() {
   // the built-in energy level reads like a sensor
-  const find = (id) => cell.design === design && (id === 'energy' ? { value: energyLevel(world, cell) } : cell.sensors.find((x) => x.id === id));
+  const find = (id) => cell.design === design && liveReading(cell, id);
   for (const el of document.querySelectorAll('[data-live]')) {
     const sn = find(el.dataset.live);
     el.textContent = sn ? sn.value.toFixed(2) : '–';
@@ -1235,6 +1257,11 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     ctx.beginPath(); ctx.moveTo(X(px), Y(py)); ctx.lineTo(X(px + Math.cos(dir) * 4), Y(py + Math.sin(dir) * 4)); ctx.stroke();
     ctx.fillStyle = lit ? on : off;
     ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2); ctx.fill();
+    if (sn.kind === 'light' && Math.abs(sn.change - 0.5) > 0.1) {   // its light is changing: a ring that flickers, warm while
+      const up = sn.change > 0.5, f = 0.5 + 0.5 * Math.sin(performance.now() / 70);   // brightening, cold while dimming
+      ctx.strokeStyle = up ? `rgba(255,230,150,${(0.3 + 0.6 * f).toFixed(2)})` : `rgba(120,150,255,${(0.3 + 0.6 * f).toFixed(2)})`;
+      ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(2.2 * s, 6), 0, Math.PI * 2); ctx.stroke();
+    }
   }
   for (const pad of c.pads) {
     const [px, py] = padWorld(c, pad);

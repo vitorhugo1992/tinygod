@@ -213,7 +213,7 @@ export const CATEGORIES = {
   'Escapes': ['Burst organ (escape)', 'Ejectisome, latched (Release)'],
   'Inside the cell': ['Plastid (makes energy)', 'Vacuole (store or float)'],
   'Pads': ['Kin pad', 'Mucus pad'],
-  'Sensors': ['Light sensor (eyespot)', 'Light-change sensor', 'Statolith (which way is up)', 'Touch sensor', 'Proximity sensor',
+  'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Touch sensor', 'Proximity sensor',
     'Nutrient sensor', 'Timer (clock)', 'Compare (two sensors)'],
 };
 

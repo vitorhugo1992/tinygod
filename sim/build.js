@@ -30,8 +30,9 @@
 // while its direction `angle` (degrees from the body's axis, default 0: the front) points straight up, 0 down.
 // Gas vesicles are an inclusion (material 'gas') with a `strength` (0-1, default 0.5): stronger ones lift less but
 // survive deeper (PARAMS.gas); below their depth they are crushed for good.
-// A light-change sensor (kind 'change') is an eyespot that gets used to the light: it reads 0.5 in steady light, more
-// while it brightens (dawn, climbing) and less while it dims (dusk, sinking), against its recent light (PARAMS.sensor).
+// Every eyespot also has a second reading, its light's change ('id:change' in wiring): its photoreceptor gets used to
+// the light, so it reads 0.5 in steady light, more while it brightens (dawn, climbing) and less while it dims (dusk,
+// sinking), against its recent light (PARAMS.sensor). (Kind 'change', an older separate part, reads only that.)
 // A compare module (kind 'compare', placed inside) reads two sensors `a` and `b`: 0.5 when they read the same, toward 1
 // as a reads more than b, toward 0 as b does (e.g. two eyespots, to turn toward the light).
 // Any joint can be wired to sensors: controls: [{ sensor: id, min = 0, max = 1 }, ...] (sensor 'energy': the cell's own
@@ -103,15 +104,21 @@ function parseJoint(j, pieceIndex) {
 }
 
 // A joint's wiring as the design writes it -> as the cell uses it (the sensor by index, the range)
+// A sensor key: an id, or 'id:change' for an eyespot's second reading (the light's change); 'energy': the built-in level
+function sensorKey(sensors, key) {
+  const [id, ch] = String(key).split(':');
+  if (ch !== undefined && ch !== 'change') throw new Error(`unknown reading: ${key}`);
+  return { s: id === 'energy' ? -1 : sensors.findIndex((x) => x.id === id), id, change: ch === 'change' };
+}
 function resolveControl(sensors, c) {
-  const s = c.sensor === 'energy' ? -1 : sensors.findIndex((x) => x.id === c.sensor);   // -1: the built-in energy level
-  if (s < 0 && c.sensor !== 'energy') throw new Error(`no sensor called ${c.sensor}`);
+  const { s, id, change } = sensorKey(sensors, c.sensor);   // -1: the built-in energy level
+  if (s < 0 && id !== 'energy') throw new Error(`no sensor called ${c.sensor}`);
   let min = c.min ?? 0, max = c.max ?? 1;
   if (c.when === 'light') min = PARAMS.sensor.threshold;
   else if (c.when === 'dark') max = PARAMS.sensor.threshold;
   else if (c.when !== undefined) throw new Error('control.when must be light or dark');
   if (!(min <= max)) throw new Error('control: min must not be above max');
-  return { sensor: s, min, max, not: !!c.not, or: !!c.or, holds: null };
+  return { sensor: s, change, min, max, not: !!c.not, or: !!c.or, holds: null };
 }
 
 // A design joint's wiring as a list (`controls`, or the older single `control`)
@@ -128,8 +135,12 @@ export function rewire(cell, partIndex, controls) {
 
 // A compare module's two inputs, by sensor id ('energy': the built-in level; missing or itself: none)
 function setInputs(s, sensors, a, b) {
-  const find = (id) => (id === 'energy' ? -2 : id && id !== s.id ? sensors.findIndex((x) => x.id === id) : -1);
-  s.a = find(a); s.b = find(b);
+  const find = (key) => {
+    if (!key) return [-1, false];
+    const k = sensorKey(sensors, key);
+    return [k.id === 'energy' ? -2 : k.id === s.id ? -1 : k.s, k.change];
+  };
+  [s.a, s.aChange] = find(a); [s.b, s.bChange] = find(b);
 }
 export function recompare(cell, partIndex, a, b) {
   for (const s of cell.sensors) if (s.part === partIndex && s.kind === 'compare') setInputs(s, cell.sensors, a, b);
@@ -242,7 +253,7 @@ export function buildCell(design) {
         Object.assign(s, { span: part.span || PARAMS.sensor.timerSpan, start: null, was: false, value: 1, trigger: [] });
         if ((part.trigger || []).length) triggers.push([s, part.trigger]);
       }
-      if (kind === 'change') s.avg = null;
+      if (kind === 'change' || kind === 'light') { s.avg = null; s.change = 0.5; }
       if (kind === 'compare') { Object.assign(s, { a: -1, b: -1, value: 0.5 }); compares.push([s, part]); }
       sensors.push(s);
     } else if (part.type === 'pad') {

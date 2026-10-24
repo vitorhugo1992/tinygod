@@ -74,9 +74,13 @@ once in full physics and let the ecology reuse it (to decide).
 - **Compare module** (Sensors, placed inside, a diamond): reads 0.5 + (A − B)/2 of two inputs (any sensor or the
   energy level), chosen in the list under it or patched into its A and B boxes in the patch view. Two eyespots on
   opposite sides + a compare module wired to a side tail = turning toward the light, built not given.
-- **Light-change sensor** (violet eyespot): gets used to the light over ~10 s and reads change relative to it
-  (Weber-like): 0.5 steady, toward 1 brightening (dawn, climbing), toward 0 dimming (dusk, sinking); measured noon
-  0.51, just before sunset 0.27, just after sunrise 1.00.
+- **Every eyespot reads its light changing** (first built as a separate light-change sensor; merged into the eyespot
+  the same day, author: "could be built inside the eyespot"; real eyespot photoreceptors adapt, and sudden changes
+  trigger the photophobic response): its photoreceptor gets used to the light over ~10 s and the second reading is
+  change relative to that (Weber-like): 0.5 steady, toward 1 brightening (dawn, climbing), toward 0 dimming (dusk,
+  sinking); measured noon 0.51, just before sunset 0.27, just after sunrise 1.00. Wired as 'id:change'; in the patch
+  view the eyespot is one module with two jacks; on the cell a ring flickers while its light changes (warm brightening,
+  cold dimming). Old designs with the separate part still work.
 **Build queue:** **the nucleus** (see Notes to carry: the box is the nucleus; every module inside it, cables only
 inside; tapping it opens the patch view), after the author tries the sandbox. Not wanted for now: the memory switch
 (author: "still not convinced").

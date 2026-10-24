@@ -8,7 +8,8 @@
 // - chem: the nutrients where it is (nutrient.js: poor at the surface, rich deep).
 // - statolith: a loose grain in a chamber rolls to the lower wall; it reads how far the chamber's direction points up
 //   (1 straight up, 0 down, 0.5 sideways or with gravity off).
-// - change: an eyespot that gets used to the light: 0.5 in steady light, more while brightening, less while dimming.
+// - every eyespot's second reading, change: its photoreceptor gets used to the light: 0.5 in steady light, more while
+//   brightening, less while dimming (wired as 'id:change'; kind 'change' is an older part reading only that).
 // - compare: two other readings weighed: 0.5 when equal, toward 1 as the first reads more, toward 0 as the second does.
 // - timer: 0 the moment its trigger (conditions, as for a part) comes true, rising to 1 after its span; 1 before it
 //   ever started. Reset by an eyespot at dawn it is a clock; by touch, a "for a while after" switch.
@@ -68,7 +69,7 @@ function holdsAll(world, cell, controls) {
   let all = false, group = true;   // all: an earlier group held; group: the current group holds so far
   for (const ctl of controls) {
     if (ctl.or && ctl !== controls[0]) { all = all || group; group = true; }
-    const v = ctl.sensor < 0 ? energyLevel(world, cell) : cell.sensors[ctl.sensor].value;
+    const v = ctl.sensor < 0 ? energyLevel(world, cell) : ctl.change ? cell.sensors[ctl.sensor].change : cell.sensors[ctl.sensor].value;
     if (holds(ctl, v) === ctl.not) group = false;
   }
   return all || group;
@@ -95,13 +96,13 @@ export function sense(world, cell) {
         const half = s.cone / 2;
         L = off < half ? dcos(off / half * Math.PI / 2) * lightAt(world, y) : 0;
       }
-      if (s.kind === 'light') { s.value = L; continue; }
-      // light change: the light now against what it got used to, as a share of that (a photoreceptor adapts)
+      // its change: the light now against what it got used to, as a share of that (a photoreceptor adapts)
       if (s.avg === null) s.avg = L;
       const rel = (L - s.avg) / (s.avg + S.changeFloor);
       s.avg += (L - s.avg) * PARAMS.time.dt / S.changeTau;
       const v = 0.5 + 0.5 * S.changeGain * rel;
-      s.value = v < 0 ? 0 : v > 1 ? 1 : v;
+      s.change = v < 0 ? 0 : v > 1 ? 1 : v;
+      s.value = s.kind === 'light' ? L : s.change;
     } else {
       const d = nearest(world, cell, x, y, s.range, s.feels === 'anything');
       s.value = s.kind === 'touch' ? (d <= s.range ? 1 : 0) : (d >= s.range ? 0 : d <= 0 ? 1 : 1 - d / s.range);
@@ -110,10 +111,10 @@ export function sense(world, cell) {
   // compare modules and timers, in order (one may read an earlier one): a compare module weighs its two inputs; a timer
   // starts again the moment its trigger comes true
   const t = worldTime(world);
-  const read = (k) => (k === -2 ? energyLevel(world, cell) : k >= 0 ? cell.sensors[k].value : null);
+  const read = (k, change) => (k === -2 ? energyLevel(world, cell) : k >= 0 ? (change ? cell.sensors[k].change : cell.sensors[k].value) : null);
   for (const s of cell.sensors) {
     if (s.kind === 'compare') {
-      const a = read(s.a), b = read(s.b);
+      const a = read(s.a, s.aChange), b = read(s.b, s.bChange);
       s.value = a === null || b === null ? 0.5 : 0.5 + (a - b) / 2;
       continue;
     }
