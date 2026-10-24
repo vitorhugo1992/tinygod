@@ -420,6 +420,10 @@ runs headless in Node for tests (and later the optimiser).
   are modules there too. **Cables run only between modules inside the nucleus** and are never drawn on the cell.
   **Tapping the nucleus opens the patch view**: the nucleus opened up, its size the board's edge.
   **Queued to build** (author, 2026-10-24: not yet, after trying the current sandbox).
+- **Stores and vacuoles show their level (for later, author 2026-10-24):** a reserve drawn like a container filling
+  with liquid (e.g. a starch granule filling with a coloured liquid by day and visibly emptying as it is burned; colours
+  to decide), instead of today's shrinking disc in a faint outline. The same for buoyancy: a sap vacuole showing how
+  light or heavy it is now, gas vesicles intact or crushed (already drawn).
 - **Pads that sense and attract (for later, author 2026-10-24):** a pad tells the cell whether it is stuck, so the
   wiring can use it: a cell whose two pads are both used is in the middle of a chain and may not need all its tails
   (only the ends steer or push), and so on; sticking to another species' pad can trigger something too (a pad
