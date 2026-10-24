@@ -125,8 +125,9 @@ function parseJoint(j, pieceIndex) {
 
 // A joint's wiring as the design writes it -> as the cell uses it (the sensor by index, the range)
 // A sensor by id, as its index in the cell (-1: the built-in energy level)
-// (-1: the built-in energy level; -2, -3: the built-in starch and oil levels, how full those stores are)
-const BUILT_IN = { energy: -1, starch: -2, oil: -3 };
+// (-1: the built-in energy level; -2, -3: the built-in starch and oil levels, how full those stores are; -4: how
+// healthy its plastids are)
+const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4 };
 function sensorIndex(sensors, id) {
   if (BUILT_IN[id] !== undefined) return BUILT_IN[id];
   const s = sensors.findIndex((x) => x.id === id);

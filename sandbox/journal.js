@@ -1,9 +1,10 @@
-// The journal: what happened to a cell over the last day (depth, energy, stores, float, light), and the moments that
+// The journal: what happened to a cell over the last day (depth, energy, stores, float, plastids, light), and the moments that
 // explain its fate (running out of energy, tipping over, the floor, a crushed float...), for the day graph and the
 // trouble log. Nothing here changes the simulation; it only watches. "Test a day" runs a copy ahead to forecast.
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { daylight, lightAt, clock } from '../sim/light.js';
+import { plastidHealth } from '../sim/sense.js';
 
 const TH = PARAMS.tank.h, M = PARAMS.metab, DT = PARAMS.time.dt;
 const EVERY = 1000;          // steps between samples (1 s)
@@ -21,7 +22,8 @@ export function note(world, c) {
   const floats = inc.filter((i) => i.crush), gas = avgFill(floats);
   const sun = world.light ? (world.day ? daylight(world) : 1) : 0;
   const up = Math.sin(c.q[2]);   // 1: its front points straight up
-  j.s.push({ t, depth, E, starch, oil, gas, sun, up });
+  const health = inc.some((i) => i.material === 'plastid') ? plastidHealth(world, c) : null;
+  j.s.push({ t, depth, E, starch, oil, gas, health, sun, up });
   if (j.s.length > KEEP) j.s.shift();
 
   const w = j.was;
@@ -43,6 +45,9 @@ export function note(world, c) {
   for (const f of floats) if (f.crushed && !f.noted) { f.noted = true; say(`its gas vesicles were crushed ${depth.toFixed(0)} µm down`, true); }
   if (starch === 0 && w.starch > 0) say('its starch is used up');
   if (oil === 0 && w.oil > 0) say('its oil is used up');
+  // too much light: said once as its plastids fall below 3/4 healthy, again once they have mended
+  if (health !== null && health < 0.75 && !w.hurt) { w.hurt = true; say(`bright light damaged its plastids (${(100 * health).toFixed(0)}% healthy)`, true); }
+  if (health !== null && health > 0.95 && w.hurt) { w.hurt = false; say('its plastids have mended'); }
   Object.assign(w, { starving, floor, top, sun, starch, oil });
 }
 
@@ -58,9 +63,10 @@ const fmtH = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.flo
 export const eventText = (e) => `${fmtH(e.h)} ${e.text}`;
 
 // The day graph: the last day (or a forecast) in a strip at (x, y, w, h): night shaded, then depth (white, the surface
-// at the top), energy (yellow), starch (cream), oil (gold) and the float (blue); serious moments as red ticks
+// at the top), energy (yellow), starch (cream), oil (gold), the float (blue) and plastid health (green); serious
+// moments as red ticks
 const LINES = [['depth', '#e8f0f4', 'depth'], ['E', '#ffd84a', 'energy'], ['starch', '#ece3c4', 'starch'], ['oil', '#f2a93c', 'oil'],
-  ['gas', '#8fd0ff', 'float']];
+  ['gas', '#8fd0ff', 'float'], ['health', '#a6e36a', 'plastids']];
 export function drawJournal(ctx, j, x, y, w, h, title) {
   ctx.fillStyle = 'rgba(6,10,18,.88)'; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = '#23324a'; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
@@ -74,11 +80,11 @@ export function drawJournal(ctx, j, x, y, w, h, title) {
   for (let k = 1; k < s.length; k++) if (s[k].t >= t0 && s[k].sun === 0) ctx.fillRect(X(s[k - 1].t), top, X(s[k].t) - X(s[k - 1].t) + 0.5, gh);
   // lines
   for (const [key, color] of LINES) {
-    if (s.every((p) => p[key] === null)) continue;
+    if (s.every((p) => p[key] == null)) continue;
     ctx.strokeStyle = color; ctx.lineWidth = key === 'depth' ? 2 : 1.2; ctx.beginPath();
     let pen = false;
     for (const p of s) {
-      if (p.t < t0 || p[key] === null) { pen = false; continue; }
+      if (p.t < t0 || p[key] == null) { pen = false; continue; }
       const v = key === 'depth' ? p.depth / TH : 1 - p[key];   // depth down from the top; shares up from the bottom
       const py = top + gh * Math.min(Math.max(v, 0), 1);
       if (pen) ctx.lineTo(X(p.t), py); else { ctx.moveTo(X(p.t), py); pen = true; }
@@ -92,7 +98,7 @@ export function drawJournal(ctx, j, x, y, w, h, title) {
   ctx.fillStyle = '#8197a8'; ctx.fillText(title, x + 6, y + 12);
   let lx = x + 6 + ctx.measureText(title).width + 10;
   for (const [key, color, label] of LINES) {
-    if (s.every((p) => p[key] === null)) continue;
+    if (s.every((p) => p[key] == null)) continue;
     ctx.fillStyle = color; ctx.fillText(label, lx, y + 12); lx += ctx.measureText(label).width + 8;
   }
   const last = [...j.ev].reverse().find((e) => e.serious && e.t >= t0);
@@ -110,6 +116,7 @@ export function forecast(design, from, settings, onProgress, onDone) {
   w.steps = from.steps;
   const c = addCell(w, design, from.x, from.y, from.angle);
   if (c.metab && from.share !== undefined) c.metab.E = from.share * c.metab.C;
+  if (from.damage) c.pieces[0].inclusions.filter((i) => i.material === 'plastid').forEach((i, k) => { i.damage = from.damage[k] || 0; });
   const end = w.steps + Math.round(M.day / DT);
   let cancelled = false;
   const slice = () => {

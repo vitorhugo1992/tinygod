@@ -1,8 +1,11 @@
 // Metabolism v0: one currency, energy (pJ), kept in the cytoplasm's pool.
 // - Income: plastids, by the light where they are, saturating in bright light ('shade' plastids, with phycobilins,
-//   saturate in dim light: better deep, less at the top, dearer to keep).
+//   saturate in dim light: better deep, less at the top, dearer to keep). Too much light damages a plastid
+//   (photoinhibition): its output falls with its damage, and repairing it, all the time, costs energy (a shade plastid
+//   is hurt sooner and faster). Starving, it can't be repaired.
 // - Spending: upkeep (the body by its volume, segments by their length, plastids and stores by their size), and the
-//   motors' and pumps' real power, sped up like every other flow (PARAMS.metab.speedup), so their small share is honest.
+//   motors' and pumps' real power, sped up like every other flow (PARAMS.metab.speedup), and beating itself, by each
+//   running flagellum's length and beat speed (made playable: real beating is nearly free; this makes resting pay).
 // - Stores, automatic: while the pool is fuller than fillAbove, surplus goes into starch (quick) then oil (slow);
 //   while it is emptier than burnBelow, starch then oil are burned to refill it. A store's weight follows how full it
 //   is: starch is heavy, oil light, so buoyancy changes as the cell eats and fasts.
@@ -29,10 +32,26 @@ export function initMetab(cell) {
   }
   let upkeep = bodyUpkeep;
   for (const v of byPart.values()) upkeep += v;
+  for (const inc of body.inclusions) if (inc.material === 'plastid') inc.damage = 0;
+  // each beating motor's length: its own piece and the passive pieces hanging from it (a flexible oar's blade)
+  const driver = (i) => {   // the beating motor that moves piece i, or -1
+    for (let k = i; k > 0; k = cell.pieces[k].parent) {
+      const jt = cell.joints[cell.pieces[k].joint];
+      if (!jt) continue;   // fixed to its parent: look further up
+      if (jt.type === 'motor') return jt.burst ? -1 : cell.pieces[k].joint;
+      if (jt.type !== 'hinge') return -1;
+    }
+    return -1;
+  };
+  const beatL = new Map();
+  for (let i = 1; i < cell.pieces.length; i++) {
+    const d = driver(i);
+    if (d >= 0) beatL.set(d, (beatL.get(d) || 0) + cell.pieces[i].L);
+  }
   const C = body.volume * M.pool;
   cell.metab = {
-    C, E: M.start * C, upkeep, bodyUpkeep, byPart,
-    income: 0, motors: 0, pumps: 0, gasBuild: 0,          // the last step's flows, pJ/s (for the budget)
+    C, E: M.start * C, upkeep, bodyUpkeep, byPart, beatL,
+    income: 0, motors: 0, pumps: 0, gasBuild: 0, repair: 0,   // the last step's flows, pJ/s (for the budget)
     lastMotor: cell.energy.motor, lastPump: cell.energy.pump,
     starving: false,
   };
@@ -43,19 +62,27 @@ const capacity = (inc) => inc.v * M[inc.store].energy;
 
 export function metabolize(world, cell) {
   const m = cell.metab, body = cell.pieces[0];
-  // income: each plastid by the light where it is
-  let income = 0;
+  // income: each plastid by the light where it is, less its damage; too much light damages it, repair costs energy
+  let income = 0, repair = 0;
   for (const inc of body.inclusions) {
     if (inc.material !== 'plastid') continue;
     const y = cell.cy[0] + cell.sn[0] * inc.x + cell.cs[0] * inc.y;
-    const L = lightAt(world, y);
-    income += inc.pigment === 'shade' ? M.shade.max * inc.v * L / (L + M.shade.half) : M.plastidMax * inc.v * L / (L + M.plastidHalf);
+    const L = lightAt(world, y), shade = inc.pigment === 'shade';
+    income += (1 - inc.damage) * (shade ? M.shade.max * inc.v * L / (L + M.shade.half) : M.plastidMax * inc.v * L / (L + M.plastidHalf));
+    const over = L - (shade ? M.shade.safe : M.photo.safe);
+    if (over > 0) inc.damage += M.photo.damage * (shade ? M.shade.damage : 1) * over * (1 - inc.damage) * DT;
+    if (!m.starving && inc.damage > 0) {
+      const fixed = M.photo.repair * inc.damage * DT;
+      inc.damage -= fixed; repair += fixed * inc.v * M.photo.cost;
+    }
   }
-  // the motors' and pumps' real work since last step
-  const motors = (cell.energy.motor - m.lastMotor) * REAL, pumps = (cell.energy.pump - m.lastPump) * REAL;
+  // the motors' and pumps' real work since last step, and what beating costs (each running motor's length, by its speed)
+  let beat = 0;
+  if (!m.starving) for (const [j, L] of m.beatL) { const jt = cell.joints[j]; if (jt.on) beat += M.beat * L * jt.gain; }
+  const motors = (cell.energy.motor - m.lastMotor) * REAL + beat * DT, pumps = (cell.energy.pump - m.lastPump) * REAL;
   m.lastMotor = cell.energy.motor; m.lastPump = cell.energy.pump;
-  m.income = income; m.motors = motors / DT; m.pumps = pumps / DT;
-  m.E += (income - m.upkeep) * DT - motors - pumps;
+  m.income = income; m.motors = motors / DT; m.pumps = pumps / DT; m.repair = repair / DT;
+  m.E += (income - m.upkeep) * DT - motors - pumps - repair;
 
   // gas vesicles: protein that wears out and is rebuilt from the pool while it holds enough, so a fed cell keeps its
   // float and a starving one slowly loses it (fill: the share of the vesicles intact)

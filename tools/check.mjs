@@ -484,13 +484,13 @@ const runDay = (design, y, seconds, opts = {}) => {
     `sunlight at noon ${fmt(noon)}, 18:30 ${fmt(dusk)}, midnight ${fmt(midnight)}; day off: ${fmt(daylight(still))}`);
 }
 
-// 26. A plastid earns by the light where it is: near the surface a cell lives through the night on its starch;
-// deep down it can't earn its keep and starves
+// 26. A plastid earns by the light where it is: in good light (not so bright it is damaged) a cell lives through the
+// night on its starch; deep down it cannot earn its keep and starves
 {
-  const top = runDay(phototroph(), 1900, 720), deep = runDay(phototroph(), 500, 720);
-  check('near the surface a plastid feeds the cell through day and night; deep down it starves',
+  const top = runDay(phototroph(), 1550, 720), deep = runDay(phototroph(), 500, 720);
+  check('in good light (450 µm down) a plastid feeds the cell through day and night; deep down it starves',
     top.starved === 0 && deep.starved > 100,
-    `100 µm down: starving ${fmt(top.starved, 0)} s of 720; 1.5 mm down: starving ${fmt(deep.starved, 0)} s`);
+    `450 µm down: starving ${fmt(top.starved, 0)} s of 720; 1.5 mm down: starving ${fmt(deep.starved, 0)} s`);
 }
 
 // 27. Starch fills by day and is burned at night; full, it makes the cell heavier
@@ -771,6 +771,45 @@ const runDay = (design, y, seconds, opts = {}) => {
     `tail GO energy 0.1-1, STOP statolith above 0.6: level ${r[0]}, front up ${r[1]}; STOP only: level ${r[2]}, up ${r[3]}. ` +
     `Speed following the energy level (1 of 0-4): rising ${fmt(up)}, "down" ${fmt(down)}. Plastid income 20 µm down: ` +
     `sun ${fmt(sunTop, 0)}, shade ${fmt(shadeTop, 0)} pJ/s; 1800 µm down: sun ${fmt(sunDeep, 0)}, shade ${fmt(shadeDeep, 0)} pJ/s`);
+}
+
+// 28o. Too much light: a plastid held in bright light is damaged and earns less (after repair) than one a little
+// deeper; in the dark it mends, unless the cell is starving. Beating costs by length while it beats, nothing at rest.
+{
+  const plastid = { body: { radius: 10 }, parts: [{ type: 'inclusion', material: 'plastid', at: [0, 0], radius: 5 }] };
+  const held = (depth, seconds) => {
+    const w = makeWorld(1, { metab: true, gravity: false });
+    const c = addCell(w, plastid, 800, PARAMS.tank.h - depth, 0);
+    c.metab.C = c.metab.E = 1e12;   // never starves
+    let net = 0;
+    for (let i = 0; i < seconds / DT; i++) { stepWorld(w); net += c.metab.income - c.metab.repair; }
+    return { w, c, net: net * DT / seconds, damage: c.pieces[0].inclusions[0].damage };
+  };
+  const top = held(20, 100), mid = held(500, 100);
+  const mend = (starving) => {
+    const { w, c } = held(20, 100), d0 = c.pieces[0].inclusions[0].damage;
+    w.light = false;
+    if (starving) { c.metab.C = 100; c.metab.E = 0; }
+    for (let i = 0; i < 50 / DT; i++) stepWorld(w);
+    return c.pieces[0].inclusions[0].damage / d0;
+  };
+  const fed = mend(false), starved = mend(true);
+  const beating = (on) => {
+    const controls = [{ sensor: 'energy', min: on ? 0 : 0.99, max: 1 }];
+    const parts = PRESETS['Wave tail'].parts.map((p) => ({ ...p, joint: { ...p.joint, controls } }));
+    const w = makeWorld(1, { metab: true, gravity: false });
+    const c = addCell(w, { body: { radius: 8 }, parts }, 800, 1000, 0);
+    for (let i = 0; i < 1 / DT; i++) stepWorld(w);
+    return c.metab.motors;
+  };
+  const tailL = PRESETS['Wave tail'].parts.reduce((a, p) => a + p.length, 0);
+  const run1 = beating(true), rest = beating(false);
+  check('too much light damages plastids (repair costs; mends in the dark, not while starving); beating costs while it beats',
+    top.net < 0.8 * mid.net && top.damage > 0.2 && mid.damage < 0.1 && fed < 0.3 && starved > 0.999 &&
+    run1 >= PARAMS.metab.beat * tailL && rest < 1e-9,
+    `noon, held 20 µm down: damage ${fmt(top.damage)}, earns ${fmt(top.net, 0)} pJ/s after repair; 500 µm down: damage ` +
+    `${fmt(mid.damage)}, ${fmt(mid.net, 0)} pJ/s. Damage left after 50 s dark: fed ${fmt(fed)}, starving ${fmt(starved)}. ` +
+    `Wave tail (${tailL} µm) beating ${fmt(run1, 0)} pJ/s, resting ${fmt(rest, 0)}`);
 }
 
 // 29. Determinism with day, metabolism and stores

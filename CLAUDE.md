@@ -13,7 +13,7 @@ chronological log, newest additions last in each block.
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the phone uses http://192.168.1.69:5180/sandbox/ (home Wi-Fi; the page shows it under its title). Restart the server
-after changing tools/serve.mjs. `node tools/check.mjs`: 42 physics checks, all passing (~2 min). Check every change
+after changing tools/serve.mjs. `node tools/check.mjs`: 43 physics checks, all passing (~2 min). Check every change
 in the real page with headless Edge over the DevTools protocol at phone size (400×860) and look at screenshots.
 
 **The sandbox today, in short:** a still 2 mm tank with light from above and a 10-minute day. Build a cell from parts:
@@ -30,18 +30,31 @@ designs/<name>.json: when the author says they sent one, read designs/), 📥 Fr
 { name, from: "Claude", note, design } and tell them to tap it). The sandbox opens with an empty cell; Claude's
 species Vesperella (a daily migrator) is a preset and starts in the saved designs.
 
-**Next (agreed with the author, 2026-10-24, to plan first): too much light hurts.** Diagnosis after designing two
-species (Vesperella; the author's legged cell, designs/my_species_survives_night.json): **one answer wins: get to
-the surface and stay there** (most light, no downside: bright light never hurts, nutrients don't limit growth, no
-grazers), so the shade plastid, depth-holding and eyespot "not too bright" rules have no purpose. Fix now:
-**photoinhibition** (bright light damages plastids and costs energy to repair; real and well known). Step 1 then adds
-the other two costs of the surface: nutrients needed to grow (surface poor, deep rich) and grazers.
+**Too much light hurts (built 2026-10-24).** Diagnosis after designing two species (Vesperella; the author's legged
+cell, designs/my_species_survives_night.json): **one answer won: get to the surface and stay there** (bright light
+never hurt, nutrients don't limit growth, no grazers), so the shade plastid, depth-holding and eyespot "not too
+bright" rules had no purpose. Fix: **photoinhibition** (PARAMS.metab.photo, sim/metab.js): light above a safe level
+(sun 0.4, shade 0.15 and twice as fast) damages a plastid (0-1), its output falls in proportion, repair runs all the
+time and costs energy; a starving cell can't repair. Plastid output raised 10% (sun 55, shade 33) so the best depth
+pays about what the surface used to. Measured (a plastid held at a depth): sun best ~500 µm down; the surface earns
+39% less at noon, 21% less over a day; shade best ~1.3 mm, badly hurt near the top. Shown: plastids bleach toward
+pale yellow, a "plastids" line in the day graph, "bright light damaged its plastids" / "mended" in the trouble log,
+"repairing plastids" in the budget; **plastid health** is a built-in reading ('health' in wiring, 🌿), offered when
+the design has a plastid. Rebuilds and Test a day keep the damage. **Consequence:** Vesperella and the legged cell,
+which sat at the surface and only just broke even, now starve some nights (they need to stay out of the noon light;
+Vesperella's strong gas vesicles keep floating it back up). Step 1 then adds the other two costs of the surface:
+nutrients needed to grow (surface poor, deep rich) and grazers.
+**Swimming costs more (author, 2026-10-24, option A of two; a deliberate break from "running is nearly free"):** a
+beating motor costs PARAMS.metab.beat (10 pJ/s) per µm of its piece and the passive pieces hanging from it, times its
+beat speed, nothing at rest (burst organs excluded; on top of the real work). A 48 µm tail: ~530 pJ/s, ~6% of a
+surface cell's income. The budget line reads "flagella beating". Resting now pays: buoyancy beats swimming to hold a
+depth. The author chose this over higher flagellum upkeep (B), which gives no reason to rest.
+**Sap vacuole and oil: kept** (author, 2026-10-24), to retune in step 1.
 **Parts audit (Claude, agreed by the author):** useless until step 1 gives them a world: escapes (burst organ,
 ejectisome), touch and proximity (nothing to flee or meet), spines and glass wall (protection with no grazers), pads
 and chains (a chain gains nothing), stiff flap (a lesson, not a part), nutrient sensor (nutrients feed nothing: only a
-depth gauge). Weak: sap vacuole and oil (**open: keep or scrap?** Claude recommends keep untouched and retune in step 1,
-where they get real jobs: oil the dense long-fast store for several hungry days and seasons; sap the nitrate store and
-the only two-way buoyancy; the author was asked and has not answered). Doing the work: eyespot, statolith, wave tail,
+depth gauge). Weak: sap vacuole and oil (kept, see above; in step 1 oil becomes the dense slow store for several
+hungry days and seasons, sap the nitrate store and the only two-way buoyancy). Doing the work: eyespot, statolith, wave tail,
 oar, starch, gas, plastid, energy level. Also: size buys nothing yet (bigger only costs); no reproduction, so no
 score; energy is the only currency. **The timer was removed** (author, 2026-10-24); designs saved with one load with
 it stripped and its cables unplugged.

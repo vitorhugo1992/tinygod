@@ -41,11 +41,20 @@ export const PARAMS = {
     bodyUpkeep: 1,          // pJ/s per µm³ of body
     partUpkeep: 5,          // pJ/s per µm of segment
     insideUpkeep: 0.2,      // pJ/s per µm³ of plastid, store, gas vesicles or statolith
-    plastidMax: 50,         // pJ/s per µm³ of plastid in full light...
+    plastidMax: 55,         // pJ/s per µm³ of plastid in full light...
     plastidHalf: 0.2,       // ...and half of that at this light
     // a shade plastid (phycobilins catch the green light that reaches deep): half its top at 1/5 of the light, a lower
     // top, and its upkeep this many times a sun plastid's (phycobilins are costly protein); it earns more below ~1 mm
-    shade: { max: 30, half: 0.04, upkeep: 2.5 },
+    shade: { max: 33, half: 0.04, upkeep: 2.5, safe: 0.15, damage: 2 },
+    // too much light (photoinhibition): light above `safe` damages a plastid (damage 0-1, faster the brighter; a shade
+    // plastid has its own lower `safe` and is damaged `shade.damage` times faster), cutting its output in proportion;
+    // it is repaired all the time (share of the damage per s), paying `cost` pJ per µm³ of plastid per whole damage
+    // repaired; a starving cell can't repair
+    photo: { safe: 0.4, damage: 0.06, repair: 0.04, cost: 200 },
+    // beating costs (made playable: real flagella cost well under 1% of income, CLAUDE.md): pJ/s per µm of a beating
+    // part (a motorised piece and the passive pieces hanging from it) at full beat speed, nothing while it rests;
+    // on top of the motors' real work
+    beat: 10,
     pool: 60,               // pJ per µm³ of body the cytoplasm holds (about a minute of upkeep)
     start: 0.8,             // pool at birth, share of full
     fillAbove: 0.8,         // stores fill while the pool is above this share...

@@ -5,7 +5,7 @@ import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
 import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
-import { energyLevel, storeLevel } from '../sim/sense.js';
+import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
 import { note, nightsLeft, drawJournal, eventText, forecast } from './journal.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
@@ -341,7 +341,7 @@ function drawPreview(X, Y, s) {
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
+const RANGE = { health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
 const SCALE = {   // what the 0-1 reading means
   light: '0 = dark or facing away, 1 = facing up in full light',
   touch: '0 = nothing, 1 = touching',
@@ -349,15 +349,16 @@ const SCALE = {   // what the 0-1 reading means
   energy: '0 = out of energy (starving), 1 = full',
   starch: '0 = its starch is used up, 1 = full',
   oil: '0 = its oil is used up, 1 = full',
+  health: '0 = its plastids wrecked by too much light, 1 = unharmed',
   statolith: '0 = its direction points down, 0.5 = level, 1 = up',
   chem: '0 = poor water (near the surface), 1 = rich (deep)',
 };
-const ENDS = { light: ['dark', 'bright'], touch: ['nothing', 'touching'], near: ['nothing near', 'touching'], energy: ['starving', 'full'], starch: ['used up', 'full'], oil: ['used up', 'full'],
+const ENDS = { health: ['wrecked', 'unharmed'], light: ['dark', 'bright'], touch: ['nothing', 'touching'], near: ['nothing near', 'touching'], energy: ['starving', 'full'], starch: ['used up', 'full'], oil: ['used up', 'full'],
   statolith: ['points down', 'points up'], chem: ['poor water', 'rich water'] };
-const ICON = { starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
+const ICON = { health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
-  if (id === 'energy' || id === 'starch' || id === 'oil') return id;
+  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health') return id;
   const p = (design.parts || []).find((x) => x.id === id) || {};
   return p.material === 'statolith' ? 'statolith' : p.kind || 'light';
 }
@@ -371,6 +372,8 @@ function sensorList(except) {
   list.push({ id: 'energy', name: 'its energy level (built in)', short: 'Energy level', kind: 'energy' });
   for (const k of ['starch', 'oil']) if ((design.parts || []).some((p) => p.type === 'inclusion' && p.material === k))
     list.push({ id: k, name: `its ${k} level (how full its ${k} is)`, short: `${k[0].toUpperCase() + k.slice(1)} level`, kind: k });
+  if ((design.parts || []).some((p) => p.type === 'inclusion' && p.material === 'plastid'))
+    list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
   return list;
 }
 const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.latched));
@@ -615,10 +618,11 @@ function speedRow(targets, sensors) {
   return box;
 }
 
-// A living cell's reading of a sensor ('energy', 'starch', 'oil' or an id), as { value }; undefined if there is none
+// A living cell's reading of a sensor ('energy', 'starch', 'oil', 'health' or an id), as { value }; undefined if there is none
 function liveReading(c, id) {
   if (id === 'energy') return { value: energyLevel(world, c) };
   if (id === 'starch' || id === 'oil') return { value: storeLevel(c, id) };
+  if (id === 'health') return { value: plastidHealth(world, c) };
   return c.sensors.find((x) => x.id === id);
 }
 
@@ -880,6 +884,7 @@ function reset(pose, carry) {
       const keep = (from, to) => {
         for (const i of to.pieces[0].inclusions) {
           const o = from.pieces[0].inclusions.find((x) => x.part === i.part && x.material === i.material);
+          if (o && i.material === 'plastid') i.damage = o.damage || 0;   // a plastid keeps its damage
           if (!o || !(i.store || i.crush)) continue;
           i.fill = o.fill; if (i.crush) { i.crushed = o.crushed; if (o.crushed) i.density = o.density; }
           i.wpt.w = (i.density - PARAMS.cell.cytoplasm) * i.v * i.fill * PARAMS.gravity * 1e-6;
@@ -1117,16 +1122,19 @@ function budget(lines) {
   const show = (v) => base ? `${(100 * v / base).toFixed(v / base < 0.01 ? 2 : 0)}%` : `${v.toFixed(0)} pJ/s`;
   lines.push(`energy    pool ${(100 * m.E / m.C).toFixed(0)}%${m.starving ? '  STARVING' : ''}`);
   lines.push(`income    ${m.income.toFixed(0)} pJ/s from plastids${base ? '' : ' (none: dark or no plastid)'}`);
+  const health = plastidHealth(world, cell);
+  if (health < 0.995) lines.push(`plastids  ${(100 * health).toFixed(0)}% healthy (bright light damages them)`);
   lines.push(`spent on  body upkeep ${show(m.bodyUpkeep)}`);
   for (const g of partGroups(cell.design.parts || [])) {
     let v = 0;
     for (const mm of g.members) v += m.byPart.get(cell.design.parts.indexOf(mm)) || 0;
     if (v > 0) lines.push(`          ${g.name} upkeep ${show(v)}`);
   }
-  if (m.motors > 0) lines.push(`          motors running ${show(m.motors)}`);
+  if (m.motors > 0) lines.push(`          flagella beating ${show(m.motors)}`);
   if (m.pumps > 0) lines.push(`          pumping ${show(m.pumps)}`);
   if (m.gasBuild > 0) lines.push(`          rebuilding gas vesicles ${show(m.gasBuild)}`);
-  const net = m.income - m.upkeep - m.motors - m.pumps - m.gasBuild;
+  if (m.repair > 0.5) lines.push(`          repairing plastids (too much light) ${show(m.repair)}`);
+  const net = m.income - m.upkeep - m.motors - m.pumps - m.gasBuild - m.repair;
   lines.push(`net       ${net >= 0 ? "+" : ""}${net.toFixed(0)} pJ/s: ${net >= 0 ? "gaining energy" : "losing energy"}`);
   for (const inc of cell.pieces[0].inclusions) if (inc.store) lines.push(`store     ${inc.store} ${(100 * inc.fill).toFixed(0)}% full`);
 }
@@ -1311,7 +1319,8 @@ $('testDay').onclick = () => {
   if (forecastJ) { forecastJ = null; $('testDay').textContent = '⏩ Test a day'; return; }
   graphOn = true;
   const from = { steps: world.steps, x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI,
-    share: cell.metab ? cell.metab.E / cell.metab.C : undefined };
+    share: cell.metab ? cell.metab.E / cell.metab.C : undefined,
+    damage: cell.pieces[0].inclusions.filter((i) => i.material === 'plastid').map((i) => i.damage || 0) };
   const settings = { gravity: world.gravity, light: world.light, day: world.day, metab: world.metab };
   stopForecast = forecast(cell.design, from, settings, (p) => { $('testDay').textContent = `⏩ ${Math.round(100 * p)}%`; },
     (j) => { stopForecast = null; forecastJ = j; $('testDay').textContent = '✕ Close forecast'; });
@@ -1415,6 +1424,13 @@ function sapColor(inc) {
   const mix = (a, b) => Math.round(a + (b - a) * t);
   return `rgb(${mix(170, 40)},${mix(215, 80)},${mix(255, 170)})`;
 }
+// A plastid's colour: green (sun) or pink-red (shade), bleaching toward pale yellow as bright light damages it
+function plastidColor(inc) {
+  const t = Math.min(Math.max(inc.damage || 0, 0), 1);
+  const [r, g, b] = inc.pigment === 'shade' ? [196, 90, 124] : [143, 201, 74];
+  const mix = (a, z) => Math.round(a + (z - a) * t);
+  return `rgb(${mix(r, 236)},${mix(g, 228)},${mix(b, 170)})`;
+}
 // Gas vesicles: a cluster of small bubbles, fewer as they wear out; crushed, flat grey dashes
 function drawGas(ix, iy, inc, X, Y, s, rot = 0) {
   const per = 7, hh = inc.h || 0, groups = 1 + Math.round(2 * hh / Math.max(inc.r, 0.1));   // a cluster per stretch of rod
@@ -1471,7 +1487,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
       const r = inc.r, a = c.phi[i] + (inc.ang || 0);
       if (inc.store) { drawLevel(ix, iy, inc, X, Y, s, a); continue; }   // a container, filled as far as it is full
       if (inc.material === 'gas') { drawGas(ix, iy, inc, X, Y, s, a); continue; }
-      ctx.fillStyle = inc.pumpable ? sapColor(inc) : inc.material === 'plastid' && inc.pigment === 'shade' ? COLOR.plastidShade : COLOR[inc.material];
+      ctx.fillStyle = inc.pumpable ? sapColor(inc) : inc.material === 'plastid' ? plastidColor(inc) : COLOR[inc.material];
       if (r > 0.02) { incPath(X(ix), Y(iy), inc, s, a); ctx.fill(); }
       if (inc.material === 'statolith') {   // the grain lies on the chamber's lower wall (in the middle with gravity off)
         const g = 0.4 * inc.r, drop = world.gravity ? inc.r - g : 0;

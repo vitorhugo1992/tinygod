@@ -9,7 +9,8 @@
 // - statolith: a loose grain in a chamber rolls to the lower wall; it reads how far the chamber's direction points up
 //   (1 straight up, 0 down, 0.5 sideways or with gravity off).
 // Every cell also has its energy level built in (no part): how full its energy pool is, 0 empty, 1 full (1 with
-// metabolism off). Wiring to sensor 'energy' reads it; 'starch' and 'oil' read how full those stores are.
+// metabolism off). Wiring to sensor 'energy' reads it; 'starch' and 'oil' read how full those stores are; 'health'
+// how healthy its plastids are (1 unharmed, 0 wrecked by too much light; 1 without plastids or metabolism).
 // A part can be wired to several sensors (its conditions). A condition holds while its reading is inside its [min, max]
 // (marked `not`: outside it). Conditions are ANDed in groups, and one marked `or` starts a new group: the part goes when
 // every condition of any one group holds. A wired motor runs while that is so; a latched spring or burst organ fires
@@ -53,8 +54,15 @@ export function storeLevel(cell, kind) {
   for (const i of cell.pieces[0].inclusions) if (i.store === kind) { v += i.fill * i.v; full += i.v; }
   return full > 0 ? v / full : 0;
 }
-// A reading by index: a sensor part, or one built in (-1 energy, -2 starch, -3 oil)
-const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ? energyLevel(world, cell) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
+// How healthy its plastids are, 0-1 (by volume; 1 without plastids or metabolism)
+export function plastidHealth(world, cell) {
+  let v = 0, ok = 0;
+  if (world.metab) for (const i of cell.pieces[0].inclusions) if (i.material === 'plastid') { v += i.v; ok += (1 - i.damage) * i.v; }
+  return v > 0 ? ok / v : 1;
+}
+// A reading by index: a sensor part, or one built in (-1 energy, -2 starch, -3 oil, -4 plastid health)
+const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ? energyLevel(world, cell)
+  : k === -4 ? plastidHealth(world, cell) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
 
 // One condition: is the reading inside its range? (with a little hysteresis)
 function holds(ctl, v) {
