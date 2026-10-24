@@ -420,6 +420,12 @@ runs headless in Node for tests (and later the optimiser).
   are modules there too. **Cables run only between modules inside the nucleus** and are never drawn on the cell.
   **Tapping the nucleus opens the patch view**: the nucleus opened up, its size the board's edge.
   **Queued to build** (author, 2026-10-24: not yet, after trying the current sandbox).
+- **Pads that sense and attract (for later, author 2026-10-24):** a pad tells the cell whether it is stuck, so the
+  wiring can use it: a cell whose two pads are both used is in the middle of a chain and may not need all its tails
+  (only the ends steer or push), and so on; sticking to another species' pad can trigger something too (a pad
+  reading: free / stuck to kin / stuck to a stranger). Also some **attraction** so pads find each other and connect
+  (a short-range pull), not only when cells happen to touch. Fits the "no chain rule" principle: chains still come
+  from pads and meetings, the wiring just reads them.
 - **Division (for notes, author 2026-10-24; step 1):** a cell divides when it reaches a certain energy store, size or
   other parameter (which, and whether the player chooses or wires the trigger like a part's rule, to discuss).
   Division splits stores (already noted under reserves), and chains can form at division.
