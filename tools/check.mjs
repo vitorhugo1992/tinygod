@@ -4,6 +4,7 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { cellWeight } from '../sim/build.js';
 import { PRESETS } from '../sim/presets.js';
+import { MATERIALS } from '../sim/materials.js';
 import { fire } from '../sim/physics.js';
 import { clock, daylight } from '../sim/light.js';
 import { PART_TEMPLATES, mirrorGroup } from '../sandbox/parts.js';
@@ -712,6 +713,29 @@ const runDay = (design, y, seconds, opts = {}) => {
     push > 10 && Math.abs(pull + push) < 1e-3 * push && Math.abs(half / push - 0.5) < 0.02,
     `tail behind, pushing: ${fmt(push, 1)} µm/s forward; pulling: ${fmt(pull, 1)} µm/s (toward the tail); ` +
     `speed following the energy level (1 of a 0-2 range): ${fmt(half, 1)} µm/s`);
+}
+
+// 28l. Rod-shaped inclusions: a rod weighs its capsule's volume; two rods side by side fit until they touch; in a long
+// cell a rod holds far more than the biggest round inclusion
+{
+  const body = { radius: 8, length: 40 };
+  const oil = (extra) => ({ type: 'inclusion', material: 'oil', ...extra });
+  const weightOf = (parts) => cellWeight(addCell(makeWorld(1), { body, parts }, 800, 1000, 0));
+  const bare = weightOf([]), rod = weightOf([oil({ at: [0, 0], radius: 3, length: 20 })]);
+  const capsule = Math.PI * 9 * 20 + (4 / 3) * Math.PI * 27;   // µm³
+  const expected = MATERIALS.oil.density - PARAMS.cell.cytoplasm;
+  const perVolume = (rod - bare) / capsule / (PARAMS.gravity * 1e-6);
+  const builds = (parts) => { try { addCell(makeWorld(1), { body, parts }, 800, 1000, 0); return true; } catch (e) { return false; } };
+  const apart = builds([oil({ at: [0, 3.2], radius: 3, length: 20 }), oil({ at: [0, -3.2], radius: 3, length: 20 })]);
+  const touching = builds([oil({ at: [0, 2.5], radius: 3, length: 20 }), oil({ at: [0, -2.5], radius: 3, length: 20 })]);
+  const crossing = builds([oil({ at: [0, 0], radius: 2, length: 20 }), oil({ at: [0, 0], radius: 2, length: 8, angle: 90 })]);
+  const roundMax = (4 / 3) * Math.PI * 7.6 ** 3, rodBig = Math.PI * 7.6 ** 2 * 38 + roundMax;   // r 7.6 fits inside 8 - wall
+  const bigRod = builds([oil({ at: [0, 0], radius: 7.6, length: 38 })]), tooLong = builds([oil({ at: [0, 0], radius: 7.6, length: 44 })]);
+  check('rod-shaped inclusions: weight of their real volume, overlap and room for the real shape',
+    Math.abs(perVolume - expected) < 0.01 && apart && !touching && !crossing && bigRod && !tooLong,
+    `an oil rod (r 3, 20 µm straight) weighs ${fmt(perVolume, 1)} kg/m³ × its capsule volume (oil minus cytoplasm: ${expected}); ` +
+    `two rods 6.4 µm apart fit: ${apart}, 5 µm apart: ${touching}, crossing: ${crossing}; in a cell 8 µm × 56 µm a rod ` +
+    `holds ${fmt(rodBig / roundMax, 1)}× the biggest round one: ${bigRod}, one too long sticks out: ${!tooLong}`);
 }
 
 // 29. Determinism with day, metabolism and stores

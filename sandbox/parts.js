@@ -13,15 +13,19 @@ export function surfacePoint(body, deg) {
   return [r * c, r * s];
 }
 
-// A sphere inside the wall, as big as `size` of the room, toward `deg`: `depth` 0 at the centre, 1 against the wall
-function inside(body, deg, size, depth = 1) {
+// An inclusion inside the wall, as thick as `size` of the room, toward `deg`: `depth` 0 at the centre, 1 against the
+// wall. With `len` > 0 it is a rod (that much straight part) turned `turn` degrees from the body's axis; it sits as far
+// out as its reach in that direction allows.
+function inside(body, deg, size, depth = 1, len = 0, turn = 0) {
   const room = body.radius - 0.35;                          // inside the wall (0.3 µm) with a little play
   const L = body.length || 0, a = body.radius;
   const most = Math.cbrt(0.85 * (Math.PI * a * a * L + 4 / 3 * Math.PI * a ** 3) * 3 / (4 * Math.PI));  // ≤ 85% of the body
   const r = Math.floor(Math.min(room, most) * size * 10) / 10;
   const [x, y] = surfacePoint(body, deg), d = Math.hypot(x, y);
-  const k = Math.max(0, d - body.radius + room - r) / d * depth;   // how far from the centre it can sit, × depth
-  return { at: [Math.round(x * k * 100) / 100, Math.round(y * k * 100) / 100], radius: r };
+  const reach = r + (len / 2) * Math.abs(Math.cos((turn - deg) * Math.PI / 180));   // how far it sticks out toward deg
+  const k = Math.max(0, d - body.radius + room - reach) / d * depth;   // how far from the centre it can sit, × depth
+  const shape = len > 0 ? { length: len, ...(turn ? { angle: turn } : {}) } : {};
+  return { at: [Math.round(x * k * 100) / 100, Math.round(y * k * 100) / 100], radius: r, ...shape };
 }
 
 const chain = (id, at, deg, n, length, joint) => Array.from({ length: n }, (_, i) => ({
@@ -70,8 +74,8 @@ export const PART_TEMPLATES = {
     { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(200 * size), radius: 0.3,
       joint: { type: 'extend', stiffness: 20, latched: true } },
   ],
-  'Plastid (makes energy)': (body, deg, id, size, tilt, depth) =>
-    [{ type: 'inclusion', id, label: 'Plastid', ...inside(body, deg, size, depth), material: 'plastid' }],
+  'Plastid (makes energy)': (body, deg, id, size, tilt, depth, feels, len = 0) =>
+    [{ type: 'inclusion', id, label: 'Plastid', ...inside(body, deg, size, depth, len, tilt), material: 'plastid' }],
   'Starch granule (quick store, heavy)': (body, deg, id, size, tilt, depth) =>
     [{ type: 'inclusion', id, label: 'Starch granule', ...inside(body, deg, size, depth), material: 'starch', fill: 0.5 }],
   'Oil droplet': (body, deg, id, size, tilt, depth) =>
@@ -79,8 +83,8 @@ export const PART_TEMPLATES = {
   'Sap vacuole (slider)': (body, deg, id, size, tilt, depth) =>
     [{ type: 'inclusion', id, label: 'Sap vacuole', ...inside(body, deg, size, depth), material: 'sap', density: 1025 }],
   // one part for every store and float: what it holds decides what it does (the lab grows by materials, not new blocks)
-  'Vacuole (store or float)': (body, deg, id, size, tilt, depth, feels, len, strength = 0.5, content = 'starch') => {
-    const at = inside(body, deg, size, depth);
+  'Vacuole (store or float)': (body, deg, id, size, tilt, depth, feels, len = 0, strength = 0.5, content = 'starch') => {
+    const at = inside(body, deg, size, depth, len, tilt);
     const what = {
       starch: { label: 'Starch granule', material: 'starch', fill: 0.5 },
       oil: { label: 'Oil droplet', material: 'oil' },
@@ -160,7 +164,7 @@ export function mirrorGroup(members, axis, id) {
       const [x, y] = p.at || [0, 0];
       p.at = [x * c + y * s + 0, x * s - y * c + 0];
       if (p.type === 'segment') p.angle = norm(2 * axis - (p.angle || 0));
-      else if (p.type === 'sensor' && p.angle !== undefined) p.angle = norm(2 * axis - p.angle);
+      else if ((p.type === 'sensor' || p.type === 'inclusion') && p.angle !== undefined) p.angle = norm(2 * axis - p.angle);
     }
   }
   if (b) Object.assign(b, { id, where: ((2 * axis - b.where) % 360 + 360) % 360, tilt: -b.tilt + 0, flip: !b.flip });
@@ -172,9 +176,12 @@ export const timerSpan = (s) => { const t = 600 ** ((s - 0.1) / 0.9); return t <
 const spanLabel = (s) => { const t = timerSpan(s); return t >= 600 ? 'counts 1 day' : t >= 60 ? `counts ${(t / 600).toFixed(2)} day` : `counts ${t} s`; };
 const room = (s) => `${Math.round(100 * s)}% of room`;
 
+// An inclusion can be a rod: Length its straight part (0: round), Turn its angle from the body's axis (0: along it)
+const ROD = { length: { min: 0, max: 80, step: 2, def: 0, round: true }, tilt: true, tiltLabel: 'Turn' };
+
 // Which Build controls mean something for each part, and what Size means for it
 export const CONTROLS = {
-  'Vacuole (store or float)': { size: room, inside: true, content: true, sizeDefault: 30 },
+  'Vacuole (store or float)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, content: true, sizeDefault: 30, ...ROD },
   'Gas vesicles (float, crush deep)': { size: room, inside: true, strength: true, sizeDefault: 30 },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
   'Timer (clock)': { size: spanLabel, inside: true, sizeDefault: 100 },
@@ -187,7 +194,7 @@ export const CONTROLS = {
   'Burst organ (escape)': { tilt: true, flip: true, length: { min: 10, max: 40, step: 5, def: 20 }, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
-  'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
+  'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, ...ROD },
   'Starch granule (quick store, heavy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor': { feels: true },
   'Proximity sensor': { size: (s) => `${Math.round(200 * s)} µm range`, feels: true },

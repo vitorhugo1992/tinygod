@@ -168,7 +168,10 @@ const showControls = () => {
   if (c.sizeDefault && !editing) $('partSize').value = c.sizeDefault;
   showSize(); showLength();
 };
-function showLength() { $('partLengthOut').textContent = `${$('partLength').value} µm`; }
+function showLength() {
+  const v = Number($('partLength').value), c = CONTROLS[$('partWhat').value] || {};
+  $('partLengthOut').textContent = v === 0 && c.length && c.length.round ? '0 (round)' : `${v} µm`;
+}
 $('partLength').oninput = showLength;
 // gas vesicles: how deep they are crushed (the same rule as sim/build.js)
 function showStrength() {
@@ -311,7 +314,7 @@ function drawPreview(X, Y, s) {
   ctx.lineWidth = 1.5;
   for (const inc of c.pieces[0].inclusions) {
     const [ix, iy] = pieceToWorld(c, 0, inc.x, inc.y);
-    ctx.beginPath(); ctx.arc(X(ix), Y(iy), Math.max(inc.r * s, 2), 0, Math.PI * 2); ctx.stroke();
+    incPath(X(ix), Y(iy), inc, s, c.phi[0] + (inc.ang || 0)); ctx.stroke();
   }
   ctx.setLineDash([]);
   for (const d of [...c.sensors, ...c.pads]) {
@@ -1307,18 +1310,30 @@ function drawHud(W, H) {
 }
 
 // A store (starch, oil): its outline, and liquid filling it from the bottom as far as it is full
-function drawLevel(ix, iy, inc, X, Y, s) {
+// An inclusion's outline as the current path, at screen (cx, cy): a circle, or a rod lying at world angle a
+function incPath(cx, cy, inc, s, a) {
+  const R = Math.max(inc.r * s, 1.5), h = (inc.h || 0) * s;
+  ctx.beginPath();
+  if (h <= 0) { ctx.arc(cx, cy, R, 0, Math.PI * 2); return; }
+  const t = -a;   // on screen y grows downward, so angles turn the other way
+  const ex = Math.cos(t) * h, ey = Math.sin(t) * h;
+  ctx.arc(cx + ex, cy + ey, R, t - Math.PI / 2, t + Math.PI / 2);
+  ctx.arc(cx - ex, cy - ey, R, t + Math.PI / 2, t + 3 * Math.PI / 2);
+  ctx.closePath();
+}
+function drawLevel(ix, iy, inc, X, Y, s, a = 0) {
   const R = Math.max(inc.r * s, 1.5), cx = X(ix), cy = Y(iy);
+  const ext = R + Math.abs(Math.sin(a)) * (inc.h || 0) * s;   // how far it reaches up and down on screen
   ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  incPath(cx, cy, inc, s, a);
   ctx.fillStyle = 'rgba(8,14,26,.35)'; ctx.fill();
   ctx.clip();
-  const h = 2 * R * inc.fill;   // the level, from the lowest point up (screen y grows downward)
+  const h = 2 * ext * inc.fill;   // the level, from the lowest point up (screen y grows downward)
   ctx.fillStyle = COLOR[inc.material];
-  ctx.fillRect(cx - R, cy + R - h, 2 * R, h);
+  ctx.fillRect(cx - R - (inc.h || 0) * s, cy + ext - h, 2 * (R + (inc.h || 0) * s), h);
   ctx.restore();
   ctx.strokeStyle = COLOR[inc.material]; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  incPath(cx, cy, inc, s, a); ctx.stroke();
 }
 // A sap vacuole's colour: pale while lighter than seawater, deep blue while heavier
 function sapColor(inc) {
@@ -1327,13 +1342,17 @@ function sapColor(inc) {
   return `rgb(${mix(170, 40)},${mix(215, 80)},${mix(255, 170)})`;
 }
 // Gas vesicles: a cluster of small bubbles, fewer as they wear out; crushed, flat grey dashes
-function drawGas(ix, iy, inc, X, Y, s) {
-  const n = inc.crushed ? 7 : Math.ceil(7 * inc.fill), b = inc.r * 0.32;
+function drawGas(ix, iy, inc, X, Y, s, rot = 0) {
+  const per = 7, hh = inc.h || 0, groups = 1 + Math.round(2 * hh / Math.max(inc.r, 0.1));   // a cluster per stretch of rod
+  const all = per * groups, n = inc.crushed ? all : Math.ceil(all * inc.fill), b = inc.r * 0.32;
   ctx.strokeStyle = 'rgba(207,233,255,.35)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(X(ix), Y(iy), Math.max(inc.r * s, 1.5), 0, Math.PI * 2); ctx.stroke();
+  incPath(X(ix), Y(iy), inc, s, rot); ctx.stroke();
+  const ux = Math.cos(rot), uy = Math.sin(rot);
   for (let k = 0; k < n; k++) {
-    const a = k * 2.4, d = k ? inc.r * 0.62 * Math.sqrt(k / n) : 0;   // a sunflower spiral: evenly packed
-    const bx = ix + Math.cos(a) * d, by = iy + Math.sin(a) * d;
+    const g = k % groups, m = Math.floor(k / groups);   // which cluster along the rod, and which bubble in it
+    const along = groups > 1 ? -hh + 2 * hh * g / (groups - 1) : 0;
+    const a = m * 2.4, d = m ? inc.r * 0.62 * Math.sqrt(m / per) : 0;   // a sunflower spiral: evenly packed
+    const bx = ix + ux * along + Math.cos(a) * d, by = iy + uy * along + Math.sin(a) * d;
     if (inc.crushed) {
       ctx.strokeStyle = COLOR.crushed; ctx.lineWidth = Math.max(0.3 * s, 1);
       ctx.beginPath(); ctx.moveTo(X(bx - b), Y(by)); ctx.lineTo(X(bx + b), Y(by)); ctx.stroke();
@@ -1375,11 +1394,11 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     if (p.kind === 'body') for (const inc of p.inclusions) {
       const ix = c.cx[i] + c.cs[i] * inc.x - c.sn[i] * inc.y, iy = c.cy[i] + c.sn[i] * inc.x + c.cs[i] * inc.y;
-      const r = inc.r;
-      if (inc.store) { drawLevel(ix, iy, inc, X, Y, s); continue; }   // a container, filled as far as it is full
-      if (inc.material === 'gas') { drawGas(ix, iy, inc, X, Y, s); continue; }
+      const r = inc.r, a = c.phi[i] + (inc.ang || 0);
+      if (inc.store) { drawLevel(ix, iy, inc, X, Y, s, a); continue; }   // a container, filled as far as it is full
+      if (inc.material === 'gas') { drawGas(ix, iy, inc, X, Y, s, a); continue; }
       ctx.fillStyle = inc.pumpable ? sapColor(inc) : COLOR[inc.material];
-      if (r > 0.02) { ctx.beginPath(); ctx.arc(X(ix), Y(iy), Math.max(r * s, 1), 0, Math.PI * 2); ctx.fill(); }
+      if (r > 0.02) { incPath(X(ix), Y(iy), inc, s, a); ctx.fill(); }
       if (inc.material === 'statolith') {   // the grain lies on the chamber's lower wall (in the middle with gravity off)
         const g = 0.4 * inc.r, drop = world.gravity ? inc.r - g : 0;
         ctx.fillStyle = COLOR.grain;

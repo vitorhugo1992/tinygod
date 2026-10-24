@@ -28,6 +28,8 @@
 // joint's controls) last came true: it reads 0 then, rising to 1 after `span` s (default one sandbox day), and 1
 // before it ever started. A statolith is an inclusion (material 'statolith') that is also a sensor: it reads 1
 // while its direction `angle` (degrees from the body's axis, default 0: the front) points straight up, 0 down.
+// An inclusion can be a rod: `length` µm of straight part between its rounded ends, lying `angle` degrees from the
+// body's axis (default 0: along it); its volume, room and weight are the capsule's (its weight at its centre).
 // Gas vesicles are an inclusion (material 'gas') with a `strength` (0-1, default 0.5): stronger ones lift less but
 // survive deeper (PARAMS.gas); below their depth they are crushed for good.
 // Any joint can be wired to sensors: controls: [{ sensor: id, min = 0, max = 1 }, ...] (sensor 'energy': the cell's own
@@ -56,7 +58,7 @@
 //       it waits at `start` until released.
 import { PARAMS } from './params.js';
 import { material } from './materials.js';
-import { DEG, dlog } from './dmath.js';
+import { DEG, dlog, dcos, dsin } from './dmath.js';
 
 const PI = Math.PI;
 const MU = PARAMS.water.viscosity;
@@ -65,6 +67,24 @@ const G = PARAMS.gravity * 1e-6;  // pN per (kg/m³ × µm³)
 // Buoyant weight in pN (positive sinks)
 const weight = (rho, vol) => (rho - PARAMS.water.density) * vol * G;
 const capsuleVolume = (L, a) => PI * a * a * L + (4 / 3) * PI * a * a * a;
+
+// Distance from point (px, py) to the segment a-b
+function pointSeg(px, py, ax, ay, bx, by) {
+  const ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey;
+  let t = l2 > 0 ? ((px - ax) * ex + (py - ay) * ey) / l2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const dx = px - ax - ex * t, dy = py - ay - ey * t;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+// Shortest distance between segments a-b and c-d: 0 if they cross, else at an endpoint of one of them (2D)
+function segDist(ax, ay, bx, by, cx, cy, dx, dy) {
+  const side = (px, py, qx, qy, rx, ry) => (qx - px) * (ry - py) - (qy - py) * (rx - px);
+  const d1 = side(cx, cy, dx, dy, ax, ay), d2 = side(cx, cy, dx, dy, bx, by);
+  const d3 = side(ax, ay, bx, by, cx, cy), d4 = side(ax, ay, bx, by, dx, dy);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return 0;
+  return Math.min(pointSeg(ax, ay, cx, cy, dx, dy), pointSeg(bx, by, cx, cy, dx, dy),
+    pointSeg(cx, cy, ax, ay, bx, by), pointSeg(dx, dy, ax, ay, bx, by));
+}
 const capsuleArea = (L, a) => 2 * PI * a * L + 4 * PI * a * a;
 
 // Drag of a capsule about its centre, in its own frame: along the axis (xt), across it (xn), turning (xr).
@@ -222,19 +242,28 @@ export function buildCell(design) {
       const rho = part.density !== undefined ? part.density
         : mat.gas ? PARAMS.gas.weak + (PARAMS.gas.strong - PARAMS.gas.weak) * strength : mat.density;
       if (mat.min !== undefined && (rho < mat.min || rho > mat.max)) throw new Error(`${part.material} density out of range`);
-      // inside the wall: distance from the body's axis plus own radius
-      const dx = Math.max(Math.abs(x) - host.L / 2, 0);
-      if (Math.sqrt(dx * dx + y * y) + r > host.a - C.wallThickness + 1e-9) throw new Error('inclusion sticks out of the body');
-      for (const o of host.inclusions) {
-        if (Math.hypot(o.x - x, o.y - y) < o.r + r - 1e-9) throw new Error('inclusions overlap: there is no room for both there');
+      // round, or a rod with rounded ends (`length` its straight part, lying `angle` degrees from the body's axis; a
+      // statolith stays round, its angle being the way it reads)
+      const L = part.material === 'statolith' ? 0 : Math.max(part.length || 0, 0);
+      const ang = part.material === 'statolith' ? 0 : (part.angle || 0) * DEG;
+      const ux = dcos(ang), uy = dsin(ang), h = L / 2;
+      const ends = [[x - ux * h, y - uy * h], [x + ux * h, y + uy * h]];
+      // inside the wall: each end's distance from the body's axis plus its radius (a capsule in a capsule: the ends decide)
+      for (const [ex, ey] of ends) {
+        const dx = Math.max(Math.abs(ex) - host.L / 2, 0);
+        if (Math.sqrt(dx * dx + ey * ey) + r > host.a - C.wallThickness + 1e-9) throw new Error('inclusion sticks out of the body');
       }
-      const v = (4 / 3) * PI * r * r * r;
+      for (const o of host.inclusions) {
+        const gap = segDist(ends[0][0], ends[0][1], ends[1][0], ends[1][1], o.x - o.ux * o.h, o.y - o.uy * o.h, o.x + o.ux * o.h, o.y + o.uy * o.h);
+        if (gap < o.r + r - 1e-9) throw new Error('inclusions overlap: there is no room for both there');
+      }
+      const v = capsuleVolume(L, r);
       inclusionVol += v;
       // it replaces cytoplasm, so only the difference counts
       const wpt = { x, y, w: (rho - C.cytoplasm) * v * fill * G };
       host.wpts.push(wpt);
       // v: its full volume (the room it takes); a store holds v × fill of its stuff, the rest is cytoplasm
-      host.inclusions.push({ x, y, r, v, wpt, material: part.material, density: rho, target: rho,
+      host.inclusions.push({ x, y, r, v, wpt, L, ang, ux, uy, h, material: part.material, density: rho, target: rho,
         pumpable: mat.min !== undefined, min: mat.min, max: mat.max, store: mat.store, fill,
         part: design.parts.indexOf(part) });
       if (mat.gas) {   // crushed below this depth (µm from the surface)

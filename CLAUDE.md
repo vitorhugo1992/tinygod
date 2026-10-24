@@ -11,7 +11,7 @@ whole sandbox build happened in one long chat (2026-10-21 to 23); this file hold
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
-`node tools/check.mjs`: 39 physics checks, all passing (~2 min).
+`node tools/check.mjs`: 40 physics checks, all passing (~2 min).
 
 **Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
 springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
@@ -133,6 +133,13 @@ other suggestions"):
   designs/<name>.json in the project (JSON only, at most 256 KB, a file name from letters and digits only) so Claude can
   read the author's species. Works while the server runs (home Wi-Fi). **When the author says they sent one, look in
   designs/.**
+
+**Rod-shaped inclusions** (author asked, 2026-10-24: elongated cells waste room with round vacuoles; real chloroplasts
+are often bands or plates): a plastid or vacuole (any content) can be a rod with rounded ends, Length its straight part
+(0: round), Turn its angle from the body's axis (0: along it). Volume, weight, energy stored, room, overlap (segment to
+segment) and fitting inside the wall are the real capsule's; its weight and the light it gets are taken at its centre.
+Drawn as rods; stores fill along them; gas clusters spread along; the ghost and the nudge handle them. A statolith stays
+round. Measured: in a cell 8 × 56 µm a rod holds 4.8× the biggest round inclusion.
 
 **Left in the sandbox (none blocks v0):**
 - Wiring stores to the energy level (decided optional).
