@@ -11,7 +11,7 @@
 // - timer: 0 the moment its trigger (conditions, as for a part) comes true, rising to 1 after its span; 1 before it
 //   ever started. Reset by an eyespot at dawn it is a clock; by touch, a "for a while after" switch.
 // Every cell also has its energy level built in (no part): how full its energy pool is, 0 empty, 1 full (1 with
-// metabolism off). Wiring to sensor 'energy' reads it.
+// metabolism off). Wiring to sensor 'energy' reads it; 'starch' and 'oil' read how full those stores are.
 // A part can be wired to several sensors (its conditions). A condition holds while its reading is inside its [min, max]
 // (marked `not`: outside it). Conditions are ANDed in groups, and one marked `or` starts a new group: the part goes when
 // every condition of any one group holds. A wired motor runs while that is so; a latched spring or burst organ fires
@@ -50,6 +50,14 @@ function nearest(world, cell, x, y, reach, anything) {
 }
 
 export function energyLevel(world, cell) { return world.metab ? cell.metab.E / cell.metab.C : 1; }
+// How full the cell's stores of one kind are, 0-1 (0 without any)
+export function storeLevel(cell, kind) {
+  let v = 0, full = 0;
+  for (const i of cell.pieces[0].inclusions) if (i.store === kind) { v += i.fill * i.v; full += i.v; }
+  return full > 0 ? v / full : 0;
+}
+// A reading by index: a sensor part, or one built in (-1 energy, -2 starch, -3 oil)
+const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ? energyLevel(world, cell) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
 
 // One condition: is the reading inside its range? (with a little hysteresis)
 function holds(ctl, v) {
@@ -67,7 +75,7 @@ function holdsAll(world, cell, controls) {
   let all = false, group = true;   // all: an earlier group held; group: the current group holds so far
   for (const ctl of controls) {
     if (ctl.or && ctl !== controls[0]) { all = all || group; group = true; }
-    const read = (k) => (k < 0 ? energyLevel(world, cell) : cell.sensors[k].value);
+    const read = (k) => reading(world, cell, k);
     const v = ctl.vs === undefined ? read(ctl.sensor) : read(ctl.sensor) - read(ctl.vs);
     if (holds(ctl, v) === ctl.not) group = false;
   }
@@ -109,7 +117,7 @@ export function sense(world, cell) {
   }
   for (const j of cell.joints) {
     if (j.speed && !j.burst) {   // its beat follows a reading
-      const v = j.speed.sensor < 0 ? energyLevel(world, cell) : cell.sensors[j.speed.sensor].value;
+      const v = reading(world, cell, j.speed.sensor);
       const g = (v - j.speed.min) / (j.speed.max - j.speed.min);
       j.gain = g < 0 ? 0 : g > 1 ? 1 : g;
     }

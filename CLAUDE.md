@@ -11,7 +11,7 @@ whole sandbox build happened in one long chat (2026-10-21 to 23); this file hold
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
-`node tools/check.mjs`: 40 physics checks, all passing (~2 min).
+`node tools/check.mjs`: 41 physics checks, all passing (~2 min).
 
 **Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
 springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
@@ -140,6 +140,13 @@ are often bands or plates): a plastid or vacuole (any content) can be a rod with
 segment) and fitting inside the wall are the real capsule's; its weight and the light it gets are taken at its centre.
 Drawn as rods; stores fill along them; gas clusters spread along; the ghost and the nudge handle them. A statolith stays
 round. Measured: in a cell 8 × 56 µm a rod holds 4.8× the biggest round inclusion.
+
+**Store levels and clearer boxes** (author, 2026-10-24: an oar wired to light should stop when starch runs low,
+overriding the light; tapping a "when" box seemed to do nothing): the cell's **starch and oil levels** are built-in
+readings like the energy level (0 used up, 1 full; offered when the design has such a store; 'starch' / 'oil' in
+wiring); putting "starch 0.2-1" in the same box as the light condition is the override (AND). A box tapped on its
+own now explains itself (all its cables must hold; a sensor then the box adds one; a sensor then "+ or" adds an OR)
+and reads "all of (AND)". The followed camera keeps the cell above the day graph.
 
 **Left in the sandbox (none blocks v0):**
 - Wiring stores to the energy level (decided optional).

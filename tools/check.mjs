@@ -738,6 +738,22 @@ const runDay = (design, y, seconds, opts = {}) => {
     `holds ${fmt(rodBig / roundMax, 1)}× the biggest round one: ${bigRod}, one too long sticks out: ${!tooLong}`);
 }
 
+// 28m. The built-in starch level: a tail wired to "starch 0.2-1" (AND another condition) stops once the starch is low
+{
+  const on = (fill) => {
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, { body: { radius: 10 }, parts: [
+      { type: 'inclusion', id: 'st', material: 'starch', at: [-4, 0], radius: 4, fill },
+      ...PRESETS['Wave tail'].parts.map((p) => ({ ...p, joint: { ...p.joint, controls: [
+        { sensor: 'energy', min: 0.1, max: 1 }, { sensor: 'starch', min: 0.2, max: 1 }] } }))] }, 800, 1000, 0);
+    stepWorld(w);
+    return c.joints[0].on;
+  };
+  const r = [on(0.8), on(0.25), on(0.1), on(0)];
+  check('the starch level can be wired: a tail needing "starch 0.2-1" AND energy stops when the starch runs low',
+    r.join() === 'true,true,false,false', `starch 80%: ${r[0]}, 25%: ${r[1]}, 10%: ${r[2]}, empty: ${r[3]}`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

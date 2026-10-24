@@ -5,7 +5,7 @@ import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
 import { rewire, retrigger, respeed, controlsOf, buildCell } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
-import { energyLevel } from '../sim/sense.js';
+import { energyLevel, storeLevel } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
 import { note, nightsLeft, drawJournal, eventText, forecast } from './journal.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS, CONTENT_TIPS, flipPart, mirrorGroup } from './parts.js';
@@ -327,22 +327,24 @@ function drawPreview(X, Y, s) {
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ, an ejectisome, or a timer (its trigger). Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1], timer: [0, 0.5] };   // a sensible start
+const RANGE = { starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1], timer: [0, 0.5] };   // a sensible start
 const SCALE = {   // what the 0-1 reading means
   light: '0 = dark or facing away, 1 = facing up in full light',
   touch: '0 = nothing, 1 = touching',
   near: '0 = nothing in range, 1 = touching',
   energy: '0 = out of energy (starving), 1 = full',
+  starch: '0 = its starch is used up, 1 = full',
+  oil: '0 = its oil is used up, 1 = full',
   statolith: '0 = its direction points down, 0.5 = level, 1 = up',
   chem: '0 = poor water (near the surface), 1 = rich (deep)',
   timer: '0 = it just started, 1 = its time is up (or it never started)',
 };
-const ENDS = { light: ['dark', 'bright'], touch: ['nothing', 'touching'], near: ['nothing near', 'touching'], energy: ['starving', 'full'],
+const ENDS = { light: ['dark', 'bright'], touch: ['nothing', 'touching'], near: ['nothing near', 'touching'], energy: ['starving', 'full'], starch: ['used up', 'full'], oil: ['used up', 'full'],
   statolith: ['points down', 'points up'], chem: ['poor water', 'rich water'], timer: ['just started', 'time up'] };
-const ICON = { light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪', timer: '⏱' };
+const ICON = { starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪', timer: '⏱' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
-  if (id === 'energy') return 'energy';
+  if (id === 'energy' || id === 'starch' || id === 'oil') return id;
   const p = (design.parts || []).find((x) => x.id === id) || {};
   return p.material === 'statolith' ? 'statolith' : p.kind || 'light';
 }
@@ -354,6 +356,8 @@ function sensorList(except) {
     list.push({ id, name: `${x.name.toLowerCase()} at ${x.deg}°`, short: x.name, deg: x.deg, kind: sensorKind(id) });
   }
   list.push({ id: 'energy', name: 'its energy level (built in)', short: 'Energy level', kind: 'energy' });
+  for (const k of ['starch', 'oil']) if ((design.parts || []).some((p) => p.type === 'inclusion' && p.material === k))
+    list.push({ id: k, name: `its ${k} level (how full its ${k} is)`, short: `${k[0].toUpperCase() + k.slice(1)} level`, kind: k });
   return list;
 }
 const isTimer = (m) => m.type === 'sensor' && m.kind === 'timer';
@@ -427,7 +431,9 @@ function speedRow(targets, sensors) {
 
 // A living cell's reading of a sensor ('energy' or an id), as { value }; undefined if there is none
 function liveReading(c, id) {
-  return id === 'energy' ? { value: energyLevel(world, c) } : c.sensors.find((x) => x.id === id);
+  if (id === 'energy') return { value: energyLevel(world, c) };
+  if (id === 'starch' || id === 'oil') return { value: storeLevel(c, id) };
+  return c.sensors.find((x) => x.id === id);
 }
 // A condition's two ways: a range of one reading, or a compare (one reading more than another's)
 const MODE = { range: 'in range', vs: 'more than…' };
@@ -572,7 +578,8 @@ function drawPatch() {
     gs.forEach((ks, gi) => {
       const b = document.createElement('div');
       b.className = 'pmod box'; b.dataset.box = `${ti}:${gi}`;
-      b.textContent = ks.length > 1 ? 'all of' : 'when';
+      b.textContent = ks.length > 1 ? 'all of (AND)' : 'when';
+      b.title = 'A box is a group: the part goes when every cable into it holds (AND). Several boxes: when any one holds (OR).';
       b.onclick = (e) => { e.stopPropagation(); patchInto(ti, gi); };
       boxes.appendChild(b);
     });
@@ -604,7 +611,12 @@ function speedText(m) {
 // patch the picked sensor into target ti's group gi (gi past the last: a new group)
 function patchInto(ti, gi) {
   const t = patchTargets[ti];
-  if (!patchPick) { $('patchHint').textContent = 'first tap a sensor on the left'; return; }
+  if (!patchPick) {   // a box tapped on its own: say what it is and how to change it
+    $('patchHint').textContent = gi < groupsOf(t.rules).length
+      ? 'this box: the part goes when ALL its cables hold (AND). To add one: tap a sensor, then this box. For OR: a sensor, then "+ or".'
+      : 'tap a sensor first, then here: a new box, so the part also goes when that holds (OR)';
+    return;
+  }
   if (isTimer(t.members[0]) && patchPick === t.members[0].id) { $('patchHint').textContent = 'a timer can’t start itself'; return; }
   const gs = groupsOf(t.rules), next = t.rules.map((c) => ({ ...c }));
   const fresh = freshRule(patchPick, gs.length > 0 && gi >= gs.length);
@@ -1118,6 +1130,8 @@ function draw() {
   const s = Number($('zoom').value);                       // pixels per µm
   // on a computer the patch view covers the lower half of the tank: keep a followed cell in the upper part
   if (view === 'follow' && patchOpen && innerWidth > 760) cam = { x: cam.x, y: cam.y - H * 0.25 / s };
+  // the day graph covers the bottom of the tank: keep a followed cell in the middle of what is left above it
+  if (view === 'follow' && graphOn) cam = { x: cam.x, y: cam.y - ((H < 500 ? 84 : 110) + 8) / 2 / s };
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
 
   ctx.fillStyle = COLOR.outside; ctx.fillRect(0, 0, W, H);

@@ -33,7 +33,7 @@
 // Gas vesicles are an inclusion (material 'gas') with a `strength` (0-1, default 0.5): stronger ones lift less but
 // survive deeper (PARAMS.gas); below their depth they are crushed for good.
 // Any joint can be wired to sensors: controls: [{ sensor: id, min = 0, max = 1 }, ...] (sensor 'energy': the cell's own
-// energy level, built into every cell: 0 empty, 1 full; one control: { ... } is the same as a list of one). A
+// energy level, built into every cell: 0 empty, 1 full; 'starch' and 'oil': how full its stores of that kind are, 0-1; one control: { ... } is the same as a list of one). A
 // condition holds while the reading is between min and max (with not: true, while it is outside them); a compare
 // condition { sensor: a, vs: b } holds while a reads more than b by at least PARAMS.sensor.compareMargin (e.g. one
 // eyespot brighter than the other, to turn toward the light). Conditions
@@ -124,9 +124,12 @@ function parseJoint(j, pieceIndex) {
 
 // A joint's wiring as the design writes it -> as the cell uses it (the sensor by index, the range)
 // A sensor by id, as its index in the cell (-1: the built-in energy level)
+// (-1: the built-in energy level; -2, -3: the built-in starch and oil levels, how full those stores are)
+const BUILT_IN = { energy: -1, starch: -2, oil: -3 };
 function sensorIndex(sensors, id) {
-  const s = id === 'energy' ? -1 : sensors.findIndex((x) => x.id === id);
-  if (s < 0 && id !== 'energy') throw new Error(`no sensor called ${id}`);
+  if (BUILT_IN[id] !== undefined) return BUILT_IN[id];
+  const s = sensors.findIndex((x) => x.id === id);
+  if (s < 0) throw new Error(`no sensor called ${id}`);
   return s;
 }
 function resolveControl(sensors, c) {
