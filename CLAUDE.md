@@ -415,6 +415,13 @@ runs headless in Node for tests (and later the optimiser).
   decided): make the box the **nucleus**, an organelle placed and sized inside the cell like the others, so a bigger
   "brain" takes room from plastids and vacuoles (an honest cost, and dinoflagellates do carry huge nuclei), while
   progress unlocks how big a nucleus may get.
+- **Open (author, 2026-10-24): how many cables a module takes.** Fixed, raised by points, or improved through
+  reproduction (generations with better stats)? Claude's recommendation, not decided: no hard cap per module, but each
+  cable (condition) costs a little upkeep (honest in kind: regulation is proteins the cell must make), and the
+  nucleus box above limits how many modules fit; progress (points, longevity) unlocks a bigger nucleus and new module
+  types for the player's next design, not stats that grow inside a running lineage. Improvement through generations
+  belongs with step 1's division and mutation (does a player's species mutate, and can it drift from the design?);
+  for matches and the optimiser, a design should be scored as designed, so in-match self-improvement needs care.
 - **The niche radar** (MONAD's species page, eight traits scored 0–4) is a natural way to compare designs.
 - **Tips while building** (author, 2026-10-23): when a player places a part or picks a material, a short true tip
   says what it does physically ("gas is much lighter than water: it floats the cell, but crushes below a certain
