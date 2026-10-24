@@ -754,6 +754,42 @@ const runDay = (design, y, seconds, opts = {}) => {
     r.join() === 'true,true,false,false', `starch 80%: ${r[0]}, 25%: ${r[1]}, 10%: ${r[2]}, empty: ${r[3]}`);
 }
 
+// 28n. STOP conditions override GO; a beat can slow as a reading rises ("down"); a shade plastid (phycobilins) earns
+// more deep and less near the surface than a sun plastid
+{
+  const tailOn = (controls, angle) => {
+    const w = makeWorld(1);
+    const c = addCell(w, { body: { radius: 10 }, parts: [
+      { type: 'inclusion', id: 'up', material: 'statolith', at: [-4, 0], radius: 3 },
+      ...PRESETS['Wave tail'].parts.map((p) => ({ ...p, joint: { ...p.joint, controls } }))] }, 800, 1000, angle);
+    stepWorld(w);
+    return c.joints[0].on;
+  };
+  const go = [{ sensor: 'energy', min: 0.1, max: 1 }], stop = { sensor: 'up', min: 0.6, max: 1, stop: true };
+  const r = [tailOn([...go, stop], 0), tailOn([...go, stop], 90), tailOn([stop], 0), tailOn([stop], 90)];
+  const speed = (down) => {
+    const parts = PRESETS['Wave tail'].parts.map((p) => ({ ...p, joint: { ...p.joint, speed: { sensor: 'energy', min: 0, max: 4, down } } }));
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, { body: { radius: 8 }, parts }, 800, 1000, 0);
+    for (let i = 0; i < 3 / DT; i++) stepWorld(w);
+    return c.joints[0].gain;
+  };
+  const up = speed(false), down = speed(true);
+  const income = (pigment, depth) => {
+    const w = makeWorld(1, { metab: true, gravity: false });
+    const c = addCell(w, { body: { radius: 10 }, parts: [{ type: 'inclusion', material: 'plastid', at: [0, 0], radius: 4, pigment }] },
+      800, PARAMS.tank.h - depth, 0);
+    stepWorld(w);
+    return c.metab.income;
+  };
+  const sunTop = income('sun', 20), shadeTop = income('shade', 20), sunDeep = income('sun', 1800), shadeDeep = income('shade', 1800);
+  check('STOP conditions override GO; a beat can slow as a reading rises; a shade plastid wins deep, a sun plastid near the top',
+    r.join() === 'true,false,true,false' && Math.abs(up - 0.25) < 1e-9 && Math.abs(down - 0.75) < 1e-9 && sunTop > shadeTop && shadeDeep > sunDeep,
+    `tail GO energy 0.1-1, STOP statolith above 0.6: level ${r[0]}, front up ${r[1]}; STOP only: level ${r[2]}, up ${r[3]}. ` +
+    `Speed following the energy level (1 of 0-4): rising ${fmt(up)}, "down" ${fmt(down)}. Plastid income 20 µm down: ` +
+    `sun ${fmt(sunTop, 0)}, shade ${fmt(shadeTop, 0)} pJ/s; 1800 µm down: sun ${fmt(sunDeep, 0)}, shade ${fmt(shadeDeep, 0)} pJ/s`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

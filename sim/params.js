@@ -43,6 +43,9 @@ export const PARAMS = {
     insideUpkeep: 0.2,      // pJ/s per µm³ of plastid, store, gas vesicles or statolith
     plastidMax: 50,         // pJ/s per µm³ of plastid in full light...
     plastidHalf: 0.2,       // ...and half of that at this light
+    // a shade plastid (phycobilins catch the green light that reaches deep): half its top at 1/5 of the light, a lower
+    // top, and its upkeep this many times a sun plastid's (phycobilins are costly protein); it earns more below ~1 mm
+    shade: { max: 30, half: 0.04, upkeep: 2.5 },
     pool: 60,               // pJ per µm³ of body the cytoplasm holds (about a minute of upkeep)
     start: 0.8,             // pool at birth, share of full
     fillAbove: 0.8,         // stores fill while the pool is above this share...

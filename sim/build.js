@@ -28,6 +28,8 @@
 // joint's controls) last came true: it reads 0 then, rising to 1 after `span` s (default one sandbox day), and 1
 // before it ever started. A statolith is an inclusion (material 'statolith') that is also a sensor: it reads 1
 // while its direction `angle` (degrees from the body's axis, default 0: the front) points straight up, 0 down.
+// A plastid has a `pigment`: 'sun' (chlorophyll; the default) or 'shade' (with phycobilins: efficient in dim light,
+// a lower top output, more upkeep; PARAMS.metab.shade).
 // An inclusion can be a rod: `length` µm of straight part between its rounded ends, lying `angle` degrees from the
 // body's axis (default 0: along it); its volume, room and weight are the capsule's (its weight at its centre).
 // Gas vesicles are an inclusion (material 'gas') with a `strength` (0-1, default 0.5): stronger ones lift less but
@@ -37,8 +39,9 @@
 // condition holds while the reading is between min and max (with not: true, while it is outside them); a compare
 // condition { sensor: a, vs: b } holds while a reads more than b by at least PARAMS.sensor.compareMargin (e.g. one
 // eyespot brighter than the other, to turn toward the light). Conditions
-// are ANDed; or: true starts another group, and the part goes when every condition of any one group holds: a motor
-// runs while they do; a latched hinge or extender is released the first time they do.
+// are ANDed; or: true starts another group, and the part goes when every condition of any one group holds (no such
+// conditions: always); a condition with stop: true stops it whenever it holds, whatever the groups say (the override).
+// A motor runs while it goes; a latched hinge or extender is released the first time it does.
 // ({ when: 'light' } means min 0.5, { when: 'dark' } max 0.5.)
 // A segment's joint, at `at`:
 //   { type: 'fixed' }                                    (default) rigid
@@ -47,8 +50,8 @@
 //   { type: 'motor', rate, swing, stroke = 0.5, phase = 0, on = true, burst? }
 //       beats `rate` times a second, `swing` degrees each side; the forward stroke takes `stroke` of the cycle
 //       and the recovery the rest. Off, it holds its angle.
-//       speed: { sensor, min, max } makes its beat follow a reading: stopped at min (and below), full speed at max
-//       (and above), in between in proportion (a burst organ ignores it).
+//       speed: { sensor, min, max, down = false } makes its beat follow a reading: stopped at min (and below), full
+//       speed at max (and above), in between in proportion; down: the other way round (a burst organ ignores it).
 //       burst: { duration, recharge } makes it a burst organ: it waits charged, and when fired (by hand, or by its
 //       control) beats for `duration` s, then stops and needs `recharge` s before it can fire again. Motors of one
 //       organ that share a `group` fire together.
@@ -136,13 +139,13 @@ function resolveControl(sensors, c) {
   const s = sensorIndex(sensors, c.sensor);
   // a compare: holds while the first reads more than the second by the margin (its reading: the difference)
   if (c.vs !== undefined) return { sensor: s, vs: sensorIndex(sensors, c.vs), min: PARAMS.sensor.compareMargin, max: 2,
-    not: !!c.not, or: !!c.or, holds: null };
+    not: !!c.not, or: !!c.or, stop: !!c.stop, holds: null };
   let min = c.min ?? 0, max = c.max ?? 1;
   if (c.when === 'light') min = PARAMS.sensor.threshold;
   else if (c.when === 'dark') max = PARAMS.sensor.threshold;
   else if (c.when !== undefined) throw new Error('control.when must be light or dark');
   if (!(min <= max)) throw new Error('control: min must not be above max');
-  return { sensor: s, min, max, not: !!c.not, or: !!c.or, holds: null };
+  return { sensor: s, min, max, not: !!c.not, or: !!c.or, stop: !!c.stop, holds: null };
 }
 
 // A design joint's wiring as a list (`controls`, or the older single `control`)
@@ -162,7 +165,7 @@ function resolveSpeed(sensors, sp) {
   if (!sp || sp.sensor === undefined) return null;
   const min = sp.min ?? 0, max = sp.max ?? 1;
   if (!(min < max)) throw new Error('speed: min must be below max');
-  return { sensor: sensorIndex(sensors, sp.sensor), min, max };
+  return { sensor: sensorIndex(sensors, sp.sensor), min, max, down: !!sp.down };
 }
 export function respeed(cell, partIndex, speed) {
   for (const j of cell.joints) if (j.part === partIndex && j.type === 'motor') {
@@ -266,7 +269,7 @@ export function buildCell(design) {
       const wpt = { x, y, w: (rho - C.cytoplasm) * v * fill * G };
       host.wpts.push(wpt);
       // v: its full volume (the room it takes); a store holds v × fill of its stuff, the rest is cytoplasm
-      host.inclusions.push({ x, y, r, v, wpt, L, ang, ux, uy, h, material: part.material, density: rho, target: rho,
+      host.inclusions.push({ x, y, r, v, wpt, L, ang, ux, uy, h, pigment: part.pigment === 'shade' ? 'shade' : 'sun', material: part.material, density: rho, target: rho,
         pumpable: mat.min !== undefined, min: mat.min, max: mat.max, store: mat.store, fill,
         part: design.parts.indexOf(part) });
       if (mat.gas) {   // crushed below this depth (µm from the surface)

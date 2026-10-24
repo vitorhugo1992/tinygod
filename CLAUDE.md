@@ -11,7 +11,7 @@ whole sandbox build happened in one long chat (2026-10-21 to 23); this file hold
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the page shows the phone address under its title (home Wi-Fi only; the author pinned it on the phone's home screen).
-`node tools/check.mjs`: 41 physics checks, all passing (~2 min).
+`node tools/check.mjs`: 42 physics checks, all passing (~2 min).
 
 **Built:** sinking (Stokes, size, density, shape), joints, motors (wave tails, flexible oar, stiff flap), latched
 springs, extending parts (ejectisome), a **burst organ** for escapes (~200 µm), pumped sap vacuoles, cells touching,
@@ -161,6 +161,20 @@ and reads "all of (AND)". The followed camera keeps the cell above the day graph
 removed: the rules left pointing at it broke the rebuild). The sandbox opens with an empty round cell; Vesperella is in
 the Add-cell menu and, on a browser's first visit, in its saved designs (to load and edit in place). Bigger flagella
 already cost more: upkeep by length (5 pJ/s per µm), the beat itself very little.
+
+**Rule cards, GO / STOP** (author, 2026-10-24: the logic was confusing in both the list and the wiring view): one
+card per part, the same under the part in the list and under the wiring view (tap a part, a box or a cable label):
+"GO when" groups (all of a group: AND; "OR GO when": another group), "STOP if" (the override: any STOP condition
+stops the part whatever the GO groups say; stored as stop: true), each condition a sensor and "above / below /
+between / outside" a value (one slider for above / below) or "more / less than" another sensor; lines glow green while
+they hold, red while a STOP is stopping. Timers read START when / DON'T START if; burst organs FIRE when / DON'T FIRE
+if. BEAT SPEED: always full, or follows a reading, faster as it reads more or less (speed.down). The wiring view draws
+the same rule: GO boxes and a red STOP box; tap a sensor then a box. The old "is / is not" and two-handle ranges are
+gone from the UI (still read in old designs: not = outside).
+**Sun / Shade plastids** (author: simplify colours to "more efficient at depth"): Pigment on the plastid: Sun
+(chlorophyll, as before) or Shade (phycobilins: half its top output at 1/5 of the light, a lower top, 2.5× upkeep;
+drawn pink-red). Shade earns more below ~1 mm (measured 1800 µm down: 5042 vs 3371 pJ/s), less near the top (7724 vs
+11114). No coloured light (a rabbit hole).
 
 **Left in the sandbox (none blocks v0):**
 - Wiring stores to the energy level (decided optional).

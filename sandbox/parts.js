@@ -74,8 +74,10 @@ export const PART_TEMPLATES = {
     { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(200 * size), radius: 0.3,
       joint: { type: 'extend', stiffness: 20, latched: true } },
   ],
-  'Plastid (makes energy)': (body, deg, id, size, tilt, depth, feels, len = 0) =>
-    [{ type: 'inclusion', id, label: 'Plastid', ...inside(body, deg, size, depth, len, tilt), material: 'plastid' }],
+  // pigment: 'sun' (chlorophyll) or 'shade' (with phycobilins: works in dim light, deep; less on top, dearer to keep)
+  'Plastid (makes energy)': (body, deg, id, size, tilt, depth, feels, len = 0, strength, pigment = 'sun') =>
+    [{ type: 'inclusion', id, label: pigment === 'shade' ? 'Shade plastid' : 'Plastid', ...inside(body, deg, size, depth, len, tilt),
+      material: 'plastid', ...(pigment === 'shade' ? { pigment: 'shade' } : {}) }],
   'Starch granule (quick store, heavy)': (body, deg, id, size, tilt, depth) =>
     [{ type: 'inclusion', id, label: 'Starch granule', ...inside(body, deg, size, depth), material: 'starch', fill: 0.5 }],
   'Oil droplet': (body, deg, id, size, tilt, depth) =>
@@ -194,10 +196,16 @@ export const CONTROLS = {
   'Burst organ (escape)': { tilt: true, flip: true, length: { min: 10, max: 40, step: 5, def: 20 }, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
-  'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, ...ROD },
+  'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, pigment: true, ...ROD },
   'Starch granule (quick store, heavy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor': { feels: true },
   'Proximity sensor': { size: (s) => `${Math.round(200 * s)} µm range`, feels: true },
+};
+
+// What each plastid pigment does (a tip under the Pigment choice)
+export const PIGMENT_TIPS = {
+  sun: 'Sun: chlorophyll. Strong in bright water near the surface, weak in dim light',
+  shade: 'Shade: with phycobilins, which catch the green light that reaches deep. Works in dim light, gives less on top, and costs 2.5× the upkeep',
 };
 
 // What each vacuole content does (a tip under the Content choice)

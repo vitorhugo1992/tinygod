@@ -1,5 +1,6 @@
 // Metabolism v0: one currency, energy (pJ), kept in the cytoplasm's pool.
-// - Income: plastids, by the light where they are, saturating in bright light.
+// - Income: plastids, by the light where they are, saturating in bright light ('shade' plastids, with phycobilins,
+//   saturate in dim light: better deep, less at the top, dearer to keep).
 // - Spending: upkeep (the body by its volume, segments by their length, plastids and stores by their size), and the
 //   motors' and pumps' real power, sped up like every other flow (PARAMS.metab.speedup), so their small share is honest.
 // - Stores, automatic: while the pool is fuller than fillAbove, surplus goes into starch (quick) then oil (slow);
@@ -23,7 +24,9 @@ export function initMetab(cell) {
   const add = (k, v) => byPart.set(k, (byPart.get(k) || 0) + v);
   const bodyUpkeep = body.volume * M.bodyUpkeep;
   for (const p of cell.pieces) if (p.kind === 'segment') add(p.part, (p.ext ? p.ext.max : p.L) * M.partUpkeep);
-  for (const inc of body.inclusions) if (inc.store || ['plastid', 'gas', 'statolith'].includes(inc.material)) add(inc.part, inc.v * M.insideUpkeep);
+  for (const inc of body.inclusions) if (inc.store || ['plastid', 'gas', 'statolith'].includes(inc.material)) {
+    add(inc.part, inc.v * M.insideUpkeep * (inc.material === 'plastid' && inc.pigment === 'shade' ? M.shade.upkeep : 1));
+  }
   let upkeep = bodyUpkeep;
   for (const v of byPart.values()) upkeep += v;
   const C = body.volume * M.pool;
@@ -46,7 +49,7 @@ export function metabolize(world, cell) {
     if (inc.material !== 'plastid') continue;
     const y = cell.cy[0] + cell.sn[0] * inc.x + cell.cs[0] * inc.y;
     const L = lightAt(world, y);
-    income += M.plastidMax * inc.v * L / (L + M.plastidHalf);
+    income += inc.pigment === 'shade' ? M.shade.max * inc.v * L / (L + M.shade.half) : M.plastidMax * inc.v * L / (L + M.plastidHalf);
   }
   // the motors' and pumps' real work since last step
   const motors = (cell.energy.motor - m.lastMotor) * REAL, pumps = (cell.energy.pump - m.lastPump) * REAL;

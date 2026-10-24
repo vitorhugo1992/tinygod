@@ -8,7 +8,7 @@ import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
 import { note, nightsLeft, drawJournal, eventText, forecast } from './journal.js';
-import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS, CONTENT_TIPS, flipPart, mirrorGroup } from './parts.js';
+import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
 const $ = (id) => document.getElementById(id);
@@ -20,7 +20,7 @@ const COLOR = {
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
   statolith: 'rgba(200,215,230,.35)', grain: '#e8eef5', gas: '#cfe9ff', crushed: '#6b7680', chem: '#c8b26a', timer: '120,210,255',
-  plastid: '#8fc94a', starch: '#ece3c4', starving: '#ff5a4a', eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
+  plastid: '#8fc94a', plastidShade: '#c45a7c', starch: '#ece3c4', starving: '#ff5a4a', eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
 
 let design, world, cell, playing = true, acc = 0, lagging = false;   // cell: the selected one (followed, measured)
@@ -155,8 +155,9 @@ const showControls = () => {
   const gas = c.strength || (c.content && $('partContent').value === 'gas');
   $('strengthRow').style.display = gas ? '' : 'none';
   $('contentRow').style.display = c.content ? '' : 'none';
-  $('contentTip').style.display = c.content ? '' : 'none';
-  $('contentTip').textContent = c.content ? CONTENT_TIPS[$('partContent').value] : '';
+  $('pigmentRow').style.display = c.pigment ? '' : 'none';
+  $('contentTip').style.display = c.content || c.pigment ? '' : 'none';
+  $('contentTip').textContent = c.content ? CONTENT_TIPS[$('partContent').value] : c.pigment ? PIGMENT_TIPS[$('partPigment').value] : '';
   $('tiltLabel').textContent = c.tiltLabel || 'Tilt';   // a statolith's "tilt" is the direction it reads
   $('partTilt').min = (c.tiltRange || [-90, 90])[0]; $('partTilt').max = (c.tiltRange || [-90, 90])[1];
   showTilt(); showStrength();
@@ -191,6 +192,7 @@ function makePart(body, id, spot) {   // spot: { where, depth } instead of the s
   if (c.pull && $('partPull').checked) b.pull = true;
   if (c.length) b.length = Number($('partLength').value);
   if (c.content) b.content = $('partContent').value;
+  if (c.pigment) b.content = $('partPigment').value;   // a plastid's pigment goes where a vacuole's content does
   if (c.strength || b.content === 'gas') b.strength = Number($('partStrength').value) / 100;
   const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length, b.strength, b.content, b.pull);
   if (b.flip) flipPart(parts);
@@ -229,7 +231,8 @@ function updateEdited() {
 }
 function startEditing(b) {
   editing = b.id;
-  if (b.content) $('partContent').value = b.content;
+  if (b.content && b.tpl.startsWith('Plastid')) $('partPigment').value = b.content;
+  else if (b.content) $('partContent').value = b.content;
   $('partWhat').value = b.tpl; showControls();
   $('partAngle').value = b.where; $('partTilt').value = b.tilt;
   $('partSize').value = Math.round(b.size * 100); $('partInside').value = Math.round(b.depth * 100);
@@ -254,6 +257,7 @@ $('cancelEdit').onclick = stopEditing;
 // while editing, letting go of a slider (or picking another part type) updates the part at once
 for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength', 'partFeels', 'partFlip', 'partPull']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
 $('partContent').onchange = () => { showControls(); previewOn = true; if (editing) updateEdited(); else updatePreview(); };
+$('partPigment').onchange = $('partContent').onchange;
 // while dragging, the ghost follows the slider
 for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
 
@@ -364,18 +368,41 @@ const isTimer = (m) => m.type === 'sensor' && m.kind === 'timer';
 const targetsOf = (g) => g.members.filter((m) => isTimer(m) || (m.joint && (m.joint.type === 'motor' || m.joint.latched)));
 // how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part), 'starts' (a timer)
 const verbOf = (m) => (isTimer(m) ? 'starts' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+// A part's rule as the card shows it: GO groups (all of a group must hold: AND; any group will do: OR) and STOP
+// conditions (any one stops the part, whatever the GO groups say: the override). Stored as one list: GO conditions in
+// their groups (or: true starts a group), then STOP ones (stop: true).
 function rulesOf(m) {
   const raw = isTimer(m) ? (m.trigger || []) : controlsOf(m.joint);
-  return raw.map((c, i) => ({ sensor: c.sensor, min: c.when === 'light' ? 0.5 : c.min ?? 0, max: c.when === 'dark' ? 0.5 : c.max ?? 1,
-    ...(c.vs !== undefined ? { vs: c.vs } : {}), not: !!c.not, or: i > 0 && !!c.or }));
+  let any = false;
+  return raw.map((c) => {
+    const r = { sensor: c.sensor, min: c.when === 'light' ? 0.5 : c.min ?? 0, max: c.when === 'dark' ? 0.5 : c.max ?? 1,
+      ...(c.vs !== undefined ? { vs: c.vs } : {}), not: !!c.not, or: false, stop: !!c.stop };
+    if (!r.stop) { r.or = any && !!c.or; any = true; }
+    return r;
+  });
+}
+// The rule as { groups: [[condition...]...], stops: [condition...] } (copies, each with k: its place in the list), and back
+function toShape(rules) {
+  const groups = [], stops = [];
+  rules.forEach((c, k) => {
+    const x = { ...c, k };
+    if (c.stop) stops.push(x); else { if (!groups.length || c.or) groups.push([]); groups[groups.length - 1].push(x); }
+  });
+  return { groups, stops };
+}
+function fromShape(shape) {
+  const out = [];
+  for (const g of shape.groups) g.forEach((c, i) => out.push({ ...c, or: i === 0 && out.length > 0, stop: false }));
+  for (const c of shape.stops) out.push({ ...c, or: false, stop: true });
+  return out;
 }
 function setRules(targets, next) {
   if (next.some((c) => c.vs === undefined && !(c.min <= c.max))) { $('buildErr').textContent = 'a range must run from low to high'; return; }
   $('buildErr').textContent = '';
   remember(design);
-  // only true marks are stored, and the first condition never starts a new group
-  const clean = next.map((c, i) => ({ sensor: c.sensor, ...(c.vs !== undefined ? { vs: c.vs } : { min: c.min, max: c.max }),
-    ...(c.not ? { not: true } : {}), ...(i > 0 && c.or ? { or: true } : {}) }));
+  // only true marks are stored, and the first GO condition never starts a new group
+  const clean = next.map((c) => ({ sensor: c.sensor, ...(c.vs !== undefined ? { vs: c.vs } : { min: c.min, max: c.max }),
+    ...(c.not ? { not: true } : {}), ...(c.or && !c.stop ? { or: true } : {}), ...(c.stop ? { stop: true } : {}) }));
   for (const m of targets) {
     const k = design.parts.indexOf(m);
     if (isTimer(m)) {
@@ -390,17 +417,161 @@ function setRules(targets, next) {
   $('json').value = JSON.stringify(design, null, 2);
   listParts();
 }
-const freshRule = (id, or = false) => ({ sensor: id, min: RANGE[sensorKind(id)][0], max: RANGE[sensorKind(id)][1], not: false, or });
-// without condition idx: the next condition takes over the start of a group this one began
-function withoutRule(list, idx) {
-  const next = list.map((x) => ({ ...x }));
-  if (next[idx].or && next[idx + 1] && !next[idx + 1].or) next[idx + 1].or = true;
-  return next.filter((_, i) => i !== idx);
+const freshRule = (id) => ({ sensor: id, min: RANGE[sensorKind(id)][0], max: RANGE[sensorKind(id)][1], not: false });
+
+// ----- a condition: a sensor, and how its reading must be: above / below / between / outside a value, or more / less
+// than another sensor's reading -----
+const MODES = { above: 'above', below: 'below', between: 'between', outside: 'outside', more: 'more than…', less: 'less than…' };
+function modeOf(c) {
+  if (c.vs !== undefined) return c.not ? 'less' : 'more';
+  if (c.not) return 'outside';
+  if (c.max >= 1 && c.min > 0) return 'above';
+  if (c.min <= 0 && c.max < 1) return 'below';
+  return c.min <= 0 && c.max >= 1 ? 'above' : 'between';
 }
-const NONE = { runs: 'runs always', fires: 'fires by hand (Release)', starts: 'never starts: give it a trigger' };
-const ADD = { runs: '＋ wire it to a sensor', fires: '＋ fire it by a sensor', starts: '＋ start it by a sensor' };
-const WHILE = { runs: 'on while', fires: 'fires while', starts: 'starts when', speed: 'speeds up from stopped to full as it reads' };
-// A motor's beat speed: always full, or following a reading (stopped at the low end, full at the high end)
+const r2 = (v) => Math.round(v * 100) / 100;
+function withMode(c, mode, sensors) {
+  const { vs, ...base } = c, m = modeOf(c);
+  const lo = m === 'below' ? r2(c.max / 2) : c.min > 0 && c.min < 1 ? c.min : 0.5, hi = c.max > 0 && c.max < 1 ? c.max : 0.5;
+  if (mode === 'above') return { ...base, min: lo, max: 1, not: false };
+  if (mode === 'below') return { ...base, min: 0, max: hi, not: false };
+  if (mode === 'between' || mode === 'outside') {
+    const a = Math.min(lo, hi), b = Math.max(lo, hi) > a ? Math.max(lo, hi) : Math.min(1, a + 0.3);
+    return { ...base, min: a, max: b, not: mode === 'outside' };
+  }
+  const other = vs ?? (sensors.find((s) => s.id !== c.sensor) || sensors[0]).id;
+  return { ...base, vs: other, not: mode === 'less', min: 0, max: 1 };
+}
+// a condition in a few characters, for cable labels
+function condText(c) {
+  const m = modeOf(c), f = (v) => r2(v).toString();
+  if (m === 'more' || m === 'less') { const s = sensorList().find((x) => x.id === c.vs); return `${m === 'more' ? '>' : '<'} ${ICON[sensorKind(c.vs)]}${s && s.deg !== undefined ? ` ${s.deg}°` : ''}`; }
+  return m === 'above' ? `> ${f(c.min)}` : m === 'below' ? `< ${f(c.max)}` : `${m === 'outside' ? 'not ' : ''}${f(c.min)}–${f(c.max)}`;
+}
+// One condition line: sensor, how, value(s); `live` = "part index:condition index" (for the green / red light)
+function condLine(c, sensors, live, onSet, onRemove) {
+  const kind = sensorKind(c.sensor), mode = modeOf(c);
+  const line = document.createElement('div');
+  line.className = 'cond' + (c.stop ? ' stopcond' : '');
+  line.dataset.livecond = live;
+  const top = document.createElement('div'); top.className = 'condhead';
+  const sel = document.createElement('select');
+  for (const s of sensors) sel.add(new Option(`${ICON[s.kind]} ${s.name}`, s.id));
+  sel.value = c.sensor;
+  sel.onchange = () => onSet(mode === 'more' || mode === 'less' ? { ...c, sensor: sel.value } : { ...c, ...freshRule(sel.value), not: c.not && mode === 'outside' });
+  const how = document.createElement('select');
+  how.className = 'howsel';
+  for (const [k, label] of Object.entries(MODES)) if (sensors.length > 1 || (k !== 'more' && k !== 'less')) how.add(new Option(label, k));
+  how.value = mode;
+  how.title = 'above / below a value, between or outside two, or more / less than another sensor';
+  how.onchange = () => onSet(withMode(c, how.value, sensors));
+  const del = document.createElement('button');
+  del.textContent = '✕'; del.title = 'Remove this condition';
+  del.onclick = onRemove;
+  top.append(sel, how, del);
+  line.appendChild(top);
+  if (mode === 'more' || mode === 'less') {
+    const vs = document.createElement('select');
+    for (const s of sensors) if (s.id !== c.sensor) vs.add(new Option(`than ${ICON[s.kind]} ${s.name}`, s.id));
+    vs.value = c.vs;
+    vs.onchange = () => onSet({ ...c, vs: vs.value });
+    const row = document.createElement('div'); row.className = 'condhead'; row.appendChild(vs);
+    const now = document.createElement('div'); now.className = 'rlabel';
+    now.innerHTML = `now <b data-live="${c.sensor}">–</b> vs <b data-live="${c.vs}">–</b>`;
+    line.append(row, now);
+  } else line.appendChild(valueBar(c, mode, kind, (lo, hi) => onSet({ ...c, min: lo, max: hi })));
+  return line;
+}
+// The value(s) of a condition: one slider for above / below, two for between / outside; the ends of the scale named;
+// the orange tick is the reading now
+function valueBar(c, mode, kind, onSet) {
+  const one = mode === 'above' || mode === 'below';
+  const box = document.createElement('div');
+  box.className = 'range';
+  box.title = SCALE[kind];
+  const v0 = mode === 'below' ? c.max : c.min, v1 = c.max;
+  box.innerHTML = `<div class="rlabel"><b class="lohi"></b> · now <b data-live="${c.sensor}">–</b></div>
+    <div class="dual"><div class="track${mode === 'outside' ? ' out' : ''}"><div class="band"></div><div class="now" data-livebar="${c.sensor}"></div></div>
+      <input type="range" min="0" max="1" step="0.05" value="${v0}">${one ? '' : `<input type="range" min="0" max="1" step="0.05" value="${v1}">`}</div>
+    <div class="rends"><span>${ENDS[kind][0]}</span><span>${ENDS[kind][1]}</span></div>`;
+  const [a, b] = box.querySelectorAll('input');
+  const band = box.querySelector('.band'), lohi = box.querySelector('.lohi');
+  const show = () => {
+    const x = Number(a.value), y = b ? Number(b.value) : 0;
+    const from = mode === 'above' ? x : mode === 'below' ? 0 : x, to = mode === 'above' ? 1 : mode === 'below' ? x : y;
+    band.style.left = `${from * 100}%`; band.style.width = `${(to - from) * 100}%`;
+    lohi.textContent = mode === 'above' ? `above ${x.toFixed(2)}` : mode === 'below' ? `below ${x.toFixed(2)}`
+      : `${mode === 'outside' ? 'outside' : 'between'} ${x.toFixed(2)} and ${y.toFixed(2)}`;
+  };
+  a.oninput = () => { if (b && Number(a.value) > Number(b.value)) a.value = b.value; show(); };
+  if (b) b.oninput = () => { if (Number(b.value) < Number(a.value)) b.value = a.value; show(); };
+  const set = () => {
+    const x = Number(a.value);
+    if (mode === 'above') onSet(x, 1); else if (mode === 'below') onSet(0, x); else onSet(x, Number(b.value));
+  };
+  a.onchange = set; if (b) b.onchange = set;
+  show();
+  return box;
+}
+
+// ----- the rule card: one per part, the same in the parts list and in the wiring view -----
+const HEADS = {
+  runs: ['GO when', 'OR GO when', 'STOP if', 'runs always (add a condition to control it)'],
+  fires: ['FIRE when', 'OR FIRE when', "DON'T FIRE if", 'fires by hand (Release), or add a condition'],
+  starts: ['START when', 'OR START when', "DON'T START if", 'never starts: add a condition'],
+};
+function ruleCard(targets) {
+  const m = targets[0], verb = verbOf(m), H = HEADS[verb], k0 = design.parts.indexOf(m);
+  const sensors = sensorList(isTimer(m) ? m.id : undefined);
+  const shape = toShape(rulesOf(m));
+  const write = (s) => setRules(targets, fromShape(s));
+  const copy = () => ({ groups: shape.groups.map((g) => g.map((c) => ({ ...c }))), stops: shape.stops.map((c) => ({ ...c })) });
+  const card = document.createElement('div');
+  card.className = 'wire rcard';
+  const head = (text, cls = '') => { const h = document.createElement('div'); h.className = `rhead ${cls}`; h.textContent = text; card.appendChild(h); };
+  const button = (text, title, onclick) => { const b = document.createElement('button'); b.className = 'addcond'; b.textContent = text; b.title = title; b.onclick = onclick; card.appendChild(b); };
+  if (!shape.groups.length && !shape.stops.length) head(H[3], 'dim');
+  shape.groups.forEach((g, gi) => {
+    head(gi ? H[1] : H[0]);
+    g.forEach((c, ci) => card.appendChild(condLine(c, sensors, `${k0}:${c.k}`,
+      (nc) => { const s = copy(); s.groups[gi][ci] = nc; write(s); },
+      () => { const s = copy(); s.groups[gi].splice(ci, 1); if (!s.groups[gi].length) s.groups.splice(gi, 1); write(s); })));
+    button('＋ and…', 'Another condition in this group: all of them must hold', () => { const s = copy(); s.groups[gi].push(freshRule(sensors[0].id)); write(s); });
+  });
+  button(shape.groups.length ? `＋ ${H[1].toLowerCase()}…` : `＋ ${H[0].toLowerCase()}…`,
+    shape.groups.length ? 'Another group: it also goes when all of this one hold' : 'A condition that makes it go',
+    () => { const s = copy(); s.groups.push([freshRule(sensors[0].id)]); write(s); });
+  if (shape.stops.length) {
+    head(`${H[2]} (beats everything above)`, 'stop');
+    shape.stops.forEach((c, ci) => card.appendChild(condLine(c, sensors, `${k0}:${c.k}`,
+      (nc) => { const s = copy(); s.stops[ci] = nc; write(s); },
+      () => { const s = copy(); s.stops.splice(ci, 1); write(s); })));
+  }
+  button(`＋ ${H[2].toLowerCase()}…`, 'An override: whenever this holds, it stops, whatever the conditions above say',
+    () => { const s = copy(); s.stops.push(freshRule(sensors[0].id)); write(s); });
+  if (verb === 'runs') card.appendChild(speedRow(targets, sensors));
+  return card;
+}
+// once a frame: each condition line green while it holds (red for a STOP line that is stopping the part), for the
+// selected cell if it is this design
+function ruleLive() {
+  const live = cell && cell.design === design ? cell : null;
+  for (const el of document.querySelectorAll('[data-livecond]')) {
+    const [k, i] = el.dataset.livecond.split(':').map(Number);
+    let ctl = null;
+    if (live) {
+      const j = live.joints.find((x) => x.part === k);
+      const t = live.sensors.find((x) => x.part === k && x.kind === 'timer');
+      ctl = (j && j.controls ? j.controls : t ? t.trigger : [])[i] || null;
+    }
+    const ok = !!ctl && ctl.holds !== null && ctl.holds !== ctl.not;
+    el.classList.toggle('holds', ok && !ctl.stop);
+    el.classList.toggle('stopping', ok && !!ctl.stop);
+  }
+}
+
+// ----- beat speed: always full, or following a reading (up: stopped at the low end, full at the high end; down: the
+// other way round) -----
 function setSpeed(targets, speed) {
   remember(design);
   for (const m of targets) {
@@ -415,185 +586,94 @@ function speedRow(targets, sensors) {
   const sp = targets[0].joint.speed;
   const box = document.createElement('div');
   box.className = 'cond';
+  const h = document.createElement('div'); h.className = 'rhead'; h.textContent = 'BEAT SPEED';
   const top = document.createElement('div'); top.className = 'condhead';
   const sel = document.createElement('select');
-  sel.add(new Option('beat speed: always full', ''));
-  for (const s of sensors) sel.add(new Option(`beat speed follows ${ICON[s.kind]} ${s.name}`, s.id));
+  sel.add(new Option('always full', ''));
+  for (const s of sensors) sel.add(new Option(`follows ${ICON[s.kind]} ${s.name}`, s.id));
   sel.value = sp ? sp.sensor : '';
   sel.title = 'Gradual control: the beat slows and quickens with a reading, instead of only switching on and off';
-  sel.onchange = () => setSpeed(targets, sel.value ? { sensor: sel.value, min: 0, max: 1 } : null);
+  sel.onchange = () => setSpeed(targets, sel.value ? { sensor: sel.value, min: 0, max: 1, ...(sp && sp.down ? { down: true } : {}) } : null);
   top.appendChild(sel);
-  box.appendChild(top);
-  if (sp) box.appendChild(rangeBar({ sensor: sp.sensor, min: sp.min, max: sp.max, not: false }, 'speed', sensorKind(sp.sensor),
-    (lo, hi) => (lo < hi ? setSpeed(targets, { sensor: sp.sensor, min: lo, max: hi }) : listParts())));
+  if (sp) {
+    const dir = document.createElement('select');
+    dir.add(new Option('faster as it reads more', 'up')); dir.add(new Option('faster as it reads less', 'down'));
+    dir.value = sp.down ? 'down' : 'up';
+    dir.onchange = () => setSpeed(targets, { ...sp, down: dir.value === 'down' });
+    top.appendChild(dir);
+  }
+  box.append(h, top);
+  if (sp) {
+    const kind = sensorKind(sp.sensor);
+    const bar = valueBar({ sensor: sp.sensor, min: sp.min, max: sp.max }, 'between', kind,
+      (lo, hi) => (lo < hi ? setSpeed(targets, { ...sp, min: lo, max: hi }) : listParts()));
+    bar.querySelector('.lohi').textContent = sp.down ? `full at ${sp.min.toFixed(2)}, stopped at ${sp.max.toFixed(2)}`
+      : `stopped at ${sp.min.toFixed(2)}, full at ${sp.max.toFixed(2)}`;
+    box.appendChild(bar);
+  }
   return box;
 }
 
-// A living cell's reading of a sensor ('energy' or an id), as { value }; undefined if there is none
+// A living cell's reading of a sensor ('energy', 'starch', 'oil' or an id), as { value }; undefined if there is none
 function liveReading(c, id) {
   if (id === 'energy') return { value: energyLevel(world, c) };
   if (id === 'starch' || id === 'oil') return { value: storeLevel(c, id) };
   return c.sensors.find((x) => x.id === id);
 }
-// A condition's two ways: a range of one reading, or a compare (one reading more than another's)
-const MODE = { range: 'in range', vs: 'more than…' };
-// the line under a compare condition: both readings now
-function compareLine(c, sensors) {
-  const name = (id) => { const x = sensors.find((s) => s.id === id); return x ? `${ICON[x.kind]} ${x.name}` : id; };
-  const line = document.createElement('div');
-  line.className = 'rlabel';
-  line.innerHTML = `holds while ${name(c.sensor)} ${c.not ? 'is not' : 'is'} more than ${name(c.vs)} · now <b data-live="${c.sensor}">–</b> vs <b data-live="${c.vs}">–</b>`;
-  return line;
-}
 
-// The compact list under a part: its rule as sentences, one condition each
-function wiring(g, targets) {
-  const box = document.createElement('div');
-  box.className = 'wire';
-  const verb = verbOf(targets[0]);
-  const sensors = sensorList(isTimer(targets[0]) ? targets[0].id : undefined);
-  const list = rulesOf(targets[0]);
-  const write = (next) => setRules(targets, next);
-  const copy = () => list.map((x) => ({ ...x }));
-  const groups = list.length ? 1 + list.filter((c) => c.or).length : 0;
-  const head = document.createElement('div');
-  head.textContent = !list.length ? NONE[verb] : groups > 1 ? `${verb} when all of one group hold:`
-    : list.length > 1 ? `${verb} when all of these hold:` : `${verb} when:`;
-  box.appendChild(head);
-  list.forEach((c, idx) => {
-    if (c.or) {
-      const line = document.createElement('div');
-      line.className = 'orline'; line.textContent = '— or —';
-      box.appendChild(line);
-    }
-    const cond = document.createElement('div');
-    cond.className = 'cond';
-    const top = document.createElement('div');
-    top.className = 'condhead';
-    const sel = document.createElement('select');
-    for (const s of sensors) sel.add(new Option(`${ICON[s.kind]} ${s.name}`, s.id));
-    sel.value = c.sensor;
-    sel.onchange = () => {
-      const next = copy();
-      next[idx] = c.vs !== undefined && sel.value !== c.vs ? { ...c, sensor: sel.value } : { ...freshRule(sel.value, c.or), not: c.not };
-      write(next);
-    };
-    const not = document.createElement('button');
-    not.className = 'notbtn'; not.textContent = c.not ? 'is not' : 'is';
-    not.title = c.not ? 'Holds while the reading is OUTSIDE the range (tap: inside)' : 'Holds while the reading is inside the range (tap: outside)';
-    not.onclick = () => { const next = copy(); next[idx].not = !c.not; write(next); };
-    const del = document.createElement('button');
-    del.textContent = '✕'; del.title = 'Remove this condition';
-    del.onclick = () => write(withoutRule(list, idx));
-    const mode = document.createElement('button');
-    mode.className = 'notbtn'; mode.textContent = c.vs !== undefined ? MODE.vs : MODE.range;
-    mode.title = 'In range: the reading is inside a range. More than: it reads more than another sensor (tap to switch)';
-    mode.onclick = () => {
-      const next = copy();
-      if (c.vs !== undefined) next[idx] = { ...freshRule(c.sensor, c.or), not: c.not };
-      else next[idx] = { sensor: c.sensor, vs: (sensors.find((s) => s.id !== c.sensor) || sensors[0]).id, not: c.not, or: c.or };
-      write(next);
-    };
-    top.append(sel, not, mode, del);
-    cond.appendChild(top);
-    if (c.vs !== undefined) {   // the sensor it is compared with
-      const vs = document.createElement('select');
-      for (const s of sensors) if (s.id !== c.sensor) vs.add(new Option(`than ${ICON[s.kind]} ${s.name}`, s.id));
-      vs.value = c.vs;
-      vs.onchange = () => { const next = copy(); next[idx].vs = vs.value; write(next); };
-      const row2 = document.createElement('div'); row2.className = 'condhead'; row2.appendChild(vs);
-      cond.append(row2, compareLine(c, sensors));
-    } else cond.appendChild(rangeBar(c, verb, sensorKind(c.sensor), (lo, hi) => {
-      const next = copy(); next[idx].min = lo; next[idx].max = hi; write(next);
-    }));
-    box.appendChild(cond);
-  });
-  if (verb === 'runs') box.appendChild(speedRow(targets, sensors));
-  const first = sensors[0].id;
-  const add = document.createElement('button');
-  add.className = 'addcond';
-  add.textContent = list.length ? '＋ and also…' : ADD[verb];
-  add.title = list.length ? 'Another condition in the last group: all of them must hold' : '';
-  add.onclick = () => write([...list, freshRule(first)]);
-  box.appendChild(add);
-  if (list.length) {
-    const or = document.createElement('button');
-    or.className = 'addcond';
-    or.textContent = '＋ or instead…';
-    or.title = `A new group: it ${verb} when either group holds`;
-    or.onclick = () => write([...list, freshRule(first, true)]);
-    box.appendChild(or);
-  }
-  return box;
-}
+// The list under a part: its rule card
+function wiring(g, targets) { return ruleCard(targets); }
 
-// ----- the patch view: wiring as a modular synth. Sensors (with their live reading) sit on the left, parts on the right;
-// between them, each part's rule as boxes: a box is a group of conditions that must all hold (AND), and a part with
-// several boxes goes when any one does (OR). A cable from a sensor into a box is one condition; its chip shows the
-// range, and tapping it edits it. Patching is tap, tap: a sensor, then a box (another condition in that group) or a part
-// (a new group). The same rules as the list in the panel, drawn differently. -----
+// ----- the wiring view: the same rules as a modular synth. Sensors (live readings) on the left, parts on the right;
+// between them each part's GO boxes (all cables into a box must hold: AND; any box will do: OR) and its STOP box (red:
+// any cable into it stops the part). Tap a sensor, then a box (or a part: a new GO box); tap a part or a cable's label
+// to open the part's rule card underneath. -----
 let patchOpen = false;
 let patchPick = null;   // the sensor id picked, waiting for where to patch it
-let patchEdit = null;   // { t: target index, k: condition index } being edited
+let patchEdit = null;   // { t: target index } whose rule card is open underneath
 let patchTargets = [];  // [{ name, members, verb, rules }] as drawn
-const PATCH_HINT = 'tap a sensor, then a box or a part · tap a cable’s label to edit it';
+const PATCH_HINT = 'tap a sensor, then a box (GO, or the red STOP) · tap a part or a cable to edit its rule';
 $('patchBtn').onclick = () => { patchOpen = true; $('patch').hidden = false; patchPick = null; patchEdit = null; drawPatch(); };
 $('patchClose').onclick = () => { patchOpen = false; $('patch').hidden = true; };
-// split a rule into its groups, keeping each condition's index in the rule
-function groupsOf(rules) {
-  const gs = [];
-  rules.forEach((c, k) => { if (!gs.length || c.or) gs.push([]); gs[gs.length - 1].push(k); });
-  return gs;
-}
-const rangeText = (c) => `${c.not ? 'not ' : ''}${c.min.toFixed(2).replace(/0$/, '')}–${c.max.toFixed(2).replace(/0$/, '')}`;
 function drawPatch() {
   if (!patchOpen) return;
   const cols = $('patchCols');
   cols.innerHTML = '';
-  $('patchHint').textContent = patchPick ? `now tap a box or a part to patch ${ICON[sensorKind(patchPick)]} into` : PATCH_HINT;
-  // sources
+  $('patchHint').textContent = patchPick ? `now tap a GO box, the red STOP box, or a part, to patch ${ICON[sensorKind(patchPick)]} into` : PATCH_HINT;
   const src = document.createElement('div'); src.className = 'pcol src';
   for (const s of sensorList()) {
-    const jack = document.createElement('div');
-    jack.className = 'srcmod pjack' + (patchPick === s.id ? ' picked' : ''); jack.dataset.src = s.id;
-    jack.title = SCALE[s.kind];
-    jack.innerHTML = `<div class="pname">${ICON[s.kind]} ${s.short}${s.deg !== undefined ? ` <span class="pval">${s.deg}°</span>` : ''}</div><div class="pval">reads <b data-live="${s.id}">–</b></div>
-      <div class="pbar"><i data-patchbar="${s.id}"></i></div>`;
-    jack.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; patchEdit = null; drawPatch(); };
     const m = document.createElement('div');
-    m.className = 'pmod';
-    m.appendChild(jack);
+    m.className = 'pmod srcmod' + (patchPick === s.id ? ' picked' : ''); m.dataset.src = s.id;
+    m.title = SCALE[s.kind];
+    m.innerHTML = `<div class="pname">${ICON[s.kind]} ${s.short}${s.deg !== undefined ? ` <span class="pval">${s.deg}°</span>` : ''}</div>
+      <div class="pval">reads <b data-live="${s.id}">–</b></div><div class="pbar"><i data-patchbar="${s.id}"></i></div>`;
+    m.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; drawPatch(); };
     src.appendChild(m);
   }
-  // targets, each with its boxes
   const rules = document.createElement('div'); rules.className = 'prules';
   patchTargets = partGroups(design.parts || []).map((g) => ({ g, members: targetsOf(g) })).filter((t) => t.members.length)
     .map((t) => ({ name: `${t.g.name} at ${t.g.deg}°`, members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]),
       icon: isTimer(t.members[0]) ? ICON.timer : '' }));
   if (!patchTargets.length) rules.innerHTML = '<div class="pval">No parts to wire yet: add a flagellum, a burst organ, an ejectisome or a timer.</div>';
   patchTargets.forEach((t, ti) => {
+    const H = HEADS[t.verb], shape = toShape(t.rules);
     const row = document.createElement('div'); row.className = 'prow';
     const boxes = document.createElement('div'); boxes.className = 'pboxes';
-    const gs = groupsOf(t.rules);
-    gs.forEach((ks, gi) => {
+    const box = (key, text, cls, title) => {
       const b = document.createElement('div');
-      b.className = 'pmod box'; b.dataset.box = `${ti}:${gi}`;
-      b.textContent = ks.length > 1 ? 'all of (AND)' : 'when';
-      b.title = 'A box is a group: the part goes when every cable into it holds (AND). Several boxes: when any one holds (OR).';
-      b.onclick = (e) => { e.stopPropagation(); patchInto(ti, gi); };
+      b.className = `pmod box ${cls}`; b.dataset.box = `${ti}:${key}`; b.textContent = text; b.title = title;
+      b.onclick = (e) => { e.stopPropagation(); patchInto(ti, key); };
       boxes.appendChild(b);
-    });
-    const add = document.createElement('div');
-    add.className = 'pmod box add'; add.dataset.box = `${ti}:new`;
-    add.textContent = gs.length ? '＋ or' : '＋ when';
-    add.title = gs.length ? 'A new group: the part also goes when this holds' : 'Tap a sensor, then here';
-    add.onclick = (e) => { e.stopPropagation(); patchInto(ti, gs.length); };
-    boxes.appendChild(add);
+    };
+    shape.groups.forEach((g, gi) => box(gi, gi ? H[1] : H[0], '', 'all cables into this box must hold (AND); any GO box will do (OR)'));
+    box('new', shape.groups.length ? '＋ or' : `＋ ${H[0].toLowerCase()}`, 'add', 'tap a sensor, then here: a new GO box');
+    box('stop', shape.stops.length ? H[2] : `＋ ${H[2].toLowerCase()}`, `stopbox${shape.stops.length ? '' : ' add'}`,
+      'any cable into the STOP box stops the part, whatever the GO boxes say');
     const tg = document.createElement('div');
-    tg.className = 'pmod tgt'; tg.dataset.tgt = ti;
+    tg.className = 'pmod tgt' + (patchEdit && patchEdit.t === ti ? ' picked' : ''); tg.dataset.tgt = ti;
     tg.innerHTML = `<span class="pstate" data-pstate="${ti}"></span><div class="pname">${t.icon} ${t.name}</div>
-      <div class="pval">${!t.rules.length ? NONE[t.verb] : `${t.verb}${gs.length > 1 ? ' when any box holds' : ''}`}${speedText(t.members[0])}</div>`;
-    tg.onclick = (e) => { e.stopPropagation(); patchInto(ti, gs.length); };
+      <div class="pval">${!t.rules.length ? H[3].split(' (')[0] : 'tap to edit its rule'}${speedText(t.members[0])}</div>`;
+    tg.onclick = (e) => { e.stopPropagation(); if (patchPick) patchInto(ti, 'new'); else { patchEdit = patchEdit && patchEdit.t === ti ? null : { t: ti }; drawPatch(); } };
     row.append(boxes, tg);
     rules.appendChild(row);
   });
@@ -601,71 +681,73 @@ function drawPatch() {
   layoutWires();
   showPatchEdit();
 }
-// a target's speed rule, as a line (set in the list under the part)
+// a target's speed rule, as a line
 function speedText(m) {
   const sp = m.joint && m.joint.speed;
   if (!sp) return '';
   const s = sensorList().find((x) => x.id === sp.sensor);
-  return `<br>speed follows ${s ? `${ICON[s.kind]} ${s.short}` : sp.sensor} ${sp.min}–${sp.max}`;
+  return `<br>speed follows ${s ? `${ICON[s.kind]} ${s.short}` : sp.sensor} (${sp.down ? 'faster as it reads less' : 'faster as it reads more'})`;
 }
-// patch the picked sensor into target ti's group gi (gi past the last: a new group)
-function patchInto(ti, gi) {
+// patch the picked sensor into target ti: a GO box (its index), a new GO box ('new') or the STOP box ('stop')
+function patchInto(ti, key) {
   const t = patchTargets[ti];
-  if (!patchPick) {   // a box tapped on its own: say what it is and how to change it
-    $('patchHint').textContent = gi < groupsOf(t.rules).length
-      ? 'this box: the part goes when ALL its cables hold (AND). To add one: tap a sensor, then this box. For OR: a sensor, then "+ or".'
-      : 'tap a sensor first, then here: a new box, so the part also goes when that holds (OR)';
+  if (!patchPick) {   // a box tapped on its own: open the rule card, say what the box is
+    patchEdit = { t: ti };
+    drawPatch();
+    $('patchHint').textContent = key === 'stop' ? 'the STOP box: any cable into it stops the part, whatever the GO boxes say. Tap a sensor, then this box, to add one.'
+      : key === 'new' ? 'tap a sensor first, then here: a new GO box (the part also goes when all of it holds: OR)'
+        : 'a GO box: the part goes when ALL its cables hold (AND). Tap a sensor, then this box, to add one.';
     return;
   }
   if (isTimer(t.members[0]) && patchPick === t.members[0].id) { $('patchHint').textContent = 'a timer can’t start itself'; return; }
-  const gs = groupsOf(t.rules), next = t.rules.map((c) => ({ ...c }));
-  const fresh = freshRule(patchPick, gs.length > 0 && gi >= gs.length);
-  let at = next.length;
-  if (gi < gs.length) at = gs[gi][gs[gi].length - 1] + 1;   // at the end of that group
-  next.splice(at, 0, fresh);
+  const shape = toShape(t.rules), fresh = freshRule(patchPick);
+  if (key === 'stop') shape.stops.push(fresh);
+  else if (key === 'new' || key >= shape.groups.length) shape.groups.push([fresh]);
+  else shape.groups[key].push(fresh);
   patchPick = null;
-  patchEdit = { t: ti, k: at };
-  setRules(t.members, next);
+  patchEdit = { t: ti };
+  setRules(t.members, fromShape(shape));
 }
-// the cables, their chips, and each box's line to its part, drawn over the laid-out modules
+// the cables, their labels, and each box's line to its part, drawn over the laid-out modules
 function layoutWires() {
   const area = $('patchArea'), svg = $('patchWires');
   for (const el of area.querySelectorAll('.pchip')) el.remove();
   svg.innerHTML = '';
   const base = area.getBoundingClientRect();
   const at = (el, side) => { const r = el.getBoundingClientRect(); return [(side ? r.right : r.left) - base.left, r.top + r.height / 2 - base.top]; };
-  const path = (a, b, key) => {
+  const path = (a, b, key, cls = '') => {
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     const dx = Math.max(30, (b[0] - a[0]) / 2);
     p.setAttribute('d', `M${a[0]},${a[1]} C${a[0] + dx},${a[1]} ${b[0] - dx},${b[1]} ${b[0]},${b[1]}`);
-    p.dataset.key = key;
+    p.dataset.key = key; if (cls) p.setAttribute('class', cls);
     svg.appendChild(p);
   };
   patchTargets.forEach((t, ti) => {
-    const tg = area.querySelector(`[data-tgt="${ti}"]`);
-    groupsOf(t.rules).forEach((ks, gi) => {
+    const tg = area.querySelector(`[data-tgt="${ti}"]`), shape = toShape(t.rules);
+    const cable = (c, box, stop) => {
+      const s = area.querySelector(`[data-src="${c.sensor}"]`);
+      if (!s) return;
+      const a = at(s, true), b = at(box, false);
+      path(a, b, `c${ti}:${c.k}`, stop ? 'stopc' : '');
+      const other = c.vs !== undefined && area.querySelector(`[data-src="${c.vs}"]`);
+      if (other) path(at(other, true), b, `v${ti}:${c.k}`, stop ? 'stopc' : '');   // the second sensor of a compare
+      const chip = document.createElement('div');
+      chip.className = 'pchip' + (stop ? ' stopchip' : ''); chip.dataset.chip = `${ti}:${c.k}`;
+      chip.textContent = condText(c);
+      chip.style.left = `${a[0] + (b[0] - a[0]) * 0.55}px`; chip.dataset.y = a[1] + (b[1] - a[1]) * 0.55;
+      chip.onclick = (e) => { e.stopPropagation(); patchEdit = { t: ti }; patchPick = null; drawPatch(); };
+      area.appendChild(chip);
+    };
+    shape.groups.forEach((g, gi) => {
       const box = area.querySelector(`[data-box="${ti}:${gi}"]`);
       path(at(box, true), at(tg, false), `b${ti}:${gi}`);
-      ks.forEach((k) => {
-        const c = t.rules[k], s = area.querySelector(`[data-src="${c.sensor}"]`);
-        if (!s) return;
-        const a = at(s, true), b = at(box, false);
-        path(a, b, `c${ti}:${k}`);
-        const other = c.vs !== undefined && area.querySelector(`[data-src="${c.vs}"]`);
-        if (other) path(at(other, true), b, `v${ti}:${k}`);   // the second sensor of a compare
-        const chip = document.createElement('div');
-        chip.className = 'pchip' + (patchEdit && patchEdit.t === ti && patchEdit.k === k ? ' on' : '');
-        chip.dataset.chip = `${ti}:${k}`;
-        const vsName = c.vs !== undefined && (sensorList().find((x) => x.id === c.vs) || {}).short;
-        const vsDeg = c.vs !== undefined && (sensorList().find((x) => x.id === c.vs) || {}).deg;
-        chip.textContent = c.vs !== undefined ? `${c.not ? 'not ' : ''}> ${ICON[sensorKind(c.vs)]}${vsDeg !== undefined ? ` ${vsDeg}°` : ''}` : rangeText(c);
-        chip.title = c.vs !== undefined ? `${t.name}: ${WHILE[t.verb]} it reads ${c.not ? 'no ' : ''}more than ${vsName}`
-          : `${t.name}: ${WHILE[t.verb]} it reads ${c.not ? 'outside ' : ''}${c.min}–${c.max}`;
-        chip.style.left = `${a[0] + (b[0] - a[0]) * 0.55}px`; chip.dataset.y = a[1] + (b[1] - a[1]) * 0.55;
-        chip.onclick = (e) => { e.stopPropagation(); patchEdit = { t: ti, k }; patchPick = null; drawPatch(); };
-        area.appendChild(chip);
-      });
+      for (const c of g) cable(c, box, false);
     });
+    if (shape.stops.length) {
+      const box = area.querySelector(`[data-box="${ti}:stop"]`);
+      path(at(box, true), at(tg, false), `b${ti}:stop`, 'stopc');
+      for (const c of shape.stops) cable(c, box, true);
+    }
   });
   // labels meet where cables converge: keep them at least a label's height apart, in cable order
   const chips = [...area.querySelectorAll('.pchip')].sort((p, q) => p.dataset.y - q.dataset.y);
@@ -673,43 +755,18 @@ function layoutWires() {
   for (const c of chips) { const y = Math.max(Number(c.dataset.y), last + 18); c.style.top = `${y}px`; last = y; }
   svg.setAttribute('height', area.scrollHeight);
 }
-// the editor under the patch: one condition's range, is / is not, remove
+// under the patch: the open part's rule card
 function showPatchEdit() {
   const box = $('patchEdit');
-  const t = patchEdit && patchTargets[patchEdit.t], c = t && t.rules[patchEdit.k];
-  if (!c) { box.hidden = true; box.innerHTML = ''; return; }
+  const t = patchEdit && patchTargets[patchEdit.t];
+  if (!t) { box.hidden = true; box.innerHTML = ''; return; }
   box.hidden = false; box.innerHTML = '';
-  const kind = sensorKind(c.sensor), src = sensorList().find((s) => s.id === c.sensor);
-  const head = document.createElement('div');
-  head.innerHTML = `<b>${ICON[kind]} ${src ? src.name : c.sensor}</b> → <b>${t.icon} ${t.name}</b>`;
-  const write = (change) => { const next = t.rules.map((x) => ({ ...x })); Object.assign(next[patchEdit.k], change); setRules(t.members, next); };
-  const row = document.createElement('div'); row.className = 'row';
-  const not = document.createElement('button');
-  not.className = 'notbtn'; not.textContent = c.not ? 'is not' : 'is';
-  not.title = 'Holds while the reading is inside the range (is) or outside it (is not)';
-  not.onclick = () => write({ not: !c.not });
-  const del = document.createElement('button');
-  del.textContent = '✕ unplug';
-  del.onclick = () => { const k = patchEdit.k; patchEdit = null; setRules(t.members, withoutRule(t.rules, k)); };
-  const done = document.createElement('button');
-  done.textContent = 'Done';
+  const head = document.createElement('div'); head.className = 'row';
+  const title = document.createElement('b'); title.textContent = `${t.icon} ${t.name}`;
+  const done = document.createElement('button'); done.textContent = 'Done';
   done.onclick = () => { patchEdit = null; drawPatch(); };
-  const sensors = sensorList(isTimer(t.members[0]) ? t.members[0].id : undefined);
-  const mode = document.createElement('button');
-  mode.className = 'notbtn'; mode.textContent = c.vs !== undefined ? MODE.vs : MODE.range;
-  mode.title = 'In range: the reading is inside a range. More than: it reads more than another sensor (tap to switch)';
-  mode.onclick = () => {
-    if (c.vs !== undefined) write({ vs: undefined, ...freshRule(c.sensor) , or: c.or, not: c.not });
-    else write({ vs: (sensors.find((s) => s.id !== c.sensor) || sensors[0]).id });
-  };
-  row.append(not, mode, del, done);
-  if (c.vs !== undefined) {
-    const vs = document.createElement('select');
-    for (const s of sensors) if (s.id !== c.sensor) vs.add(new Option(`than ${ICON[s.kind]} ${s.name}`, s.id));
-    vs.value = c.vs;
-    vs.onchange = () => write({ vs: vs.value });
-    box.append(head, vs, compareLine(c, sensors), row);
-  } else box.append(head, rangeBar(c, t.verb, kind, (lo, hi) => write({ min: lo, max: hi })), row);
+  head.append(title, done);
+  box.append(head, ruleCard(t.members));
 }
 $('patchBody').onclick = () => { if (patchPick || patchEdit) { patchPick = null; patchEdit = null; drawPatch(); } };
 window.addEventListener('resize', () => { if (patchOpen) layoutWires(); });
@@ -738,52 +795,27 @@ function patchLive() {
         }
       }
     }
-    const st = area.querySelector(`[data-pstate="${ti}"]`);
-    if (st) st.textContent = state;
-    const tg = area.querySelector(`[data-tgt="${ti}"]`);
-    if (tg) tg.classList.toggle('lit', on);
-    groupsOf(t.rules).forEach((ks, gi) => {
+    const st = area.querySelector(`[data-pstate="${ti}"]`); if (st) st.textContent = state;
+    const tg = area.querySelector(`[data-tgt="${ti}"]`); if (tg) tg.classList.toggle('lit', on);
+    const okAt = (k) => { const ctl = ctls && ctls[k]; return !!ctl && ctl.holds !== null && ctl.holds !== ctl.not; };
+    const shape = toShape(t.rules);
+    const light = (k, ok) => {
+      for (const key of [`c${ti}:${k}`, `v${ti}:${k}`]) { const p = area.querySelector(`path[data-key="${key}"]`); if (p) p.classList.toggle('lit', ok); }
+      const ch = area.querySelector(`[data-chip="${ti}:${k}"]`); if (ch) ch.classList.toggle('lit', ok);
+    };
+    shape.groups.forEach((g, gi) => {
       let all = !!ctls;
-      for (const k of ks) {
-        const ctl = ctls && ctls[k], ok = !!ctl && ctl.holds !== null && ctl.holds !== ctl.not;
-        if (!ok) all = false;
-        const p = area.querySelector(`path[data-key="c${ti}:${k}"]`); if (p) p.classList.toggle('lit', ok);
-        const v = area.querySelector(`path[data-key="v${ti}:${k}"]`); if (v) v.classList.toggle('lit', ok);
-        const ch = area.querySelector(`[data-chip="${ti}:${k}"]`); if (ch) ch.classList.toggle('lit', ok);
-      }
+      for (const c of g) { const ok = okAt(c.k); if (!ok) all = false; light(c.k, ok); }
       const b = area.querySelector(`[data-box="${ti}:${gi}"]`); if (b) b.classList.toggle('lit', all);
       const p = area.querySelector(`path[data-key="b${ti}:${gi}"]`); if (p) p.classList.toggle('lit', all);
     });
+    let stopping = false;
+    for (const c of shape.stops) { const ok = okAt(c.k); if (ok) stopping = true; light(c.k, ok); }
+    const sb = area.querySelector(`[data-box="${ti}:stop"]`); if (sb) sb.classList.toggle('lit', stopping);
+    const sp = area.querySelector(`path[data-key="b${ti}:stop"]`); if (sp) sp.classList.toggle('lit', stopping);
   });
 }
 
-// One condition's range: a bar with two handles, its ends named; the part goes while the reading is inside the lit
-// stretch (or outside it); the orange tick is the reading now
-function rangeBar(c, verb, kind, onSet) {
-  {
-    const lo = c.min, hi = c.max;
-    const span = document.createElement('div');
-    span.className = 'range';
-    span.title = SCALE[kind];
-    span.innerHTML = `<div class="rlabel">${WHILE[verb]} it reads ${c.not ? 'outside ' : ''}<b class="lohi"></b> · now <b data-live="${c.sensor}">–</b></div>
-      <div class="dual"><div class="track${c.not ? ' out' : ''}"><div class="band"></div>${kind === 'light' ? '<div class="most"></div>' : ''}<div class="now" data-livebar="${c.sensor}"></div></div>
-        <input type="range" min="0" max="1" step="0.05" value="${lo}"><input type="range" min="0" max="1" step="0.05" value="${hi}"></div>
-      <div class="rends"><span>${ENDS[kind][0]}</span><span>${ENDS[kind][1]}</span></div>
-      ${kind === 'light' ? `<div class="rscale"><span data-livemax="${c.sensor}"></span></div>` : ''}`;
-    const [a, b] = span.querySelectorAll('input');
-    const band = span.querySelector('.band'), lohi = span.querySelector('.lohi');
-    const show = () => {
-      const x = Number(a.value), y = Number(b.value);
-      band.style.left = `${x * 100}%`; band.style.width = `${(y - x) * 100}%`;
-      lohi.textContent = `${x.toFixed(2)} to ${y.toFixed(2)}`;
-    };
-    a.oninput = () => { if (Number(a.value) > Number(b.value)) a.value = b.value; show(); };
-    b.oninput = () => { if (Number(b.value) < Number(a.value)) b.value = a.value; show(); };
-    a.onchange = b.onchange = () => onSet(Number(a.value), Number(b.value));
-    show();
-    return span;
-  }
-}
 
 // Unplug every cable from the sensors in `ids` (being removed): from the remaining parts' rules, timers' triggers and
 // speed settings, so the design still builds
@@ -1034,7 +1066,7 @@ function frame(now) {
     acc -= want * DT;
     lagging = done < want;                     // the computer can't keep up with this speed
   }
-  if (world) { draw(); if (!$('stats').hidden) stats(); liveReadings(); patchLive(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
+  if (world) { draw(); if (!$('stats').hidden) stats(); liveReadings(); patchLive(); ruleLive(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
   requestAnimationFrame(frame);
 }
 
@@ -1446,7 +1478,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
       const r = inc.r, a = c.phi[i] + (inc.ang || 0);
       if (inc.store) { drawLevel(ix, iy, inc, X, Y, s, a); continue; }   // a container, filled as far as it is full
       if (inc.material === 'gas') { drawGas(ix, iy, inc, X, Y, s, a); continue; }
-      ctx.fillStyle = inc.pumpable ? sapColor(inc) : COLOR[inc.material];
+      ctx.fillStyle = inc.pumpable ? sapColor(inc) : inc.material === 'plastid' && inc.pigment === 'shade' ? COLOR.plastidShade : COLOR[inc.material];
       if (r > 0.02) { incPath(X(ix), Y(iy), inc, s, a); ctx.fill(); }
       if (inc.material === 'statolith') {   // the grain lies on the chamber's lower wall (in the middle with gravity off)
         const g = 0.4 * inc.r, drop = world.gravity ? inc.r - g : 0;
@@ -1668,7 +1700,7 @@ function segmented(boxId, selectId) {
     box.appendChild(b);
   }
 }
-segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall'); segmented('feelsSeg', 'partFeels'); segmented('contentSeg', 'partContent');
+segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall'); segmented('feelsSeg', 'partFeels'); segmented('contentSeg', 'partContent'); segmented('pigmentSeg', 'partPigment');
 const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked = !$(boxId).checked; $(boxId).dispatchEvent(new Event('change')); }; };
 $('calmBtn').onclick = () => { calmBeats = !calmBeats; };
 toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day');
@@ -1710,7 +1742,7 @@ for (const [cat, names] of Object.entries(CATEGORIES)) {
 
 // Light up the buttons that match the current state (cheap; once a frame)
 function syncButtons() {
-  for (const [boxId, selId] of [['speedSeg', 'speed'], ['viewSeg', 'viewMode'], ['wallSeg', 'bodyWall'], ['chips', 'partWhat'], ['feelsSeg', 'partFeels'], ['contentSeg', 'partContent']]) {
+  for (const [boxId, selId] of [['speedSeg', 'speed'], ['viewSeg', 'viewMode'], ['wallSeg', 'bodyWall'], ['chips', 'partWhat'], ['feelsSeg', 'partFeels'], ['contentSeg', 'partContent'], ['pigmentSeg', 'partPigment']]) {
     const v = $(selId).value;
     for (const b of $(boxId).querySelectorAll('button')) b.classList.toggle('on', b.dataset.v === v);
   }

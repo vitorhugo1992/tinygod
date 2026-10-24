@@ -71,15 +71,20 @@ function holds(ctl, v) {
 
 // Does a list of conditions hold now (AND inside a group, OR between groups)? Every condition is updated, so each
 // keeps its own hysteresis state.
+// A rule: GO conditions in groups (AND inside a group, OR between groups; none: always), and STOP conditions, any one of
+// which stops the part whatever the GO groups say (the override).
 function holdsAll(world, cell, controls) {
-  let all = false, group = true;   // all: an earlier group held; group: the current group holds so far
+  let all = false, group = true, any = false, stop = false;   // all: an earlier group held; group: this one so far
   for (const ctl of controls) {
-    if (ctl.or && ctl !== controls[0]) { all = all || group; group = true; }
     const read = (k) => reading(world, cell, k);
     const v = ctl.vs === undefined ? read(ctl.sensor) : read(ctl.sensor) - read(ctl.vs);
-    if (holds(ctl, v) === ctl.not) group = false;
+    const ok = holds(ctl, v) !== ctl.not;   // every condition is updated, so each keeps its hysteresis
+    if (ctl.stop) { if (ok) stop = true; continue; }
+    if (ctl.or && any) { all = all || group; group = true; }
+    any = true;
+    if (!ok) group = false;
   }
-  return all || group;
+  return (any ? all || group : true) && !stop;
 }
 
 export function sense(world, cell) {
@@ -118,8 +123,9 @@ export function sense(world, cell) {
   for (const j of cell.joints) {
     if (j.speed && !j.burst) {   // its beat follows a reading
       const v = reading(world, cell, j.speed.sensor);
-      const g = (v - j.speed.min) / (j.speed.max - j.speed.min);
-      j.gain = g < 0 ? 0 : g > 1 ? 1 : g;
+      let g = (v - j.speed.min) / (j.speed.max - j.speed.min);
+      g = g < 0 ? 0 : g > 1 ? 1 : g;
+      j.gain = j.speed.down ? 1 - g : g;   // down: full speed at the low end, stopped at the high end
     }
     if (!j.controls) continue;
     const all = holdsAll(world, cell, j.controls);
