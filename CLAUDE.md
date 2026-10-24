@@ -40,7 +40,8 @@ pays about what the surface used to. Measured (a plastid held at a depth): sun b
 39% less at noon, 21% less over a day; shade best ~1.3 mm, badly hurt near the top. Shown: plastids bleach toward
 pale yellow, a "plastids" line in the day graph, "bright light damaged its plastids" / "mended" in the trouble log,
 "repairing plastids" in the budget; **plastid health** is a built-in reading ('health' in wiring, 🌿), offered when
-the design has a plastid. Rebuilds and Test a day keep the damage. **Consequence:** Vesperella and the legged cell,
+the design has a plastid (author: partly redundant with the eyespot, but kept as a way to build without one).
+Rebuilds and Test a day keep the damage. **Consequence:** Vesperella and the legged cell,
 which sat at the surface and only just broke even, now starve some nights (they need to stay out of the noon light;
 Vesperella's strong gas vesicles keep floating it back up). Step 1 then adds the other two costs of the surface:
 nutrients needed to grow (surface poor, deep rich) and grazers.
