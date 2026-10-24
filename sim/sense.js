@@ -8,8 +8,6 @@
 // - chem: the nutrients where it is (nutrient.js: poor at the surface, rich deep).
 // - statolith: a loose grain in a chamber rolls to the lower wall; it reads how far the chamber's direction points up
 //   (1 straight up, 0 down, 0.5 sideways or with gravity off).
-// - timer: 0 the moment its trigger (conditions, as for a part) comes true, rising to 1 after its span; 1 before it
-//   ever started. Reset by an eyespot at dawn it is a clock; by touch, a "for a while after" switch.
 // Every cell also has its energy level built in (no part): how full its energy pool is, 0 empty, 1 full (1 with
 // metabolism off). Wiring to sensor 'energy' reads it; 'starch' and 'oil' read how full those stores are.
 // A part can be wired to several sensors (its conditions). A condition holds while its reading is inside its [min, max]
@@ -23,7 +21,6 @@ import { dcos, dsin } from './dmath.js';
 import { fire } from './physics.js';
 import { lightAt } from './light.js';
 import { nutrientAt } from './nutrient.js';
-import { worldTime } from './world.js';
 
 const S = PARAMS.sensor;
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -92,7 +89,6 @@ export function sense(world, cell) {
     const i = s.piece, c = cell.cs[i], n = cell.sn[i];
     const x = cell.cx[i] + c * s.x - n * s.y, y = cell.cy[i] + n * s.x + c * s.y;
     if (s.kind === 'hunger') { s.value = energyLevel(world, cell); continue; }   // old designs: same as the built-in
-    if (s.kind === 'timer') continue;   // below, once every other sensor has read
     if (s.kind === 'chem') { s.value = nutrientAt(y); continue; }
     if (s.kind === 'statolith') {   // the grain lies on the lower wall: how far its direction points up (no weight: 0.5)
       s.value = world.gravity ? (1 + dsin(cell.phi[i] + s.facing)) / 2 : 0.5;
@@ -110,15 +106,6 @@ export function sense(world, cell) {
       const d = nearest(world, cell, x, y, s.range, s.feels === 'anything');
       s.value = s.kind === 'touch' ? (d <= s.range ? 1 : 0) : (d >= s.range ? 0 : d <= 0 ? 1 : 1 - d / s.range);
     }
-  }
-  // timers, in order: each starts again the moment its trigger comes true (a timer may watch an earlier one)
-  const t = worldTime(world);
-  for (const s of cell.sensors) {
-    if (s.kind !== 'timer') continue;
-    const now = s.trigger.length > 0 && holdsAll(world, cell, s.trigger);
-    if (now && !s.was) s.start = t;
-    s.was = now;
-    s.value = s.start === null ? 1 : Math.min(1, (t - s.start) / s.span);
   }
   for (const j of cell.joints) {
     if (j.speed && !j.burst) {   // its beat follows a reading

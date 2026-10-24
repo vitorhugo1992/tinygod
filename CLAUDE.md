@@ -19,7 +19,7 @@ in the real page with headless Edge over the DevTools protocol at phone size (40
 **The sandbox today, in short:** a still 2 mm tank with light from above and a 10-minute day. Build a cell from parts:
 flagella (wave tail, with Pull; flexible oar; stiff flap; Length; Flip; mirror copies), spines, escapes (burst organ,
 ejectisome), inside (plastid Sun / Shade; one Vacuole part with Content Starch / Oil / Sap / Gas; any of them round or
-a rod), pads, sensors (eyespot, statolith, touch, proximity, nutrients, timer; built-in energy, starch and oil levels).
+a rod), pads, sensors (eyespot, statolith, touch, proximity, nutrients; built-in energy, starch and oil levels).
 Each moving part has a **rule card**: GO when / OR GO when / STOP if (the override), conditions "above / below /
 between / outside" or "more / less than" another sensor, and a BEAT SPEED that can follow a reading either way; the
 🎛 Wiring view shows the same rules as a modular synth (GO boxes, a red STOP box). Metabolism v0 (energy, upkeep,
@@ -30,12 +30,28 @@ designs/<name>.json: when the author says they sent one, read designs/), 📥 Fr
 { name, from: "Claude", note, design } and tell them to tap it). The sandbox opens with an empty cell; Claude's
 species Vesperella (a daily migrator) is a preset and starts in the saved designs.
 
+**Next (agreed with the author, 2026-10-24, to plan first): too much light hurts.** Diagnosis after designing two
+species (Vesperella; the author's legged cell, designs/my_species_survives_night.json): **one answer wins: get to
+the surface and stay there** (most light, no downside: bright light never hurts, nutrients don't limit growth, no
+grazers), so the shade plastid, depth-holding and eyespot "not too bright" rules have no purpose. Fix now:
+**photoinhibition** (bright light damages plastids and costs energy to repair; real and well known). Step 1 then adds
+the other two costs of the surface: nutrients needed to grow (surface poor, deep rich) and grazers.
+**Parts audit (Claude, agreed by the author):** useless until step 1 gives them a world: escapes (burst organ,
+ejectisome), touch and proximity (nothing to flee or meet), spines and glass wall (protection with no grazers), pads
+and chains (a chain gains nothing), stiff flap (a lesson, not a part), nutrient sensor (nutrients feed nothing: only a
+depth gauge). Weak: sap vacuole and oil (**open: keep or scrap?** Claude recommends keep untouched and retune in step 1,
+where they get real jobs: oil the dense long-fast store for several hungry days and seasons; sap the nitrate store and
+the only two-way buoyancy; the author was asked and has not answered). Doing the work: eyespot, statolith, wave tail,
+oar, starch, gas, plastid, energy level. Also: size buys nothing yet (bigger only costs); no reproduction, so no
+score; energy is the only currency. **The timer was removed** (author, 2026-10-24); designs saved with one load with
+it stripped and its cables unplugged.
+
 **Queue:** the **nucleus** as the cell's brain box (decided, waiting for a go: every module inside it, cables only
 inside, tapping it opens the wiring view; see Notes to carry). Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith
 plates (Emiliania huxleyi), grazing, peduncle (latch and drain another cell; was offered for now, not picked yet), pads
 that sense and attract, progress as upgrades for the next design (no mutations), moving water, seasons, tips while
-building. Open: the timer feels "weird" to the author (asked which way; no answer yet); cables costing upkeep.
+building. Open: sap and oil (above); cables costing upkeep.
 
 **Working with the author (most important):** plan first and wait for an explicit go; one question at a time;
 recommend; plain words; phone-first UI; give tools, not finished builds (except when asked, as with Vesperella);

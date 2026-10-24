@@ -24,9 +24,7 @@
 // light there × how squarely it faces up, scaled to its cone (a narrow eyespot is precise, a wide one vague); a touch sensor
 // reads 1 while another species touches its spot; a proximity sensor reads how close another species is within
 // `range` µm (1 touching, 0 at the range); a nutrient sensor (kind 'chem') reads the nutrients where it is (0 poor,
-// 1 rich). A timer (kind 'timer', placed inside) counts from the moment its `trigger` (a list of conditions, like a
-// joint's controls) last came true: it reads 0 then, rising to 1 after `span` s (default one sandbox day), and 1
-// before it ever started. A statolith is an inclusion (material 'statolith') that is also a sensor: it reads 1
+// 1 rich). A statolith is an inclusion (material 'statolith') that is also a sensor: it reads 1
 // while its direction `angle` (degrees from the body's axis, default 0: the front) points straight up, 0 down.
 // A plastid has a `pigment`: 'sun' (chlorophyll; the default) or 'shade' (with phycobilins: efficient in dim light,
 // a lower top output, more upkeep; PARAMS.metab.shade).
@@ -174,21 +172,12 @@ export function respeed(cell, partIndex, speed) {
   }
 }
 
-// Set the trigger of a living cell's timer that came from design part `partIndex`, without rebuilding it
-export function retrigger(cell, partIndex, trigger) {
-  for (const s of cell.sensors) {
-    if (s.part !== partIndex || s.kind !== 'timer') continue;
-    s.trigger = trigger.filter((c) => c.sensor !== s.id && c.vs !== s.id).map((c) => resolveControl(cell.sensors, c));
-  }
-}
-
 export function buildCell(design) {
   const pieces = [];
   const joints = [];
   const pads = [];
   const sensors = [];
   const controls = [];   // [joint, control] pairs, resolved once every sensor is known
-  const triggers = [];   // [timer, trigger] pairs, the same
   const speeds = [];     // [motor, speed] pairs, the same
   const ids = new Map();
   const C = PARAMS.cell;
@@ -281,16 +270,12 @@ export function buildCell(design) {
         facing: (part.angle || 0) * DEG, r, value: 0.5, part: design.parts.indexOf(part) });
     } else if (part.type === 'sensor') {
       const kind = part.kind || 'light';
-      if (!['light', 'touch', 'near', 'hunger', 'chem', 'timer'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
+      if (!['light', 'touch', 'near', 'hunger', 'chem'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
       const facing = part.angle !== undefined ? part.angle * DEG : Math.atan2(y, x);
       const range = part.range || (kind === 'near' ? PARAMS.sensor.nearRange : PARAMS.sensor.touchRange);
       const cone = Math.min(Math.max(part.cone || 180, 10), 180) * DEG;
       const s = { id: part.id, piece: parent, x, y, facing, kind, range, cone, feels: part.feels || 'strangers', value: 0,
         part: design.parts.indexOf(part) };
-      if (kind === 'timer') {
-        Object.assign(s, { span: part.span || PARAMS.sensor.timerSpan, start: null, was: false, value: 1, trigger: [] });
-        if ((part.trigger || []).length) triggers.push([s, part.trigger]);
-      }
       sensors.push(s);
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
@@ -312,7 +297,6 @@ export function buildCell(design) {
 
   for (const [joint, cs] of controls) joint.controls = cs.map((c) => resolveControl(sensors, c));
   for (const [joint, sp] of speeds) joint.speed = resolveSpeed(sensors, sp);
-  for (const [s, cs] of triggers) s.trigger = cs.filter((c) => c.sensor !== s.id && c.vs !== s.id).map((c) => resolveControl(sensors, c));
 
   // how far the cell can reach from its body centre, for finding neighbours
   const reachOf = [];

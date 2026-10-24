@@ -3,7 +3,7 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
-import { rewire, retrigger, respeed, controlsOf, buildCell } from '../sim/build.js';
+import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
@@ -19,7 +19,7 @@ const COLOR = {
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
-  statolith: 'rgba(200,215,230,.35)', grain: '#e8eef5', gas: '#cfe9ff', crushed: '#6b7680', chem: '#c8b26a', timer: '120,210,255',
+  statolith: 'rgba(200,215,230,.35)', grain: '#e8eef5', gas: '#cfe9ff', crushed: '#6b7680', chem: '#c8b26a',
   plastid: '#8fc94a', plastidShade: '#c45a7c', starch: '#ece3c4', starving: '#ff5a4a', eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
 
@@ -36,8 +36,18 @@ const savedGroup = document.createElement('optgroup'); savedGroup.label = 'Saved
 // each preset is its own species, so kin pads only hold copies of the same design
 const preset = (name) => Object.assign(JSON.parse(JSON.stringify(PRESETS[name])), { species: name });
 
+// Designs saved before the timer was removed (2026-10-24): drop their timers and unplug every cable from them
+function withoutTimers(d) {
+  const gone = new Set((d.parts || []).filter((p) => p.type === 'sensor' && p.kind === 'timer').map((p) => p.id));
+  if (!gone.size) return d;
+  d.parts = d.parts.filter((p) => !gone.has(p.id));
+  for (const p of d.parts) delete p.trigger;
+  unplug(d, gone);
+  return d;
+}
+
 function load(d) {
-  design = d;
+  design = withoutTimers(d);
   $('json').value = JSON.stringify(d, null, 2);
   reset();
   listParts();
@@ -46,6 +56,7 @@ function load(d) {
 // Try a changed design; if it doesn't build, keep the old one and say why. The rebuilt cell stays where the selected
 // one was, facing the same way. A change that builds can be undone (record = false when undoing or redoing).
 function applyDesign(d, record = true) {
+  d = withoutTimers(d);
   const old = design, pose = cell ? { x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI } : null;
   design = d;
   const carry = world && cell ? { world, cell, design: old } : null;
@@ -206,7 +217,6 @@ function withPart(d, fresh) {
   if (!g) return null;
   g.members.forEach((m, i) => {
     if (m.joint && controlsOf(m.joint).length && fresh[i] && fresh[i].joint) fresh[i].joint.controls = controlsOf(m.joint);
-    if (m.trigger && fresh[i] && fresh[i].kind === 'timer') fresh[i].trigger = m.trigger;   // a timer keeps its trigger
   });
   const at = d.parts.indexOf(g.members[0]);
   d.parts = d.parts.filter((p) => !g.members.includes(p));
@@ -329,9 +339,9 @@ function drawPreview(X, Y, s) {
 }
 // ----- wiring: which sensors drive a part. A rule is a list of conditions (a sensor and a range of its reading, or
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
-// a burst organ, an ejectisome, or a timer (its trigger). Rewiring changes the design and the cells already in the tank
+// a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1], timer: [0, 0.5] };   // a sensible start
+const RANGE = { starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
 const SCALE = {   // what the 0-1 reading means
   light: '0 = dark or facing away, 1 = facing up in full light',
   touch: '0 = nothing, 1 = touching',
@@ -341,11 +351,10 @@ const SCALE = {   // what the 0-1 reading means
   oil: '0 = its oil is used up, 1 = full',
   statolith: '0 = its direction points down, 0.5 = level, 1 = up',
   chem: '0 = poor water (near the surface), 1 = rich (deep)',
-  timer: '0 = it just started, 1 = its time is up (or it never started)',
 };
 const ENDS = { light: ['dark', 'bright'], touch: ['nothing', 'touching'], near: ['nothing near', 'touching'], energy: ['starving', 'full'], starch: ['used up', 'full'], oil: ['used up', 'full'],
-  statolith: ['points down', 'points up'], chem: ['poor water', 'rich water'], timer: ['just started', 'time up'] };
-const ICON = { starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪', timer: '⏱' };
+  statolith: ['points down', 'points up'], chem: ['poor water', 'rich water'] };
+const ICON = { starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
   if (id === 'energy' || id === 'starch' || id === 'oil') return id;
@@ -364,15 +373,14 @@ function sensorList(except) {
     list.push({ id: k, name: `its ${k} level (how full its ${k} is)`, short: `${k[0].toUpperCase() + k.slice(1)} level`, kind: k });
   return list;
 }
-const isTimer = (m) => m.type === 'sensor' && m.kind === 'timer';
-const targetsOf = (g) => g.members.filter((m) => isTimer(m) || (m.joint && (m.joint.type === 'motor' || m.joint.latched)));
-// how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part), 'starts' (a timer)
-const verbOf = (m) => (isTimer(m) ? 'starts' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.latched));
+// how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part)
+const verbOf = (m) => (m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
 // A part's rule as the card shows it: GO groups (all of a group must hold: AND; any group will do: OR) and STOP
 // conditions (any one stops the part, whatever the GO groups say: the override). Stored as one list: GO conditions in
 // their groups (or: true starts a group), then STOP ones (stop: true).
 function rulesOf(m) {
-  const raw = isTimer(m) ? (m.trigger || []) : controlsOf(m.joint);
+  const raw = controlsOf(m.joint);
   let any = false;
   return raw.map((c) => {
     const r = { sensor: c.sensor, min: c.when === 'light' ? 0.5 : c.min ?? 0, max: c.when === 'dark' ? 0.5 : c.max ?? 1,
@@ -405,14 +413,9 @@ function setRules(targets, next) {
     ...(c.not ? { not: true } : {}), ...(c.or && !c.stop ? { or: true } : {}), ...(c.stop ? { stop: true } : {}) }));
   for (const m of targets) {
     const k = design.parts.indexOf(m);
-    if (isTimer(m)) {
-      if (clean.length) m.trigger = clean.map((c) => ({ ...c })); else delete m.trigger;
-      for (const c of world.cells) if (c.design === design) retrigger(c, k, clean);
-    } else {
-      delete m.joint.control;
-      if (clean.length) m.joint.controls = clean.map((c) => ({ ...c })); else delete m.joint.controls;
-      for (const c of world.cells) if (c.design === design) rewire(c, k, clean);
-    }
+    delete m.joint.control;
+    if (clean.length) m.joint.controls = clean.map((c) => ({ ...c })); else delete m.joint.controls;
+    for (const c of world.cells) if (c.design === design) rewire(c, k, clean);
   }
   $('json').value = JSON.stringify(design, null, 2);
   listParts();
@@ -518,11 +521,10 @@ function valueBar(c, mode, kind, onSet) {
 const HEADS = {
   runs: ['GO when', 'OR GO when', 'STOP if', 'runs always (add a condition to control it)'],
   fires: ['FIRE when', 'OR FIRE when', "DON'T FIRE if", 'fires by hand (Release), or add a condition'],
-  starts: ['START when', 'OR START when', "DON'T START if", 'never starts: add a condition'],
 };
 function ruleCard(targets) {
   const m = targets[0], verb = verbOf(m), H = HEADS[verb], k0 = design.parts.indexOf(m);
-  const sensors = sensorList(isTimer(m) ? m.id : undefined);
+  const sensors = sensorList();
   const shape = toShape(rulesOf(m));
   const write = (s) => setRules(targets, fromShape(s));
   const copy = () => ({ groups: shape.groups.map((g) => g.map((c) => ({ ...c }))), stops: shape.stops.map((c) => ({ ...c })) });
@@ -561,8 +563,7 @@ function ruleLive() {
     let ctl = null;
     if (live) {
       const j = live.joints.find((x) => x.part === k);
-      const t = live.sensors.find((x) => x.part === k && x.kind === 'timer');
-      ctl = (j && j.controls ? j.controls : t ? t.trigger : [])[i] || null;
+      ctl = (j && j.controls ? j.controls : [])[i] || null;
     }
     const ok = !!ctl && ctl.holds !== null && ctl.holds !== ctl.not;
     el.classList.toggle('holds', ok && !ctl.stop);
@@ -652,9 +653,8 @@ function drawPatch() {
   }
   const rules = document.createElement('div'); rules.className = 'prules';
   patchTargets = partGroups(design.parts || []).map((g) => ({ g, members: targetsOf(g) })).filter((t) => t.members.length)
-    .map((t) => ({ name: `${t.g.name} at ${t.g.deg}°`, members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]),
-      icon: isTimer(t.members[0]) ? ICON.timer : '' }));
-  if (!patchTargets.length) rules.innerHTML = '<div class="pval">No parts to wire yet: add a flagellum, a burst organ, an ejectisome or a timer.</div>';
+    .map((t) => ({ name: `${t.g.name} at ${t.g.deg}°`, members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]), icon: '' }));
+  if (!patchTargets.length) rules.innerHTML = '<div class="pval">No parts to wire yet: add a flagellum, a burst organ, or an ejectisome.</div>';
   patchTargets.forEach((t, ti) => {
     const H = HEADS[t.verb], shape = toShape(t.rules);
     const row = document.createElement('div'); row.className = 'prow';
@@ -699,7 +699,6 @@ function patchInto(ti, key) {
         : 'a GO box: the part goes when ALL its cables hold (AND). Tap a sensor, then this box, to add one.';
     return;
   }
-  if (isTimer(t.members[0]) && patchPick === t.members[0].id) { $('patchHint').textContent = 'a timer can’t start itself'; return; }
   const shape = toShape(t.rules), fresh = freshRule(patchPick);
   if (key === 'stop') shape.stops.push(fresh);
   else if (key === 'new' || key >= shape.groups.length) shape.groups.push([fresh]);
@@ -782,17 +781,12 @@ function patchLive() {
     const k0 = design.parts.indexOf(t.members[0]);
     let ctls = null, state = '', on = false;
     if (live) {
-      if (isTimer(t.members[0])) {
-        const s = live.sensors.find((x) => x.part === k0);
-        if (s) { ctls = s.trigger; on = s.start !== null && s.value < 1; state = s.start === null ? 'waiting' : s.value < 1 ? 'counting' : 'time up'; }
-      } else {
-        const j = live.joints.find((x) => x.part === k0);
-        if (j) {
-          ctls = j.controls || null;
-          if (j.burst) { on = j.burst.state === 'firing'; state = j.burst.state; }
-          else if (j.type === 'motor') { on = j.on && !(world.metab && live.metab.starving); state = on ? 'ON' : 'OFF'; }
-          else { on = !j.latched; state = j.latched ? 'cocked' : 'released'; }
-        }
+      const j = live.joints.find((x) => x.part === k0);
+      if (j) {
+        ctls = j.controls || null;
+        if (j.burst) { on = j.burst.state === 'firing'; state = j.burst.state; }
+        else if (j.type === 'motor') { on = j.on && !(world.metab && live.metab.starving); state = on ? 'ON' : 'OFF'; }
+        else { on = !j.latched; state = j.latched ? 'cocked' : 'released'; }
       }
     }
     const st = area.querySelector(`[data-pstate="${ti}"]`); if (st) st.textContent = state;
@@ -817,8 +811,8 @@ function patchLive() {
 }
 
 
-// Unplug every cable from the sensors in `ids` (being removed): from the remaining parts' rules, timers' triggers and
-// speed settings, so the design still builds
+// Unplug every cable from the sensors in `ids` (being removed): from the remaining parts' rules and speed settings, so
+// the design still builds
 function unplug(d, ids) {
   const keep = (c) => !ids.has(c.sensor) && !ids.has(c.vs);
   const tidy = (list) => list.filter(keep).map((c, i) => (i === 0 && c.or ? (({ or, ...rest }) => rest)(c) : c));
@@ -829,7 +823,6 @@ function unplug(d, ids) {
       if (cs.length) p.joint.controls = cs; else delete p.joint.controls;
       if (p.joint.speed && ids.has(p.joint.speed.sensor)) delete p.joint.speed;
     }
-    if (p.trigger) { const t = tidy(p.trigger); if (t.length) p.trigger = t; else delete p.trigger; }
   }
 }
 
@@ -1102,7 +1095,7 @@ function stats() {
   budget(lines);
   const ev = (cell.journal ? cell.journal.ev : []).slice(-6);
   if (ev.length) { lines.push('what happened (latest last):'); for (const e of ev) lines.push(`  ${e.serious ? '⚠' : '·'} ${eventText(e)}`); }
-  const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity', hunger: 'hunger', statolith: 'statolith', chem: 'nutrients', timer: 'timer' };
+  const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity', hunger: 'hunger', statolith: 'statolith', chem: 'nutrients' };
   cell.sensors.forEach((sn, i) => lines.push(`${NAME[sn.kind].padEnd(9)} ${sn.value.toFixed(2)}`));
   const bursts = cell.joints.filter((j) => j.burst);
   if (bursts.length) {
@@ -1496,17 +1489,6 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
   for (const sn of c.sensors) {
     const i = sn.piece, px = c.cx[i] + c.cs[i] * sn.x - c.sn[i] * sn.y, py = c.cy[i] + c.sn[i] * sn.x + c.cs[i] * sn.y;
     if (sn.kind === 'statolith') continue;   // drawn with the inclusions
-    if (sn.kind === 'timer') {   // a granule that glows when it starts and fades as its time runs out
-      const glow = 1 - sn.value, r = Math.max(1.3 * s, 3);
-      if (glow > 0.01) {
-        const g = ctx.createRadialGradient(X(px), Y(py), 0, X(px), Y(py), r * 3);
-        g.addColorStop(0, `rgba(${COLOR.timer},${(0.7 * glow).toFixed(3)})`); g.addColorStop(1, `rgba(${COLOR.timer},0)`);
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X(px), Y(py), r * 3, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.fillStyle = `rgba(${COLOR.timer},${(0.35 + 0.65 * glow).toFixed(3)})`;
-      ctx.beginPath(); ctx.arc(X(px), Y(py), r, 0, Math.PI * 2); ctx.fill();
-      continue;
-    }
     if (sn.kind === 'chem') {   // a tan dot, filled as far as the water is rich
       const r = Math.max(1.2 * s, 3);
       ctx.strokeStyle = COLOR.chem; ctx.lineWidth = 1.5;
@@ -1721,7 +1703,7 @@ const SHORT = {
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
   'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity',
-  'Gas vesicles (float, crush deep)': 'Gas vesicles', 'Statolith (which way is up)': 'Statolith', 'Timer (clock)': 'Timer',
+  'Gas vesicles (float, crush deep)': 'Gas vesicles', 'Statolith (which way is up)': 'Statolith',
   'Nutrient sensor': 'Nutrients', 'Vacuole (store or float)': 'Vacuole',
 };
 for (const [cat, names] of Object.entries(CATEGORIES)) {

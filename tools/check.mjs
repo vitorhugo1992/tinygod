@@ -623,23 +623,6 @@ const runDay = (design, y, seconds, opts = {}) => {
     `${fmt(r[3])}; no gravity ${fmt(r[4])}. Nutrients near the surface ${fmt(n[0])}, mid-tank ${fmt(n[1])}, near the floor ${fmt(n[2])}`);
 }
 
-// 28g. A timer reset by an eyespot at dawn is a clock: it reads the share of the day since sunrise
-{
-  const w = makeWorld(1, { gravity: false, day: true });
-  const c = addCell(w, { body: { radius: 10 }, parts: [
-    { type: 'sensor', id: 'eye', kind: 'light', at: [0, 10], angle: 90 },
-    { type: 'sensor', id: 'clock', kind: 'timer', at: [0, 0], span: PARAMS.metab.day,
-      trigger: [{ sensor: 'eye', min: 0.05, max: 1 }] }] }, 800, 1800, 0);
-  const clockAt = (s) => { while (worldTime(w) < s - 1e-9) stepWorld(w); return c.sensors[1].value; };
-  const day = PARAMS.metab.day, firstDawn = (1 - PARAMS.metab.dawn) * day;   // the world starts just after a sunrise
-  const a = clockAt(day * 0.25), b = clockAt(firstDawn - 5), d = clockAt(firstDawn + 0.25 * day);
-  const started = c.sensors[1].start;
-  check('a timer reset by an eyespot at dawn works as a clock (and restarts each dawn)',
-    Math.abs(a - 0.25) < 0.01 && b > 0.85 && Math.abs(d - 0.25) < 0.03 && started > firstDawn - 5,
-    `a quarter day in: ${fmt(a)}; just before the next dawn: ${fmt(b)}; a quarter day after it: ${fmt(d)} ` +
-    `(restarted at ${fmt(started, 0)} s, sunrise at ${fmt(firstDawn, 0)} s; the eyespot sees light a little after it)`);
-}
-
 // 28h. Gas vesicles lift a cell, and below their depth are crushed for good; stronger ones survive deeper but lift less
 {
   const cellWith = (strength) => ({ body: { radius: 10 }, parts: [
