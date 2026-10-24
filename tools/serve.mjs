@@ -1,9 +1,10 @@
 // Tiny static server for the sandbox (ES modules need http, not file://).
 //   node tools/serve.mjs [port]          this computer only: http://localhost:5180/sandbox/
 //   node tools/serve.mjs --lan [port]    also phones and other devices on the same Wi-Fi (prints the address)
-// It serves only sandbox/ and sim/, never the rest of the project (notes, git history).
+// It serves only sandbox/ and sim/, never the rest of the project (notes, git history). The one thing it writes:
+// POST /design?name=... (the sandbox's Send to Claude) saves a design as designs/<name>.json, JSON only, at most 256 KB.
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, normalize, extname, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { networkInterfaces } from 'node:os';
@@ -19,10 +20,26 @@ const lanUrls = () => !LAN ? [] : Object.values(networkInterfaces()).flat()
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
+// A design sent from the sandbox, kept in designs/ so Claude can read it (a file name from its letters and digits only)
+async function saveDesign(req, res) {
+  const name = (new URL(req.url, 'http://x').searchParams.get('name') || 'design').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 60) || 'design';
+  let body = '';
+  for await (const chunk of req) { body += chunk; if (body.length > 256 * 1024) { res.writeHead(413); res.end('too big'); return; } }
+  try {
+    const design = JSON.parse(body);
+    if (!design || typeof design !== 'object' || !design.body) throw new Error('not a design');
+    await mkdir(join(ROOT, 'designs'), { recursive: true });
+    const file = name.replace(/ /g, '_') + '.json';
+    await writeFile(join(ROOT, 'designs', file), JSON.stringify({ name, sent: new Date().toISOString(), design }, null, 2));
+    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ file: 'designs/' + file }));
+  } catch (e) { res.writeHead(400); res.end(String(e.message)); }
+}
+
 createServer(async (req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (path === '/') { res.writeHead(302, { Location: '/sandbox/' }); res.end(); return; }
   if (path === '/lan') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(lanUrls())); return; }
+  if (path === '/design' && req.method === 'POST') { await saveDesign(req, res); return; }
   if (path.endsWith('/')) path += 'index.html';
   const file = normalize(join(ROOT, path));
   if (!SHARED.some((d) => file.startsWith(d))) { res.writeHead(404); res.end('not found'); return; }

@@ -129,6 +129,10 @@ other suggestions"):
 - **Saving designs** (💾 Save, in this browser's storage, survives a reload): a list to load a saved design in place of
   the selected cell (the tank goes on), ✕ to delete; saved designs are also in the Add-cell menu, as their own species,
   to test side by side.
+- **📤 Send to Claude** (author asked, 2026-10-24): POSTs the design to the sandbox server, which writes
+  designs/<name>.json in the project (JSON only, at most 256 KB, a file name from letters and digits only) so Claude can
+  read the author's species. Works while the server runs (home Wi-Fi). **When the author says they sent one, look in
+  designs/.**
 
 **Left in the sandbox (none blocks v0):**
 - Wiring stores to the energy level (decided optional).

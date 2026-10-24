@@ -1215,6 +1215,16 @@ $('deleteSaved').onclick = () => {
   writeSaved(savedList().filter((x) => x.name !== name)); showSaved();
 };
 showSaved();
+// Send to Claude: the computer serving the sandbox keeps it as designs/<name>.json, where Claude can read it
+$('sendDesign').onclick = async () => {
+  const name = (prompt('Name it for Claude', design.species && !PRESETS[design.species] ? design.species : 'my species') || '').trim();
+  if (!name) return;
+  const d = JSON.parse(JSON.stringify(design)); delete d.species;
+  try {
+    const r = await fetch(`/design?name=${encodeURIComponent(name)}`, { method: 'POST', body: JSON.stringify(d) });
+    $('buildErr').textContent = r.ok ? `sent: Claude can read ${(await r.json()).file}` : `not sent: ${await r.text()}`;
+  } catch (e) { $('buildErr').textContent = 'not sent: the sandbox server is not reachable'; }
+};
 
 // ----- the day graph and Test a day -----
 let graphOn = true, forecastJ = null, stopForecast = null;
