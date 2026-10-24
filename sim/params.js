@@ -40,7 +40,7 @@ export const PARAMS = {
     speedup: 144,           // real day / sandbox day: motors' and pumps' real power counts this many times
     bodyUpkeep: 1,          // pJ/s per µm³ of body
     partUpkeep: 5,          // pJ/s per µm of segment
-    insideUpkeep: 0.2,      // pJ/s per µm³ of plastid or store
+    insideUpkeep: 0.2,      // pJ/s per µm³ of plastid, store, gas vesicles or statolith
     plastidMax: 50,         // pJ/s per µm³ of plastid in full light...
     plastidHalf: 0.2,       // ...and half of that at this light
     pool: 60,               // pJ per µm³ of body the cytoplasm holds (about a minute of upkeep)
@@ -55,6 +55,18 @@ export const PARAMS = {
     hysteresis: 0.03,       // a wired part changes state only this far inside or outside its range (no flicker)
     touchRange: 2,          // µm from a touch sensor's spot that counts as touching
     nearRange: 60,          // µm a proximity sensor feels another species from (default)
+    timerSpan: 600,         // s a timer counts by default (one sandbox day: a clock reset at dawn)
+  },
+  // Gas vesicles (made playable): stronger ones survive deeper but lift less (more protein per bubble)
+  gas: {
+    weak: 150,              // kg/m³ of the weakest vesicles (strength 0)...
+    strong: 600,            // ...and of the strongest (strength 1)
+    shallowest: 0.25,       // the weakest are crushed this far down the tank (share of its depth); the strongest at the floor
+  },
+  // Nutrients (a fixed layer until step 1's ecology): poor at the surface, rich deep, a nutricline between
+  nutrient: {
+    cline: 0.5,             // depth of the nutricline (share of the tank)
+    width: 0.08,            // how sharp it is (share of the tank)
   },
   pads: {
     stiffness: 5,           // pN/µm, the spring of a stuck pad

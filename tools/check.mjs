@@ -1,7 +1,7 @@
 // Physics-law checks for the sandbox, headless. Run: node tools/check.mjs
 // Each check prints what it measured and PASS/FAIL; the exit code is the number of failures.
 import { PARAMS } from '../sim/params.js';
-import { makeWorld, addCell, stepWorld } from '../sim/world.js';
+import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { cellWeight } from '../sim/build.js';
 import { PRESETS } from '../sim/presets.js';
 import { fire } from '../sim/physics.js';
@@ -596,6 +596,67 @@ const runDay = (design, y, seconds, opts = {}) => {
     Math.hypot(a[0], a[1]) > 5 && off < 1e-6 && Math.abs(a[2] + b[2]) < 1e-6,
     `flexible oar at 150°, tilt 20°, 5 s: moved (${fmt(a[0], 1)}, ${fmt(a[1], 1)}) µm, turned ${fmt(a[2], 1)}°; ` +
     `its mirror (${fmt(b[0], 1)}, ${fmt(b[1], 1)}) µm, ${fmt(b[2], 1)}° (off by ${off.toExponential(1)} µm)`);
+}
+
+// 28f. A statolith reads which way is up; a nutrient sensor reads the nutricline
+{
+  const read = (angle, facing = 0, gravity = true) => {
+    const w = makeWorld(1, { gravity });
+    const c = addCell(w, { body: { radius: 10 }, parts: [
+      { type: 'inclusion', id: 'st', material: 'statolith', at: [-4, 0], radius: 3, angle: facing }] }, 800, 1000, angle);
+    stepWorld(w);
+    return c.sensors[0].value;
+  };
+  const r = [read(90), read(0), read(-90), read(90, 180), read(90, 0, false)];
+  const chem = (y) => {
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, { body: { radius: 10 }, parts: [{ type: 'sensor', id: 'n', kind: 'chem', at: [10, 0] }] }, 800, y, 0);
+    stepWorld(w);
+    return c.sensors[0].value;
+  };
+  const n = [chem(PARAMS.tank.h - 50), chem(PARAMS.tank.h / 2), chem(50)];
+  check('a statolith reads which way is up; a nutrient sensor reads poor water above the nutricline, rich below',
+    Math.abs(r[0] - 1) < 1e-6 && Math.abs(r[1] - 0.5) < 1e-6 && Math.abs(r[2]) < 1e-6 && Math.abs(r[3]) < 1e-6 && r[4] === 0.5
+      && n[0] < 0.01 && Math.abs(n[1] - 0.5) < 0.02 && n[2] > 0.99,
+    `statolith facing the front: front up ${fmt(r[0])}, level ${fmt(r[1])}, down ${fmt(r[2])}; facing back, front up ` +
+    `${fmt(r[3])}; no gravity ${fmt(r[4])}. Nutrients near the surface ${fmt(n[0])}, mid-tank ${fmt(n[1])}, near the floor ${fmt(n[2])}`);
+}
+
+// 28g. A timer reset by an eyespot at dawn is a clock: it reads the share of the day since sunrise
+{
+  const w = makeWorld(1, { gravity: false, day: true });
+  const c = addCell(w, { body: { radius: 10 }, parts: [
+    { type: 'sensor', id: 'eye', kind: 'light', at: [0, 10], angle: 90 },
+    { type: 'sensor', id: 'clock', kind: 'timer', at: [0, 0], span: PARAMS.metab.day,
+      trigger: [{ sensor: 'eye', min: 0.05, max: 1 }] }] }, 800, 1800, 0);
+  const clockAt = (s) => { while (worldTime(w) < s - 1e-9) stepWorld(w); return c.sensors[1].value; };
+  const day = PARAMS.metab.day, firstDawn = (1 - PARAMS.metab.dawn) * day;   // the world starts just after a sunrise
+  const a = clockAt(day * 0.25), b = clockAt(firstDawn - 5), d = clockAt(firstDawn + 0.25 * day);
+  const started = c.sensors[1].start;
+  check('a timer reset by an eyespot at dawn works as a clock (and restarts each dawn)',
+    Math.abs(a - 0.25) < 0.01 && b > 0.85 && Math.abs(d - 0.25) < 0.03 && started > firstDawn - 5,
+    `a quarter day in: ${fmt(a)}; just before the next dawn: ${fmt(b)}; a quarter day after it: ${fmt(d)} ` +
+    `(restarted at ${fmt(started, 0)} s, sunrise at ${fmt(firstDawn, 0)} s; the eyespot sees light a little after it)`);
+}
+
+// 28h. Gas vesicles lift a cell, and below their depth are crushed for good; stronger ones survive deeper but lift less
+{
+  const cellWith = (strength) => ({ body: { radius: 10 }, parts: [
+    { type: 'inclusion', id: 'g', material: 'gas', at: [0, 0], radius: 6, strength }] });
+  const go = (strength, depth, secs = 5) => {
+    const w = makeWorld(1);
+    const c = addCell(w, cellWith(strength), 800, PARAMS.tank.h - depth, 0);
+    const y0 = c.q[1];
+    for (let i = 0; i < secs / DT; i++) stepWorld(w);
+    return { v: (c.q[1] - y0) / secs, crushed: c.pieces[0].inclusions[0].crushed };
+  };
+  const weakUp = go(0, 200), weakDeep = go(0, 900), strongDeep = go(1, 900), bare = run({ body: { radius: 10 } }, 5);
+  const bareV = -sinking(bare);
+  check('gas vesicles float a cell; below their depth they are crushed for good, and strong ones survive deeper but lift less',
+    weakUp.v > 0 && !weakUp.crushed && weakDeep.crushed && Math.abs(weakDeep.v - bareV) < 0.05 * Math.abs(bareV)
+      && !strongDeep.crushed && strongDeep.v > 0 && strongDeep.v < weakUp.v,
+    `weak vesicles 200 µm down: rise ${fmt(weakUp.v, 1)} µm/s; 900 µm down: crushed, ${fmt(weakDeep.v, 1)} µm/s ` +
+    `(a bare cell ${fmt(bareV, 1)}); strong ones 900 µm down: intact, rise ${fmt(strongDeep.v, 1)} µm/s`);
 }
 
 // 29. Determinism with day, metabolism and stores

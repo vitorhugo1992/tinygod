@@ -21,7 +21,7 @@ export function initMetab(cell) {
   const add = (k, v) => byPart.set(k, (byPart.get(k) || 0) + v);
   const bodyUpkeep = body.volume * M.bodyUpkeep;
   for (const p of cell.pieces) if (p.kind === 'segment') add(p.part, (p.ext ? p.ext.max : p.L) * M.partUpkeep);
-  for (const inc of body.inclusions) if (inc.store || inc.material === 'plastid') add(inc.part, inc.v * M.insideUpkeep);
+  for (const inc of body.inclusions) if (inc.store || ['plastid', 'gas', 'statolith'].includes(inc.material)) add(inc.part, inc.v * M.insideUpkeep);
   let upkeep = bodyUpkeep;
   for (const v of byPart.values()) upkeep += v;
   const C = body.volume * M.pool;

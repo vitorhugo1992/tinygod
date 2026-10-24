@@ -271,6 +271,17 @@ function pump(cell) {
   }
 }
 
+// Gas vesicles deeper than they can bear are crushed for good: the gas is gone, cytoplasm fills the room
+function crush(cell) {
+  const body = cell.pieces[0];
+  for (const inc of body.inclusions) {
+    if (inc.crushed !== false) continue;
+    const y = cell.cy[0] + cell.sn[0] * inc.x + cell.cs[0] * inc.y;
+    if (PARAMS.tank.h - y <= inc.crush) continue;
+    inc.crushed = true; inc.density = CYTO; inc.wpt.w = 0;
+  }
+}
+
 // Step one cell from time t to t + dt in cell.sub sub-steps, each by the midpoint method: velocities at the start
 // take it halfway, the velocities there take the whole sub-step. Its error falls with dt² (simple Euler's falls
 // with dt and leaked a steady drift into strokes that should go nowhere).
@@ -284,6 +295,7 @@ export function stepCell(cell, t, gravity = true) {
   if (sub > PARAMS.time.maxSub) sub = PARAMS.time.maxSub;
   const h = DT / sub;
   pump(cell);
+  crush(cell);
   IMP = h;
   let energy = 0;
   for (let k = 0; k < sub; k++) {

@@ -5,6 +5,11 @@
 // - near: how close the nearest thing it feels is, 1 touching, 0 at the sensor's range.
 //   Touch and proximity feel cells of another species ('strangers', the default) or anything: any other cell, the
 //   tank's walls, floor and surface ('anything').
+// - chem: the nutrients where it is (nutrient.js: poor at the surface, rich deep).
+// - statolith: a loose grain in a chamber rolls to the lower wall; it reads how far the chamber's direction points up
+//   (1 straight up, 0 down, 0.5 sideways or with gravity off).
+// - timer: 0 the moment its trigger (conditions, as for a part) comes true, rising to 1 after its span; 1 before it
+//   ever started. Reset by an eyespot at dawn it is a clock; by touch, a "for a while after" switch.
 // Every cell also has its energy level built in (no part): how full its energy pool is, 0 empty, 1 full (1 with
 // metabolism off). Wiring to sensor 'energy' reads it.
 // A part can be wired to several sensors (its conditions). A condition holds while its reading is inside its [min, max]
@@ -13,9 +18,11 @@
 // the first time it is. Each condition changes state only a little inside or outside its range (hysteresis), so it
 // doesn't flicker.
 import { PARAMS } from './params.js';
-import { dcos } from './dmath.js';
+import { dcos, dsin } from './dmath.js';
 import { fire } from './physics.js';
 import { lightAt } from './light.js';
+import { nutrientAt } from './nutrient.js';
+import { worldTime } from './world.js';
 
 const S = PARAMS.sensor;
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -53,11 +60,29 @@ function holds(ctl, v) {
   return ctl.holds;
 }
 
+// Does a list of conditions hold now (AND inside a group, OR between groups)? Every condition is updated, so each
+// keeps its own hysteresis state.
+function holdsAll(world, cell, controls) {
+  let all = false, group = true;   // all: an earlier group held; group: the current group holds so far
+  for (const ctl of controls) {
+    if (ctl.or && ctl !== controls[0]) { all = all || group; group = true; }
+    const v = ctl.sensor < 0 ? energyLevel(world, cell) : cell.sensors[ctl.sensor].value;
+    if (holds(ctl, v) === ctl.not) group = false;
+  }
+  return all || group;
+}
+
 export function sense(world, cell) {
   for (const s of cell.sensors) {
     const i = s.piece, c = cell.cs[i], n = cell.sn[i];
     const x = cell.cx[i] + c * s.x - n * s.y, y = cell.cy[i] + n * s.x + c * s.y;
     if (s.kind === 'hunger') { s.value = energyLevel(world, cell); continue; }   // old designs: same as the built-in
+    if (s.kind === 'timer') continue;   // below, once every other sensor has read
+    if (s.kind === 'chem') { s.value = nutrientAt(y); continue; }
+    if (s.kind === 'statolith') {   // the grain lies on the lower wall: how far its direction points up (no weight: 0.5)
+      s.value = world.gravity ? (1 + dsin(cell.phi[i] + s.facing)) / 2 : 0.5;
+      continue;
+    }
     if (s.kind === 'light') {
       if (!world.light) { s.value = 0; continue; }
       // how far it faces from straight up, against half its cone: full facing up, nothing at the cone's edge
@@ -71,15 +96,18 @@ export function sense(world, cell) {
       s.value = s.kind === 'touch' ? (d <= s.range ? 1 : 0) : (d >= s.range ? 0 : d <= 0 ? 1 : 1 - d / s.range);
     }
   }
+  // timers, in order: each starts again the moment its trigger comes true (a timer may watch an earlier one)
+  const t = worldTime(world);
+  for (const s of cell.sensors) {
+    if (s.kind !== 'timer') continue;
+    const now = s.trigger.length > 0 && holdsAll(world, cell, s.trigger);
+    if (now && !s.was) s.start = t;
+    s.was = now;
+    s.value = s.start === null ? 1 : Math.min(1, (t - s.start) / s.span);
+  }
   for (const j of cell.joints) {
     if (!j.controls) continue;
-    let all = false, group = true;   // all: an earlier group held; group: the current group holds so far
-    for (const ctl of j.controls) {   // every condition is updated, so each keeps its own hysteresis state
-      if (ctl.or && ctl !== j.controls[0]) { all = all || group; group = true; }
-      const v = ctl.sensor < 0 ? energyLevel(world, cell) : cell.sensors[ctl.sensor].value;
-      if (holds(ctl, v) === ctl.not) group = false;
-    }
-    all = all || group;
+    const all = holdsAll(world, cell, j.controls);
     if (j.burst) { if (all) fire(cell, j.burst.group); }   // a burst organ fires when its sensors say so
     else if (j.type === 'motor') j.on = all;
     else if (j.latched && all) j.latched = false;   // a trigger: released once, the first time they all hold
