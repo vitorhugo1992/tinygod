@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TinyGod Sandbox</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0b1322">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   :root {
     --bg: #0b1322; --panel: #111c2e; --line: #23324a; --text: #d8e4ea; --dim: #8197a8; --accent: #6fd3b5; --bad: #ff8a7a;
@@ -194,6 +197,8 @@
     <button id="deleteSaved" title="Delete the chosen saved design">✕</button>
     <button id="getDesigns" title="Get the designs Claude left for you: they go into your saved designs">📥 From Claude</button>
     <button id="sendDesign" title="Send this design to Claude: the computer running the sandbox saves it in the project (designs/)">📤 Send to Claude</button>
+    <button id="copyDesign" title="Copy this design as text, to paste on another device (e.g. message it to yourself)">📋 Copy</button>
+    <button id="pasteDesign" title="Paste a copied design: it goes into your saved designs and the tank">📋 Paste</button>
     <button id="testDay" title="Run this design a whole day ahead, from where it is now, and show the forecast in the graph">⏩ Test a day</button>
   </div>
 

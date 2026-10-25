@@ -19,7 +19,7 @@ const SHARED = ['sandbox', 'sim'].map((d) => join(ROOT, d) + sep);
 const lanUrls = () => !LAN ? [] : Object.values(networkInterfaces()).flat()
   .filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => `http://${i.address}:${PORT}/sandbox/`);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
-  '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+  '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
 
 // A design sent from the sandbox, kept in designs/ so Claude can read it (a file name from its letters and digits only)
 async function saveDesign(req, res) {
@@ -30,7 +30,7 @@ async function saveDesign(req, res) {
     const design = JSON.parse(body);
     if (!design || typeof design !== 'object' || !design.body) throw new Error('not a design');
     await mkdir(join(ROOT, 'designs'), { recursive: true });
-    const file = name.replace(/ /g, '_') + '.json';
+    const file = (name === 'index' ? 'index_' : name.replace(/ /g, '_')) + '.json';   // index.json is the website's list
     await writeFile(join(ROOT, 'designs', file), JSON.stringify({ name, sent: new Date().toISOString(), design }, null, 2));
     res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ file: 'designs/' + file }));
   } catch (e) { res.writeHead(400); res.end(String(e.message)); }

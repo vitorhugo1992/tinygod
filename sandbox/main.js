@@ -1290,15 +1290,22 @@ try {
 } catch (e) { /* no storage here: it stays in the Add-cell menu */ }
 showSaved();
 // From Claude: the designs Claude left in designs/ go into the saved designs (same name: replaced)
+// (at home from the sandbox server; elsewhere, as on the website, from designs/index.json published with the sandbox)
+async function claudesDesigns() {
+  for (const url of ['/designs', '../designs/index.json']) {
+    try { const r = await fetch(url, { cache: 'no-store' }); if (r.ok) return await r.json(); } catch (e) { /* try the next */ }
+  }
+  throw new Error('unreachable');
+}
 $('getDesigns').onclick = async () => {
   try {
-    const got = await (await fetch('/designs')).json();
+    const got = await claudesDesigns();
     if (!got.length) { $('buildErr').textContent = 'nothing from Claude yet'; return; }
     const names = new Set(got.map((g) => g.name));
     writeSaved([...savedList().filter((x) => !names.has(x.name)), ...got.map((g) => ({ name: g.name, design: g.design, saved: Date.now() }))]);
     showSaved();
     $('buildErr').textContent = `from Claude: ${got.map((g) => g.name).join(', ')}: pick it in the saved designs`;
-  } catch (e) { $('buildErr').textContent = 'could not reach the sandbox server'; }
+  } catch (e) { $('buildErr').textContent = 'no connection: Claude\'s designs need the internet (or home Wi-Fi)'; }
 };
 // Send to Claude: the computer serving the sandbox keeps it as designs/<name>.json, where Claude can read it
 $('sendDesign').onclick = async () => {
@@ -1307,8 +1314,45 @@ $('sendDesign').onclick = async () => {
   const d = JSON.parse(JSON.stringify(design)); delete d.species;
   try {
     const r = await fetch(`/design?name=${encodeURIComponent(name)}`, { method: 'POST', body: JSON.stringify(d) });
+    if (!r.ok && r.status !== 400 && r.status !== 413) throw new Error('no server');   // the website: nothing to send to
     $('buildErr').textContent = r.ok ? `sent: Claude can read ${(await r.json()).file}` : `not sent: ${await r.text()}`;
-  } catch (e) { $('buildErr').textContent = 'not sent: the sandbox server is not reachable'; }
+  } catch (e) {   // away from home: copy it, to paste to Claude in the chat
+    $('buildErr').textContent = await copyText(JSON.stringify({ name, design: d }))
+      ? 'away from home: copied instead. Paste it to Claude in the chat' : 'not sent: the computer is not reachable';
+  }
+};
+
+// Copy / Paste: carry a design between devices or browsers (each keeps its own saved designs), e.g. by messaging it
+// to yourself. The text is { name, design } (a bare design pastes too).
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* not allowed here (plain http) */ }
+  const t = document.createElement('textarea');
+  t.value = text; document.body.appendChild(t); t.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) { /* no copying at all */ }
+  t.remove();
+  return ok;
+}
+$('copyDesign').onclick = async () => {
+  const d = JSON.parse(JSON.stringify(design)), name = d.species || 'my species'; delete d.species;
+  $('buildErr').textContent = await copyText(JSON.stringify({ name, design: d }))
+    ? 'copied: paste it on another device with 📋 Paste' : 'could not copy here: use Advanced (design as JSON)';
+};
+$('pasteDesign').onclick = async () => {
+  let text = '';
+  try { text = await navigator.clipboard.readText(); } catch (e) { /* not allowed here: ask */ }
+  if (!text || !text.includes('{')) text = prompt('Paste the design here') || '';
+  if (!text.trim()) return;
+  try {
+    const got = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+    const d = got.design || got, name = (got.name || `Pasted ${savedList().length + 1}`).trim();
+    if (!d.body) throw new Error('not a design');
+    const list = savedList().filter((x) => x.name !== name);
+    writeSaved([...list, { name, design: d, saved: Date.now() }]);
+    showSaved();
+    load(Object.assign(JSON.parse(JSON.stringify(d)), { species: name }));
+    $('buildErr').textContent = `pasted "${name}": it is in your saved designs`;
+  } catch (e) { $('buildErr').textContent = 'that is not a design (copy it with 📋 Copy)'; }
 };
 
 // ----- the day graph and Test a day -----
@@ -1768,3 +1812,6 @@ resize();
 const asked = new URLSearchParams(location.search).get('preset');   // ?preset=Wave%20tail opens that design
 load(preset(asked && PRESETS[asked] ? asked : 'Round cell'));   // an empty cell to build on (Claude's species is in the Add-cell menu)
 requestAnimationFrame(frame);
+
+// Offline on the website: a service worker keeps a copy of the sandbox (not on the home server's plain http)
+if (location.protocol === 'https:' && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
