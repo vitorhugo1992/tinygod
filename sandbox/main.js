@@ -26,7 +26,7 @@ const COLOR = {
   plastid: '#8fc94a', plastidShade: '#c45a7c', starch: '#ece3c4', starving: '#ff5a4a', eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
 
-let design, world, cell, playing = true, acc = 0, lagging = false;   // cell: the selected one (followed, measured)
+let design, world, cell, playing = false, acc = 0, lagging = false;   // cell: the selected one (followed, measured); starts paused (author)
 let trail = [], samples = [], released = null;   // released: where and when latches were let go
 let ghosts = [];                                  // outlines of cells as they were at Release
 let cam = { x: TW / 2, y: TH / 2 };
