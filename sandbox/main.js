@@ -147,7 +147,12 @@ for (const [cat, names] of Object.entries(CATEGORIES)) {
   $('partWhat').appendChild(group);
 }
 const showAngle = () => { $('partAngleOut').textContent = `${$('partAngle').value}°`; };
-$('partAngle').oninput = showAngle; showAngle();
+// moving Where moves an organelle sitting at the very centre too: it comes halfway out toward that side
+$('partAngle').oninput = () => {
+  if ((CONTROLS[$('partWhat').value] || {}).inside && Number($('partInside').value) === 0) { $('partInside').value = 50; showInside(); }
+  showAngle();
+};
+showAngle();
 const showTilt = () => { $('partTiltOut').textContent = `${$('partTilt').value}°`; };
 $('partTilt').oninput = showTilt; showTilt();
 const showSize = () => {
@@ -173,8 +178,8 @@ const showControls = () => {
   $('strengthRow').style.display = gas ? '' : 'none';
   $('contentRow').style.display = c.content ? '' : 'none';
   $('pigmentRow').style.display = c.pigment ? '' : 'none';
-  $('contentTip').style.display = c.content || c.pigment ? '' : 'none';
-  $('contentTip').textContent = c.content ? CONTENT_TIPS[$('partContent').value] : c.pigment ? PIGMENT_TIPS[$('partPigment').value] : '';
+  $('contentTip').style.display = c.content || c.pigment || c.tip ? '' : 'none';
+  $('contentTip').textContent = c.content ? CONTENT_TIPS[$('partContent').value] : c.pigment ? PIGMENT_TIPS[$('partPigment').value] : c.tip ? c.tip() : '';
   $('tiltLabel').textContent = c.tiltLabel || 'Tilt';   // a statolith's "tilt" is the direction it reads
   $('partTilt').min = (c.tiltRange || [-90, 90])[0]; $('partTilt').max = (c.tiltRange || [-90, 90])[1];
   showTilt(); showStrength();
@@ -438,7 +443,7 @@ function brainFits(targets, change) {
   const full = !nucleiOf(design).length ? 'this cell has no nucleus: add one (Inside the cell) to wire it' : brainProblem(trial);
   if (!full) return true;
   $('buildErr').textContent = full;
-  if (patchOpen) { drawPatch(); $('patchHint').textContent = `🧬 ${full}${full.startsWith('nucleus') ? ' (edit the nucleus under On this body)' : ''}`; }
+  if (patchOpen) { drawPatch(); $('patchHint').textContent = `🧬 ${full}`; }
   return false;
 }
 const freshRule = (id) => ({ sensor: id, min: RANGE[sensorKind(id)][0], max: RANGE[sensorKind(id)][1], not: false });
@@ -708,7 +713,7 @@ function drawPatch() {
     f.textContent = i === 5 && free > 6 ? `+${free - 5} free slots` : 'free slot';
     src.appendChild(f);
   }
-  if (!free) { const f = document.createElement('div'); f.className = 'pfree full'; f.textContent = 'full: a bigger nucleus has more slots'; src.appendChild(f); }
+  if (!free) { const f = document.createElement('div'); f.className = 'pfree full'; f.textContent = 'full: every slot used'; src.appendChild(f); }
   const rules = document.createElement('div'); rules.className = 'prules';
   patchTargets = partGroups(design.parts || []).map((g) => ({ g, members: targetsOf(g) })).filter((t) => t.members.length)
     .map((t) => ({ name: `${t.g.name} at ${t.g.deg}°`, members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]), icon: '' }));
@@ -899,6 +904,9 @@ function unplug(d, ids) {
 
 function listParts() {
   showBody();
+  // one nucleus a cell: its button hides while the cell has one
+  const nucChip = document.querySelector('#chips button[data-v="Nucleus (the brain)"]');
+  if (nucChip) nucChip.style.display = nucleiOf(design).length && !editing ? 'none' : '';
   const box = $('partList');
   box.innerHTML = '';
   const groups = partGroups(design.parts || []);

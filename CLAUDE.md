@@ -59,6 +59,9 @@ beat speed, nothing at rest (burst organs excluded; on top of the real work). A 
 surface cell's income. The budget line reads "flagella beating". Resting now pays: buoyancy beats swimming to hold a
 depth. The author chose this over higher flagellum upkeep (B), which gives no reason to rest.
 **Sap vacuole and oil: kept** (author, 2026-10-24), to retune in step 1.
+**An eyespot facing away still sees some light** (author, 2026-10-28: upside down in bright surface water it read
+dark, "doesn't make sense"): reading = light × (PARAMS.sensor.scatter 0.2 + 0.8 × how squarely it faces up, within its
+cone); scattered light and light through the shield. Direction still shows (up 1, away 0.2 of the light there).
 **The ejectisome was removed and the burst organ renamed Spring** (author, 2026-10-28: "i dont like the ejectisome";
 "Burst organ is much better, but I don't like the name"). The ejectisome left the Build panel and presets; its physics
 (an extending ribbon) stays for check 13, and old designs with one still edit. The spring keeps its template name
@@ -75,10 +78,13 @@ it stripped and its cables unplugged.
 **The nucleus, the brain box (built 2026-10-28; author: "the brain box will shape much of the users' builds").**
 sim/brain.js, PARAMS.brain. An inclusion (Inside the cell → Nucleus, always round, drawn like a real nucleus: violet,
 envelope, chromatin specks, nucleolus; density 1100, upkeep 1 pJ/s per µm³). Its cross-section gives it **slots**
-(7 µm² each: r 3.3 µm = 4 slots, the Size slider says so). **What takes a slot (author chose A):** every sensor on the
+(7 µm² each). **One size for now** (author, 2026-10-28: "the size is something for later"): PARAMS.brain.radius 3.3 µm,
+4 slots; no Size slider, a tip says what it is; bigger nuclei later, unlocked by progress. **One per cell:** its Build
+button hides while the cell has one. **Moving it:** Where and Inside, like any organelle; moving Where while it sits
+at the very centre brings it halfway out (author: "I can't move it"). **What takes a slot (author chose A):** every sensor on the
 cell, every built-in reading once wired (energy, starch, oil, health), every rule box (each GO box, a part's STOP box);
-cables are free. buildCell refuses a design that needs more slots ("nucleus full: 5 modules, 4 slots. Make it
-bigger"), or two nuclei, so the ghost turns red and wiring is refused with the same words. **No nucleus = no brain:**
+cables are free. buildCell refuses a design that needs more slots ("nucleus full: 5 modules, 4 slots. Free one:
+remove a sensor or a rule box"), or two nuclei, so the ghost turns red and wiring is refused with the same words. **No nucleus = no brain:**
 the sandbox drops the wiring (every part runs; Undo brings it back) and the rule cards say why; the physics itself
 still reads wiring on any cell (the checks rely on it). **Opening it:** tap the nucleus in the tank, or 🧬 Open the
 nucleus under On this body: the wiring view drawn as the nucleus opened up, a **rectangular box** (author: rectangle for

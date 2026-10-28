@@ -38,7 +38,8 @@ export function note(world, c) {
   if (up > 0.5) w.upright = true; else if (up < -0.5) w.upright = false;
   if (w.sun !== undefined && sun > 0 && w.sun === 0) {   // dawn: can it see?
     const eyes = c.sensors.filter((s) => s.kind === 'light');
-    if (eyes.length && eyes.every((s) => s.value < 0.02) && lightAt(world, c.q[1]) > 0.02) say('at dawn its eyespot faced away from the light', true);
+    const L = lightAt(world, c.q[1]);   // facing away, an eyespot sees only the scattered share
+    if (eyes.length && L > 0.02 && eyes.every((s) => s.value <= PARAMS.sensor.scatter * L * 1.01 + 1e-9)) say('at dawn its eyespot faced away from the light', true);
     else say('dawn');
   }
   if (w.sun > 0 && sun === 0) say('dusk');

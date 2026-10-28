@@ -1,6 +1,7 @@
 // What a cell's sensors read, and what their wiring does, once a step before it moves. Readings run 0..1.
 // - light: light comes from straight above and fades with depth (PARAMS.light). An eyespot (a photoreceptor with a
-//   pigment shield behind it) sees it only from the side it faces: reading = light there × how squarely it faces up.
+//   pigment shield behind it) sees it best from the side it faces: reading = light there × (a scattered share, PARAMS.sensor.
+//   scatter, + the rest × how squarely it faces up), so facing down in bright water it still reads some light.
 // - touch: 1 while something it feels is within PARAMS.sensor.touchRange of its spot.
 // - near: how close the nearest thing it feels is, 1 touching, 0 at the sensor's range.
 //   Touch and proximity feel cells of another species ('strangers', the default) or anything: any other cell, the
@@ -109,7 +110,9 @@ export function sense(world, cell) {
       off -= 2 * Math.PI * Math.floor(off / (2 * Math.PI) + 0.5);
       if (off < 0) off = -off;
       const half = s.cone / 2;
-      s.value = off < half ? dcos(off / half * Math.PI / 2) * lightAt(world, y) : 0;
+      // underwater light is also scattered, and some comes through the shield: facing away it still sees a share
+      const facing = off < half ? dcos(off / half * Math.PI / 2) : 0;
+      s.value = (S.scatter + (1 - S.scatter) * facing) * lightAt(world, y);
     } else {
       const d = nearest(world, cell, x, y, s.range, s.feels === 'anything');
       s.value = s.kind === 'touch' ? (d <= s.range ? 1 : 0) : (d >= s.range ? 0 : d <= 0 ? 1 : 1 - d / s.range);

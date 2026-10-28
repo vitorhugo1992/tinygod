@@ -358,8 +358,9 @@ const eyeTail = (min, max) => ({
   stepWorld(r.w);
   const jump = Math.max(...Array.from(r.c.q.slice(3)).map((a, i) => Math.abs(a - frozen[i])));
   const j0 = r.c.joints[0], beatStep = j0.swing * Math.PI / Math.min(j0.stroke, 1 - j0.stroke) * j0.rate * DT;  // most a beating joint moves in a step
-  check('a light sensor reads the light where it is by the way it faces; a wired motor runs only in range, resuming without a jump',
-    Math.abs(up.value - expected) < 0.01 && deep.value < up.value * 0.15 && side.value < 1e-6 && down.value === 0 &&
+  check('a light sensor reads the light where it is by the way it faces (facing away, the scattered share); a wired motor runs only in range, resuming without a jump',
+    Math.abs(up.value - expected) < 0.01 && deep.value < up.value * 0.15 && Math.abs(side.value - PARAMS.sensor.scatter * expected) < 0.01 &&
+    Math.abs(down.value - PARAMS.sensor.scatter * expected) < 0.01 &&
     off.value === 0 && up.on && !deep.on && !down.on && y1 > 1910 && still && jump <= beatStep * 1.001,
     `facing up 50 µm from the surface ${fmt(up.value)}, 1.5 mm deep ${fmt(deep.value)}, sideways ${fmt(side.value)}, ` +
     `down ${fmt(down.value)}, light off ${fmt(off.value)}; swam ${fmt(y1 - 1900, 1)} µm up in 0.5 s\n      ` +
@@ -432,8 +433,8 @@ const eyeTail = (min, max) => ({
     return c.sensors[0].value;
   };
   const narrow = [0, 10, 30].map((t) => read(40, t)), wide = [0, 10, 30].map((t) => read(180, t));
-  check('a narrow eyespot sees only near straight up; a wide one falls off gently',
-    narrow[2] === 0 && wide[2] > 0.8 && narrow[0] > 0.98 && narrow[1] < wide[1],
+  check('a narrow eyespot sees only near straight up (beyond its cone, only scattered light); a wide one falls off gently',
+    Math.abs(narrow[2] - PARAMS.sensor.scatter * narrow[0]) < 0.01 && wide[2] > 0.8 && narrow[0] > 0.98 && narrow[1] < wide[1],
     `tilted 0/10/30° from up: 40° cone ${narrow.map((v) => fmt(v)).join(' / ')}, 180° cone ${wide.map((v) => fmt(v)).join(' / ')}`);
 }
 

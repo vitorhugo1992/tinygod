@@ -56,5 +56,5 @@ export function brainProblem(design) {
   if (nuclei.length > 1) return 'a cell has one nucleus';
   if (!nuclei.length) return '';
   const use = brainUse(design), slots = slotsOf(nuclei[0].radius);
-  return use.total > slots ? `nucleus full: ${use.total} modules, ${slots} slots. Make it bigger` : '';
+  return use.total > slots ? `nucleus full: ${use.total} modules, ${slots} slots. Free one: remove a sensor or a rule box` : '';
 }

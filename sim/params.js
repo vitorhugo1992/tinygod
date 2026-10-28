@@ -64,6 +64,7 @@ export const PARAMS = {
   },
   sensor: {
     threshold: 0.5,         // 'light' / 'dark' wiring splits here
+    scatter: 0.2,           // share of the light an eyespot sees facing away (scattered light, and through its shield)
     hysteresis: 0.03,       // a wired part changes state only this far inside or outside its range (no flicker)
     touchRange: 2,          // µm from a touch sensor's spot that counts as touching
     nearRange: 60,          // µm a proximity sensor feels another species from (default)
@@ -87,6 +88,7 @@ export const PARAMS = {
   },
   // The nucleus, the brain box (sim/brain.js): each brain module takes a slot of its cross-section
   brain: {
+    radius: 3.3,            // µm: one nucleus size for now (4 slots); bigger ones later, unlocked by progress
     slotArea: 7,            // µm² of nucleus cross-section a slot (r 3 µm: 4 slots)
     upkeep: 1,              // pJ/s per µm³ of nucleus (as much as the body's own)
   },
