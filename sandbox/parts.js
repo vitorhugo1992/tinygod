@@ -89,7 +89,7 @@ export const PART_TEMPLATES = {
   'Nucleus (the brain)': (body, deg, id, size, tilt, depth) =>
     [{ type: 'inclusion', id, label: 'Nucleus', ...inside(body, deg, size, depth, 0, 0, PARAMS.brain.radius), material: 'nucleus', joint: { type: 'rest' } }],
   'Plastid (makes energy)': (body, deg, id, size, tilt, depth, feels, len = 0, strength, pigment = 'sun') =>
-    [{ type: 'inclusion', id, label: pigment === 'shade' ? 'Shade plastid' : 'Plastid', ...inside(body, deg, size, depth, len, tilt),
+    [{ type: 'inclusion', id, label: pigment === 'shade' ? 'Phycobilin plastid' : 'Plastid', ...inside(body, deg, size, depth, len, tilt),
       material: 'plastid', ...(pigment === 'shade' ? { pigment: 'shade' } : {}) }],
   'Starch granule (quick store, heavy)': (body, deg, id, size, tilt, depth) =>
     [{ type: 'inclusion', id, label: 'Starch granule', ...inside(body, deg, size, depth), material: 'starch', fill: 0.5 }],
@@ -219,7 +219,7 @@ export const CONTROLS = {
   'Burst organ (escape)': { tilt: true, flip: true, length: { min: 10, max: 40, step: 5, def: 20 }, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
-  'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), feels: true, sizeDefault: 10 },
+  'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), sizeLabel: 'Sensitivity', feels: true, sizeDefault: 10 },
   'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long`, material: true },
   'Pad': { sticks: true },
   'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, pigment: true, ...ROD },
@@ -230,8 +230,8 @@ export const CONTROLS = {
 
 // What each plastid pigment does (a tip under the Pigment choice)
 export const PIGMENT_TIPS = {
-  sun: 'Sun: chlorophyll. Strong in bright water near the surface, weak in dim light',
-  shade: 'Shade: with phycobilins, which catch the green light that reaches deep. Works in dim light, gives less on top, and costs 2.5× the upkeep',
+  sun: 'Chl a (chlorophyll a alone): strong in bright water near the surface, weak in dim light',
+  shade: 'Phycobilins (with chlorophyll a): catch the green light that reaches deep. Works in dim light, gives less on top, and costs 2.5× the upkeep',
 };
 
 // What each vacuole content does (a tip under the Content choice)

@@ -184,6 +184,7 @@ const showControls = () => {
   $('contentTip').style.display = c.content || c.pigment || c.tip ? '' : 'none';
   $('contentTip').textContent = c.content ? CONTENT_TIPS[$('partContent').value] : c.pigment ? PIGMENT_TIPS[$('partPigment').value] : c.tip ? c.tip() : '';
   $('tiltLabel').textContent = c.tiltLabel || 'Tilt';   // a statolith's "tilt" is the direction it reads
+  $('sizeLabel').textContent = c.sizeLabel || 'Size';   // a feeler's size is how far it feels
   $('partTilt').min = (c.tiltRange || [-90, 90])[0]; $('partTilt').max = (c.tiltRange || [-90, 90])[1];
   showTilt();
   if (c.length) {   // this part's range; a new pick starts at its usual length
@@ -1605,7 +1606,8 @@ $('pasteDesign').onclick = async () => {
 };
 
 // ----- the day graph and Test a day -----
-let graphOn = true, forecastJ = null, stopForecast = null;
+let graphOn = false,   // the day graph starts tucked away (author); 📈 Graph shows it
+    forecastJ = null, stopForecast = null;
 $('graphBtn').onclick = () => { graphOn = !graphOn; };
 $('testDay').onclick = () => {
   if (stopForecast) { stopForecast(); stopForecast = null; }
