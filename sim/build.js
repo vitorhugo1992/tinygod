@@ -157,6 +157,10 @@ export const controlsOf = (j) => (j.controls ? j.controls : j.control ? [j.contr
 
 // Rewire a living cell's joints that came from design part `partIndex` (an empty list: unwire), without rebuilding it
 export function rewire(cell, partIndex, controls) {
+  if (cell.design.parts[partIndex] && cell.design.parts[partIndex].material === 'nucleus') {   // the REST rule
+    cell.rest.controls = controls.length ? controls.map((c) => resolveControl(cell.sensors, c)) : null;
+    if (!controls.length) cell.resting = false;
+  }
   for (const inc of cell.pieces[0].inclusions) if (inc.part === partIndex && inc.material === 'chamber') {
     if (controls.length) inc.controls = controls.map((c) => resolveControl(cell.sensors, c)); else delete inc.controls;
   }
@@ -187,6 +191,7 @@ export function buildCell(design) {
   const pads = [];
   const sensors = [];
   const controls = [];   // [joint, control] pairs, resolved once every sensor is known
+  const rest = { controls: null };   // the nucleus's REST rule (joint: { type: 'rest', controls } on the nucleus)
   const speeds = [];     // [motor, speed] pairs, the same
   const ids = new Map();
   const C = PARAMS.cell;
@@ -270,6 +275,7 @@ export function buildCell(design) {
         part: design.parts.indexOf(part) });
       // a buoyancy chamber's rule (FLOAT when: its GO conditions; SINK if: its STOP ones), kept like a part's joint's
       if (part.material === 'chamber' && part.joint && controlsOf(part.joint).length) controls.push([host.inclusions[host.inclusions.length - 1], controlsOf(part.joint)]);
+      if (part.material === 'nucleus' && part.joint && controlsOf(part.joint).length) { controls.push([rest, controlsOf(part.joint)]); rest.part = design.parts.indexOf(part); }
       if (part.material === 'statolith') sensors.push({ id: part.id, piece: parent, x, y, kind: 'statolith',
         facing: (part.angle || 0) * DEG, r, value: 0.5, part: design.parts.indexOf(part) });
     } else if (part.type === 'sensor') {
@@ -320,7 +326,7 @@ export function buildCell(design) {
 
   const np = pieces.length;
   return {
-    design, pieces, joints, pads, sensors, n, colTurn, reach,
+    design, pieces, joints, pads, sensors, n, colTurn, reach, rest, resting: false,
     species: design.species || design.name || 'A',
     ext: [],                 // this step's contacts and pad pulls from other cells (interact.js)
     jointPiece: Int32Array.from(joints.map((j) => j.piece)),

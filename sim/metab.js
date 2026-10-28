@@ -62,16 +62,19 @@ const capacity = (inc) => inc.v * M[inc.store].energy;
 
 export function metabolize(world, cell) {
   const m = cell.metab, body = cell.pieces[0];
+  // resting: flagella stop, plastids earn less and aren't repaired, upkeep falls (PARAMS.metab.rest)
+  const slow = cell.resting ? M.rest : 1;
+  if (cell.resting) for (const j of cell.joints) if (j.type === 'motor' && !j.burst) j.on = false;
   // income: each plastid by the light where it is, less its damage; too much light damages it, repair costs energy
   let income = 0, repair = 0;
   for (const inc of body.inclusions) {
     if (inc.material !== 'plastid') continue;
     const y = cell.cy[0] + cell.sn[0] * inc.x + cell.cs[0] * inc.y;
     const L = lightAt(world, y), shade = inc.pigment === 'shade';
-    income += (1 - inc.damage) * (shade ? M.shade.max * inc.v * L / (L + M.shade.half) : M.plastidMax * inc.v * L / (L + M.plastidHalf));
+    income += slow * (1 - inc.damage) * (shade ? M.shade.max * inc.v * L / (L + M.shade.half) : M.plastidMax * inc.v * L / (L + M.plastidHalf));
     const over = L - (shade ? M.shade.safe : M.photo.safe);
     if (over > 0) inc.damage += M.photo.damage * (shade ? M.shade.damage : 1) * over * (1 - inc.damage) * DT;
-    if (!m.starving && inc.damage > 0) {
+    if (!m.starving && !cell.resting && inc.damage > 0) {
       const fixed = M.photo.repair * inc.damage * DT;
       inc.damage -= fixed; repair += fixed * inc.v * M.photo.cost;
     }
@@ -86,7 +89,7 @@ export function metabolize(world, cell) {
   let hold = 0;
   for (const inc of body.inclusions) if (inc.material === 'chamber') hold += P.chamber.hold * inc.v * Math.abs(inc.density - P.chamber.neutral);
   m.chamber = hold;
-  m.E += (income - m.upkeep - hold) * DT - motors - pumps - repair;
+  m.E += (income - m.upkeep * slow - hold) * DT - motors - pumps - repair;
 
   // stores: surplus in (starch first: it is quick), shortfall out (starch first, then oil)
   const stores = body.inclusions.filter((x) => x.store).sort((a, b) => (a.store === 'starch' ? 0 : 1) - (b.store === 'starch' ? 0 : 1));

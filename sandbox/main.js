@@ -21,6 +21,7 @@ const COLOR = {
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
   nucleus: 'rgba(176,150,214,.55)', envelope: '#c9b6ea', chromatin: 'rgba(92,70,140,.8)', nucleolus: '#5b467f',
+  resting: '#7d93d8',
   statolith: 'rgba(200,215,230,.35)', grain: '#e8eef5', chem: '#c8b26a',
   plastid: '#8fc94a', plastidShade: '#c45a7c', starch: '#ece3c4', starving: '#ff5a4a', eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
@@ -44,6 +45,7 @@ const preset = (name) => Object.assign(JSON.parse(JSON.stringify(PRESETS[name]))
 function withoutTimers(d) {
   for (const p of d.parts || []) if (p.label === 'Burst organ') p.label = 'Spring';   // renamed (author, 2026-10-28)
   if (!nucleiOf(d).length) for (const p of d.parts || []) if (p.joint) { delete p.joint.controls; delete p.joint.control; delete p.joint.speed; }
+  for (const p of d.parts || []) if (p.type === 'inclusion' && p.material === 'nucleus' && !p.joint) p.joint = { type: 'rest' };   // its REST rule
   tagParts(d);
   const gone = new Set((d.parts || []).filter((p) => p.type === 'sensor' && p.kind === 'timer').map((p) => p.id));
   if (!gone.size) return d;
@@ -454,6 +456,11 @@ function condWords(c, mode = modeOf(c), lo = c.min, hi = c.max) {
 // a part's rule in one sentence: "Runs when ● Eyespot (top) is above 50% of full sun, but stops if ● Statolith …"
 function ruleSummary(targets) {
   const m = targets[0], verb = verbOf(m), shape = toShape(rulesOf(m)), runs = verb === 'runs';
+  if (verb === 'rests') {
+    const one = (c) => `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
+    if (!shape.groups.length) return 'Never rests (add REST when… to slow the metabolism: upkeep and income at 40%, flagella stop).';
+    return `Rests when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}${shape.stops.length ? `, but not if ${shape.stops.map(one).join(' or ')}` : ''}: upkeep and income at 40%, flagella stop.`;
+  }
   if (verb === 'floats') {
     const one = (c) => `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
     if (!nucleiOf(design).length) return 'Neutral (no nucleus to control it).';
@@ -511,9 +518,9 @@ function sensorList(except) {
     list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
   return list;
 }
-const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.latched));
+const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.latched));
 // how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part)
-const verbOf = (m) => (m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+const verbOf = (m) => (m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
 // A part's rule as the card shows it: GO groups (all of a group must hold: AND; any group will do: OR) and STOP
 // conditions (any one stops the part, whatever the GO groups say: the override). Stored as one list: GO conditions in
 // their groups (or: true starts a group), then STOP ones (stop: true).
@@ -675,6 +682,8 @@ const HEADS = {
   fires: ['FIRE when', 'OR FIRE when', "DON'T FIRE if", 'fires by hand (Release), or add a condition'],
   // a buoyancy chamber: its GO groups float it, its STOP conditions sink it (sinking wins); neither: neutral
   floats: ['FLOAT when', 'OR FLOAT when', 'SINK if', 'neutral (add FLOAT when… or SINK if…)'],
+  // the nucleus: resting slows the whole metabolism
+  rests: ['REST when', 'OR REST when', "DON'T REST if", 'never rests (add REST when…)'],
 };
 function ruleCard(targets) {
   const m = targets[0], verb = verbOf(m), H = HEADS[verb], k0 = design.parts.indexOf(m);
@@ -1006,6 +1015,7 @@ function patchLive() {
     let ctls = null, state = '', on = false;
     if (live) {
       const j = live.joints.find((x) => x.part === k0);
+      if (!j && live.rest && live.rest.part === k0) { ctls = live.rest.controls; state = live.resting ? 'RESTING' : 'awake'; on = live.resting; }
       const ch = !j && live.pieces[0].inclusions.find((x) => x.part === k0 && x.material === 'chamber');
       if (ch) {
         ctls = ch.controls || null;
@@ -1080,6 +1090,7 @@ function listParts() {
       <span>${b ? '<button class="edit">Edit</button> ' : ''}<button class="mirror" data-axis="90" title="Add a mirror copy on the other side: left ↔ right">⇆</button>
         <button class="mirror" data-axis="0" title="Add a mirror copy on the other side: top ↔ bottom">⇅</button>
         <button class="remove">Remove</button></span>`;
+    if (g.members[0].material === 'nucleus') for (const m of row.querySelectorAll('.mirror')) m.remove();   // one nucleus a cell
     // tapping the name folds or opens the card, and lights the part up in the tank
     row.querySelector('.pnm').onclick = (e) => {
       if (e.target.classList.contains('ren')) return;
@@ -1376,9 +1387,10 @@ function budget(lines) {
   }
   if (m.motors > 0) lines.push(`          flagella beating ${show(m.motors)}`);
   if (m.pumps > 0) lines.push(`          pumping ${show(m.pumps)}`);
+  if (cell.resting) lines.push('resting   upkeep and income at 40%, flagella stopped');
   if (m.chamber > 0.5) lines.push(`          holding the buoyancy chamber ${show(m.chamber)}`);
   if (m.repair > 0.5) lines.push(`          repairing plastids (too much light) ${show(m.repair)}`);
-  const net = m.income - m.upkeep - m.motors - m.pumps - m.chamber - m.repair;
+  const net = m.income - m.upkeep * (cell.resting ? PARAMS.metab.rest : 1) - m.motors - m.pumps - m.chamber - m.repair;
   lines.push(`net       ${net >= 0 ? "+" : ""}${net.toFixed(0)} pJ/s: ${net >= 0 ? "gaining energy" : "losing energy"}`);
   for (const inc of cell.pieces[0].inclusions) if (inc.store) lines.push(`store     ${inc.store} ${(100 * inc.fill).toFixed(0)}% full`);
 }
@@ -1746,7 +1758,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     const fill = p.kind === 'body' ? COLOR.body[p.material] : tag || COLOR[p.material];
     const w = Math.max(2 * p.a * s, 1.5);
     if (p.kind === 'body') {   // outline (red while starving)
-      ctx.strokeStyle = world.metab && c.metab.starving ? COLOR.starving : COLOR.outline; ctx.lineWidth = w + 2;
+      ctx.strokeStyle = world.metab && c.metab.starving ? COLOR.starving : real.resting ? COLOR.resting : COLOR.outline; ctx.lineWidth = w + 2;
       ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     }
     const jt = p.joint >= 0 ? c.joints[p.joint] : null;

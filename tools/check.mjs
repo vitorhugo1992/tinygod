@@ -784,6 +784,25 @@ const runDay = (design, y, seconds, opts = {}) => {
     `Wave tail (${tailL} µm) beating ${fmt(run1, 0)} pJ/s, resting ${fmt(rest, 0)}`);
 }
 
+// 28q. Resting: while the nucleus's REST rule holds, upkeep and plastid income run at PARAMS.metab.rest, flagella stop
+{
+  const day = (rest) => {
+    const w = makeWorld(1, { metab: true, gravity: false });
+    const parts = [{ type: 'inclusion', material: 'nucleus', at: [0, -5.35], radius: 4.3, joint: { type: 'rest', ...(rest ? { controls: [{ sensor: 'energy', min: 0, max: 1 }] } : {}) } },
+      { type: 'inclusion', material: 'plastid', at: [0, 5], radius: 3 },
+      ...PRESETS['Wave tail'].parts.map((p) => ({ ...p, at: p.parent ? p.at : [-10, 0] }))];
+    const c = addCell(w, { body: { radius: 10 }, parts }, 800, 1500, 0);
+    c.metab.C = c.metab.E = 1e12;
+    const e0 = c.metab.E;
+    for (let i = 0; i < 2000; i++) stepWorld(w);
+    return { income: c.metab.income, spent: e0 - c.metab.E + c.metab.income * 2, tail: c.joints[0].on, resting: c.resting };
+  };
+  const awake = day(false), asleep = day(true), k = PARAMS.metab.rest;
+  check('resting slows the metabolism: income and upkeep fall to the resting share, flagella stop',
+    asleep.resting && !awake.resting && Math.abs(asleep.income / awake.income - k) < 0.01 && !asleep.tail && awake.tail && asleep.spent < awake.spent,
+    `income awake ${fmt(awake.income, 0)}, resting ${fmt(asleep.income, 0)} pJ/s (share ${fmt(asleep.income / awake.income)}); tail ${asleep.tail ? 'beats' : 'stopped'} while resting`);
+}
+
 // 28p. The nucleus is the brain box: a bigger one has more slots; each sensor, wired built-in reading and rule box
 // takes one; a design that needs more slots than its nucleus has, or with two nuclei, does not build
 {

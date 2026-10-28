@@ -13,7 +13,7 @@ chronological log, newest additions last in each block.
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the phone uses http://192.168.1.69:5180/sandbox/ (home Wi-Fi; the page shows it under its title). Restart the server
-after changing tools/serve.mjs. `node tools/check.mjs`: 41 physics checks, all passing (~2 min). Check every change
+after changing tools/serve.mjs. `node tools/check.mjs`: 42 physics checks, all passing (~2 min). Check every change
 in the real page with headless Edge over the DevTools protocol at phone size (400×860) and look at screenshots.
 **The website (author, 2026-10-28):** https://vitorhugo1992.github.io/tinygod/sandbox/ (GitHub Pages from the public
 repo github.com/vitorhugo1992/tinygod, branch main, root). **Push after every finished step** (`git push`) so the
@@ -140,6 +140,15 @@ neutral; the budget "holding the buoyancy chamber"; the day graph's "float" line
 store** is its own part (Starch / Oil). **Removed:** gas vesicles entirely (material, crush, wear and rebuild, drawing,
 log entry, PARAMS.gas, two checks) and the sap vacuole and its slider (check 14 now tests the chamber). **The starting
 nucleus now sits at the bottom** (at the centre it blocked anything bigger than a quarter of the room). Checks: 41.
+**Resting (built 2026-10-28; author: "like slowing the metabolism").** The nucleus carries the REST rule (joint: { type:
+'rest', controls } on the nucleus; its card: REST when… / DON'T REST if…; slots like any rule). While it holds, upkeep
+and plastid income run at PARAMS.metab.rest (0.4), flagella stop, plastids aren't repaired; stores and buoyancy chambers
+keep working. Resting in the dark saves energy, in light throws income away. Shown: the body outline turns calm blue,
+"began resting / woke" in the trouble log, a budget line, RESTING / awake in the nucleus box. Check 28q. Checks: 42.
+**For later (author, 2026-10-28): dragging organelles by finger, and shaping them.** The cell held fixed on screen while
+editing; drag an organelle to move it; pinch it to make it slimmer, longer, curved or rounder (shape fixed for the
+statolith and other parts whose shape is their function, e.g. the nucleus). Curved shapes are new to the physics
+(room, overlap, weight): plan with the author first.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

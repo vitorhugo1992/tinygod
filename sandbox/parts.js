@@ -87,7 +87,7 @@ export const PART_TEMPLATES = {
   // the brain box: one size for now (PARAMS.brain.radius; bigger ones come later, unlocked), its slots one for each
   // brain module (sim/brain.js); always round, one per cell
   'Nucleus (the brain)': (body, deg, id, size, tilt, depth) =>
-    [{ type: 'inclusion', id, label: 'Nucleus', ...inside(body, deg, size, depth, 0, 0, PARAMS.brain.radius), material: 'nucleus' }],
+    [{ type: 'inclusion', id, label: 'Nucleus', ...inside(body, deg, size, depth, 0, 0, PARAMS.brain.radius), material: 'nucleus', joint: { type: 'rest' } }],
   'Plastid (makes energy)': (body, deg, id, size, tilt, depth, feels, len = 0, strength, pigment = 'sun') =>
     [{ type: 'inclusion', id, label: pigment === 'shade' ? 'Shade plastid' : 'Plastid', ...inside(body, deg, size, depth, len, tilt),
       material: 'plastid', ...(pigment === 'shade' ? { pigment: 'shade' } : {}) }],

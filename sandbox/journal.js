@@ -47,6 +47,9 @@ export function note(world, c) {
   if (w.sun > 0 && sun === 0) say('dusk');
   if (starch === 0 && w.starch > 0) say('its starch is used up');
   if (oil === 0 && w.oil > 0) say('its oil is used up');
+  if (c.resting && !w.resting) say('began resting (metabolism slowed)');
+  if (!c.resting && w.resting) say('woke from resting');
+  w.resting = !!c.resting;
   // too much light: said once as its plastids fall below 3/4 healthy, again once they have mended
   if (health !== null && health < 0.75 && !w.hurt) { w.hurt = true; say(`bright light damaged its plastids (${(100 * health).toFixed(0)}% healthy)`, true); }
   if (health !== null && health > 0.95 && w.hurt) { w.hurt = false; say('its plastids have mended'); }

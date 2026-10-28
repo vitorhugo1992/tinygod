@@ -137,6 +137,8 @@ export function sense(world, cell) {
     else if (j.type === 'motor') j.on = all;
     else if (j.latched && all) j.latched = false;   // a trigger: released once, the first time they all hold
   }
+  // resting: the nucleus's rule (REST when… / DON'T REST if…)
+  if (cell.rest) { const r = cell.rest.controls ? ruleState(world, cell, cell.rest.controls) : null; cell.resting = !!r && r.go && !r.stop; }
   // buoyancy chambers: SINK if wins, then FLOAT when; neither: neutral
   for (const inc of cell.pieces[0].inclusions) {
     if (inc.material !== 'chamber') continue;

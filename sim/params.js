@@ -53,6 +53,9 @@ export const PARAMS = {
     // part (a motorised piece and the passive pieces hanging from it) at full beat speed, nothing while it rests;
     // on top of the motors' real work
     beat: 10,
+    // resting (author, 2026-10-28: "like slowing the metabolism"): while the nucleus's REST rule holds, upkeep AND plastid
+    // income run at this share; flagella stop and plastids aren't repaired (stores and buoyancy chambers keep working)
+    rest: 0.4,
     pool: 60,               // pJ per µm³ of body the cytoplasm holds (about a minute of upkeep)
     start: 0.8,             // pool at birth, share of full
     fillAbove: 0.8,         // stores fill while the pool is above this share...
