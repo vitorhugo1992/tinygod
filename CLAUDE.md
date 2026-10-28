@@ -114,7 +114,9 @@ Conditions offer above / below / more / less only (between = above AND below, ou
 still show theirs). One **Spine** with a Material row (protein / glass), one **Pad** with "Sticks to" (its own kind =
 kin / anything = mucus), one **Feeler** (Range at its least: touch only; wider: feels within N µm, the old proximity
 sensor). Hidden from the Build panel (old designs still edit): the stiff flap (a lesson; a tip later) and the nutrient
-sensor (no use until step 1). Build panel: 11 buttons.
+sensor (no use until step 1). Build panel: 11 buttons. Later the same day (author): pigments named **Chl a / Phycobilins** (was Sun / Shade; internal
+values sun / shade); the Feeler's slider is **Sensitivity**; the **day graph starts tucked away**; the sandbox **starts paused**;
+**Flip stays on the spring** (measured: its 208 µm jump curves ~46 µm and 26° to one side, flipped to the other).
 **Agreed next (author, 2026-10-28):** (1) the **buoyancy chamber** (BUILT, see below; the plan as agreed): replaces the sap vacuole
 and removes gas vesicles entirely; three states, light (~1000 kg/m³) / neutral (1025, seawater: no effect, no cost) /
 heavy (~1070, to sink on purpose); holding light or heavy costs energy in proportion to size and distance from
