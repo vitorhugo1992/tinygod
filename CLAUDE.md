@@ -620,6 +620,26 @@ runs headless in Node for tests (and later the optimiser).
   stays the player's; matches and the optimiser score a design as designed. Open: how many cables a module takes;
   Claude's suggestion (not decided): no hard cap, each cable costs a little upkeep (regulation is proteins), and the
   nucleus limits how many modules fit.
+- **Research: what other sandbox games teach (Claude, 2026-10-28; the author: "all valid, save them in notes"; priority
+  now is that building a cell and wiring it are intuitive, then the brain box).** From Claude's knowledge, no fresh search:
+  1. **Challenges with stars** (Bad Piggies, Poly Bridge, Cell Lab, Zachtronics): short goals, several ways to win
+     (reach it; without part X; under a budget). E.g. hold 400-700 µm for a day; 3 days without gas; floor to light by
+     noon; only 2 parts. Turns v0 test 2 into play. Claude's top pick for after the brain box.
+  2. **Compare on graphs** (Opus Magnum histograms): upkeep, nights survived, parts used; own designs first, others later.
+  3. **Logic takes room** (Stormworks microcontrollers, Carnage Heart chips, Minecraft redstone): the brain box idea, proven.
+  4. **Few parts, free combination, energy as the limit** (Zelda TotK); its Autobuild suggests saving a sub-assembly
+     (e.g. a pair of legs with their wiring) as a module to reuse.
+  5. **Honest failure teaches; planning readouts; unlocks by doing** (Kerbal: delta-v readout, science tree): finish
+     challenges to unlock materials.
+  6. **Life cycle as a design** (Cell Lab, the closest app): genome modes set cell type, when to split, what each
+     daughter becomes, and whether daughters stay stuck (adhesin) so shapes emerge. Model for step 1's division and
+     chains at division.
+  7. **Stories from simulation** (Dwarf Fortress, RimWorld): grow the trouble log into a lineage's life story.
+  8. **Live signals and stepping back** (Factorio wires, Zachtronics stepping): add rewind/scrub of the last minute.
+  9. **Layers by density** (Oxygen Not Included): stratification from physics in step 1's water.
+  10. **Share as a link** (Algodoo, Poly Bridge replays, Opus Magnum GIFs): a design URL on the website.
+  Avoid: parts as stat bonuses (Spore cell stage, partly Thrive); brains the player doesn't control (Bibites,
+  Creatures; mutations already declined); open-ended with no goals (Algodoo, Spore creature creator).
 - **The niche radar** (MONAD's species page, eight traits scored 0–4) is a natural way to compare designs.
 - **Tips while building** (author, 2026-10-23): when a player places a part or picks a material, a short true tip
   says what it does physically ("gas is much lighter than water: it floats the cell, but crushes below a certain
