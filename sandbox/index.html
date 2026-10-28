@@ -118,7 +118,16 @@
   #patchWires path { fill: none; stroke: #3b4f6c; stroke-width: 2.5; }
   #patchWires path.lit { stroke: var(--accent); }
   #patchWires path[data-key^="v"] { stroke-dasharray: 5 4; }   /* a compare's second sensor */
-  #patchCols { position: relative; display: flex; gap: 18%; padding: 10px; align-items: flex-start; }
+  /* the nucleus opened up: a box round its modules, its free slots dashed, unwired built-in readings in a tray above */
+  #patchWires rect.nucbox { fill: rgba(176,150,214,.07); stroke: #8f7cb8; stroke-width: 1.5; }
+  #patchWires text.nuclab { fill: #c9b6ea; font: 600 11px system-ui; letter-spacing: .04em; }
+  #patchTray { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px 0; }
+  #patchTray:empty { display: none; }
+  .pmod.spare { padding: 3px 7px; border-style: dashed; cursor: pointer; }
+  .pfree { border: 1px dashed #4a4266; border-radius: 7px; padding: 5px 7px; font-size: 11px; color: #6f6690; text-align: center; }
+  .pfree.full { border-color: var(--bad); color: var(--bad); }
+  .nonuc { padding: 14px; line-height: 1.5; }
+  #patchCols { position: relative; display: flex; gap: 18%; padding: 32px 10px 10px; align-items: flex-start; }
   .pcol { display: flex; flex-direction: column; gap: 8px; }
   .pcol.src { width: 34%; }
   .prules { flex: 1; display: flex; flex-direction: column; gap: 10px; }
@@ -226,7 +235,7 @@
   <div id="buildErr"></div>
 
   <h2>On this body</h2>
-  <button id="patchBtn" title="Patch sensors to parts with cables, like a modular synth">🎛 Wiring view</button>
+  <button id="patchBtn" title="Open the nucleus, the cell's brain: patch sensors to parts with cables (or tap the nucleus in the tank)">🧬 Open the nucleus (wiring)</button>
   <div id="partList"></div>
   <div id="sap"></div>
 
@@ -259,8 +268,8 @@
 </div>
 <!-- the patch view: sensors on the left, rules (AND boxes) in the middle, parts on the right; tap, tap to patch -->
 <div id="patch" hidden>
-  <div id="patchHead"><b>🎛 Wiring</b><span id="patchHint"></span><button id="patchClose" title="Close the wiring view">✕</button></div>
-  <div id="patchBody"><div id="patchArea"><svg id="patchWires"></svg><div id="patchCols"></div></div></div>
+  <div id="patchHead"><b>🧬 Nucleus</b><span id="patchHint"></span><button id="patchClose" title="Close the wiring view">✕</button></div>
+  <div id="patchBody"><div id="patchArea"><svg id="patchWires"></svg><div id="patchTray"></div><div id="patchCols"></div></div></div>
   <div id="patchEdit" hidden></div>
 </div>
 <script type="module" src="main.js"></script>

@@ -85,6 +85,11 @@ export const PARAMS = {
     cline: 0.5,             // depth of the nutricline (share of the tank)
     width: 0.08,            // how sharp it is (share of the tank)
   },
+  // The nucleus, the brain box (sim/brain.js): each brain module takes a slot of its cross-section
+  brain: {
+    slotArea: 7,            // µm² of nucleus cross-section a slot (r 3 µm: 4 slots)
+    upkeep: 1,              // pJ/s per µm³ of nucleus (as much as the body's own)
+  },
   pads: {
     stiffness: 5,           // pN/µm, the spring of a stuck pad
     kinBreak: 40,           // pN a kin pad holds before it snaps

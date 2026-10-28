@@ -2,6 +2,7 @@
 // pointing outward (or, for inclusions, inside toward that angle). `size` (0.1-1) sets an inclusion's radius
 // (share of the room inside the wall), a spine's or ejectisome's length, a proximity sensor's range. The root part
 // carries a `label`.
+import { slotsOf } from '../sim/brain.js';
 
 // Where a ray from the body centre at angle `deg` leaves the body (a capsule along x): [x, y]
 export function surfacePoint(body, deg) {
@@ -16,11 +17,16 @@ export function surfacePoint(body, deg) {
 // An inclusion inside the wall, as thick as `size` of the room, toward `deg`: `depth` 0 at the centre, 1 against the
 // wall. With `len` > 0 it is a rod (that much straight part) turned `turn` degrees from the body's axis; it sits as far
 // out as its reach in that direction allows.
-function inside(body, deg, size, depth = 1, len = 0, turn = 0) {
+// An inclusion's radius at `size` of the room inside the wall
+export function insideRadius(body, size) {
   const room = body.radius - 0.35;                          // inside the wall (0.3 µm) with a little play
   const L = body.length || 0, a = body.radius;
   const most = Math.cbrt(0.85 * (Math.PI * a * a * L + 4 / 3 * Math.PI * a ** 3) * 3 / (4 * Math.PI));  // ≤ 85% of the body
-  const r = Math.floor(Math.min(room, most) * size * 10) / 10;
+  return Math.floor(Math.min(room, most) * size * 10) / 10;
+}
+function inside(body, deg, size, depth = 1, len = 0, turn = 0) {
+  const room = body.radius - 0.35;
+  const r = insideRadius(body, size);
   const [x, y] = surfacePoint(body, deg), d = Math.hypot(x, y);
   const reach = r + (len / 2) * Math.abs(Math.cos((turn - deg) * Math.PI / 180));   // how far it sticks out toward deg
   const k = Math.max(0, d - body.radius + room - reach) / d * depth;   // how far from the centre it can sit, × depth
@@ -77,6 +83,9 @@ export const PART_TEMPLATES = {
       joint: { type: 'extend', stiffness: 20, latched: true } },
   ],
   // pigment: 'sun' (chlorophyll) or 'shade' (with phycobilins: works in dim light, deep; less on top, dearer to keep)
+  // the brain box: its size gives it slots, one for each brain module (sim/brain.js); always round
+  'Nucleus (the brain)': (body, deg, id, size, tilt, depth) =>
+    [{ type: 'inclusion', id, label: 'Nucleus', ...inside(body, deg, size, depth), material: 'nucleus' }],
   'Plastid (makes energy)': (body, deg, id, size, tilt, depth, feels, len = 0, strength, pigment = 'sun') =>
     [{ type: 'inclusion', id, label: pigment === 'shade' ? 'Shade plastid' : 'Plastid', ...inside(body, deg, size, depth, len, tilt),
       material: 'plastid', ...(pigment === 'shade' ? { pigment: 'shade' } : {}) }],
@@ -180,6 +189,7 @@ const ROD = { length: { min: 0, max: 80, step: 2, def: 0, round: true }, tilt: t
 
 // Which Build controls mean something for each part, and what Size means for it
 export const CONTROLS = {
+  'Nucleus (the brain)': { size: (s, body) => (body ? `${slotsOf(insideRadius(body, s))} slots for brain modules` : ''), inside: true, sizeDefault: 35 },
   'Vacuole (store or float)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, content: true, sizeDefault: 30, ...ROD },
   'Gas vesicles (float, crush deep)': { size: room, inside: true, strength: true, sizeDefault: 30 },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
@@ -217,7 +227,7 @@ export const CATEGORIES = {
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)', 'Stiff flap (goes nowhere)'],
   'Spines & appendages': ['Spine, protein', 'Spine, glass'],
   'Escapes': ['Burst organ (escape)'],   // the spring (template name kept so old designs edit); the ejectisome was removed
-  'Inside the cell': ['Plastid (makes energy)', 'Vacuole (store or float)'],
+  'Inside the cell': ['Nucleus (the brain)', 'Plastid (makes energy)', 'Vacuole (store or float)'],
   'Pads': ['Kin pad', 'Mucus pad'],
   'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Touch sensor', 'Proximity sensor',
     'Nutrient sensor'],

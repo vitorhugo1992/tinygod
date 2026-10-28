@@ -29,7 +29,7 @@ export function initMetab(cell) {
   for (const p of cell.pieces) if (p.kind === 'segment') add(p.part, (p.ext ? p.ext.max : p.L) * M.partUpkeep);
   for (const inc of body.inclusions) if (inc.store || ['plastid', 'gas', 'statolith'].includes(inc.material)) {
     add(inc.part, inc.v * M.insideUpkeep * (inc.material === 'plastid' && inc.pigment === 'shade' ? M.shade.upkeep : 1));
-  }
+  } else if (inc.material === 'nucleus') add(inc.part, inc.v * P.brain.upkeep);
   let upkeep = bodyUpkeep;
   for (const v of byPart.values()) upkeep += v;
   for (const inc of body.inclusions) if (inc.material === 'plastid') inc.damage = 0;

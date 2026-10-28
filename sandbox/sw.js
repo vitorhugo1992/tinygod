@@ -1,9 +1,9 @@
 // Offline: keeps a copy of the sandbox (this folder and ../sim/) so a phone that opened it once runs it with no
 // connection. Network first: online it always gets the newest files (and refreshes the copy); offline, or when the
 // network is too slow, the copy. Registered only on https (the website), not on the home server.
-const CACHE = 'tinygod-v1';
+const CACHE = 'tinygod-v2';
 const FILES = ['./', 'index.html', 'main.js', 'parts.js', 'journal.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
-  ...['params', 'rng', 'dmath', 'materials', 'build', 'physics', 'interact', 'sense', 'light', 'nutrient', 'metab', 'world',
+  ...['params', 'rng', 'dmath', 'materials', 'build', 'physics', 'interact', 'sense', 'light', 'nutrient', 'metab', 'world', 'brain',
     'presets'].map((f) => `../sim/${f}.js`)];
 
 self.addEventListener('install', (e) => {

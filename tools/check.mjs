@@ -8,6 +8,8 @@ import { MATERIALS } from '../sim/materials.js';
 import { fire } from '../sim/physics.js';
 import { clock, daylight } from '../sim/light.js';
 import { PART_TEMPLATES, mirrorGroup } from '../sandbox/parts.js';
+import { slotsOf, brainUse, brainProblem } from '../sim/brain.js';
+import { buildCell as build } from '../sim/build.js';
 
 const DT = PARAMS.time.dt;
 // A cocked spring (a latched springy joint), for the no-coasting and one-flick laws; not a part in the Build panel
@@ -813,6 +815,25 @@ const runDay = (design, y, seconds, opts = {}) => {
     `noon, held 20 µm down: damage ${fmt(top.damage)}, earns ${fmt(top.net, 0)} pJ/s after repair; 500 µm down: damage ` +
     `${fmt(mid.damage)}, ${fmt(mid.net, 0)} pJ/s. Damage left after 50 s dark: fed ${fmt(fed)}, starving ${fmt(starved)}. ` +
     `Wave tail (${tailL} µm) beating ${fmt(run1, 0)} pJ/s, resting ${fmt(rest, 0)}`);
+}
+
+// 28p. The nucleus is the brain box: a bigger one has more slots; each sensor, wired built-in reading and rule box
+// takes one; a design that needs more slots than its nucleus has, or with two nuclei, does not build
+{
+  const nucleus = (r, at = [0, 0]) => ({ type: 'inclusion', material: 'nucleus', at, radius: r });
+  const tail = (controls) => ({ type: 'segment', at: [-10, 0], angle: 180, length: 8, radius: 0.25,
+    joint: { type: 'motor', rate: 30, swing: 35, controls } });
+  const eye = { type: 'sensor', id: 'eye', at: [10, 0], kind: 'light' };
+  const rule = [{ sensor: 'eye', min: 0.1, max: 1 }, { sensor: 'energy', min: 0.2, max: 1 }, { sensor: 'starch', min: 0.5, max: 1, stop: true }];
+  const d = (r) => ({ body: { radius: 10 }, parts: [nucleus(r), eye, tail(rule)] });
+  const use = brainUse(d(3));   // eyespot, energy, starch, one GO box, the STOP box
+  const refuses = (x) => { try { build(x); return ''; } catch (e) { return e.message; } };
+  const small = refuses(d(3)), big = refuses(d(4.5)), two = refuses({ body: { radius: 10 }, parts: [nucleus(2, [-4, 0]), nucleus(2, [4, 0])] });
+  check('the nucleus is the brain box: slots grow with its size; too many modules for its slots, or two nuclei, do not build',
+    slotsOf(2) < slotsOf(3) && slotsOf(3) < slotsOf(4.5) && use.total === 5 && use.boxes === 2 && small.startsWith('nucleus full') && big === '' &&
+    two === 'a cell has one nucleus' && brainProblem({ body: { radius: 10 }, parts: [eye, tail(rule)] }) === '',
+    `slots at r 2, 3, 4.5 µm: ${slotsOf(2)}, ${slotsOf(3)}, ${slotsOf(4.5)}. Eyespot + energy + starch, a GO box and a STOP box: ` +
+    `${use.total} modules; r 3: "${small}"; r 4.5: builds; two nuclei: "${two}"`);
 }
 
 // 29. Determinism with day, metabolism and stores

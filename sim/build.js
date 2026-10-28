@@ -32,6 +32,9 @@
 // body's axis (default 0: along it); its volume, room and weight are the capsule's (its weight at its centre).
 // Gas vesicles are an inclusion (material 'gas') with a `strength` (0-1, default 0.5): stronger ones lift less but
 // survive deeper (PARAMS.gas); below their depth they are crushed for good.
+// The nucleus is an inclusion (material 'nucleus', always round), the brain box: its size gives it slots (sim/brain.js)
+// and every brain module (each sensor, each wired built-in reading, each rule box) takes one; a design whose nucleus
+// is too small, or with two, does not build.
 // Any joint can be wired to sensors: controls: [{ sensor: id, min = 0, max = 1 }, ...] (sensor 'energy': the cell's own
 // energy level, built into every cell: 0 empty, 1 full; 'starch' and 'oil': how full its stores of that kind are, 0-1; one control: { ... } is the same as a list of one). A
 // condition holds while the reading is between min and max (with not: true, while it is outside them); a compare
@@ -60,6 +63,7 @@
 import { PARAMS } from './params.js';
 import { material } from './materials.js';
 import { DEG, dlog, dcos, dsin } from './dmath.js';
+import { brainProblem } from './brain.js';
 
 const PI = Math.PI;
 const MU = PARAMS.water.viscosity;
@@ -240,8 +244,8 @@ export function buildCell(design) {
       if (mat.min !== undefined && (rho < mat.min || rho > mat.max)) throw new Error(`${part.material} density out of range`);
       // round, or a rod with rounded ends (`length` its straight part, lying `angle` degrees from the body's axis; a
       // statolith stays round, its angle being the way it reads)
-      const L = part.material === 'statolith' ? 0 : Math.max(part.length || 0, 0);
-      const ang = part.material === 'statolith' ? 0 : (part.angle || 0) * DEG;
+      const L = part.material === 'statolith' || part.material === 'nucleus' ? 0 : Math.max(part.length || 0, 0);
+      const ang = part.material === 'statolith' || part.material === 'nucleus' ? 0 : (part.angle || 0) * DEG;
       const ux = dcos(ang), uy = dsin(ang), h = L / 2;
       const ends = [[x - ux * h, y - uy * h], [x + ux * h, y + uy * h]];
       // inside the wall: each end's distance from the body's axis plus its radius (a capsule in a capsule: the ends decide)
@@ -287,6 +291,8 @@ export function buildCell(design) {
     }
   }
   if (inclusionVol > C.maxInclusionFraction * vol) throw new Error('inclusions overfill the body');
+  const brain = brainProblem(design);   // the nucleus must hold every brain module (sim/brain.js)
+  if (brain) throw new Error(brain);
 
   // Unknowns: the body's slide (x, y) and turn, then one angle per joint.
   // Each piece's columns: the unknowns that move it (its parent's, plus its own joint). Parents come first.

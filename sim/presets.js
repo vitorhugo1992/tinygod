@@ -6,8 +6,9 @@ const spines = (r, n, length, material, start = 45) => Array.from({ length: n },
 
 export const PRESETS = {
   'Round cell': {
-    note: 'A plain sphere: sinks at its Stokes speed.',
-    body: { radius: 10 }, parts: [],
+    note: 'A plain sphere with a small nucleus (its brain, 4 slots): sinks at its Stokes speed. The cell to build on.',
+    body: { radius: 10 }, parts: [{ type: 'inclusion', id: 'nucleus', label: 'Nucleus', at: [0, 0], radius: 3.3, material: 'nucleus',
+      build: { tpl: 'Nucleus (the brain)', where: 0, tilt: 0, size: 0.35, depth: 0, feels: 'strangers', flip: false, id: 'nucleus' } }],
   },
   'Spiny cell': {
     note: 'Four protein spines: about three times slower sinking.',
@@ -68,30 +69,5 @@ export const PRESETS = {
       angle: i ? 0 : 180, length: 8, radius: 0.25,
       joint: { type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 },
     }))),
-  },
-  "Vesperella (Claude's species)": {
-    note:
-      "Claude's species, a daily migrator (built from the Build panel's parts, tested over three days). By " +
-      "day it swims toward any light and rests just under the surface, its two plastids filling a starch " +
-      "granule. At dusk its eyespot goes dark, the tail stops and the starch carries it down (~600 µm by " +
-      "dawn), burned through the night; at first light it climbs back. Gas vesicles in front and starch " +
-      "behind keep it upright; the front spine balances the tail's drag so a sinking cell doesn't tip over " +
-      "like a shuttlecock (without it, it flips and never sees dawn).",
-    species: 'Vesperella',
-    body: { radius: 9 },
-    parts: [
-      { type: 'segment', id: 'tail_0', parent: 'body', at: [-9, 0], angle: 180, length: 8, radius: 0.25, material: 'protein', joint: { type: 'motor', rate: 30, swing: 35, phase: 0, controls: [{ sensor: 'eye', min: 0.05, max: 1 }, { sensor: 'energy', min: 0.2, max: 1 }] }, label: 'Wave tail', build: { tpl: 'Wave tail (swims)', where: 180, tilt: 0, size: 0.4, depth: 1, feels: 'strangers', flip: false, id: 'tail', length: 48 } },
-      { type: 'segment', id: 'tail_1', parent: 'tail_0', at: [4, 0], angle: 0, length: 8, radius: 0.25, material: 'protein', joint: { type: 'motor', rate: 30, swing: 35, phase: -0.15, controls: [{ sensor: 'eye', min: 0.05, max: 1 }, { sensor: 'energy', min: 0.2, max: 1 }] } },
-      { type: 'segment', id: 'tail_2', parent: 'tail_1', at: [4, 0], angle: 0, length: 8, radius: 0.25, material: 'protein', joint: { type: 'motor', rate: 30, swing: 35, phase: -0.3, controls: [{ sensor: 'eye', min: 0.05, max: 1 }, { sensor: 'energy', min: 0.2, max: 1 }] } },
-      { type: 'segment', id: 'tail_3', parent: 'tail_2', at: [4, 0], angle: 0, length: 8, radius: 0.25, material: 'protein', joint: { type: 'motor', rate: 30, swing: 35, phase: -0.45, controls: [{ sensor: 'eye', min: 0.05, max: 1 }, { sensor: 'energy', min: 0.2, max: 1 }] } },
-      { type: 'segment', id: 'tail_4', parent: 'tail_3', at: [4, 0], angle: 0, length: 8, radius: 0.25, material: 'protein', joint: { type: 'motor', rate: 30, swing: 35, phase: -0.6, controls: [{ sensor: 'eye', min: 0.05, max: 1 }, { sensor: 'energy', min: 0.2, max: 1 }] } },
-      { type: 'segment', id: 'tail_5', parent: 'tail_4', at: [4, 0], angle: 0, length: 8, radius: 0.25, material: 'protein', joint: { type: 'motor', rate: 30, swing: 35, phase: -0.75, controls: [{ sensor: 'eye', min: 0.05, max: 1 }, { sensor: 'energy', min: 0.2, max: 1 }] } },
-      { type: 'sensor', id: 'eye', label: 'Light sensor', at: [9, 0], angle: 0, kind: 'light', cone: 180, build: { tpl: 'Light sensor (eyespot)', where: 0, tilt: 0, size: 1, depth: 1, feels: 'strangers', flip: false, id: 'eye' } },
-      { type: 'inclusion', id: 'plastid', label: 'Plastid', at: [0, 5.75], radius: 2.9, material: 'plastid', build: { tpl: 'Plastid (makes energy)', where: 90, tilt: 0, size: 0.35, depth: 1, feels: 'strangers', flip: false, id: 'plastid' } },
-      { type: 'inclusion', id: 'plastid2', label: 'Plastid', at: [0, -5.75], radius: 2.9, material: 'plastid', build: { tpl: 'Plastid (makes energy)', where: 270, tilt: 0, size: 0.35, depth: 1, feels: 'strangers', flip: false, id: 'plastid2' } },
-      { type: 'inclusion', id: 'starch', at: [-5.25, 0], radius: 3.4, label: 'Starch granule', material: 'starch', fill: 0.5, build: { tpl: 'Vacuole (store or float)', where: 180, tilt: 0, size: 0.4, depth: 1, feels: 'strangers', flip: false, id: 'starch', content: 'starch' } },
-      { type: 'inclusion', id: 'gas', at: [5.05, 0], radius: 3.6, label: 'Gas vesicles', material: 'gas', strength: 1, build: { tpl: 'Vacuole (store or float)', where: 0, tilt: 0, size: 0.43, depth: 1, feels: 'strangers', flip: false, id: 'gas', content: 'gas', strength: 1 } },
-      { type: 'segment', id: 'anchor', label: 'Protein spine', at: [9, 0], angle: 0, length: 60, radius: 0.5, material: 'protein', build: { tpl: 'Spine, protein', where: 0, tilt: 0, size: 0.6, depth: 1, feels: 'strangers', flip: false, id: 'anchor' } },
-    ],
   },
 };

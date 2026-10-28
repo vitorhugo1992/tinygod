@@ -13,7 +13,7 @@ chronological log, newest additions last in each block.
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the phone uses http://192.168.1.69:5180/sandbox/ (home Wi-Fi; the page shows it under its title). Restart the server
-after changing tools/serve.mjs. `node tools/check.mjs`: 42 physics checks, all passing (~2 min). Check every change
+after changing tools/serve.mjs. `node tools/check.mjs`: 43 physics checks, all passing (~2 min). Check every change
 in the real page with headless Edge over the DevTools protocol at phone size (400×860) and look at screenshots.
 **The website (author, 2026-10-28):** https://vitorhugo1992.github.io/tinygod/sandbox/ (GitHub Pages from the public
 repo github.com/vitorhugo1992/tinygod, branch main, root). **Push after every finished step** (`git push`) so the
@@ -26,7 +26,8 @@ its own saved designs).
 
 **The sandbox today, in short:** a still 2 mm tank with light from above and a 10-minute day. Build a cell from parts:
 flagella (wave tail, with Pull; flexible oar; stiff flap; Length; Flip; mirror copies), spines, an escape (the spring), inside (plastid Sun / Shade; one Vacuole part with Content Starch / Oil / Sap / Gas; any of them round or
-a rod), pads, sensors (eyespot, statolith, touch, proximity, nutrients; built-in energy, starch and oil levels).
+a rod), pads, sensors (eyespot, statolith, touch, proximity, nutrients; built-in energy, starch and oil levels), and the
+**nucleus**, the brain box (below).
 Each moving part has a **rule card**: GO when / OR GO when / STOP if (the override), conditions "above / below /
 between / outside" or "more / less than" another sensor, and a BEAT SPEED that can follow a reading either way; the
 🎛 Wiring view shows the same rules as a modular synth (GO boxes, a red STOP box). Metabolism v0 (energy, upkeep,
@@ -71,8 +72,24 @@ oar, starch, gas, plastid, energy level. Also: size buys nothing yet (bigger onl
 score; energy is the only currency. **The timer was removed** (author, 2026-10-24); designs saved with one load with
 it stripped and its cables unplugged.
 
-**Queue:** the **nucleus** as the cell's brain box (decided, waiting for a go: every module inside it, cables only
-inside, tapping it opens the wiring view; see Notes to carry). Not wanted now: memory switch, light-change sensor
+**The nucleus, the brain box (built 2026-10-28; author: "the brain box will shape much of the users' builds").**
+sim/brain.js, PARAMS.brain. An inclusion (Inside the cell → Nucleus, always round, drawn like a real nucleus: violet,
+envelope, chromatin specks, nucleolus; density 1100, upkeep 1 pJ/s per µm³). Its cross-section gives it **slots**
+(7 µm² each: r 3.3 µm = 4 slots, the Size slider says so). **What takes a slot (author chose A):** every sensor on the
+cell, every built-in reading once wired (energy, starch, oil, health), every rule box (each GO box, a part's STOP box);
+cables are free. buildCell refuses a design that needs more slots ("nucleus full: 5 modules, 4 slots. Make it
+bigger"), or two nuclei, so the ghost turns red and wiring is refused with the same words. **No nucleus = no brain:**
+the sandbox drops the wiring (every part runs; Undo brings it back) and the rule cards say why; the physics itself
+still reads wiring on any cell (the checks rely on it). **Opening it:** tap the nucleus in the tank, or 🧬 Open the
+nucleus under On this body: the wiring view drawn as the nucleus opened up, a **rectangular box** (author: rectangle for
+space efficiency) labelled "NUCLEUS · 2 of 4 slots" holding the sensor modules and rule boxes, free slots dashed, the
+parts it drives outside at the rim, unwired built-in readings in an "available" tray above. Modules arrange themselves
+for now (phones); **later: drag modules into the box by hand, fully customisable** (author: "dragging is part of its
+puzzle-like charm"). Every new cell (Round cell) starts with a 4-slot nucleus. **Old designs deleted** (author: "forget
+the old designs"): the Vesperella preset and its first-visit seeding, designs/my_species_*.json; designs/index.json is
+empty. Not yet: a size cap unlocked by progress; cables costing upkeep (open).
+**Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
+research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith
 plates (Emiliania huxleyi), grazing, peduncle (latch and drain another cell; was offered for now, not picked yet), pads
 that sense and attract, progress as upgrades for the next design (no mutations), moving water, seasons, tips while

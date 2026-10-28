@@ -7,6 +7,7 @@ import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
+import { brainUse, brainProblem, nucleiOf, slotsOf, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast } from './journal.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
@@ -19,6 +20,7 @@ const COLOR = {
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
+  nucleus: 'rgba(176,150,214,.55)', envelope: '#c9b6ea', chromatin: 'rgba(92,70,140,.8)', nucleolus: '#5b467f',
   statolith: 'rgba(200,215,230,.35)', grain: '#e8eef5', gas: '#cfe9ff', crushed: '#6b7680', chem: '#c8b26a',
   plastid: '#8fc94a', plastidShade: '#c45a7c', starch: '#ece3c4', starving: '#ff5a4a', eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
@@ -36,10 +38,12 @@ const savedGroup = document.createElement('optgroup'); savedGroup.label = 'Saved
 // each preset is its own species, so kin pads only hold copies of the same design
 const preset = (name) => Object.assign(JSON.parse(JSON.stringify(PRESETS[name])), { species: name });
 
-// Designs saved earlier: a burst organ is now called a spring; timers (removed 2026-10-24) are dropped and every
-// cable from them unplugged
+// Every design as it goes into the tank: a cell without a nucleus has no brain, so its wiring is dropped (every part
+// simply runs; Undo brings it back after removing the nucleus). Designs saved earlier: a burst organ is now called a
+// spring; timers (removed 2026-10-24) are dropped and every cable from them unplugged.
 function withoutTimers(d) {
   for (const p of d.parts || []) if (p.label === 'Burst organ') p.label = 'Spring';   // renamed (author, 2026-10-28)
+  if (!nucleiOf(d).length) for (const p of d.parts || []) if (p.joint) { delete p.joint.controls; delete p.joint.control; delete p.joint.speed; }
   const gone = new Set((d.parts || []).filter((p) => p.type === 'sensor' && p.kind === 'timer').map((p) => p.id));
   if (!gone.size) return d;
   d.parts = d.parts.filter((p) => !gone.has(p.id));
@@ -148,7 +152,7 @@ const showTilt = () => { $('partTiltOut').textContent = `${$('partTilt').value}�
 $('partTilt').oninput = showTilt; showTilt();
 const showSize = () => {
   const what = (CONTROLS[$('partWhat').value] || {}).size;
-  $('partSizeOut').textContent = what ? what(Number($('partSize').value) / 100) : '';
+  $('partSizeOut').textContent = what ? what(Number($('partSize').value) / 100, design && design.body) : '';
 };
 $('partSize').oninput = showSize;
 const showInside = () => { $('partInsideOut').textContent = `${$('partInside').value}%`; };
@@ -410,12 +414,13 @@ function fromShape(shape) {
   return out;
 }
 function setRules(targets, next) {
-  if (next.some((c) => c.vs === undefined && !(c.min <= c.max))) { $('buildErr').textContent = 'a range must run from low to high'; return; }
-  $('buildErr').textContent = '';
-  remember(design);
+  if (next.some((c) => c.vs === undefined && !(c.min <= c.max))) { $('buildErr').textContent = 'a range must run from low to high'; return false; }
   // only true marks are stored, and the first GO condition never starts a new group
   const clean = next.map((c) => ({ sensor: c.sensor, ...(c.vs !== undefined ? { vs: c.vs } : { min: c.min, max: c.max }),
     ...(c.not ? { not: true } : {}), ...(c.or && !c.stop ? { or: true } : {}), ...(c.stop ? { stop: true } : {}) }));
+  if (!brainFits(targets, (j) => { if (clean.length) j.controls = clean; else delete j.controls; })) return false;
+  $('buildErr').textContent = '';
+  remember(design);
   for (const m of targets) {
     const k = design.parts.indexOf(m);
     delete m.joint.control;
@@ -424,6 +429,17 @@ function setRules(targets, next) {
   }
   $('json').value = JSON.stringify(design, null, 2);
   listParts();
+  return true;
+}
+// Would the nucleus still hold every module with this change to the targets' joints? If not, say so and refuse
+function brainFits(targets, change) {
+  const trial = JSON.parse(JSON.stringify(design));
+  for (const m of targets) { const j = trial.parts[design.parts.indexOf(m)].joint; delete j.control; change(j); }
+  const full = !nucleiOf(design).length ? 'this cell has no nucleus: add one (Inside the cell) to wire it' : brainProblem(trial);
+  if (!full) return true;
+  $('buildErr').textContent = full;
+  if (patchOpen) { drawPatch(); $('patchHint').textContent = `🧬 ${full}${full.startsWith('nucleus') ? ' (edit the nucleus under On this body)' : ''}`; }
+  return false;
 }
 const freshRule = (id) => ({ sensor: id, min: RANGE[sensorKind(id)][0], max: RANGE[sensorKind(id)][1], not: false });
 
@@ -537,6 +553,10 @@ function ruleCard(targets) {
   card.className = 'wire rcard';
   const head = (text, cls = '') => { const h = document.createElement('div'); h.className = `rhead ${cls}`; h.textContent = text; card.appendChild(h); };
   const button = (text, title, onclick) => { const b = document.createElement('button'); b.className = 'addcond'; b.textContent = text; b.title = title; b.onclick = onclick; card.appendChild(b); };
+  if (!nucleiOf(design).length) {   // no brain: nothing to wire with
+    head(`${H[3].split(' (')[0]}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to wire it`, 'dim');
+    return card;
+  }
   if (!shape.groups.length && !shape.stops.length) head(H[3], 'dim');
   shape.groups.forEach((g, gi) => {
     head(gi ? H[1] : H[0]);
@@ -579,6 +599,7 @@ function ruleLive() {
 // ----- beat speed: always full, or following a reading (up: stopped at the low end, full at the high end; down: the
 // other way round) -----
 function setSpeed(targets, speed) {
+  if (!brainFits(targets, (j) => { if (speed) j.speed = { ...speed }; else delete j.speed; })) { listParts(); return; }
   remember(design);
   for (const m of targets) {
     if (speed) m.joint.speed = { ...speed }; else delete m.joint.speed;
@@ -639,16 +660,40 @@ let patchOpen = false;
 let patchPick = null;   // the sensor id picked, waiting for where to patch it
 let patchEdit = null;   // { t: target index } whose rule card is open underneath
 let patchTargets = [];  // [{ name, members, verb, rules }] as drawn
+let patchRoom = null;   // { used, slots } of the nucleus as drawn
 const PATCH_HINT = 'tap a sensor, then a box (GO, or the red STOP) · tap a part or a cable to edit its rule';
 $('patchBtn').onclick = () => { patchOpen = true; $('patch').hidden = false; patchPick = null; patchEdit = null; drawPatch(); };
 $('patchClose').onclick = () => { patchOpen = false; $('patch').hidden = true; };
 function drawPatch() {
   if (!patchOpen) return;
-  const cols = $('patchCols');
-  cols.innerHTML = '';
+  const cols = $('patchCols'), tray = $('patchTray');
+  cols.innerHTML = ''; tray.innerHTML = '';
+  const nuc = nucleiOf(design)[0];
+  if (!nuc) {
+    $('patchHint').textContent = '';
+    cols.innerHTML = '<div class="pval nonuc">This cell has no nucleus, so no brain: every part runs all the time. Add a 🧬 Nucleus (Inside the cell) to wire it.</div>';
+    patchTargets = []; patchRoom = null; layoutWires(); showPatchEdit(); return;
+  }
+  // the box: the nucleus opened up, one slot a module (sensors, wired built-in readings, rule boxes); modules arrange
+  // themselves for now (dragging them in by hand comes later)
+  const use = brainUse(design), slots = slotsOf(nuc.radius);
+  patchRoom = { used: use.total, slots };
   $('patchHint').textContent = patchPick ? `now tap a GO box, the red STOP box, or a part, to patch ${ICON[sensorKind(patchPick)]} into` : PATCH_HINT;
+  const inBrain = (s) => !BUILT_INS.includes(s.id) || use.builtins.includes(s.id);
+  const all = sensorList(), spare = all.filter((s) => !inBrain(s));
+  if (spare.length) {   // built-in readings not wired yet: outside the box until patched in
+    const lab = document.createElement('span'); lab.className = 'pval'; lab.textContent = 'available:';
+    tray.appendChild(lab);
+    for (const s of spare) {
+      const m = document.createElement('div');
+      m.className = 'pmod spare' + (patchPick === s.id ? ' picked' : ''); m.title = `${SCALE[s.kind]} (patched in, it takes a slot)`;
+      m.innerHTML = `<span class="pname">${ICON[s.kind]} ${s.short}</span>`;
+      m.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; drawPatch(); };
+      tray.appendChild(m);
+    }
+  }
   const src = document.createElement('div'); src.className = 'pcol src';
-  for (const s of sensorList()) {
+  for (const s of all.filter(inBrain)) {
     const m = document.createElement('div');
     m.className = 'pmod srcmod' + (patchPick === s.id ? ' picked' : ''); m.dataset.src = s.id;
     m.title = SCALE[s.kind];
@@ -657,6 +702,13 @@ function drawPatch() {
     m.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; drawPatch(); };
     src.appendChild(m);
   }
+  const free = Math.max(0, slots - use.total);
+  for (let i = 0; i < Math.min(free, 6); i++) {
+    const f = document.createElement('div'); f.className = 'pfree';
+    f.textContent = i === 5 && free > 6 ? `+${free - 5} free slots` : 'free slot';
+    src.appendChild(f);
+  }
+  if (!free) { const f = document.createElement('div'); f.className = 'pfree full'; f.textContent = 'full: a bigger nucleus has more slots'; src.appendChild(f); }
   const rules = document.createElement('div'); rules.className = 'prules';
   patchTargets = partGroups(design.parts || []).map((g) => ({ g, members: targetsOf(g) })).filter((t) => t.members.length)
     .map((t) => ({ name: `${t.g.name} at ${t.g.deg}°`, members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]), icon: '' }));
@@ -755,6 +807,19 @@ function layoutWires() {
     }
   });
   // labels meet where cables converge: keep them at least a label's height apart, in cable order
+  // the nucleus: a box round its modules and rule boxes (the parts it drives sit outside, in the cell)
+  const inner = [...area.querySelectorAll('.srcmod, .pfree, .pmod.box')].map((el) => el.getBoundingClientRect());
+  if (inner.length && patchRoom) {
+    const l = Math.min(...inner.map((r) => r.left)) - base.left - 8, t = Math.min(...inner.map((r) => r.top)) - base.top - 22;
+    const rr = Math.max(...inner.map((r) => r.right)) - base.left + 10, b = Math.max(...inner.map((r) => r.bottom)) - base.top + 8;
+    const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    Object.entries({ x: l, y: t, width: rr - l, height: b - t, rx: 10, class: 'nucbox' }).forEach(([k, v]) => box.setAttribute(k, v));
+    svg.prepend(box);
+    const lab = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    Object.entries({ x: l + 10, y: t + 15, class: 'nuclab' }).forEach(([k, v]) => lab.setAttribute(k, v));
+    lab.textContent = `🧬 NUCLEUS · ${patchRoom.used} of ${patchRoom.slots} slots`;
+    svg.appendChild(lab);
+  }
   const chips = [...area.querySelectorAll('.pchip')].sort((p, q) => p.dataset.y - q.dataset.y);
   let last = -Infinity;
   for (const c of chips) { const y = Math.max(Number(c.dataset.y), last + 18); c.style.top = `${y}px`; last = y; }
@@ -1283,13 +1348,6 @@ $('deleteSaved').onclick = () => {
   if (!name || !confirm(`Delete the saved design "${name}"?`)) return;
   writeSaved(savedList().filter((x) => x.name !== name)); showSaved();
 };
-// the first visit in a browser: Claude's species starts in the saved designs, to load and edit
-try {
-  if (localStorage.getItem(SAVE_KEY) === null) {
-    const v = JSON.parse(JSON.stringify(PRESETS["Vesperella (Claude's species)"])); delete v.species; delete v.note;
-    writeSaved([{ name: "Vesperella (Claude's)", design: v, saved: Date.now() }]);
-  }
-} catch (e) { /* no storage here: it stays in the Add-cell menu */ }
 showSaved();
 // From Claude: the designs Claude left in designs/ go into the saved designs (same name: replaced)
 // (at home from the sandbox server; elsewhere, as on the website, from designs/index.json published with the sandbox)
@@ -1477,6 +1535,18 @@ function plastidColor(inc) {
   const mix = (a, z) => Math.round(a + (z - a) * t);
   return `rgb(${mix(r, 236)},${mix(g, 228)},${mix(b, 170)})`;
 }
+// The nucleus: a pale violet sphere in its envelope, specks of chromatin and a dark nucleolus (they turn with the cell)
+function drawNucleus(ix, iy, inc, X, Y, s, rot) {
+  const r = Math.max(inc.r * s, 2), cx = X(ix), cy = Y(iy);
+  ctx.fillStyle = COLOR.nucleus; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = COLOR.envelope; ctx.lineWidth = Math.max(1, 0.25 * s); ctx.stroke();
+  ctx.fillStyle = COLOR.chromatin;
+  for (const [a, d] of [[0.6, 0.6], [2.1, 0.66], [3.4, 0.45], [4.6, 0.7], [5.5, 0.35], [1.3, 0.25]]) {
+    ctx.beginPath(); ctx.arc(cx + Math.cos(a - rot) * d * r, cy + Math.sin(a - rot) * d * r, Math.max(r * 0.07, 0.8), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = COLOR.nucleolus;
+  ctx.beginPath(); ctx.arc(cx + Math.cos(-0.7 - rot) * 0.3 * r, cy + Math.sin(-0.7 - rot) * 0.3 * r, r * 0.26, 0, Math.PI * 2); ctx.fill();
+}
 // Gas vesicles: a cluster of small bubbles, fewer as they wear out; crushed, flat grey dashes
 function drawGas(ix, iy, inc, X, Y, s, rot = 0) {
   const per = 7, hh = inc.h || 0, groups = 1 + Math.round(2 * hh / Math.max(inc.r, 0.1));   // a cluster per stretch of rod
@@ -1533,6 +1603,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
       const r = inc.r, a = c.phi[i] + (inc.ang || 0);
       if (inc.store) { drawLevel(ix, iy, inc, X, Y, s, a); continue; }   // a container, filled as far as it is full
       if (inc.material === 'gas') { drawGas(ix, iy, inc, X, Y, s, a); continue; }
+      if (inc.material === 'nucleus') { drawNucleus(ix, iy, inc, X, Y, s, a); continue; }
       ctx.fillStyle = inc.pumpable ? sapColor(inc) : inc.material === 'plastid' ? plastidColor(inc) : COLOR[inc.material];
       if (r > 0.02) { incPath(X(ix), Y(iy), inc, s, a); ctx.fill(); }
       if (inc.material === 'statolith') {   // the grain lies on the chamber's lower wall (in the middle with gravity off)
@@ -1688,6 +1759,7 @@ canvas.addEventListener('pointerdown', (e) => {
   const [wx, wy] = toWorld(e);
   const s = Number($('zoom').value);
   const hit = world.cells.find((c) => Math.hypot(c.q[0] - wx, c.q[1] - wy) < c.pieces[0].a + c.pieces[0].L / 2 + 6 / s);
+  tap = hit ? { x: e.clientX, y: e.clientY, cell: hit, wx, wy, r: 4 / s } : null;
   if (hit) {
     if (hit !== cell) select(hit);
     drag = { cell: hit, dx: hit.q[0] - wx, dy: hit.q[1] - wy, view: $('viewMode').value };
@@ -1717,10 +1789,20 @@ window.addEventListener('pointermove', (e) => {
   const s = Number($('zoom').value);
   cam = { x: drag.cam.x - (e.clientX - drag.x) / s, y: drag.cam.y + (e.clientY - drag.y) / s };
 });
+// a tap (no drag) on the selected cell's nucleus opens the wiring view: the nucleus opened up
+let tap = null;
+function tappedNucleus(t, e) {
+  if (!t || Math.hypot(e.clientX - t.x, e.clientY - t.y) > 8) return false;
+  const c = t.cell;
+  return c.pieces[0].inclusions.some((inc) => inc.material === 'nucleus' &&
+    Math.hypot(c.cx[0] + c.cs[0] * inc.x - c.sn[0] * inc.y - t.wx, c.cy[0] + c.sn[0] * inc.x + c.cs[0] * inc.y - t.wy) < inc.r + t.r);
+}
 function lift(e) {
   touches.delete(e.pointerId);
   if (touches.size < 2) pinch = null;
   if (touches.size > 0) return;
+  if (tap && tap.cell === cell && tappedNucleus(tap, e)) $('patchBtn').onclick();
+  tap = null;
   if (drag && drag.cell) $('viewMode').value = drag.view;
   drag = null;
 }
@@ -1763,7 +1845,7 @@ const SHORT = {
   'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Spring',
   'Ejectisome, latched (Release)': 'Ejectisome', 'Oil droplet': 'Oil droplet',
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
-  'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
+  'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity',
   'Gas vesicles (float, crush deep)': 'Gas vesicles', 'Statolith (which way is up)': 'Statolith',
   'Nutrient sensor': 'Nutrients', 'Vacuole (store or float)': 'Vacuole',
