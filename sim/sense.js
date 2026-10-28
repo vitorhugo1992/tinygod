@@ -24,7 +24,7 @@ import { fire } from './physics.js';
 import { lightAt } from './light.js';
 import { nutrientAt } from './nutrient.js';
 
-const S = PARAMS.sensor;
+const S = PARAMS.sensor, CH = PARAMS.chamber;
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 
 // Distance from (x, y) to the nearest surface it feels (other cells' pieces; with `anything`, also kin and the
@@ -83,7 +83,9 @@ function holds(ctl, v) {
 // keeps its own hysteresis state.
 // A rule: GO conditions in groups (AND inside a group, OR between groups; none: always), and STOP conditions, any one of
 // which stops the part whatever the GO groups say (the override).
-function holdsAll(world, cell, controls) {
+function holdsAll(world, cell, controls) { const r = ruleState(world, cell, controls); return (r.any ? r.go : true) && !r.stop; }
+// The rule's two halves: do its GO groups hold (any: are there any), and does a STOP condition hold?
+function ruleState(world, cell, controls) {
   let all = false, group = true, any = false, stop = false;   // all: an earlier group held; group: this one so far
   for (const ctl of controls) {
     const read = (k) => reading(world, cell, k);
@@ -94,7 +96,7 @@ function holdsAll(world, cell, controls) {
     any = true;
     if (!ok) group = false;
   }
-  return (any ? all || group : true) && !stop;
+  return { any, go: any && (all || group), stop };
 }
 
 export function sense(world, cell) {
@@ -134,5 +136,11 @@ export function sense(world, cell) {
     if (j.burst) { if (all) fire(cell, j.burst.group); }   // a burst organ fires when its sensors say so
     else if (j.type === 'motor') j.on = all;
     else if (j.latched && all) j.latched = false;   // a trigger: released once, the first time they all hold
+  }
+  // buoyancy chambers: SINK if wins, then FLOAT when; neither: neutral
+  for (const inc of cell.pieces[0].inclusions) {
+    if (inc.material !== 'chamber') continue;
+    const r = inc.controls ? ruleState(world, cell, inc.controls) : { go: false, stop: false };
+    inc.target = r.stop ? CH.heavy : r.go ? CH.light : CH.neutral;
   }
 }

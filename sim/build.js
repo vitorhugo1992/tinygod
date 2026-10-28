@@ -30,8 +30,9 @@
 // a lower top output, more upkeep; PARAMS.metab.shade).
 // An inclusion can be a rod: `length` µm of straight part between its rounded ends, lying `angle` degrees from the
 // body's axis (default 0: along it); its volume, room and weight are the capsule's (its weight at its centre).
-// Gas vesicles are an inclusion (material 'gas') with a `strength` (0-1, default 0.5): stronger ones lift less but
-// survive deeper (PARAMS.gas); below their depth they are crushed for good.
+// A buoyancy chamber is an inclusion (material 'chamber') with a rule in `joint: { type: 'chamber', controls }`: its GO
+// conditions are FLOAT when (it pumps itself light), its STOP conditions SINK if (heavy; sinking wins); neither: neutral
+// (seawater's density: no lift, no cost). PARAMS.chamber.
 // The nucleus is an inclusion (material 'nucleus', always round), the brain box: its size gives it slots (sim/brain.js)
 // and every brain module (each sensor, each wired built-in reading, each rule box) takes one; a design whose nucleus
 // is too small, or with two, does not build.
@@ -156,6 +157,9 @@ export const controlsOf = (j) => (j.controls ? j.controls : j.control ? [j.contr
 
 // Rewire a living cell's joints that came from design part `partIndex` (an empty list: unwire), without rebuilding it
 export function rewire(cell, partIndex, controls) {
+  for (const inc of cell.pieces[0].inclusions) if (inc.part === partIndex && inc.material === 'chamber') {
+    if (controls.length) inc.controls = controls.map((c) => resolveControl(cell.sensors, c)); else delete inc.controls;
+  }
   for (const j of cell.joints) {
     if (j.part !== partIndex) continue;
     if (controls.length) j.controls = controls.map((c) => resolveControl(cell.sensors, c));
@@ -238,9 +242,7 @@ export function buildCell(design) {
       if (host.kind !== 'body') throw new Error('inclusions go inside the body');
       const r = part.radius, mat = material(part.material);
       const fill = mat.store ? Math.min(Math.max(part.fill ?? 1, 0), 1) : 1;
-      const strength = Math.min(Math.max(part.strength ?? 0.5, 0), 1);
-      const rho = part.density !== undefined ? part.density
-        : mat.gas ? PARAMS.gas.weak + (PARAMS.gas.strong - PARAMS.gas.weak) * strength : mat.density;
+      const rho = part.density !== undefined ? part.density : mat.density;
       if (mat.min !== undefined && (rho < mat.min || rho > mat.max)) throw new Error(`${part.material} density out of range`);
       // round, or a rod with rounded ends (`length` its straight part, lying `angle` degrees from the body's axis; a
       // statolith stays round, its angle being the way it reads)
@@ -266,11 +268,8 @@ export function buildCell(design) {
       host.inclusions.push({ x, y, r, v, wpt, L, ang, ux, uy, h, pigment: part.pigment === 'shade' ? 'shade' : 'sun', material: part.material, density: rho, target: rho,
         pumpable: mat.min !== undefined, min: mat.min, max: mat.max, store: mat.store, fill,
         part: design.parts.indexOf(part) });
-      if (mat.gas) {   // crushed below this depth (µm from the surface)
-        const S = PARAMS.gas;
-        Object.assign(host.inclusions[host.inclusions.length - 1],
-          { crush: PARAMS.tank.h * (S.shallowest + (1 - S.shallowest) * strength), crushed: false });
-      }
+      // a buoyancy chamber's rule (FLOAT when: its GO conditions; SINK if: its STOP ones), kept like a part's joint's
+      if (part.material === 'chamber' && part.joint && controlsOf(part.joint).length) controls.push([host.inclusions[host.inclusions.length - 1], controlsOf(part.joint)]);
       if (part.material === 'statolith') sensors.push({ id: part.id, piece: parent, x, y, kind: 'statolith',
         facing: (part.angle || 0) * DEG, r, value: 0.5, part: design.parts.indexOf(part) });
     } else if (part.type === 'sensor') {

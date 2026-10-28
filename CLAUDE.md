@@ -13,7 +13,7 @@ chronological log, newest additions last in each block.
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the phone uses http://192.168.1.69:5180/sandbox/ (home Wi-Fi; the page shows it under its title). Restart the server
-after changing tools/serve.mjs. `node tools/check.mjs`: 43 physics checks, all passing (~2 min). Check every change
+after changing tools/serve.mjs. `node tools/check.mjs`: 41 physics checks, all passing (~2 min). Check every change
 in the real page with headless Edge over the DevTools protocol at phone size (400×860) and look at screenshots.
 **The website (author, 2026-10-28):** https://vitorhugo1992.github.io/tinygod/sandbox/ (GitHub Pages from the public
 repo github.com/vitorhugo1992/tinygod, branch main, root). **Push after every finished step** (`git push`) so the
@@ -115,7 +115,7 @@ still show theirs). One **Spine** with a Material row (protein / glass), one **P
 kin / anything = mucus), one **Feeler** (Range at its least: touch only; wider: feels within N µm, the old proximity
 sensor). Hidden from the Build panel (old designs still edit): the stiff flap (a lesson; a tip later) and the nutrient
 sensor (no use until step 1). Build panel: 11 buttons.
-**Agreed next, each waiting for a go (author, 2026-10-28):** (1) the **buoyancy chamber**: replaces the sap vacuole
+**Agreed next (author, 2026-10-28):** (1) the **buoyancy chamber** (BUILT, see below; the plan as agreed): replaces the sap vacuole
 and removes gas vesicles entirely; three states, light (~1000 kg/m³) / neutral (1025, seawater: no effect, no cost) /
 heavy (~1070, to sink on purpose); holding light or heavy costs energy in proportion to size and distance from
 neutral (~5% of income for a mid-size one held light all day); ~20 s to change; rule card FLOAT when… / SINK when…,
@@ -128,6 +128,18 @@ Claude was asked to make it survive the night, then told to stop (author: "don't
 complicated rabbit holes without telling me"). Found: income ~1,400 vs upkeep ~5,400 pJ/s; a STOP "starch below 30%"
 blocked the dawn climb; oars below outdragged spines above, so it flipped sinking; and a sandbox bug (fixed: a range
 from 0.03 held on in total darkness). **Lesson for Claude: tell the author before long searches; never brute-force.**
+**The buoyancy chamber (built 2026-10-28).** Material 'chamber' (sim/materials.js; PARAMS.chamber), a part under Inside
+the cell, round or a rod. Three states, pumped at 10 kg/m³ per s: **light 900** (made playable: the cytoplasm is 1060,
+so at 1000 a chamber had to be two-thirds of the cell to lift it; at 900 a quarter does), **neutral 1025** (seawater:
+no lift, no cost), **heavy 1100**. Holding it away from neutral costs PARAMS.chamber.hold 0.004 pJ/s per µm³ per kg/m³
+(a chamber r 6.5 in a r 10 cell: 575 pJ/s light, 345 heavy). Its rule is stored like a part's: joint: { type:
+'chamber', controls } on the inclusion; the card reads FLOAT when… (GO groups) / SINK if… (STOP: sinking wins); neither:
+neutral. Starving, it drifts neutral. Measured (r 6.5 in r 10, no other parts): neutral sinks 5.9 µm/s, light rises
+1.1 µm/s, heavy sinks 10 µm/s. Drawn pale when light, deep blue when heavy; the nucleus box shows FLOAT / SINK /
+neutral; the budget "holding the buoyancy chamber"; the day graph's "float" line is the chamber's state. **Energy
+store** is its own part (Starch / Oil). **Removed:** gas vesicles entirely (material, crush, wear and rebuild, drawing,
+log entry, PARAMS.gas, two checks) and the sap vacuole and its slider (check 14 now tests the chamber). **The starting
+nucleus now sits at the bottom** (at the centre it blocked anything bigger than a quarter of the room). Checks: 41.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

@@ -58,14 +58,14 @@ const sphere = (radius, wall = 'protein') => ({ body: { radius, wall }, parts: [
   check('sphere sinks at Stokes speed; speed ∝ size² × density excess', ok, rows.join('\n      '));
 }
 
-// 2. Density excess: a glass wall sinks faster, an oil droplet slows it, a big light sap vacuole floats
+// 2. Density excess: a glass wall sinks faster, an oil droplet slows it, a big light buoyancy chamber floats
 {
   const plain = sinking(run(sphere(20), 1));
   const glass = sinking(run(sphere(20, 'glass'), 1));
   const oil = sinking(run({ body: { radius: 20 }, parts: [{ type: 'inclusion', at: [0, 0], radius: 10, material: 'oil' }] }, 1));
-  const sap = sinking(run({ body: { radius: 20 }, parts: [{ type: 'inclusion', at: [0, 0], radius: 18, material: 'sap', density: 1005 }] }, 1));
+  const sap = sinking(run({ body: { radius: 20 }, parts: [{ type: 'inclusion', at: [0, 0], radius: 18, material: 'chamber', density: 900 }] }, 1));
   check('wall and inclusions change sinking through density', glass > plain && oil < plain && sap < 0,
-    `protein ${fmt(plain)}, glass wall ${fmt(glass)}, oil droplet ${fmt(oil)}, light sap vacuole ${fmt(sap)} µm/s (negative rises)`);
+    `protein ${fmt(plain)}, glass wall ${fmt(glass)}, oil droplet ${fmt(oil)}, light chamber ${fmt(sap)} µm/s (negative rises)`);
 }
 
 // 3. Spines slow sinking (drag), even glass ones that add weight, if long and thin enough
@@ -240,23 +240,27 @@ const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
     `30 µm ribbon, k 5/20/80: ${r.map((x) => fmt(x.d, 3)).join(' / ')} µm (cell 12 µm across); 60 µm ribbon: ${fmt(long.d, 2)} µm`);
 }
 
-// 14. A sap vacuole pumped lighter than seawater turns a sinking cell into a rising one, slowly, at a cost
+// 14. A buoyancy chamber: neutral (no rule) the cell sinks as it would and the chamber costs nothing; FLOAT when its rule
+// holds, it pumps itself light over some seconds and the cell rises; SINK if (which wins) heavy, it sinks faster; held
+// light or heavy it costs energy every second
 {
-  const w = makeWorld(1);
-  const c = addCell(w, copy('Sap vacuole'), 300, 1000, 0);
-  for (let i = 0; i < 1000; i++) stepWorld(w);
-  const sinkBefore = 1000 - c.q[1];
-  const inc = c.pieces[0].inclusions[0];
-  inc.target = 1005;
-  let tFloat = null;
-  for (let i = 0; i < 40000; i++) { const y = c.q[1]; stepWorld(w); if (tFloat === null && c.q[1] > y) tFloat = (i + 1) * DT; }
-  const y0 = c.q[1];
-  for (let i = 0; i < 1000; i++) stepWorld(w);
-  const rise = c.q[1] - y0;
-  check('pumping a sap vacuole light makes a sinking cell rise, after a delay, at an energy cost',
-    sinkBefore > 0 && rise > 0 && tFloat > 1 && c.energy.pump > 0,
-    `sinks ${fmt(sinkBefore)} µm/s at 1025; pumped to 1005 it starts rising after ${fmt(tFloat, 1)} s and rises ` +
-    `${fmt(rise)} µm/s; pumping cost ${fmt(c.energy.pump / 1000, 1)} fJ`);
+  const always = { sensor: 'energy', min: 0, max: 1 };
+  const go = (rule) => {
+    const w = makeWorld(1, { metab: true });
+    const c = addCell(w, { body: { radius: 10 }, parts: [{ type: 'inclusion', at: [0, 0], radius: 6.5, material: 'chamber',
+      ...(rule ? { joint: { type: 'chamber', controls: rule } } : {}) }] }, 300, 1000, 0);
+    c.metab.C = c.metab.E = 1e12;
+    let tTurn = null;
+    for (let i = 0; i < 30000; i++) { const y = c.q[1]; stepWorld(w); if (tTurn === null && i > 10 && c.q[1] > y) tTurn = (i + 1) * DT; }
+    const y0 = c.q[1];
+    for (let i = 0; i < 1000; i++) stepWorld(w);
+    return { v: c.q[1] - y0, hold: c.metab.chamber, rho: c.pieces[0].inclusions[0].density, tTurn };
+  };
+  const neutral = go(null), up = go([always]), down = go([always, { ...always, stop: true }]);
+  check('a buoyancy chamber: neutral it costs nothing; FLOAT pumps it light and the cell rises; SINK (winning) sinks it faster; held, it costs',
+    neutral.v < 0 && neutral.hold === 0 && up.v > 0 && up.tTurn > 1 && up.hold > 0 && down.v < neutral.v && down.hold > 0 && down.rho === PARAMS.chamber.heavy,
+    `neutral: ${fmt(neutral.v)} µm/s, holding ${fmt(neutral.hold, 0)} pJ/s; FLOAT: rises ${fmt(up.v)} µm/s (turned after ${fmt(up.tTurn, 1)} s), ` +
+    `${fmt(up.hold, 0)} pJ/s; FLOAT and SINK both: ${fmt(down.v)} µm/s at ${down.rho} kg/m³, ${fmt(down.hold, 0)} pJ/s`);
 }
 
 // 15. Cells don't pass through each other: one dropped on another settles touching it
@@ -319,7 +323,7 @@ const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
     addCell(w, copy('Mucus hitchhiker'), 250, 1000, 0);
     addCell(w, copy('Kin chain'), 300, 1000, 90);
     addCell(w, copy('Kin chain'), 300, 1023, 90);
-    addCell(w, copy('Sap vacuole'), 380, 1000, 0);
+    addCell(w, { body: { radius: 20 }, parts: [{ type: 'inclusion', at: [0, 0], radius: 18.5, material: 'chamber' }] }, 380, 1000, 0);
     for (let i = 0; i < 5000; i++) stepWorld(w);
     return new Uint8Array(Float64Array.from(w.cells.flatMap((c) => Array.from(c.q))).buffer);
   };
@@ -419,7 +423,7 @@ const eyeTail = (min, max) => ({
 {
   const tryBuild = (parts) => { try { addCell(makeWorld(1), { body: { radius: 10 }, parts }, 300, 1000); return 'built'; } catch (e) { return e.message; } };
   const apart = tryBuild([{ type: 'inclusion', at: [4.5, 0], radius: 4, material: 'oil' }, { type: 'inclusion', at: [-4.5, 0], radius: 4, material: 'oil' }]);
-  const stacked = tryBuild([{ type: 'inclusion', at: [1, 0], radius: 4, material: 'oil' }, { type: 'inclusion', at: [-1, 0], radius: 4, material: 'sap' }]);
+  const stacked = tryBuild([{ type: 'inclusion', at: [1, 0], radius: 4, material: 'oil' }, { type: 'inclusion', at: [-1, 0], radius: 4, material: 'chamber' }]);
   check('inclusions side by side fit; overlapping ones are refused', apart === 'built' && stacked.startsWith('inclusions overlap'),
     `side by side: ${apart}; overlapping: "${stacked}"`);
 }
@@ -627,44 +631,6 @@ const runDay = (design, y, seconds, opts = {}) => {
       && n[0] < 0.01 && Math.abs(n[1] - 0.5) < 0.02 && n[2] > 0.99,
     `statolith facing the front: front up ${fmt(r[0])}, level ${fmt(r[1])}, down ${fmt(r[2])}; facing back, front up ` +
     `${fmt(r[3])}; no gravity ${fmt(r[4])}. Nutrients near the surface ${fmt(n[0])}, mid-tank ${fmt(n[1])}, near the floor ${fmt(n[2])}`);
-}
-
-// 28h. Gas vesicles lift a cell, and below their depth are crushed for good; stronger ones survive deeper but lift less
-{
-  const cellWith = (strength) => ({ body: { radius: 10 }, parts: [
-    { type: 'inclusion', id: 'g', material: 'gas', at: [0, 0], radius: 6, strength }] });
-  const go = (strength, depth, secs = 5) => {
-    const w = makeWorld(1);
-    const c = addCell(w, cellWith(strength), 800, PARAMS.tank.h - depth, 0);
-    const y0 = c.q[1];
-    for (let i = 0; i < secs / DT; i++) stepWorld(w);
-    return { v: (c.q[1] - y0) / secs, crushed: c.pieces[0].inclusions[0].crushed };
-  };
-  const weakUp = go(0, 200), weakDeep = go(0, 1300), strongDeep = go(1, 1300), bare = run({ body: { radius: 10 } }, 5);
-  const bareV = -sinking(bare);
-  check('gas vesicles float a cell; below their depth they are crushed for good, and strong ones survive deeper but lift less',
-    weakUp.v > 0 && !weakUp.crushed && weakDeep.crushed && Math.abs(weakDeep.v - bareV) < 0.05 * Math.abs(bareV)
-      && !strongDeep.crushed && strongDeep.v > 0 && strongDeep.v < weakUp.v,
-    `weak vesicles 200 µm down: rise ${fmt(weakUp.v, 1)} µm/s; 1300 µm down: crushed, ${fmt(weakDeep.v, 1)} µm/s ` +
-    `(a bare cell ${fmt(bareV, 1)}); strong ones 1300 µm down: intact, rise ${fmt(strongDeep.v, 1)} µm/s`);
-}
-
-// 28i. Gas vesicles wear out; a fed cell rebuilds them, a starving one slowly loses its float
-{
-  const float = (plastid) => ({ body: { radius: 10 }, parts: [
-    { type: 'inclusion', id: 'g', material: 'gas', at: [-4, 0], radius: 4, strength: 1 },
-    ...(plastid ? [{ type: 'inclusion', id: 'p', material: 'plastid', at: [4, 0], radius: 4 }] : [])] });
-  const left = (plastid, light) => {
-    const w = makeWorld(1, { gravity: false, metab: true, light });
-    const c = addCell(w, float(plastid), 800, PARAMS.tank.h - 50, 0);
-    for (let i = 0; i < PARAMS.metab.day / DT; i++) stepWorld(w);
-    return c.pieces[0].inclusions[0].fill;
-  };
-  const fed = left(true, true), starving = left(false, false);
-  check('gas vesicles wear out: a fed cell keeps rebuilding them, a starving one loses about half its float in a day',
-    fed > 0.97 && starving > 0.4 && starving < 0.65,
-    `after one sandbox day: a cell with a plastid in the light keeps ${fmt(100 * fed, 0)}% of its vesicles; ` +
-    `one in the dark without a plastid ${fmt(100 * starving, 0)}% (it rebuilt them until its pool ran low)`);
 }
 
 // 28j. A compare condition: a part runs while one sensor reads more than another (here two statoliths facing opposite

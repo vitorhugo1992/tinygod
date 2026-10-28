@@ -7,8 +7,8 @@ const spines = (r, n, length, material, start = 45) => Array.from({ length: n },
 export const PRESETS = {
   'Round cell': {
     note: 'A plain sphere with a nucleus (its brain, 8 slots): sinks at its Stokes speed. The cell to build on.',
-    body: { radius: 10 }, parts: [{ type: 'inclusion', id: 'nucleus', label: 'Nucleus', at: [0, 0], radius: 4.3, material: 'nucleus',
-      build: { tpl: 'Nucleus (the brain)', where: 0, tilt: 0, size: 0.35, depth: 0, feels: 'strangers', flip: false, id: 'nucleus' } }],
+    body: { radius: 10 }, parts: [{ type: 'inclusion', id: 'nucleus', label: 'Nucleus', at: [0, -5.35], radius: 4.3, material: 'nucleus',
+      build: { tpl: 'Nucleus (the brain)', where: 270, tilt: 0, size: 0.35, depth: 1, feels: 'strangers', flip: false, id: 'nucleus' } }],
   },
   'Spiny cell': {
     note: 'Four protein spines: about three times slower sinking.',
@@ -48,12 +48,6 @@ export const PRESETS = {
       angle: i ? 0 : 180, length: 8, radius: 0.25,
       joint: { type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 },
     })),
-  },
-  'Sap vacuole': {
-    note: 'A big cell that is mostly sap vacuole. Slide its target density: lighter than seawater (1025) and it ' +
-      'rises, heavier and it sinks. Pumping takes time and costs energy.',
-    body: { radius: 20 },
-    parts: [{ type: 'inclusion', at: [0, 0], radius: 18.5, material: 'sap', density: 1025 }],
   },
   'Kin chain': {
     note: 'Kin pads at both ends. Drop copies and push them together with the mouse: pads of the same species ' +

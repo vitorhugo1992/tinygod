@@ -95,21 +95,23 @@ export const PART_TEMPLATES = {
     [{ type: 'inclusion', id, label: 'Starch granule', ...inside(body, deg, size, depth), material: 'starch', fill: 0.5 }],
   'Oil droplet': (body, deg, id, size, tilt, depth) =>
     [{ type: 'inclusion', id, label: 'Oil droplet', ...inside(body, deg, size, depth), material: 'oil' }],
-  'Sap vacuole (slider)': (body, deg, id, size, tilt, depth) =>
-    [{ type: 'inclusion', id, label: 'Sap vacuole', ...inside(body, deg, size, depth), material: 'sap', density: 1025 }],
   // one part for every store and float: what it holds decides what it does (the lab grows by materials, not new blocks)
   'Vacuole (store or float)': (body, deg, id, size, tilt, depth, feels, len = 0, strength = 0.5, content = 'starch') => {
     const at = inside(body, deg, size, depth, len, tilt);
     const what = {
       starch: { label: 'Starch granule', material: 'starch', fill: 0.5 },
       oil: { label: 'Oil droplet', material: 'oil' },
-      sap: { label: 'Sap vacuole', material: 'sap', density: 1025 },
-      gas: { label: 'Gas vesicles', material: 'gas', strength },
-    }[content];
+    }[content] || { label: 'Starch granule', material: 'starch', fill: 0.5 };
     return [{ type: 'inclusion', id, ...at, ...what }];
   },
-  'Gas vesicles (float, crush deep)': (body, deg, id, size, tilt, depth, feels, len, strength = 0.5) =>
-    [{ type: 'inclusion', id, label: 'Gas vesicles', ...inside(body, deg, size, depth), material: 'gas', strength }],
+  // an energy store, its material deciding the trade-off (starch quick and heavy; oil dense, light and slow)
+  'Energy store': (body, deg, id, size, tilt, depth, feels, len = 0, strength, content = 'starch') => {
+    const at = inside(body, deg, size, depth, len, tilt);
+    return [{ type: 'inclusion', id, ...at, ...(content === 'oil' ? { label: 'Oil store', material: 'oil' } : { label: 'Starch store', material: 'starch', fill: 0.5 }) }];
+  },
+  // a buoyancy chamber (author, 2026-10-28): its rule pumps it light (FLOAT when) or heavy (SINK if); neither: neutral
+  'Buoyancy chamber': (body, deg, id, size, tilt, depth, feels, len = 0) =>
+    [{ type: 'inclusion', id, label: 'Buoyancy chamber', ...inside(body, deg, size, depth, len, tilt), material: 'chamber' }],
   'Statolith (which way is up)': (body, deg, id, size, tilt, depth) =>   // `tilt` here: the direction it reads, 0 = the front
     [{ type: 'inclusion', id, label: 'Statolith', ...inside(body, deg, size, depth), material: 'statolith', angle: tilt }],
   'Nutrient sensor': (body, deg, id) => [{ type: 'sensor', id, label: 'Nutrient sensor', at: surfacePoint(body, deg), kind: 'chem' }],
@@ -204,7 +206,9 @@ const ROD = { length: { min: 0, max: 80, step: 2, def: 0, round: true }, tilt: t
 export const CONTROLS = {
   'Nucleus (the brain)': { inside: true, tip: () => `The brain: ${slotsOf(PARAMS.brain.radius)} slots, one for each sensor, each wired built-in reading and each rule box. Tap it in the tank to open it` },
   'Vacuole (store or float)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, content: true, sizeDefault: 30, ...ROD },
-  'Gas vesicles (float, crush deep)': { size: room, inside: true, strength: true, sizeDefault: 30 },
+  'Energy store': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, content: true, sizeDefault: 30, ...ROD },
+  'Buoyancy chamber': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 50, ...ROD,
+    tip: () => 'Pumped light, it lifts the cell; heavy, it sinks it; neutral, nothing (and free). Its rule: FLOAT when… / SINK if…. Bigger pushes harder, takes room, costs more to hold' },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
   'Nutrient sensor': {},
   'Wave tail (swims)': { tilt: true, flip: true, pull: true, length: { min: 16, max: 96, step: 8, def: 48 } },
@@ -213,7 +217,7 @@ export const CONTROLS = {
   'Spine, protein': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` }, 'Spine, glass': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },
   'Ejectisome, latched (Release)': { tilt: true, size: (s) => `${Math.round(200 * s)} µm long` },
   'Burst organ (escape)': { tilt: true, flip: true, length: { min: 10, max: 40, step: 5, def: 20 }, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
-  'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
+  'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
   'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), feels: true, sizeDefault: 10 },
   'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long`, material: true },
@@ -234,8 +238,6 @@ export const PIGMENT_TIPS = {
 export const CONTENT_TIPS = {
   starch: 'Quick energy store: fills and burns fast, but heavy (a full cell sinks)',
   oil: 'Slow energy store: holds more energy, and light (a full cell floats a little)',
-  sap: 'Adjustable buoyancy: pump it lighter or heavier (slider under the parts); costs energy, works slowly',
-  gas: 'Strong float, always on: wears out and is rebuilt from energy; crushed for good below its depth',
 };
 
 // How the Build panel sorts parts (parts made with older templates, such as 'Oil droplet', still edit)
@@ -244,7 +246,7 @@ export const CATEGORIES = {
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)'],
   'Spines & appendages': ['Spine'],
   'Escapes': ['Burst organ (escape)'],   // the spring (template name kept so old designs edit); the ejectisome was removed
-  'Inside the cell': ['Nucleus (the brain)', 'Plastid (makes energy)', 'Vacuole (store or float)'],
+  'Inside the cell': ['Nucleus (the brain)', 'Plastid (makes energy)', 'Energy store', 'Buoyancy chamber'],
   'Pads': ['Pad'],
   'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Feeler'],
 };

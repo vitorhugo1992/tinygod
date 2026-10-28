@@ -17,8 +17,6 @@ export const PARAMS = {
     cytoplasm: 1060,        // density of the living cell without wall or inclusions
     wallThickness: 0.3,     // µm; the wall material's share of the body
     maxInclusionFraction: 0.9, // inclusions may fill at most this share of the body (a diatom is mostly vacuole)
-    pumpRate: 1,            // kg/m³ per s a sap vacuole's density can change (made playable: real cells take hours)
-    pumpCost: 0.05,         // aJ per (kg/m³ × µm³) of density change pumped (placeholder until costs are designed)
   },
   drag: {
     minLogAspect: 2,        // ln(length/radius) floor for the slender-rod formulas, so stubby pieces stay sane
@@ -70,16 +68,13 @@ export const PARAMS = {
     nearRange: 60,          // µm a proximity sensor feels another species from (default)
     compareMargin: 0.05,    // a compare condition holds once one reading is this much more than the other
   },
-  // Gas vesicles (made playable): stronger ones survive deeper but lift less (more protein per bubble)
-  gas: {
-    weak: 150,              // kg/m³ of the weakest vesicles (strength 0)...
-    strong: 600,            // ...and of the strongest (strength 1)
-    wear: 0.00116,          // per s: vesicles wear out, losing half their lift in about a sandbox day (600 s)...
-    rebuild: 1 / 300,       // ...and are rebuilt (share of full per s) while the energy pool is above rebuildAbove,
-    rebuildAbove: 0.1,      // (share of the pool; below metab.burnBelow, so stores burned at night keep them)
-    cost: 400,              // pJ per µm³ of vesicles rebuilt (with metabolism on; off, they neither wear nor cost)
-    shallowest: 0.45,       // the weakest are crushed this far down the tank (share of its depth; new cells start at 0.4); the
-                            // strongest at the floor
+  // The buoyancy chamber (made playable): an ion vacuole pumped light, neutral or heavy by its rule (author, 2026-10-28)
+  chamber: {
+    neutral: 1025,          // kg/m³: seawater, no lift and no cost
+    light: 900,             // FLOAT: lighter than seawater (made playable: a chamber a quarter of the cell floats it)...
+    heavy: 1100,            // ...SINK: heavier (to sink on purpose)
+    rate: 10,               // kg/m³ per s it can change (neutral to light ~12 s, light to heavy ~20 s)
+    hold: 0.004,            // pJ/s per µm³ per kg/m³ away from neutral: a mid-size one (r 5.5) held light ~5% of income
   },
   // Nutrients (a fixed layer until step 1's ecology): poor at the surface, rich deep, a nutricline between
   nutrient: {

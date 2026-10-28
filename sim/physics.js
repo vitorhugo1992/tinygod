@@ -11,7 +11,7 @@ import { dsin, dcos } from './dmath.js';
 
 const DT = PARAMS.time.dt;
 const KC = PARAMS.contact.stiffness;
-const PUMP_RATE = PARAMS.cell.pumpRate, PUMP_COST = PARAMS.cell.pumpCost, CYTO = PARAMS.cell.cytoplasm;
+const PUMP_RATE = PARAMS.chamber.rate, CYTO = PARAMS.cell.cytoplasm;
 const G = PARAMS.gravity * 1e-6;
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 
@@ -259,7 +259,8 @@ function burst(cell) {
   }
 }
 
-// Sap vacuoles pump toward their target density at a limited rate; moving ions costs energy
+// Buoyancy chambers pump toward their target density at a limited rate (holding it away from seawater's costs energy:
+// metab.js)
 function pump(cell) {
   for (const inc of cell.pieces[0].inclusions) {
     if (!inc.pumpable || inc.target === inc.density) continue;
@@ -267,18 +268,6 @@ function pump(cell) {
     const change = d > step ? step : d < -step ? -step : d;
     inc.density += change;
     inc.wpt.w = (inc.density - CYTO) * inc.v * G;
-    cell.energy.pump += PUMP_COST * (change < 0 ? -change : change) * inc.v;
-  }
-}
-
-// Gas vesicles deeper than they can bear are crushed for good: the gas is gone, cytoplasm fills the room
-function crush(cell) {
-  const body = cell.pieces[0];
-  for (const inc of body.inclusions) {
-    if (inc.crushed !== false) continue;
-    const y = cell.cy[0] + cell.sn[0] * inc.x + cell.cs[0] * inc.y;
-    if (PARAMS.tank.h - y <= inc.crush) continue;
-    inc.crushed = true; inc.density = CYTO; inc.fill = 0; inc.wpt.w = 0;
   }
 }
 
@@ -295,7 +284,6 @@ export function stepCell(cell, t, gravity = true) {
   if (sub > PARAMS.time.maxSub) sub = PARAMS.time.maxSub;
   const h = DT / sub;
   pump(cell);
-  crush(cell);
   IMP = h;
   let energy = 0;
   for (let k = 0; k < sub; k++) {

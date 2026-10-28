@@ -21,7 +21,7 @@ const COLOR = {
   body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
   nucleus: 'rgba(176,150,214,.55)', envelope: '#c9b6ea', chromatin: 'rgba(92,70,140,.8)', nucleolus: '#5b467f',
-  statolith: 'rgba(200,215,230,.35)', grain: '#e8eef5', gas: '#cfe9ff', crushed: '#6b7680', chem: '#c8b26a',
+  statolith: 'rgba(200,215,230,.35)', grain: '#e8eef5', chem: '#c8b26a',
   plastid: '#8fc94a', plastidShade: '#c45a7c', starch: '#ece3c4', starving: '#ff5a4a', eyeDark: '#7a2a1c', eyeLit: '#ff8a3c', light: 'rgba(255,240,190,', touch: '#5fd0ff', near: 'rgba(95,208,255,',
 };
 
@@ -175,8 +175,6 @@ const showControls = () => {
   $('flipRow').style.display = c.flip ? '' : 'none';
   $('pullBtn').style.display = c.pull ? '' : 'none';
   $('lengthRow').style.display = c.length ? '' : 'none';
-  const gas = c.strength || (c.content && $('partContent').value === 'gas');
-  $('strengthRow').style.display = gas ? '' : 'none';
   $('contentRow').style.display = c.content ? '' : 'none';
   $('pigmentRow').style.display = c.pigment ? '' : 'none';
   $('materialRow').style.display = c.material ? '' : 'none';
@@ -185,7 +183,7 @@ const showControls = () => {
   $('contentTip').textContent = c.content ? CONTENT_TIPS[$('partContent').value] : c.pigment ? PIGMENT_TIPS[$('partPigment').value] : c.tip ? c.tip() : '';
   $('tiltLabel').textContent = c.tiltLabel || 'Tilt';   // a statolith's "tilt" is the direction it reads
   $('partTilt').min = (c.tiltRange || [-90, 90])[0]; $('partTilt').max = (c.tiltRange || [-90, 90])[1];
-  showTilt(); showStrength();
+  showTilt();
   if (c.length) {   // this part's range; a new pick starts at its usual length
     const L = $('partLength'), keep = Number(L.value);
     L.min = c.length.min; L.max = c.length.max; L.step = c.length.step;
@@ -199,12 +197,6 @@ function showLength() {
   $('partLengthOut').textContent = v === 0 && c.length && c.length.round ? '0 (round)' : `${v} µm`;
 }
 $('partLength').oninput = showLength;
-// gas vesicles: how deep they are crushed (the same rule as sim/build.js)
-function showStrength() {
-  const s = Number($('partStrength').value) / 100, G = PARAMS.gas;
-  $('partStrengthOut').textContent = `crushed below ${Math.round(TH * (G.shallowest + (1 - G.shallowest) * s))} µm`;
-}
-$('partStrength').oninput = showStrength;
 $('partWhat').onchange = () => { showControls(); if (editing) updateEdited(); else updatePreview(); }; showControls();
 $('flipBtn').onclick = () => { $('partFlip').checked = !$('partFlip').checked; $('partFlip').dispatchEvent(new Event('change')); };
 $('pullBtn').onclick = () => { $('partPull').checked = !$('partPull').checked; $('partPull').dispatchEvent(new Event('change')); };
@@ -220,7 +212,6 @@ function makePart(body, id, spot) {   // spot: { where, depth } instead of the s
   if (c.pigment) b.content = $('partPigment').value;   // a plastid's pigment goes where a vacuole's content does
   if (c.material) b.content = $('partMaterial').value;   // a spine's material, a pad's kind: the same place
   if (c.sticks) b.content = $('partSticks').value;
-  if (c.strength || b.content === 'gas') b.strength = Number($('partStrength').value) / 100;
   const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length, b.strength, b.content, b.pull);
   if (b.flip) flipPart(parts);
   parts[0].build = b;
@@ -269,8 +260,7 @@ function startEditing(b) {
   $('partPull').checked = !!b.pull;
   const lc = (CONTROLS[b.tpl] || {}).length;
   if (lc) $('partLength').value = b.length ?? lc.def;   // parts made before Length had the usual length
-  if (b.strength !== undefined) $('partStrength').value = Math.round(b.strength * 100);
-  showAngle(); showTilt(); showSize(); showInside(); showLength(); showStrength();
+  showAngle(); showTilt(); showSize(); showInside(); showLength();
   $('addPart').textContent = '✓ Done editing'; $('cancelEdit').hidden = false;
   previewOn = true;
   listParts(); updatePreview();
@@ -283,13 +273,13 @@ function stopEditing() {
 }
 $('cancelEdit').onclick = stopEditing;
 // while editing, letting go of a slider (or picking another part type) updates the part at once
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength', 'partFeels', 'partFlip', 'partPull']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partFeels', 'partFlip', 'partPull']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
 $('partContent').onchange = () => { showControls(); previewOn = true; if (editing) updateEdited(); else updatePreview(); };
 $('partPigment').onchange = $('partContent').onchange;
 $('partMaterial').onchange = $('partContent').onchange;
 $('partSticks').onchange = $('partContent').onchange;
 // while dragging, the ghost follows the slider
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
 
 // ----- the ghost: the part as it would be added (or the edited part as it would become), drawn see-through on the
 // selected cell before anything is built; red when it would not fit. Nothing is simulated. -----
@@ -396,7 +386,7 @@ const colourOf = (g) => (g.members[0].tag !== undefined ? PALETTE[g.members[0].t
 const KIND_NAME = { 'Wave tail (swims)': 'Tail', 'Flexible oar (swims)': 'Oar', 'Stiff flap (goes nowhere)': 'Flap',
   'Burst organ (escape)': 'Spring', 'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Light sensor (eyespot)': 'Eyespot',
   'Statolith (which way is up)': 'Statolith', 'Feeler': 'Feeler', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity', 'Nutrient sensor': 'Nutrients',
-  'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad' };
+  'Buoyancy chamber': 'Chamber', 'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad' };
 const SIDES = ['front', 'front-top', 'top', 'back-top', 'back', 'back-bottom', 'bottom', 'front-bottom'];
 // a part's name: the one given, or what it is and where ("Oar (back-bottom)"); the same twice gets a number
 function partName(g, all = partGroups(design.parts || [])) {
@@ -464,6 +454,13 @@ function condWords(c, mode = modeOf(c), lo = c.min, hi = c.max) {
 // a part's rule in one sentence: "Runs when ● Eyespot (top) is above 50% of full sun, but stops if ● Statolith …"
 function ruleSummary(targets) {
   const m = targets[0], verb = verbOf(m), shape = toShape(rulesOf(m)), runs = verb === 'runs';
+  if (verb === 'floats') {
+    const one = (c) => `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
+    if (!nucleiOf(design).length) return 'Neutral (no nucleus to control it).';
+    const fl = shape.groups.length ? `Floats when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}` : '';
+    const sk = shape.stops.length ? `${fl ? '; ' : ''}sinks if ${shape.stops.map(one).join(' or ')}${fl ? ' (sinking wins)' : ''}` : '';
+    return fl || sk ? `${fl}${sk}; otherwise neutral.` : 'Neutral: no lift, no cost (add FLOAT when… or SINK if…).';
+  }
   if (!nucleiOf(design).length) return runs ? 'Runs all the time (no nucleus to control it)' : 'Fires only by hand (no nucleus)';
   const one = (c) => `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
   let s = shape.groups.length ? `${runs ? 'Runs' : 'Fires'} when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}`
@@ -514,9 +511,9 @@ function sensorList(except) {
     list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
   return list;
 }
-const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.latched));
+const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.latched));
 // how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part)
-const verbOf = (m) => (m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+const verbOf = (m) => (m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
 // A part's rule as the card shows it: GO groups (all of a group must hold: AND; any group will do: OR) and STOP
 // conditions (any one stops the part, whatever the GO groups say: the override). Stored as one list: GO conditions in
 // their groups (or: true starts a group), then STOP ones (stop: true).
@@ -676,6 +673,8 @@ function valueBar(c, mode, kind, onSet) {
 const HEADS = {
   runs: ['GO when', 'OR GO when', 'STOP if', 'runs always (add a condition to control it)'],
   fires: ['FIRE when', 'OR FIRE when', "DON'T FIRE if", 'fires by hand (Release), or add a condition'],
+  // a buoyancy chamber: its GO groups float it, its STOP conditions sink it (sinking wins); neither: neutral
+  floats: ['FLOAT when', 'OR FLOAT when', 'SINK if', 'neutral (add FLOAT when… or SINK if…)'],
 };
 function ruleCard(targets) {
   const m = targets[0], verb = verbOf(m), H = HEADS[verb], k0 = design.parts.indexOf(m);
@@ -1007,6 +1006,12 @@ function patchLive() {
     let ctls = null, state = '', on = false;
     if (live) {
       const j = live.joints.find((x) => x.part === k0);
+      const ch = !j && live.pieces[0].inclusions.find((x) => x.part === k0 && x.material === 'chamber');
+      if (ch) {
+        ctls = ch.controls || null;
+        state = ch.target === PARAMS.chamber.light ? 'FLOAT' : ch.target === PARAMS.chamber.heavy ? 'SINK' : 'neutral';
+        on = state !== 'neutral';
+      }
       if (j) {
         ctls = j.controls || null;
         if (j.burst) { on = j.burst.state === 'firing'; state = j.burst.state; }
@@ -1135,8 +1140,9 @@ function reset(pose, carry) {
         for (const i of to.pieces[0].inclusions) {
           const o = from.pieces[0].inclusions.find((x) => x.part === i.part && x.material === i.material);
           if (o && i.material === 'plastid') i.damage = o.damage || 0;   // a plastid keeps its damage
-          if (!o || !(i.store || i.crush)) continue;
-          i.fill = o.fill; if (i.crush) { i.crushed = o.crushed; if (o.crushed) i.density = o.density; }
+          if (o && i.material === 'chamber') { i.density = o.density; i.wpt.w = (i.density - PARAMS.cell.cytoplasm) * i.v * PARAMS.gravity * 1e-6; }   // as full or empty
+          if (!o || !i.store) continue;
+          i.fill = o.fill;
           i.wpt.w = (i.density - PARAMS.cell.cytoplasm) * i.v * i.fill * PARAMS.gravity * 1e-6;
         }
       };
@@ -1162,21 +1168,9 @@ function reset(pose, carry) {
   return true;
 }
 
-// Follow and measure one cell; its sap vacuoles get sliders
+// Follow and measure one cell
 function select(c) {
   cell = c; trail = []; samples = [];
-  const box = $('sap');
-  box.innerHTML = '';
-  c.pieces[0].inclusions.forEach((inc, i) => {
-    if (!inc.pumpable) return;
-    const row = document.createElement('label');
-    row.innerHTML = `Sap vacuole ${i + 1} target <input type="range" min="${inc.min}" max="${inc.max}" step="1" value="${inc.target}" style="width:110px"> <span></span>`;
-    const input = row.querySelector('input'), out = row.querySelector('span');
-    const show = () => { out.textContent = `${inc.target} (now ${inc.density.toFixed(1)})`; };
-    input.oninput = () => { inc.target = Number(input.value); show(); };
-    inc.show = show; show();
-    box.appendChild(row);
-  });
 }
 
 $('apply').onclick = () => {
@@ -1382,9 +1376,9 @@ function budget(lines) {
   }
   if (m.motors > 0) lines.push(`          flagella beating ${show(m.motors)}`);
   if (m.pumps > 0) lines.push(`          pumping ${show(m.pumps)}`);
-  if (m.gasBuild > 0) lines.push(`          rebuilding gas vesicles ${show(m.gasBuild)}`);
+  if (m.chamber > 0.5) lines.push(`          holding the buoyancy chamber ${show(m.chamber)}`);
   if (m.repair > 0.5) lines.push(`          repairing plastids (too much light) ${show(m.repair)}`);
-  const net = m.income - m.upkeep - m.motors - m.pumps - m.gasBuild - m.repair;
+  const net = m.income - m.upkeep - m.motors - m.pumps - m.chamber - m.repair;
   lines.push(`net       ${net >= 0 ? "+" : ""}${net.toFixed(0)} pJ/s: ${net >= 0 ? "gaining energy" : "losing energy"}`);
   for (const inc of cell.pieces[0].inclusions) if (inc.store) lines.push(`store     ${inc.store} ${(100 * inc.fill).toFixed(0)}% full`);
 }
@@ -1705,7 +1699,7 @@ function drawLevel(ix, iy, inc, X, Y, s, a = 0) {
   ctx.strokeStyle = COLOR[inc.material]; ctx.lineWidth = 1.5;
   incPath(cx, cy, inc, s, a); ctx.stroke();
 }
-// A sap vacuole's colour: pale while lighter than seawater, deep blue while heavier
+// A buoyancy chamber's colour: pale while light, clear blue-grey at neutral, deep blue while heavy
 function sapColor(inc) {
   const t = Math.min(Math.max((inc.density - inc.min) / (inc.max - inc.min), 0), 1);
   const mix = (a, b) => Math.round(a + (b - a) * t);
@@ -1729,27 +1723,6 @@ function drawNucleus(ix, iy, inc, X, Y, s, rot) {
   }
   ctx.fillStyle = COLOR.nucleolus;
   ctx.beginPath(); ctx.arc(cx + Math.cos(-0.7 - rot) * 0.3 * r, cy + Math.sin(-0.7 - rot) * 0.3 * r, r * 0.26, 0, Math.PI * 2); ctx.fill();
-}
-// Gas vesicles: a cluster of small bubbles, fewer as they wear out; crushed, flat grey dashes
-function drawGas(ix, iy, inc, X, Y, s, rot = 0) {
-  const per = 7, hh = inc.h || 0, groups = 1 + Math.round(2 * hh / Math.max(inc.r, 0.1));   // a cluster per stretch of rod
-  const all = per * groups, n = inc.crushed ? all : Math.ceil(all * inc.fill), b = inc.r * 0.32;
-  ctx.strokeStyle = 'rgba(207,233,255,.35)'; ctx.lineWidth = 1;
-  incPath(X(ix), Y(iy), inc, s, rot); ctx.stroke();
-  const ux = Math.cos(rot), uy = Math.sin(rot);
-  for (let k = 0; k < n; k++) {
-    const g = k % groups, m = Math.floor(k / groups);   // which cluster along the rod, and which bubble in it
-    const along = groups > 1 ? -hh + 2 * hh * g / (groups - 1) : 0;
-    const a = m * 2.4, d = m ? inc.r * 0.62 * Math.sqrt(m / per) : 0;   // a sunflower spiral: evenly packed
-    const bx = ix + ux * along + Math.cos(a) * d, by = iy + uy * along + Math.sin(a) * d;
-    if (inc.crushed) {
-      ctx.strokeStyle = COLOR.crushed; ctx.lineWidth = Math.max(0.3 * s, 1);
-      ctx.beginPath(); ctx.moveTo(X(bx - b), Y(by)); ctx.lineTo(X(bx + b), Y(by)); ctx.stroke();
-    } else {
-      ctx.fillStyle = COLOR.gas; ctx.globalAlpha = 0.8;
-      ctx.beginPath(); ctx.arc(X(bx), Y(by), Math.max(b * s, 1), 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
-    }
-  }
 }
 
 // is piece i moved by a motor that is stopped? (its own, or the one up its chain of hinges)
@@ -1801,7 +1774,6 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
       const ix = c.cx[i] + c.cs[i] * inc.x - c.sn[i] * inc.y, iy = c.cy[i] + c.sn[i] * inc.x + c.cs[i] * inc.y;
       const r = inc.r, a = c.phi[i] + (inc.ang || 0);
       if (inc.store) { drawLevel(ix, iy, inc, X, Y, s, a); continue; }   // a container, filled as far as it is full
-      if (inc.material === 'gas') { drawGas(ix, iy, inc, X, Y, s, a); continue; }
       if (inc.material === 'nucleus') { drawNucleus(ix, iy, inc, X, Y, s, a); continue; }
       ctx.fillStyle = inc.pumpable ? sapColor(inc) : inc.material === 'plastid' ? plastidColor(inc) : COLOR[inc.material];
       if (r > 0.02) { incPath(X(ix), Y(iy), inc, s, a); ctx.fill(); }
@@ -2081,7 +2053,7 @@ const SHORT = {
   'Feeler': 'Feeler', 'Spine': 'Spine', 'Pad': 'Pad',
   'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity',
-  'Gas vesicles (float, crush deep)': 'Gas vesicles', 'Statolith (which way is up)': 'Statolith',
+  'Energy store': 'Energy store', 'Buoyancy chamber': 'Buoyancy chamber', 'Statolith (which way is up)': 'Statolith',
   'Nutrient sensor': 'Nutrients', 'Vacuole (store or float)': 'Vacuole',
 };
 for (const [cat, names] of Object.entries(CATEGORIES)) {

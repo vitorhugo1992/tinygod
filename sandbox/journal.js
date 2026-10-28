@@ -1,5 +1,5 @@
 // The journal: what happened to a cell over the last day (depth, energy, stores, float, plastids, light), and the moments that
-// explain its fate (running out of energy, tipping over, the floor, a crushed float...), for the day graph and the
+// explain its fate (running out of energy, tipping over, the floor, a store used up...), for the day graph and the
 // trouble log. Nothing here changes the simulation; it only watches. "Test a day" runs a copy ahead to forecast.
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
@@ -19,7 +19,9 @@ export function note(world, c) {
   const t = worldTime(world), depth = TH - c.q[1], E = world.metab ? c.metab.E / c.metab.C : 1;
   const inc = c.pieces[0].inclusions;
   const starch = avgFill(inc.filter((i) => i.store === 'starch')), oil = avgFill(inc.filter((i) => i.store === 'oil'));
-  const floats = inc.filter((i) => i.crush), gas = avgFill(floats);
+  // buoyancy chambers: 1 light (floating), 0 heavy (sinking), neutral between
+  const ch = inc.filter((i) => i.material === 'chamber');
+  const gas = ch.length ? ch.reduce((a, i) => a + (PARAMS.chamber.heavy - i.density) / (PARAMS.chamber.heavy - PARAMS.chamber.light), 0) / ch.length : null;
   const sun = world.light ? (world.day ? daylight(world) : 1) : 0;
   const up = Math.sin(c.q[2]);   // 1: its front points straight up
   const health = inc.some((i) => i.material === 'plastid') ? plastidHealth(world, c) : null;
@@ -43,7 +45,6 @@ export function note(world, c) {
     else say('dawn');
   }
   if (w.sun > 0 && sun === 0) say('dusk');
-  for (const f of floats) if (f.crushed && !f.noted) { f.noted = true; say(`its gas vesicles were crushed ${depth.toFixed(0)} µm down`, true); }
   if (starch === 0 && w.starch > 0) say('its starch is used up');
   if (oil === 0 && w.oil > 0) say('its oil is used up');
   // too much light: said once as its plastids fall below 3/4 healthy, again once they have mended

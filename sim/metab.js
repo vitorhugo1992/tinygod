@@ -9,8 +9,8 @@
 // - Stores, automatic: while the pool is fuller than fillAbove, surplus goes into starch (quick) then oil (slow);
 //   while it is emptier than burnBelow, starch then oil are burned to refill it. A store's weight follows how full it
 //   is: starch is heavy, oil light, so buoyancy changes as the cell eats and fasts.
-// - Gas vesicles wear out and are rebuilt from the pool while it holds a little (gas.rebuildAbove; below where stores
-//   are burned, so a night on starch keeps them): a starving cell slowly sinks.
+// - A buoyancy chamber costs nothing while neutral (seawater's density) and, held light or heavy, energy every second in
+//   proportion to its size and how far it is from neutral (PARAMS.chamber.hold); a starving cell can't hold it: neutral.
 // - Starving: an empty pool stops the motors (and pumps) until energy comes back.
 // Numbers are round and tuned for play (CLAUDE.md), not measured.
 import { PARAMS } from './params.js';
@@ -27,7 +27,7 @@ export function initMetab(cell) {
   const add = (k, v) => byPart.set(k, (byPart.get(k) || 0) + v);
   const bodyUpkeep = body.volume * M.bodyUpkeep;
   for (const p of cell.pieces) if (p.kind === 'segment') add(p.part, (p.ext ? p.ext.max : p.L) * M.partUpkeep);
-  for (const inc of body.inclusions) if (inc.store || ['plastid', 'gas', 'statolith'].includes(inc.material)) {
+  for (const inc of body.inclusions) if (inc.store || ['plastid', 'chamber', 'statolith'].includes(inc.material)) {
     add(inc.part, inc.v * M.insideUpkeep * (inc.material === 'plastid' && inc.pigment === 'shade' ? M.shade.upkeep : 1));
   } else if (inc.material === 'nucleus') add(inc.part, inc.v * P.brain.upkeep);
   let upkeep = bodyUpkeep;
@@ -51,7 +51,7 @@ export function initMetab(cell) {
   const C = body.volume * M.pool;
   cell.metab = {
     C, E: M.start * C, upkeep, bodyUpkeep, byPart, beatL,
-    income: 0, motors: 0, pumps: 0, gasBuild: 0, repair: 0,   // the last step's flows, pJ/s (for the budget)
+    income: 0, motors: 0, pumps: 0, chamber: 0, repair: 0,   // the last step's flows, pJ/s (for the budget)
     lastMotor: cell.energy.motor, lastPump: cell.energy.pump,
     starving: false,
   };
@@ -82,20 +82,11 @@ export function metabolize(world, cell) {
   const motors = (cell.energy.motor - m.lastMotor) * REAL + beat * DT, pumps = (cell.energy.pump - m.lastPump) * REAL;
   m.lastMotor = cell.energy.motor; m.lastPump = cell.energy.pump;
   m.income = income; m.motors = motors / DT; m.pumps = pumps / DT; m.repair = repair / DT;
-  m.E += (income - m.upkeep) * DT - motors - pumps - repair;
-
-  // gas vesicles: protein that wears out and is rebuilt from the pool while it holds enough, so a fed cell keeps its
-  // float and a starving one slowly loses it (fill: the share of the vesicles intact)
-  m.gasBuild = 0;
-  for (const inc of body.inclusions) {
-    if (!inc.crush || inc.crushed) continue;
-    inc.fill -= inc.fill * P.gas.wear * DT;
-    if (m.E > P.gas.rebuildAbove * m.C && inc.fill < 1) {
-      const add = Math.min(P.gas.rebuild * DT, 1 - inc.fill), cost = add * inc.v * P.gas.cost;
-      if (cost < m.E) { m.E -= cost; inc.fill += add; m.gasBuild += cost / DT; }
-    }
-    inc.wpt.w = (inc.density - CYTO) * inc.v * inc.fill * G;
-  }
+  // buoyancy chambers held away from neutral
+  let hold = 0;
+  for (const inc of body.inclusions) if (inc.material === 'chamber') hold += P.chamber.hold * inc.v * Math.abs(inc.density - P.chamber.neutral);
+  m.chamber = hold;
+  m.E += (income - m.upkeep - hold) * DT - motors - pumps - repair;
 
   // stores: surplus in (starch first: it is quick), shortfall out (starch first, then oil)
   const stores = body.inclusions.filter((x) => x.store).sort((a, b) => (a.store === 'starch' ? 0 : 1) - (b.store === 'starch' ? 0 : 1));
@@ -116,6 +107,6 @@ export function metabolize(world, cell) {
   if (m.starving) {
     m.E = 0;
     for (const j of cell.joints) if (j.type === 'motor') j.on = false;   // no energy, no beating
-    for (const inc of body.inclusions) if (inc.pumpable) inc.target = inc.density;   // pumps stop where they are
+    for (const inc of body.inclusions) if (inc.pumpable) inc.target = P.chamber.neutral;   // nothing holds it: it drifts neutral
   }
 }

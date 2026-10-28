@@ -243,7 +243,6 @@
   <div class="row" id="sticksRow" title="A kin pad holds only its own species, strongly; a mucus pad holds anything, weakly">Sticks to <span class="seg" id="sticksSeg"></span></div>
   <div class="row" id="contentRow" title="What the vacuole holds decides what it does">Content <span class="seg" id="contentSeg"></span></div>
   <div id="contentTip" class="tip"></div>
-  <div class="slider" id="strengthRow" title="Stronger gas vesicles survive deeper but lift less (more protein per bubble)">Strength <input type="range" id="partStrength" min="0" max="100" step="5" value="50"><span id="partStrengthOut"></span></div>
   <button id="addPart">＋ Add to body</button>
   <button id="cancelEdit" hidden>Stop editing</button>
   <div id="buildErr"></div>
@@ -251,7 +250,6 @@
   <h2>On this body</h2>
   <button id="patchBtn" title="Open the nucleus, the cell's brain: patch sensors to parts with cables (or tap the nucleus in the tank)">🧬 Open the nucleus (wiring)</button>
   <div id="partList"></div>
-  <div id="sap"></div>
 
   <h2>Tank</h2>
   <div class="row">
@@ -276,7 +274,7 @@
   <select id="partPigment" hidden><option value="sun">☀ Sun</option><option value="shade">☁ Shade</option></select>
   <select id="partMaterial" hidden><option value="protein">Protein</option><option value="glass">Glass</option></select>
   <select id="partSticks" hidden><option value="kin">Its own kind</option><option value="mucus">Anything</option></select>
-  <select id="partContent" hidden><option value="starch">Starch</option><option value="oil">Oil</option><option value="sap">Sap</option><option value="gas">Gas</option></select>
+  <select id="partContent" hidden><option value="starch">Starch</option><option value="oil">Oil</option></select>
   <input type="checkbox" id="gravity" checked hidden>
   <input type="checkbox" id="light" checked hidden>
   <input type="checkbox" id="day" checked hidden>
