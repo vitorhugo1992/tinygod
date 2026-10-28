@@ -61,15 +61,17 @@ export const PART_TEMPLATES = {
   'Spine, glass': (body, deg, id, size, tilt) => [
     { type: 'segment', id, label: 'Glass spine', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(100 * size), radius: 0.5, material: 'glass' },
   ],
+  // the Spring (author, 2026-10-28: was 'Burst organ'; the template keeps its old name so saved designs edit)
   'Burst organ (escape)': (body, deg, id, size, tilt, depth, feels, len = 20) => {
     // a short coiled tail that, fired, beats extremely fast for a moment (like Mesodinium's escape), then recharges
     const parts = chain(id, surfacePoint(body, deg), deg + tilt, Math.max(2, Math.round(len / 5)), 5, (i) => ({
       type: 'motor', rate: 500, swing: 40, phase: -i * 0.2,
       burst: { duration: Math.round(20 * size) / 10, recharge: 3, group: id } }));
     for (const p of parts) p.radius = 0.3;
-    parts[0].label = 'Burst organ';
+    parts[0].label = 'Spring';
     return parts;
   },
+  // removed from the Build panel (author, 2026-10-28); kept so old designs with one still edit
   'Ejectisome, latched (Release)': (body, deg, id, size, tilt) => [
     { type: 'segment', id, label: 'Ejectisome', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(200 * size), radius: 0.3,
       joint: { type: 'extend', stiffness: 20, latched: true } },
@@ -214,7 +216,7 @@ export const CONTENT_TIPS = {
 export const CATEGORIES = {
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)', 'Stiff flap (goes nowhere)'],
   'Spines & appendages': ['Spine, protein', 'Spine, glass'],
-  'Escapes': ['Burst organ (escape)', 'Ejectisome, latched (Release)'],
+  'Escapes': ['Burst organ (escape)'],   // the spring (template name kept so old designs edit); the ejectisome was removed
   'Inside the cell': ['Plastid (makes energy)', 'Vacuole (store or float)'],
   'Pads': ['Kin pad', 'Mucus pad'],
   'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Touch sensor', 'Proximity sensor',

@@ -13,6 +13,9 @@ const DT = PARAMS.time.dt;
 // A cocked spring (a latched springy joint), for the no-coasting and one-flick laws; not a part in the Build panel
 const SPRING = { body: { radius: 6 }, parts: [{ type: 'segment', at: [-6, 0], angle: 180, length: 30, radius: 0.4,
   joint: { type: 'hinge', stiffness: 2000, rest: 150, latched: true } }] };
+// A latched coiled ribbon (a cryptophyte ejectisome), for the extending-ribbon law; not a part in the Build panel
+const EJECT = { body: { radius: 6 }, parts: [{ type: 'segment', at: [-6, 0], angle: 180, length: 30, radius: 0.3,
+  joint: { type: 'extend', stiffness: 20, latched: true } }] };
 const MU = PARAMS.water.viscosity;
 const PER_DAY = 86400 * 1e-6;  // µm/s -> m/day
 let failures = 0;
@@ -220,7 +223,7 @@ const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
 // 13. An extending ribbon (ejectisome) pushes the cell back; again, a stronger spring goes no farther
 {
   const shoot = (stiffness, length = 30) => {
-    const d = copy('Ejectisome');
+    const d = JSON.parse(JSON.stringify(EJECT));
     Object.assign(d.parts[0], { length });
     Object.assign(d.parts[0].joint, { stiffness, latched: false });
     const w = makeWorld(1, { gravity: false });

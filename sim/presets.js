@@ -48,13 +48,6 @@ export const PRESETS = {
       joint: { type: 'motor', rate: 30, swing: 35, phase: -i * 0.15 },
     })),
   },
-  'Ejectisome': {
-    note: 'A coiled ribbon, latched. Press Release: it shoots out (like a cryptophyte ejectisome) and the cell ' +
-      'jumps the other way, a short hop: a thin ribbon gets little grip on the water.',
-    body: { radius: 6 },
-    parts: [{ type: 'segment', at: [-6, 0], angle: 180, length: 30, radius: 0.3,
-      joint: { type: 'extend', stiffness: 20, latched: true } }],
-  },
   'Sap vacuole': {
     note: 'A big cell that is mostly sap vacuole. Slide its target density: lighter than seawater (1025) and it ' +
       'rises, heavier and it sinks. Pumping takes time and costs energy.',

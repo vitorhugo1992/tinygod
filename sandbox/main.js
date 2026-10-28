@@ -36,8 +36,10 @@ const savedGroup = document.createElement('optgroup'); savedGroup.label = 'Saved
 // each preset is its own species, so kin pads only hold copies of the same design
 const preset = (name) => Object.assign(JSON.parse(JSON.stringify(PRESETS[name])), { species: name });
 
-// Designs saved before the timer was removed (2026-10-24): drop their timers and unplug every cable from them
+// Designs saved earlier: a burst organ is now called a spring; timers (removed 2026-10-24) are dropped and every
+// cable from them unplugged
 function withoutTimers(d) {
+  for (const p of d.parts || []) if (p.label === 'Burst organ') p.label = 'Spring';   // renamed (author, 2026-10-28)
   const gone = new Set((d.parts || []).filter((p) => p.type === 'sensor' && p.kind === 'timer').map((p) => p.id));
   if (!gone.size) return d;
   d.parts = d.parts.filter((p) => !gone.has(p.id));
@@ -658,7 +660,7 @@ function drawPatch() {
   const rules = document.createElement('div'); rules.className = 'prules';
   patchTargets = partGroups(design.parts || []).map((g) => ({ g, members: targetsOf(g) })).filter((t) => t.members.length)
     .map((t) => ({ name: `${t.g.name} at ${t.g.deg}°`, members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]), icon: '' }));
-  if (!patchTargets.length) rules.innerHTML = '<div class="pval">No parts to wire yet: add a flagellum, a burst organ, or an ejectisome.</div>';
+  if (!patchTargets.length) rules.innerHTML = '<div class="pval">No parts to wire yet: add a flagellum or a spring.</div>';
   patchTargets.forEach((t, ti) => {
     const H = HEADS[t.verb], shape = toShape(t.rules);
     const row = document.createElement('div'); row.className = 'prow';
@@ -1105,7 +1107,7 @@ function stats() {
   const bursts = cell.joints.filter((j) => j.burst);
   if (bursts.length) {
     const b = bursts[0].burst;
-    lines.push(`burst     ${b.state === 'charged' ? 'charged' : b.state === 'firing' ? 'FIRING' : `recharging, ${(b.recharge - b.t).toFixed(1)} s left`}`);
+    lines.push(`spring    ${b.state === 'charged' ? 'charged' : b.state === 'firing' ? 'FIRING' : `recharging, ${(b.recharge - b.t).toFixed(1)} s left`}`);
   }
   const motors = cell.joints.filter((j) => j.type === 'motor' && !j.burst);
   if (motors.length && cell.metab.starving) lines.push('motors    stopped: STARVING');
@@ -1758,7 +1760,7 @@ $('zoomOut').onclick = () => zoomBy(1 / 1.4);
 // Part buttons by category (short names); tapping one picks it
 const SHORT = {
   'Wave tail (swims)': 'Wave tail', 'Flexible oar (swims)': 'Flexible oar', 'Stiff flap (goes nowhere)': 'Stiff flap',
-  'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Burst organ',
+  'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Spring',
   'Ejectisome, latched (Release)': 'Ejectisome', 'Oil droplet': 'Oil droplet',
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
   'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',

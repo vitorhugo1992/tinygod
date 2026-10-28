@@ -13,12 +13,19 @@ chronological log, newest additions last in each block.
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the phone uses http://192.168.1.69:5180/sandbox/ (home Wi-Fi; the page shows it under its title). Restart the server
-after changing tools/serve.mjs. `node tools/check.mjs`: 43 physics checks, all passing (~2 min). Check every change
+after changing tools/serve.mjs. `node tools/check.mjs`: 42 physics checks, all passing (~2 min). Check every change
 in the real page with headless Edge over the DevTools protocol at phone size (400×860) and look at screenshots.
+**The website (author, 2026-10-28):** https://vitorhugo1992.github.io/tinygod/sandbox/ (GitHub Pages from the public
+repo github.com/vitorhugo1992/tinygod, branch main, root). **Push after every finished step** (`git push`) so the
+author gets it anywhere. Offline: sandbox/sw.js (registered only on https) keeps a copy, network first, so a phone that
+opened it once runs it with no connection; add a new sandbox/ or sim/ file to its FILES list. Home-screen manifest and
+icon in sandbox/. Away from home there is no server: 📤 Send to Claude copies the design instead (the author pastes it
+in the chat); 📥 From Claude reads designs/index.json, so after writing a design for the author run
+`node tools/designs-index.mjs`, commit and push. 📋 Copy / 📋 Paste carry designs between devices (each address keeps
+its own saved designs).
 
 **The sandbox today, in short:** a still 2 mm tank with light from above and a 10-minute day. Build a cell from parts:
-flagella (wave tail, with Pull; flexible oar; stiff flap; Length; Flip; mirror copies), spines, escapes (burst organ,
-ejectisome), inside (plastid Sun / Shade; one Vacuole part with Content Starch / Oil / Sap / Gas; any of them round or
+flagella (wave tail, with Pull; flexible oar; stiff flap; Length; Flip; mirror copies), spines, an escape (the spring), inside (plastid Sun / Shade; one Vacuole part with Content Starch / Oil / Sap / Gas; any of them round or
 a rod), pads, sensors (eyespot, statolith, touch, proximity, nutrients; built-in energy, starch and oil levels).
 Each moving part has a **rule card**: GO when / OR GO when / STOP if (the override), conditions "above / below /
 between / outside" or "more / less than" another sensor, and a BEAT SPEED that can follow a reading either way; the
@@ -51,6 +58,10 @@ beat speed, nothing at rest (burst organs excluded; on top of the real work). A 
 surface cell's income. The budget line reads "flagella beating". Resting now pays: buoyancy beats swimming to hold a
 depth. The author chose this over higher flagellum upkeep (B), which gives no reason to rest.
 **Sap vacuole and oil: kept** (author, 2026-10-24), to retune in step 1.
+**The ejectisome was removed and the burst organ renamed Spring** (author, 2026-10-28: "i dont like the ejectisome";
+"Burst organ is much better, but I don't like the name"). The ejectisome left the Build panel and presets; its physics
+(an extending ribbon) stays for check 13, and old designs with one still edit. The spring keeps its template name
+("Burst organ (escape)") and code names (joint.burst) so saved designs load; their "Burst organ" labels read Spring.
 **Parts audit (Claude, agreed by the author):** useless until step 1 gives them a world: escapes (burst organ,
 ejectisome), touch and proximity (nothing to flee or meet), spines and glass wall (protection with no grazers), pads
 and chains (a chain gains nothing), stiff flap (a lesson, not a part), nutrient sensor (nutrients feed nothing: only a
