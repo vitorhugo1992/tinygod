@@ -13,6 +13,9 @@ export const nucleiOf = (design) => (design.parts || []).filter((p) => p.type ==
 // Slots in a nucleus of radius r µm (its cross-section, PARAMS.brain.slotArea µm² a slot)
 export const slotsOf = (r) => Math.floor(Math.PI * r * r / PARAMS.brain.slotArea + 1e-9);
 
+// A nucleus part's slots: by its volume (a round nucleus of the same volume), so moulding it into a rod changes nothing
+export const nucleusSlots = (p) => slotsOf(Math.cbrt(p.radius ** 3 + 0.75 * p.radius ** 2 * (p.length || 0)));
+
 // The smallest radius (0.1 µm steps) with at least n slots
 export function radiusFor(n) {
   let r = 0.5;
@@ -55,6 +58,6 @@ export function brainProblem(design) {
   const nuclei = nucleiOf(design);
   if (nuclei.length > 1) return 'a cell has one nucleus';
   if (!nuclei.length) return '';
-  const use = brainUse(design), slots = slotsOf(nuclei[0].radius);
+  const use = brainUse(design), slots = nucleusSlots(nuclei[0]);
   return use.total > slots ? `nucleus full: ${use.total} modules, ${slots} slots. Free one: remove a sensor or a rule box` : '';
 }

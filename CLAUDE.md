@@ -151,6 +151,17 @@ keep working. Resting in the dark saves energy, in light throws income away. Sho
 editing; drag an organelle to move it; pinch it to make it slimmer, longer, curved or rounder. Everything that can be moulded is mouldable, the nucleus
 included (author, 2026-10-28); only parts whose shape is their function stay fixed (the statolith). Curved shapes are new to the physics
 (room, overlap, weight): plan with the author first.
+**Arranging and moulding (built 2026-10-28; author: "they should snuggle together"; curved shapes left for later).**
+✋ Arrange inside the cell (under On this body): the tank pauses, the camera holds the cell still and large. One finger
+drags an organelle anywhere inside, or a part round the rim (rebuilt where the finger points, keeping its rule, colour
+and name). Two fingers (or the mouse wheel; Shift+wheel turns) stretch an organelle into a longer, slimmer rod or back
+to round, **its volume kept** (so energy, weight and cost don't change). **Snuggling** (author chose: the still one
+gives way): an organelle pushed into another makes it flatten across the push (volume kept, down to 45% of its round
+radius), then slide aside, kept inside the wall; the statolith is rigid, so the moved one flattens or backs off
+instead. Every move is tried by building the cell (refused: the organelle outlined red stays where it last fitted); on
+letting go the design updates (one Undo step). The nucleus is mouldable: its slots now count its volume
+(brain.js nucleusSlots), not its radius. Each moved organelle's Edit sliders (build: where, depth, size, length, turn)
+follow it. Code: the arrange block in sandbox/main.js (capsule geometry, squash, stretch, snuggle, syncBuild).
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

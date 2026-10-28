@@ -7,9 +7,9 @@ import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
-import { brainUse, brainProblem, nucleiOf, slotsOf, BUILT_INS } from '../sim/brain.js';
+import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast } from './journal.js';
-import { PART_TEMPLATES, partGroups, surfacePoint, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
+import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
 const $ = (id) => document.getElementById(id);
@@ -56,6 +56,7 @@ function withoutTimers(d) {
 }
 
 function load(d) {
+  stopArrange();
   design = withoutTimers(d);
   $('json').value = JSON.stringify(d, null, 2);
   reset();
@@ -71,6 +72,7 @@ function applyDesign(d, record = true) {
   const carry = world && cell ? { world, cell, design: old } : null;
   if (!reset(pose, carry)) { const msg = $('err').textContent; design = old; reset(pose, carry); $('err').textContent = msg; $('buildErr').textContent = msg; return false; }
   if (record) remember(old);
+  if (arrange && !arrange.drag) { arrange.trial = JSON.parse(JSON.stringify(design)); arrange.cell = null; }
   clearForecast();
   $('buildErr').textContent = '';
   $('json').value = JSON.stringify(d, null, 2);
@@ -838,7 +840,7 @@ function drawPatch() {
   }
   // the box: the nucleus opened up, one slot a module (sensors, wired built-in readings, rule boxes); modules arrange
   // themselves for now (dragging them in by hand comes later)
-  const use = brainUse(design), slots = slotsOf(nuc.radius);
+  const use = brainUse(design), slots = nucleusSlots(nuc);
   patchRoom = { used: use.total, slots };
   $('patchHint').textContent = patchPick ? `now tap a GO box, the red STOP box, or a part, to patch ${ICON[sensorKind(patchPick)]} into` : PATCH_HINT;
   const inBrain = (s) => !BUILT_INS.includes(s.id) || use.builtins.includes(s.id);
@@ -1485,7 +1487,19 @@ function draw() {
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
   }
   const spd = playing ? Number($('speed').value) : 0;
-  for (const c of world.cells) { c.drawn = calmPose(c, lastReal, spd) || c; drawCell(c.drawn, X, Y, s, c); }   // drawn: for taps
+  for (const c of world.cells) {
+    c.drawn = calmPose(c, lastReal, spd) || c;   // drawn: for taps
+    drawCell(arrange && arrange.cell && c === cell ? arrange.cell : c.drawn, X, Y, s, c);
+  }
+  if (arrange && arrange.drag && arrange.drag.kind === 'inc') {   // the organelle in hand, outlined (red: it won't go there)
+    const p = arrange.trial.parts[arrange.drag.k], k = capsuleOf(p), c = arrange.cell || cell;
+    const end = (t) => [c.cx[0] + c.cs[0] * (k.x + k.ux * t) - c.sn[0] * (k.y + k.uy * t), c.cy[0] + c.sn[0] * (k.x + k.ux * t) + c.cs[0] * (k.y + k.uy * t)];
+    const [ax, ay] = end(-k.h), [bx, by] = end(k.h);
+    ctx.strokeStyle = arrange.bad ? COLOR.starving : '#ffffff'; ctx.lineWidth = 2; ctx.globalAlpha = 0.8;
+    ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.lineCap = 'round';
+    ctx.save(); ctx.lineWidth = 2 * k.r * s + 4; ctx.strokeStyle = arrange.bad ? 'rgba(255,90,74,.35)' : 'rgba(255,255,255,.25)'; ctx.stroke(); ctx.restore();
+    ctx.globalAlpha = 1;
+  }
   drawPreview(X, Y, s);
   drawLinks(X, Y, s);
   drawForces(X, Y, s);
@@ -1728,15 +1742,17 @@ function plastidColor(inc) {
 }
 // The nucleus: a pale violet sphere in its envelope, specks of chromatin and a dark nucleolus (they turn with the cell)
 function drawNucleus(ix, iy, inc, X, Y, s, rot) {
-  const r = Math.max(inc.r * s, 2), cx = X(ix), cy = Y(iy);
-  ctx.fillStyle = COLOR.nucleus; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  const r = Math.max(inc.r * s, 2), cx = X(ix), cy = Y(iy), h = (inc.h || 0) * s;   // round, or a rod when moulded
+  incPath(cx, cy, inc, s, rot); ctx.fillStyle = COLOR.nucleus; ctx.fill();
   ctx.strokeStyle = COLOR.envelope; ctx.lineWidth = Math.max(1, 0.25 * s); ctx.stroke();
+  const ax = Math.cos(rot), ay = -Math.sin(rot);   // its axis on screen (y down)
+  const at = (t, a, d) => [cx + ax * t * h + Math.cos(a - rot) * d * r, cy + ay * t * h + Math.sin(a - rot) * d * r];
   ctx.fillStyle = COLOR.chromatin;
-  for (const [a, d] of [[0.6, 0.6], [2.1, 0.66], [3.4, 0.45], [4.6, 0.7], [5.5, 0.35], [1.3, 0.25]]) {
-    ctx.beginPath(); ctx.arc(cx + Math.cos(a - rot) * d * r, cy + Math.sin(a - rot) * d * r, Math.max(r * 0.07, 0.8), 0, Math.PI * 2); ctx.fill();
+  for (const [t, a, d] of [[-0.6, 0.6, 0.6], [0.5, 2.1, 0.66], [0, 3.4, 0.45], [0.7, 4.6, 0.7], [-0.3, 5.5, 0.35], [0.2, 1.3, 0.25]]) {
+    const [x, y] = at(t, a, d); ctx.beginPath(); ctx.arc(x, y, Math.max(r * 0.07, 0.8), 0, Math.PI * 2); ctx.fill();
   }
-  ctx.fillStyle = COLOR.nucleolus;
-  ctx.beginPath(); ctx.arc(cx + Math.cos(-0.7 - rot) * 0.3 * r, cy + Math.sin(-0.7 - rot) * 0.3 * r, r * 0.26, 0, Math.PI * 2); ctx.fill();
+  const [nx, ny] = at(0.3, -0.7, 0.3);
+  ctx.fillStyle = COLOR.nucleolus; ctx.beginPath(); ctx.arc(nx, ny, r * 0.26, 0, Math.PI * 2); ctx.fill();
 }
 
 // is piece i moved by a motor that is stopped? (its own, or the one up its chain of hinges)
@@ -1850,7 +1866,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     ctx.strokeStyle = COLOR[pad.kind]; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(pad.r * s, 2.5), 0, Math.PI * 2); ctx.stroke();
   }
-  if (real === cell && c.design === design) {      // where the Build panel would put the next part
+  if (real === cell && c.design === design && !arrange) {      // where the Build panel would put the next part
     const [mx, my] = surfacePoint(design.body, Number($('partAngle').value));
     const [wx, wy] = [c.cx[0] + c.cs[0] * mx - c.sn[0] * my, c.cy[0] + c.sn[0] * mx + c.cs[0] * my];
     ctx.fillStyle = COLOR.selected; ctx.strokeStyle = COLOR.selected; ctx.lineWidth = 1;
@@ -1918,6 +1934,7 @@ function drawMinimap(W, H) {
 // water looks around. Q / E turn the selected cell (Shift: finer).
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
+  if (arrange) { arrangeWheel(e); return; }
   if (drag && drag.cell) { rotate(drag.cell, e.deltaY < 0 ? 10 : -10); return; }
   $('viewMode').value = 'free';
   const z = $('zoom');
@@ -1938,6 +1955,7 @@ function pinchState() {
   return { d: Math.hypot(a.x - b.x, a.y - b.y), mx, my, wx: cam.x + (mx - r.width / 2) / s, wy: cam.y - (my - r.height / 2) / s, s, w: r.width, h: r.height };
 }
 canvas.addEventListener('pointerdown', (e) => {
+  if (arrange) { arrangeDown(e); return; }
   touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (touches.size === 2) {           // a second finger: stop dragging, start pinching
     if (drag && drag.cell) $('viewMode').value = drag.view;
@@ -1962,6 +1980,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 window.addEventListener('pointermove', (e) => {
   if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (arrange) { arrangeMove(e); return; }
   if (pinch && touches.size === 2) {
     const now = pinchState();
     const s = Math.min(20, Math.max(0.3, pinch.s * now.d / pinch.d));
@@ -1980,6 +1999,236 @@ window.addEventListener('pointermove', (e) => {
   const s = Number($('zoom').value);
   cam = { x: drag.cam.x - (e.clientX - drag.x) / s, y: drag.cam.y + (e.clientY - drag.y) / s };
 });
+// ----- arrange: the cell held still and large; drag organelles inside it and parts round its rim with a finger,
+// stretch an organelle with two fingers (or the mouse wheel) into a longer, slimmer rod or back to round, its volume
+// kept. Organelles are soft: one pushed into another makes it give way (it flattens against the newcomer, its volume
+// kept, then slides aside); the statolith is rigid, so the one pushed into it gives way instead (author, 2026-10-28). -----
+let arrange = null;   // { prev, base, trial, cell, drag, pinch, bad }
+const ARR = { minSquash: 0.45, maxStretch: 6 };   // a squashed organelle keeps at least this share of its round radius
+const incVol = (p) => Math.PI * p.radius * p.radius * (p.length || 0) + 4 / 3 * Math.PI * p.radius ** 3;
+const rigid = (p) => p.material === 'statolith';
+// a part's shape as a capsule in the body's frame: centre, unit axis, half its straight length, radius
+function capsuleOf(p) {
+  const a = (p.angle || 0) * Math.PI / 180, h = (p.length || 0) / 2;
+  return { x: p.at[0], y: p.at[1], ux: Math.cos(a), uy: Math.sin(a), h, r: p.radius };
+}
+// the closest points of two capsules' segments, and their distance (sampled: plenty for organelles)
+function capsuleGap(A, B) {
+  let best = { d: Infinity };
+  for (let i = 0; i <= 8; i++) {
+    const t = A.h ? -A.h + 2 * A.h * i / 8 : 0, ax = A.x + A.ux * t, ay = A.y + A.uy * t;
+    const s = Math.max(-B.h, Math.min(B.h, (ax - B.x) * B.ux + (ay - B.y) * B.uy));
+    const bx = B.x + B.ux * s, by = B.y + B.uy * s, d = Math.hypot(bx - ax, by - ay);
+    if (d < best.d) best = { d, ax, ay, bx, by };
+    if (!A.h) break;
+  }
+  return best;
+}
+// reshape p into a rod lying across direction (nx, ny), `r` thick, its volume kept
+function squash(p, r, nx, ny, V) {
+  p.radius = Math.round(r * 100) / 100;
+  p.length = Math.max(0, Math.round((V - 4 / 3 * Math.PI * r ** 3) / (Math.PI * r * r) * 100) / 100);
+  p.angle = Math.round(Math.atan2(nx, -ny) * 180 / Math.PI);   // perpendicular to the push
+  if (!p.length) delete p.length;
+}
+// stretch p to elongation e (its whole length over its width; 1 = round), lying at `deg`, its volume kept
+function stretch(p, e, deg, V) {
+  const r = Math.cbrt(V / (Math.PI * (2 * e - 2 / 3)));
+  p.radius = Math.round(r * 100) / 100;
+  const L = Math.round(2 * r * (e - 1) * 100) / 100;
+  if (L > 0.05) { p.length = L; p.angle = Math.round(deg); } else { delete p.length; delete p.angle; }
+}
+const elongation = (p) => ((p.length || 0) + 2 * p.radius) / (2 * p.radius);
+// keep a capsule inside the wall: pull it toward the centre by however far an end sticks out
+function inWall(p, body) {
+  for (let k = 0; k < 6; k++) {
+    const c = capsuleOf(p), room = body.radius - PARAMS.cell.wallThickness - 0.05;
+    let worst = 0, wx = 0, wy = 0;
+    for (const s of [-c.h, c.h]) {
+      const ex = c.x + c.ux * s, ey = c.y + c.uy * s, dx = Math.max(Math.abs(ex) - (body.length || 0) / 2, 0) * Math.sign(ex);
+      const out = Math.hypot(dx, ey) + c.r - room;
+      if (out > worst) { worst = out; const n = Math.hypot(dx, ey) || 1; wx = dx / n; wy = ey / n; }
+    }
+    if (worst <= 0) return;
+    p.at = [p.at[0] - wx * (worst + 0.02), p.at[1] - wy * (worst + 0.02)];
+  }
+}
+// the others make room for organelle k (in d, starting from their shapes in base)
+function snuggle(d, base, k) {
+  const inc = (x) => x.type === 'inclusion';
+  const D = d.parts[k];
+  for (let pass = 0; pass < 5; pass++) {
+    d.parts.forEach((N, j) => {
+      if (j === k || !inc(N)) return;
+      const B = base.parts[j], V = incVol(B), rEq = Math.cbrt(V * 3 / (4 * Math.PI));
+      const g = capsuleGap(capsuleOf(D), capsuleOf(N)), need = D.radius + N.radius;
+      if (g.d >= need - 1e-6) return;
+      let nx = g.bx - g.ax, ny = g.by - g.ay; const n = Math.hypot(nx, ny);
+      if (n < 1e-6) { nx = N.at[0] - D.at[0]; ny = N.at[1] - D.at[1]; }
+      const nn = Math.hypot(nx, ny) || 1; nx /= nn; ny /= nn;
+      if (rigid(N)) {   // a rigid one stays: the moved one flattens against it, then backs off
+        const VD = incVol(base.parts[k]), rD = Math.cbrt(VD * 3 / (4 * Math.PI));
+        const r = Math.max(rD * ARR.minSquash, g.d - N.radius);
+        if (r < D.radius) squash(D, r, -nx, -ny, VD);
+        const left = D.radius + N.radius - capsuleGap(capsuleOf(D), capsuleOf(N)).d;
+        if (left > 0) D.at = [D.at[0] - nx * left, D.at[1] - ny * left];
+        return;
+      }
+      // the still one flattens across the push (its centre's distance from the newcomer's surface), then slides aside
+      const cd = Math.hypot(N.at[0] - g.ax, N.at[1] - g.ay) - D.radius;
+      const r = Math.max(rEq * ARR.minSquash, Math.min(N.radius, cd));
+      if (r < N.radius - 1e-3) squash(N, r, nx, ny, V);
+      const left = D.radius + N.radius - capsuleGap(capsuleOf(D), capsuleOf(N)).d;
+      if (left > 0) N.at = [N.at[0] + nx * (left + 0.02), N.at[1] + ny * (left + 0.02)];
+      inWall(N, d.body);
+    });
+  }
+  inWall(D, d.body);
+}
+// keep the Edit sliders' memory (build) in step with where and how an organelle now is
+function syncBuild(p, body) {
+  const b = p.build;
+  if (!b) return;
+  const [x, y] = p.at;
+  b.where = (Math.round(Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+  const far = PART_TEMPLATES[b.tpl] ? PART_TEMPLATES[b.tpl](body, b.where, 'x', b.size, b.tilt, 1, b.feels, b.length, b.strength, b.content)[0] : null;
+  const fd = far ? Math.hypot(far.at[0], far.at[1]) : 0;
+  b.depth = fd > 0 ? Math.min(1, Math.round(Math.hypot(x, y) / fd * 100) / 100) : 0;
+  if (p.material !== 'statolith') { b.length = p.length || 0; b.tilt = p.angle || 0; }
+  const full = insideRadius(body, 1);   // the Size slider: a share of the room
+  if (full > 0 && p.material !== 'nucleus') b.size = Math.min(1, Math.round((p.radius + 0.05) / full * 100) / 100);
+}
+// the cell as it would be with the trial design, posed like the real one (drawn while arranging)
+function arrangeCell(d) {
+  const c = buildCell(d);
+  c.q.set(cell.q.subarray(0, c.n));
+  updatePose(c);
+  c.metab = cell.metab;
+  c.pieces[0].inclusions.forEach((inc, i) => {
+    const o = cell.pieces[0].inclusions[i];
+    if (o && o.material === inc.material) { inc.fill = o.fill; inc.damage = o.damage; inc.density = o.density; }
+  });
+  return c;
+}
+function tryTrial(d) {
+  try { const c = arrangeCell(d); arrange.trial = d; arrange.cell = c; arrange.bad = false; return true; }
+  catch (e) { arrange.bad = true; $('buildErr').textContent = e.message; return false; }
+}
+// screen point -> the body's frame (x along its axis)
+function bodyPoint(e) {
+  const [wx, wy] = toWorld(e), c = cell, dx = wx - c.cx[0], dy = wy - c.cy[0];
+  return [c.cs[0] * dx + c.sn[0] * dy, -c.sn[0] * dx + c.cs[0] * dy];
+}
+// what is under the finger: an organelle (inside) or a part on the rim
+function arrangeHit(e) {
+  const [px, py] = bodyPoint(e), s = Number($('zoom').value), d = arrange.trial;
+  let best = null, bestD = 6 / s;
+  d.parts.forEach((p, k) => {
+    if (p.type === 'inclusion') {
+      const g = capsuleGap({ x: px, y: py, ux: 1, uy: 0, h: 0, r: 0 }, capsuleOf(p)).d - p.radius;
+      if (g < bestD) { bestD = g; best = { k, kind: 'inc', off: [p.at[0] - px, p.at[1] - py] }; }
+    } else if (!p.parent || p.parent === 'body') {
+      const g = Math.hypot(p.at[0] - px, p.at[1] - py) - 2;
+      if (g < bestD) { bestD = g; best = { k, kind: 'rim' }; }
+    }
+  });
+  return best;
+}
+// move the dragged thing to the finger (from the shapes at the start of the drag), the others making room
+function arrangeTo(e) {
+  const a = arrange, [px, py] = bodyPoint(e), d = JSON.parse(JSON.stringify(a.base));
+  const k = a.drag.k, p = d.parts[k];
+  if (a.drag.kind === 'rim') {   // round the rim: rebuilt where the finger points, keeping its wiring, colour and name
+    const g = partGroups(d.parts).find((x) => x.members[0] === p), b = p.build;
+    if (!g || !b) return;
+    const where = (Math.round(Math.atan2(py, px) * 180 / Math.PI) + 360) % 360;
+    const fresh = PART_TEMPLATES[b.tpl](d.body, where, b.id, b.size, b.tilt, b.depth, b.feels, b.length, b.strength, b.content, b.pull);
+    if (b.flip) flipPart(fresh);
+    fresh[0].build = { ...b, where };
+    g.members.forEach((m, i) => { if (fresh[i] && m.joint && fresh[i].joint) for (const key of ['controls', 'speed']) if (m.joint[key]) fresh[i].joint[key] = m.joint[key]; });
+    for (const key of ['tag', 'name']) if (p[key] !== undefined) fresh[0][key] = p[key];
+    d.parts.splice(k, g.members.length, ...fresh);
+    tryTrial(d);
+    return;
+  }
+  if (a.pinch) stretch(p, a.pinch.e, a.pinch.deg, incVol(a.base.parts[k]));
+  p.at = [Math.round((px + a.drag.off[0]) * 100) / 100, Math.round((py + a.drag.off[1]) * 100) / 100];
+  snuggle(d, a.base, k);
+  d.parts.forEach((x) => { if (x.type === 'inclusion') syncBuild(x, d.body); });
+  tryTrial(d);
+}
+function startArrange() {
+  if (arrange || !cell || cell.design !== design) return;
+  const W = canvas.clientWidth, H = canvas.clientHeight, b = design.body;
+  arrange = { prev: { view: $('viewMode').value, zoom: $('zoom').value, playing }, base: null, trial: JSON.parse(JSON.stringify(design)), cell: null, drag: null, pinch: null };
+  playing = false; $('play').textContent = '▶';
+  $('viewMode').value = 'follow';
+  $('zoom').value = Math.min(20, 0.45 * Math.min(W, H * 0.55) / (b.radius + (b.length || 0) / 2));
+  $('arrangeBtn').textContent = '✓ Done arranging';
+  $('buildErr').textContent = 'drag an organelle, or a part round the rim · two fingers (or the wheel) stretch an organelle';
+}
+function stopArrange() {
+  if (!arrange) return;
+  $('viewMode').value = arrange.prev.view; $('zoom').value = arrange.prev.zoom;
+  arrange = null;
+  $('arrangeBtn').textContent = '✋ Arrange inside the cell';
+  $('buildErr').textContent = '';
+}
+$('arrangeBtn').onclick = () => (arrange ? stopArrange() : startArrange());
+// fingers while arranging (the tank's own drag, pan and pinch-zoom are off)
+function arrangeDown(e) {
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY, id: e.pointerId });
+  const a = arrange;
+  if (touches.size === 1) {
+    const hit = arrangeHit(e);
+    if (!hit) return;
+    a.base = JSON.parse(JSON.stringify(a.trial));
+    a.drag = { ...hit, id: e.pointerId };
+    a.pinch = null;
+  } else if (touches.size === 2 && a.drag && a.drag.kind === 'inc' && !rigid(a.trial.parts[a.drag.k])) {
+    const [p, q] = [...touches.values()];
+    a.pinch = { d0: Math.hypot(p.x - q.x, p.y - q.y), e0: elongation(a.base.parts[a.drag.k]), e: elongation(a.base.parts[a.drag.k]), deg: a.base.parts[a.drag.k].angle || 0 };
+  }
+}
+function arrangeMove(e) {
+  const a = arrange;
+  if (!a.drag) return;
+  if (a.pinch && touches.size === 2) {   // stretch along the line between the fingers
+    const [p, q] = [...touches.values()], d = Math.hypot(p.x - q.x, p.y - q.y);
+    a.pinch.e = Math.min(ARR.maxStretch, Math.max(1, a.pinch.e0 * d / Math.max(a.pinch.d0, 1)));
+    const ang = Math.atan2(-(q.y - p.y), q.x - p.x) - cell.phi[0];   // screen y points down
+    a.pinch.deg = ang * 180 / Math.PI;
+    const t = touches.get(a.drag.id);
+    if (t) arrangeTo({ clientX: t.x, clientY: t.y });
+    return;
+  }
+  if (e.pointerId === a.drag.id) arrangeTo(e);
+}
+function arrangeUp(e) {
+  touches.delete(e.pointerId);
+  const a = arrange;
+  if (touches.size > 0 || !a.drag) return;
+  a.drag = null; a.pinch = null;
+  if (JSON.stringify(a.trial) !== JSON.stringify(design)) applyDesign(JSON.parse(JSON.stringify(a.trial)));
+  a.trial = JSON.parse(JSON.stringify(design)); a.cell = null;
+}
+// the mouse wheel over an organelle stretches it (Shift: turns it)
+function arrangeWheel(e) {
+  const hit = arrangeHit(e);
+  if (!hit || hit.kind !== 'inc' || rigid(arrange.trial.parts[hit.k])) return;
+  const a = arrange;
+  a.base = JSON.parse(JSON.stringify(a.trial));
+  const p0 = a.base.parts[hit.k], e0 = elongation(p0);
+  a.drag = { ...hit, id: -1 };
+  a.pinch = e.shiftKey ? { e: e0, deg: (p0.angle || 0) + (e.deltaY < 0 ? 15 : -15) } : { e: Math.min(ARR.maxStretch, Math.max(1, e0 * (e.deltaY < 0 ? 1.15 : 1 / 1.15))), deg: p0.angle || 0 };
+  const at = p0.at;   // in place
+  const [wx, wy] = [cell.cx[0] + cell.cs[0] * at[0] - cell.sn[0] * at[1], cell.cy[0] + cell.sn[0] * at[0] + cell.cs[0] * at[1]];
+  const r = canvas.getBoundingClientRect(), s = Number($('zoom').value);
+  a.drag.off = [0, 0];
+  arrangeTo({ clientX: r.left + r.width / 2 + (wx - cam.x) * s, clientY: r.top + r.height / 2 - (wy - cam.y) * s });
+  arrangeUp({ pointerId: -1 });
+}
+
 // a tap (no drag) on the selected cell's nucleus opens the wiring view: the nucleus opened up
 let tap = null;
 function tappedNucleus(t, e) {
@@ -2016,6 +2265,7 @@ function showPartAt(t, e) {
   if (row) { row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1200); }
 }
 function lift(e) {
+  if (arrange) { arrangeUp(e); return; }
   touches.delete(e.pointerId);
   if (touches.size < 2) pinch = null;
   if (touches.size > 0) return;

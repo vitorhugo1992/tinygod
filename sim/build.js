@@ -33,7 +33,7 @@
 // A buoyancy chamber is an inclusion (material 'chamber') with a rule in `joint: { type: 'chamber', controls }`: its GO
 // conditions are FLOAT when (it pumps itself light), its STOP conditions SINK if (heavy; sinking wins); neither: neutral
 // (seawater's density: no lift, no cost). PARAMS.chamber.
-// The nucleus is an inclusion (material 'nucleus', always round), the brain box: its size gives it slots (sim/brain.js)
+// The nucleus is an inclusion (material 'nucleus', round or moulded into a rod), the brain box: its size gives it slots (sim/brain.js)
 // and every brain module (each sensor, each wired built-in reading, each rule box) takes one; a design whose nucleus
 // is too small, or with two, does not build.
 // Any joint can be wired to sensors: controls: [{ sensor: id, min = 0, max = 1 }, ...] (sensor 'energy': the cell's own
@@ -251,8 +251,8 @@ export function buildCell(design) {
       if (mat.min !== undefined && (rho < mat.min || rho > mat.max)) throw new Error(`${part.material} density out of range`);
       // round, or a rod with rounded ends (`length` its straight part, lying `angle` degrees from the body's axis; a
       // statolith stays round, its angle being the way it reads)
-      const L = part.material === 'statolith' || part.material === 'nucleus' ? 0 : Math.max(part.length || 0, 0);
-      const ang = part.material === 'statolith' || part.material === 'nucleus' ? 0 : (part.angle || 0) * DEG;
+      const L = part.material === 'statolith' ? 0 : Math.max(part.length || 0, 0);
+      const ang = part.material === 'statolith' ? 0 : (part.angle || 0) * DEG;
       const ux = dcos(ang), uy = dsin(ang), h = L / 2;
       const ends = [[x - ux * h, y - uy * h], [x + ux * h, y + uy * h]];
       // inside the wall: each end's distance from the body's axis plus its radius (a capsule in a capsule: the ends decide)
