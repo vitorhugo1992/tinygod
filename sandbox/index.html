@@ -239,6 +239,8 @@
   <div class="row" id="feelsRow" title="What a touch or proximity sensor reacts to">Feels <span class="seg" id="feelsSeg"></span></div>
   <div class="slider" id="sizeRow">Size <input type="range" id="partSize" min="10" max="100" step="5" value="40"><span id="partSizeOut"></span></div>
   <div class="row" id="pigmentRow" title="What the plastid catches light with">Pigment <span class="seg" id="pigmentSeg"></span></div>
+  <div class="row" id="materialRow" title="What the spine is made of: protein is light and cheap, glass heavy and stiff">Material <span class="seg" id="materialSeg"></span></div>
+  <div class="row" id="sticksRow" title="A kin pad holds only its own species, strongly; a mucus pad holds anything, weakly">Sticks to <span class="seg" id="sticksSeg"></span></div>
   <div class="row" id="contentRow" title="What the vacuole holds decides what it does">Content <span class="seg" id="contentSeg"></span></div>
   <div id="contentTip" class="tip"></div>
   <div class="slider" id="strengthRow" title="Stronger gas vesicles survive deeper but lift less (more protein per bubble)">Strength <input type="range" id="partStrength" min="0" max="100" step="5" value="50"><span id="partStrengthOut"></span></div>
@@ -272,6 +274,8 @@
   <input type="checkbox" id="partFlip" hidden>
   <input type="checkbox" id="partPull" hidden>
   <select id="partPigment" hidden><option value="sun">☀ Sun</option><option value="shade">☁ Shade</option></select>
+  <select id="partMaterial" hidden><option value="protein">Protein</option><option value="glass">Glass</option></select>
+  <select id="partSticks" hidden><option value="kin">Its own kind</option><option value="mucus">Anything</option></select>
   <select id="partContent" hidden><option value="starch">Starch</option><option value="oil">Oil</option><option value="sap">Sap</option><option value="gas">Gas</option></select>
   <input type="checkbox" id="gravity" checked hidden>
   <input type="checkbox" id="light" checked hidden>

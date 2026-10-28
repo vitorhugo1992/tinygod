@@ -109,6 +109,25 @@ nutrients poor / rich. **Tap a part in the tank** (a flagellum, spring or sensor
 its card opens, outlined in its colour, the part lit a moment; tapping a card's name lights its part too. **⧉ Copy rule
 / 📋 Paste rule from …** (author: "a chain of functions for a tail… something similar for another tail with slight
 adjustments"): the rule with its STOP conditions and beat speed, refused with "nucleus full" if the boxes don't fit.
+**Simpler parts, the same routes (built 2026-10-28; author: "simplified implementations that don't simplify the game").**
+Conditions offer above / below / more / less only (between = above AND below, outside = below OR above; old conditions
+still show theirs). One **Spine** with a Material row (protein / glass), one **Pad** with "Sticks to" (its own kind =
+kin / anything = mucus), one **Feeler** (Range at its least: touch only; wider: feels within N µm, the old proximity
+sensor). Hidden from the Build panel (old designs still edit): the stiff flap (a lesson; a tip later) and the nutrient
+sensor (no use until step 1). Build panel: 11 buttons.
+**Agreed next, each waiting for a go (author, 2026-10-28):** (1) the **buoyancy chamber**: replaces the sap vacuole
+and removes gas vesicles entirely; three states, light (~1000 kg/m³) / neutral (1025, seawater: no effect, no cost) /
+heavy (~1070, to sink on purpose); holding light or heavy costs energy in proportion to size and distance from
+neutral (~5% of income for a mid-size one held light all day); ~20 s to change; rule card FLOAT when… / SINK when…,
+neither = neutral, SINK wins if both (Claude's default, author did not object); a bigger chamber pushes harder but
+takes room and costs more. Energy stores become their own part, Energy store (Starch / Oil), the material deciding the
+trade-off. (2) **Resting** (author: "cool, like slowing the metabolism"): a built-in action a rule triggers (REST
+when…), lower upkeep, no swimming or repair while resting. Later: one stated cost rule (everything costs by size and
+material); dragging organelles by finger. **The author's "species test"** (designs/species_test.json, not committed):
+Claude was asked to make it survive the night, then told to stop (author: "don't finish any species, don't get into
+complicated rabbit holes without telling me"). Found: income ~1,400 vs upkeep ~5,400 pJ/s; a STOP "starch below 30%"
+blocked the dawn climb; oars below outdragged spines above, so it flipped sinking; and a sandbox bug (fixed: a range
+from 0.03 held on in total darkness). **Lesson for Claude: tell the author before long searches; never brute-force.**
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

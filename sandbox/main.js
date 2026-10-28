@@ -179,6 +179,8 @@ const showControls = () => {
   $('strengthRow').style.display = gas ? '' : 'none';
   $('contentRow').style.display = c.content ? '' : 'none';
   $('pigmentRow').style.display = c.pigment ? '' : 'none';
+  $('materialRow').style.display = c.material ? '' : 'none';
+  $('sticksRow').style.display = c.sticks ? '' : 'none';
   $('contentTip').style.display = c.content || c.pigment || c.tip ? '' : 'none';
   $('contentTip').textContent = c.content ? CONTENT_TIPS[$('partContent').value] : c.pigment ? PIGMENT_TIPS[$('partPigment').value] : c.tip ? c.tip() : '';
   $('tiltLabel').textContent = c.tiltLabel || 'Tilt';   // a statolith's "tilt" is the direction it reads
@@ -216,6 +218,8 @@ function makePart(body, id, spot) {   // spot: { where, depth } instead of the s
   if (c.length) b.length = Number($('partLength').value);
   if (c.content) b.content = $('partContent').value;
   if (c.pigment) b.content = $('partPigment').value;   // a plastid's pigment goes where a vacuole's content does
+  if (c.material) b.content = $('partMaterial').value;   // a spine's material, a pad's kind: the same place
+  if (c.sticks) b.content = $('partSticks').value;
   if (c.strength || b.content === 'gas') b.strength = Number($('partStrength').value) / 100;
   const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length, b.strength, b.content, b.pull);
   if (b.flip) flipPart(parts);
@@ -254,6 +258,8 @@ function updateEdited() {
 function startEditing(b) {
   editing = b.id;
   if (b.content && b.tpl.startsWith('Plastid')) $('partPigment').value = b.content;
+  else if (b.content && b.tpl === 'Spine') $('partMaterial').value = b.content;
+  else if (b.content && b.tpl === 'Pad') $('partSticks').value = b.content;
   else if (b.content) $('partContent').value = b.content;
   $('partWhat').value = b.tpl; showControls();
   $('partAngle').value = b.where; $('partTilt').value = b.tilt;
@@ -280,6 +286,8 @@ $('cancelEdit').onclick = stopEditing;
 for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength', 'partFeels', 'partFlip', 'partPull']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
 $('partContent').onchange = () => { showControls(); previewOn = true; if (editing) updateEdited(); else updatePreview(); };
 $('partPigment').onchange = $('partContent').onchange;
+$('partMaterial').onchange = $('partContent').onchange;
+$('partSticks').onchange = $('partContent').onchange;
 // while dragging, the ghost follows the slider
 for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partStrength']) $(id).addEventListener('input', () => { previewOn = true; updatePreview(); });
 
@@ -387,7 +395,7 @@ function partColours(d) {
 const colourOf = (g) => (g.members[0].tag !== undefined ? PALETTE[g.members[0].tag % PALETTE.length] : null);
 const KIND_NAME = { 'Wave tail (swims)': 'Tail', 'Flexible oar (swims)': 'Oar', 'Stiff flap (goes nowhere)': 'Flap',
   'Burst organ (escape)': 'Spring', 'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Light sensor (eyespot)': 'Eyespot',
-  'Statolith (which way is up)': 'Statolith', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity', 'Nutrient sensor': 'Nutrients',
+  'Statolith (which way is up)': 'Statolith', 'Feeler': 'Feeler', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity', 'Nutrient sensor': 'Nutrients',
   'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad' };
 const SIDES = ['front', 'front-top', 'top', 'back-top', 'back', 'back-bottom', 'bottom', 'front-bottom'];
 // a part's name: the one given, or what it is and where ("Oar (back-bottom)"); the same twice gets a number
@@ -609,7 +617,8 @@ function condLine(c, sensors, live, onSet, onRemove) {
   sel.onchange = () => onSet(mode === 'more' || mode === 'less' ? { ...c, sensor: sel.value } : { ...c, ...freshRule(sel.value), not: c.not && mode === 'outside' });
   const how = document.createElement('select');
   how.className = 'howsel';
-  for (const [k, label] of Object.entries(MODES)) if (sensors.length > 1 || (k !== 'more' && k !== 'less')) how.add(new Option(label, k));
+  // above / below / more / less: between is above AND below, outside below OR above (shown only on old conditions)
+  for (const [k, label] of Object.entries(MODES)) if ((sensors.length > 1 || (k !== 'more' && k !== 'less')) && ((k !== 'between' && k !== 'outside') || k === mode)) how.add(new Option(label, k));
   how.value = mode;
   how.title = 'above / below a value, between or outside two, or more / less than another sensor';
   how.onchange = () => onSet(withMode(c, how.value, sensors));
@@ -2050,7 +2059,7 @@ function segmented(boxId, selectId) {
     box.appendChild(b);
   }
 }
-segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall'); segmented('feelsSeg', 'partFeels'); segmented('contentSeg', 'partContent'); segmented('pigmentSeg', 'partPigment');
+segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall'); segmented('feelsSeg', 'partFeels'); segmented('contentSeg', 'partContent'); segmented('pigmentSeg', 'partPigment'); segmented('materialSeg', 'partMaterial'); segmented('sticksSeg', 'partSticks');
 const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked = !$(boxId).checked; $(boxId).dispatchEvent(new Event('change')); }; };
 $('calmBtn').onclick = () => { calmBeats = !calmBeats; };
 toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day');
@@ -2069,6 +2078,7 @@ const SHORT = {
   'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Spring',
   'Ejectisome, latched (Release)': 'Ejectisome', 'Oil droplet': 'Oil droplet',
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
+  'Feeler': 'Feeler', 'Spine': 'Spine', 'Pad': 'Pad',
   'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity',
   'Gas vesicles (float, crush deep)': 'Gas vesicles', 'Statolith (which way is up)': 'Statolith',

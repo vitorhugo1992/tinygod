@@ -118,6 +118,17 @@ export const PART_TEMPLATES = {
   'Light sensor (eyespot)': (body, deg, id, size, tilt) =>
     [{ type: 'sensor', id, label: 'Light sensor', at: surfacePoint(body, deg), angle: deg + tilt, kind: 'light',
       cone: Math.max(20, Math.round(180 * size)) }],
+  // one sensor that feels (author, 2026-10-28): Range at its least, touch only; wider, it feels things coming
+  'Feeler': (body, deg, id, size, tilt, depth, feels) => (size <= 0.1
+    ? [{ type: 'sensor', id, label: 'Feeler', at: surfacePoint(body, deg), kind: 'touch', feels }]
+    : [{ type: 'sensor', id, label: 'Feeler', at: surfacePoint(body, deg), kind: 'near', range: Math.round(200 * size), feels }]),
+  // one spine, its material chosen (protein: light and cheap; glass: heavy and stiff)
+  'Spine': (body, deg, id, size, tilt, depth, feels, len, strength, material = 'protein') => [
+    { type: 'segment', id, label: material === 'glass' ? 'Glass spine' : 'Protein spine', at: surfacePoint(body, deg), angle: deg + tilt,
+      length: Math.round(100 * size), radius: 0.5, material }],
+  // one pad: sticks to its own kind only (kin), or to anything (mucus)
+  'Pad': (body, deg, id, size, tilt, depth, feels, len, strength, kind = 'kin') =>
+    [{ type: 'pad', id, label: kind === 'mucus' ? 'Mucus pad' : 'Kin pad', at: surfacePoint(body, deg), kind }],
   'Touch sensor': (body, deg, id, size, tilt, depth, feels) =>
     [{ type: 'sensor', id, label: `Touch sensor${feels === 'anything' ? ' (anything)' : ''}`, at: surfacePoint(body, deg), kind: 'touch', feels }],
   'Proximity sensor': (body, deg, id, size, tilt, depth, feels) =>
@@ -204,6 +215,9 @@ export const CONTROLS = {
   'Burst organ (escape)': { tilt: true, flip: true, length: { min: 10, max: 40, step: 5, def: 20 }, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true }, 'Sap vacuole (slider)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
+  'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), feels: true, sizeDefault: 10 },
+  'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long`, material: true },
+  'Pad': { sticks: true },
   'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, pigment: true, ...ROD },
   'Starch granule (quick store, heavy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor': { feels: true },
@@ -226,13 +240,13 @@ export const CONTENT_TIPS = {
 
 // How the Build panel sorts parts (parts made with older templates, such as 'Oil droplet', still edit)
 export const CATEGORIES = {
-  'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)', 'Stiff flap (goes nowhere)'],
-  'Spines & appendages': ['Spine, protein', 'Spine, glass'],
+  // the stiff flap (a lesson, not a part) and the nutrient sensor (no use until step 1) are hidden; old designs still edit
+  'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)'],
+  'Spines & appendages': ['Spine'],
   'Escapes': ['Burst organ (escape)'],   // the spring (template name kept so old designs edit); the ejectisome was removed
   'Inside the cell': ['Nucleus (the brain)', 'Plastid (makes energy)', 'Vacuole (store or float)'],
-  'Pads': ['Kin pad', 'Mucus pad'],
-  'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Touch sensor', 'Proximity sensor',
-    'Nutrient sensor'],
+  'Pads': ['Pad'],
+  'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Feeler'],
 };
 
 // The category of a part already on the body, from what it is
