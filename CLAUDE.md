@@ -146,8 +146,8 @@ and plastid income run at PARAMS.metab.rest (0.4), flagella stop, plastids aren'
 keep working. Resting in the dark saves energy, in light throws income away. Shown: the body outline turns calm blue,
 "began resting / woke" in the trouble log, a budget line, RESTING / awake in the nucleus box. Check 28q. Checks: 42.
 **For later (author, 2026-10-28): dragging organelles by finger, and shaping them.** The cell held fixed on screen while
-editing; drag an organelle to move it; pinch it to make it slimmer, longer, curved or rounder (shape fixed for the
-statolith and other parts whose shape is their function, e.g. the nucleus). Curved shapes are new to the physics
+editing; drag an organelle to move it; pinch it to make it slimmer, longer, curved or rounder. Everything that can be moulded is mouldable, the nucleus
+included (author, 2026-10-28); only parts whose shape is their function stay fixed (the statolith). Curved shapes are new to the physics
 (room, overlap, weight): plan with the author first.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
