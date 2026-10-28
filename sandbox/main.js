@@ -2123,3 +2123,9 @@ requestAnimationFrame(frame);
 
 // Offline on the website: a service worker keeps a copy of the sandbox (not on the home server's plain http)
 if (location.protocol === 'https:' && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// On the website there is no computer to send to: the button copies the design for the chat instead, and says so
+if (location.protocol === 'https:') {
+  $('sendDesign').textContent = '📤 Copy for Claude';
+  $('sendDesign').title = 'Copies this design: paste it to Claude in the chat (sending works only from the home computer\'s address)';
+}

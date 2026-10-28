@@ -68,7 +68,11 @@ const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ?
 // One condition: is the reading inside its range? (with a little hysteresis)
 function holds(ctl, v) {
   if (ctl.holds === null) ctl.holds = v >= ctl.min && v <= ctl.max;
-  else if (ctl.holds) { if (v < ctl.min - S.hysteresis || v > ctl.max + S.hysteresis) ctl.holds = false; }
+  else if (ctl.holds) {
+    // it lets go a little outside its range; at the very ends of the scale (0, 1) there is no "a little outside", so a
+    // reading there lets go of a range that does not reach it (a range from 0.03 held on in total darkness)
+    if (v < ctl.min - S.hysteresis || v > ctl.max + S.hysteresis || (ctl.min > 0 && v <= 0) || (ctl.max < 1 && v >= 1)) ctl.holds = false;
+  }
   else if (v > ctl.min + S.hysteresis && v < ctl.max - S.hysteresis) ctl.holds = true;
   // at the ends of the scale there is nothing beyond, so 0 and 1 count as inside a range that reaches them
   else if ((ctl.min <= 0 && v <= 0) || (ctl.max >= 1 && v >= 1)) ctl.holds = true;
