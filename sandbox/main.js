@@ -44,6 +44,7 @@ const preset = (name) => Object.assign(JSON.parse(JSON.stringify(PRESETS[name]))
 function withoutTimers(d) {
   for (const p of d.parts || []) if (p.label === 'Burst organ') p.label = 'Spring';   // renamed (author, 2026-10-28)
   if (!nucleiOf(d).length) for (const p of d.parts || []) if (p.joint) { delete p.joint.controls; delete p.joint.control; delete p.joint.speed; }
+  tagParts(d);
   const gone = new Set((d.parts || []).filter((p) => p.type === 'sensor' && p.kind === 'timer').map((p) => p.id));
   if (!gone.size) return d;
   d.parts = d.parts.filter((p) => !gone.has(p.id));
@@ -348,6 +349,123 @@ function drawPreview(X, Y, s) {
   }
   ctx.restore();
 }
+// ----- colours and names (author, 2026-10-28: "the part we are attributing functions should have a color code"):
+// every part a rule drives (flagella, springs) and every sensor gets its own colour, the same on its card, in the tank
+// and in the nucleus; and a name you can recognise ("Oar (back-bottom)"), or one you give it. Stored on the part on the
+// body: tag (a palette index) and name. -----
+const PALETTE = ['#ff9f43', '#4dabf7', '#f783ac', '#ffd43b', '#b197fc', '#3bc9db', '#a9e34b', '#ff6b6b'];
+const taggable = (g) => g.category === 'Sensors' || targetsOf(g).length > 0;
+// give each such part a colour of its own (a copy or a mirror gets a new one; others lose theirs) and keep given names
+// unique (a copy's name is dropped, so it gets its own)
+function tagParts(d) {
+  const groups = partGroups(d.parts || []), used = new Map(), names = new Set(), want = [];
+  for (const g of groups) {
+    const r = g.members[0];
+    if (r.name) { if (names.has(r.name)) delete r.name; else names.add(r.name); }
+    if (!taggable(g)) { delete r.tag; continue; }
+    if (r.tag === undefined || used.has(r.tag)) want.push(r); else used.set(r.tag, 1);
+  }
+  for (const r of want) {   // the least used colour, the first of those
+    let best = 0;
+    for (let k = 1; k < PALETTE.length; k++) if ((used.get(k) || 0) < (used.get(best) || 0)) best = k;
+    r.tag = best; used.set(best, (used.get(best) || 0) + 1);
+  }
+}
+const colourCache = new WeakMap();
+// design part index -> its colour, for every piece of a coloured part (computed once per design)
+function partColours(d) {
+  let m = colourCache.get(d);
+  if (m) return m;
+  m = new Map();
+  for (const g of partGroups(d.parts || [])) {
+    const t = g.members[0].tag;
+    if (t !== undefined) for (const x of g.members) m.set(d.parts.indexOf(x), PALETTE[t % PALETTE.length]);
+  }
+  colourCache.set(d, m);
+  return m;
+}
+const colourOf = (g) => (g.members[0].tag !== undefined ? PALETTE[g.members[0].tag % PALETTE.length] : null);
+const KIND_NAME = { 'Wave tail (swims)': 'Tail', 'Flexible oar (swims)': 'Oar', 'Stiff flap (goes nowhere)': 'Flap',
+  'Burst organ (escape)': 'Spring', 'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Light sensor (eyespot)': 'Eyespot',
+  'Statolith (which way is up)': 'Statolith', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity', 'Nutrient sensor': 'Nutrients',
+  'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad' };
+const SIDES = ['front', 'front-top', 'top', 'back-top', 'back', 'back-bottom', 'bottom', 'front-bottom'];
+// a part's name: the one given, or what it is and where ("Oar (back-bottom)"); the same twice gets a number
+function partName(g, all = partGroups(design.parts || [])) {
+  const own = (x) => {
+    const r = x.members[0], b = r.build;
+    if (r.name) return r.name;
+    const kind = (b && KIND_NAME[b.tpl]) || r.label || x.name;
+    const [px, py] = r.at || [0, 0];
+    if (r.material === 'statolith') return `${kind} ${Math.round(r.angle || 0)}°`;   // by the way it faces (author)
+    const where = r.type === 'inclusion' && Math.hypot(px, py) < 0.5 ? 'centre' : SIDES[Math.round((((x.deg % 360) + 360) % 360) / 45) % 8];
+    return `${kind} (${where})`;
+  };
+  const name = own(g);
+  const same = all.filter((x) => own(x) === name);
+  return same.length > 1 ? `${name} ${same.indexOf(all.find((x) => x.members[0] === g.members[0])) + 1}` : name;
+}
+const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health' };
+// a sensor (or built-in reading) by id: its name and colour (built-ins have none)
+function sensorInfo(id) {
+  if (BUILT_NAME[id]) return { name: BUILT_NAME[id], colour: null };
+  const all = partGroups(design.parts || []), g = all.find((x) => x.members[0].id === id);
+  return g ? { name: partName(g, all), colour: colourOf(g) } : { name: id, colour: null };
+}
+const dot = (colour) => (colour ? `<i class="dot" style="background:${colour}"></i>` : '');
+const sensorTag = (id) => { const s = sensorInfo(id); return `${dot(s.colour)}${ICON[sensorKind(id)]} ${s.name}`; };
+// what a reading means, in words: "48% of full sun", "6° down", "30% full"
+function meaning(kind, v, id) {
+  const pc = `${Math.round(v * 100)}%`;
+  if (kind === 'light') return v <= 0.005 ? 'dark' : `${pc} of full sun`;
+  if (kind === 'statolith') {
+    const a = Math.round(Math.asin(Math.min(1, Math.max(-1, 2 * v - 1))) * 180 / Math.PI);
+    return a === 0 ? '0°' : a > 0 ? `+${a}°` : `−${-a}°`;   // its direction: +90° straight up, −90° down (author)
+  }
+  if (kind === 'energy' || kind === 'starch' || kind === 'oil') return `${pc} full`;
+  if (kind === 'health') return `${pc} healthy`;
+  if (kind === 'touch') return v >= 0.5 ? 'touching' : 'not touching';
+  if (kind === 'near') return v <= 0 ? 'nothing near' : v >= 1 ? 'touching' : `something ${Math.round((1 - v) * nearRange(id))} µm away`;
+  if (kind === 'chem') return v < 0.5 ? `poor water (${pc})` : `rich water (${pc})`;
+  return v.toFixed(2);
+}
+const nearRange = (id) => { const p = (design.parts || []).find((x) => x.id === id); return (p && p.range) || PARAMS.sensor.nearRange; };
+const UNIT = { light: 'of full sun', energy: 'full', starch: 'full', oil: 'full', health: 'healthy' };
+// a condition in words, without the sensor's name: "above 50% of full sun", "pointing lower than 6° down"
+function condWords(c, mode = modeOf(c), lo = c.min, hi = c.max) {
+  const kind = sensorKind(c.sensor), w = (v) => meaning(kind, v, c.sensor), pc = (v) => `${Math.round(v * 100)}%`;
+  if (mode === 'more' || mode === 'less') return `reads ${mode} than ${sensorInfo(c.vs).name}`;
+  const not = mode === 'outside' ? 'not ' : '';
+  if (UNIT[kind]) {
+    if (mode === 'above') return `above ${pc(lo)} ${UNIT[kind]}`;
+    if (mode === 'below') return `below ${pc(hi)} ${UNIT[kind]}`;
+    return `${not}between ${pc(lo)} and ${pc(hi)} ${UNIT[kind]}`;
+  }
+  if (kind === 'statolith') {
+    if (mode === 'above') return `tilted above ${w(lo)}`;
+    if (mode === 'below') return `tilted below ${w(hi)}`;
+    return `${not}tilted between ${w(lo)} and ${w(hi)}`;
+  }
+  if (kind === 'touch') return mode === 'above' ? 'touching' : mode === 'below' ? 'not touching' : `${not}touching`;
+  if (kind === 'near') {
+    if (mode === 'above') return `something within ${Math.round((1 - lo) * nearRange(c.sensor))} µm`;
+    if (mode === 'below') return `nothing within ${Math.round((1 - hi) * nearRange(c.sensor))} µm`;
+  }
+  return mode === 'above' ? `above ${w(lo)}` : mode === 'below' ? `below ${w(hi)}` : `${not}between ${w(lo)} and ${w(hi)}`;
+}
+// a part's rule in one sentence: "Runs when ● Eyespot (top) is above 50% of full sun, but stops if ● Statolith …"
+function ruleSummary(targets) {
+  const m = targets[0], verb = verbOf(m), shape = toShape(rulesOf(m)), runs = verb === 'runs';
+  if (!nucleiOf(design).length) return runs ? 'Runs all the time (no nucleus to control it)' : 'Fires only by hand (no nucleus)';
+  const one = (c) => `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
+  let s = shape.groups.length ? `${runs ? 'Runs' : 'Fires'} when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}`
+    : runs ? 'Runs all the time' : 'Fires only by hand (⚡ Release)';
+  if (shape.stops.length) s += `, but ${runs ? 'stops' : 'never fires'} if ${shape.stops.map(one).join(' or ')}`;
+  const sp = runs && m.joint.speed;
+  if (sp) s += `. Beats faster as ${sensorTag(sp.sensor)} reads ${sp.down ? 'less' : 'more'}`;
+  return s + '.';
+}
+
 // ----- wiring: which sensors drive a part. A rule is a list of conditions (a sensor and a range of its reading, or
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
@@ -361,11 +479,11 @@ const SCALE = {   // what the 0-1 reading means
   starch: '0 = its starch is used up, 1 = full',
   oil: '0 = its oil is used up, 1 = full',
   health: '0 = its plastids wrecked by too much light, 1 = unharmed',
-  statolith: '0 = its direction points down, 0.5 = level, 1 = up',
+  statolith: 'the way it faces: 0 = straight down (−90°), 0.5 = level (0°), 1 = straight up (+90°)',
   chem: '0 = poor water (near the surface), 1 = rich (deep)',
 };
 const ENDS = { health: ['wrecked', 'unharmed'], light: ['dark', 'bright'], touch: ['nothing', 'touching'], near: ['nothing near', 'touching'], energy: ['starving', 'full'], starch: ['used up', 'full'], oil: ['used up', 'full'],
-  statolith: ['points down', 'points up'], chem: ['poor water', 'rich water'] };
+  statolith: ['−90° (down)', '+90° (up)'], chem: ['poor water', 'rich water'] };
 const ICON = { health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
@@ -376,9 +494,10 @@ function sensorKind(id) {
 // the sensors a rule can read: every sensor part (but `except`), then the energy level
 function sensorList(except) {
   const list = [];
-  for (const x of partGroups(design.parts || []).filter((g) => g.category === 'Sensors' && g.members[0].id !== except)) {
-    const id = x.members[0].id;
-    list.push({ id, name: `${x.name.toLowerCase()} at ${x.deg}°`, short: x.name, deg: x.deg, kind: sensorKind(id) });
+  const all = partGroups(design.parts || []);
+  for (const x of all.filter((g) => g.category === 'Sensors' && g.members[0].id !== except)) {
+    const id = x.members[0].id, name = partName(x, all);
+    list.push({ id, name, short: name, deg: x.deg, kind: sensorKind(id), colour: colourOf(x) });
   }
   list.push({ id: 'energy', name: 'its energy level (built in)', short: 'Energy level', kind: 'energy' });
   for (const k of ['starch', 'oil']) if ((design.parts || []).some((p) => p.type === 'inclusion' && p.material === k))
@@ -474,7 +593,7 @@ function withMode(c, mode, sensors) {
 // a condition in a few characters, for cable labels
 function condText(c) {
   const m = modeOf(c), f = (v) => r2(v).toString();
-  if (m === 'more' || m === 'less') { const s = sensorList().find((x) => x.id === c.vs); return `${m === 'more' ? '>' : '<'} ${ICON[sensorKind(c.vs)]}${s && s.deg !== undefined ? ` ${s.deg}°` : ''}`; }
+  if (m === 'more' || m === 'less') return `${m === 'more' ? '>' : '<'} ${ICON[sensorKind(c.vs)]} ${sensorInfo(c.vs).name}`;
   return m === 'above' ? `> ${f(c.min)}` : m === 'below' ? `< ${f(c.max)}` : `${m === 'outside' ? 'not ' : ''}${f(c.min)}–${f(c.max)}`;
 }
 // One condition line: sensor, how, value(s); `live` = "part index:condition index" (for the green / red light)
@@ -519,18 +638,19 @@ function valueBar(c, mode, kind, onSet) {
   box.className = 'range';
   box.title = SCALE[kind];
   const v0 = mode === 'below' ? c.max : c.min, v1 = c.max;
-  box.innerHTML = `<div class="rlabel"><b class="lohi"></b> · now <b data-live="${c.sensor}">–</b></div>
+  box.innerHTML = `<div class="rlabel"><b class="lohi"></b> <span class="mean"></span> · now <b data-live="${c.sensor}" data-mean="${kind}">–</b></div>
     <div class="dual"><div class="track${mode === 'outside' ? ' out' : ''}"><div class="band"></div><div class="now" data-livebar="${c.sensor}"></div></div>
       <input type="range" min="0" max="1" step="0.05" value="${v0}">${one ? '' : `<input type="range" min="0" max="1" step="0.05" value="${v1}">`}</div>
     <div class="rends"><span>${ENDS[kind][0]}</span><span>${ENDS[kind][1]}</span></div>`;
   const [a, b] = box.querySelectorAll('input');
-  const band = box.querySelector('.band'), lohi = box.querySelector('.lohi');
+  const band = box.querySelector('.band'), lohi = box.querySelector('.lohi'), mean = box.querySelector('.mean');
   const show = () => {
     const x = Number(a.value), y = b ? Number(b.value) : 0;
     const from = mode === 'above' ? x : mode === 'below' ? 0 : x, to = mode === 'above' ? 1 : mode === 'below' ? x : y;
     band.style.left = `${from * 100}%`; band.style.width = `${(to - from) * 100}%`;
     lohi.textContent = mode === 'above' ? `above ${x.toFixed(2)}` : mode === 'below' ? `below ${x.toFixed(2)}`
       : `${mode === 'outside' ? 'outside' : 'between'} ${x.toFixed(2)} and ${y.toFixed(2)}`;
+    mean.textContent = `= ${condWords(c, mode, mode === 'below' ? 0 : x, mode === 'below' ? x : mode === 'above' ? 1 : y)}`;   // the same in words
   };
   a.oninput = () => { if (b && Number(a.value) > Number(b.value)) a.value = b.value; show(); };
   if (b) b.oninput = () => { if (Number(b.value) < Number(a.value)) b.value = a.value; show(); };
@@ -582,8 +702,27 @@ function ruleCard(targets) {
   button(`＋ ${H[2].toLowerCase()}…`, 'An override: whenever this holds, it stops, whatever the conditions above say',
     () => { const s = copy(); s.stops.push(freshRule(sensors[0].id)); write(s); });
   if (verb === 'runs') card.appendChild(speedRow(targets, sensors));
+  // copy this rule, to paste into another part and adjust (author, 2026-10-28)
+  const key = partKey(m), here = ruleClip && ruleClip.key !== key && ruleClip.verb === verb;
+  const tools = document.createElement('div'); tools.className = 'rtools';
+  const cp = document.createElement('button');
+  cp.textContent = ruleClip && ruleClip.key === key ? '✓ Rule copied' : '⧉ Copy rule';
+  cp.title = 'Copy this rule (with its STOP conditions and beat speed), to paste into another part';
+  cp.onclick = () => { ruleClip = { key, verb, name: partName(groupOfPart(m)), colour: colourOf(groupOfPart(m)), rules: rulesOf(m), speed: m.joint.speed ? { ...m.joint.speed } : null }; listParts(); };
+  tools.appendChild(cp);
+  if (here) {
+    const ps = document.createElement('button');
+    ps.innerHTML = `📋 Paste rule from ${dot(ruleClip.colour)}${ruleClip.name}`;
+    ps.title = 'Replace this rule with a copy of the copied one; then adjust it';
+    ps.onclick = () => { if (setRules(targets, ruleClip.rules.map((c) => ({ ...c }))) && verb === 'runs') setSpeed(targets, ruleClip.speed); };
+    tools.appendChild(ps);
+  }
+  card.appendChild(tools);
   return card;
 }
+let ruleClip = null;   // the copied rule: { key, verb, name, colour, rules, speed }
+const partKey = (m) => (m.build && m.build.id) || m.id || `#${design.parts.indexOf(m)}`;
+const groupOfPart = (m) => partGroups(design.parts || []).find((g) => g.members.includes(m));
 // once a frame: each condition line green while it holds (red for a STOP line that is stopping the part), for the
 // selected cell if it is this design
 function ruleLive() {
@@ -702,7 +841,8 @@ function drawPatch() {
     const m = document.createElement('div');
     m.className = 'pmod srcmod' + (patchPick === s.id ? ' picked' : ''); m.dataset.src = s.id;
     m.title = SCALE[s.kind];
-    m.innerHTML = `<div class="pname">${ICON[s.kind]} ${s.short}${s.deg !== undefined ? ` <span class="pval">${s.deg}°</span>` : ''}</div>
+    if (s.colour) m.style.borderLeft = `4px solid ${s.colour}`;
+    m.innerHTML = `<div class="pname">${ICON[s.kind]} ${s.short}</div>
       <div class="pval">reads <b data-live="${s.id}">–</b></div><div class="pbar"><i data-patchbar="${s.id}"></i></div>`;
     m.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; drawPatch(); };
     src.appendChild(m);
@@ -716,7 +856,7 @@ function drawPatch() {
   if (!free) { const f = document.createElement('div'); f.className = 'pfree full'; f.textContent = 'full: every slot used'; src.appendChild(f); }
   const rules = document.createElement('div'); rules.className = 'prules';
   patchTargets = partGroups(design.parts || []).map((g) => ({ g, members: targetsOf(g) })).filter((t) => t.members.length)
-    .map((t) => ({ name: `${t.g.name} at ${t.g.deg}°`, members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]), icon: '' }));
+    .map((t) => ({ name: partName(t.g), members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]), icon: dot(colourOf(t.g)) }));
   if (!patchTargets.length) rules.innerHTML = '<div class="pval">No parts to wire yet: add a flagellum or a spring.</div>';
   patchTargets.forEach((t, ti) => {
     const H = HEADS[t.verb], shape = toShape(t.rules);
@@ -902,6 +1042,8 @@ function unplug(d, ids) {
   }
 }
 
+const openCards = new Set();   // the parts whose rule cards are open (by partKey); the rest fold to a sentence
+let glow = null;               // { parts: design part indices, until } lit up in the tank a moment
 function listParts() {
   showBody();
   // one nucleus a cell: its button hides while the cell has one
@@ -914,11 +1056,31 @@ function listParts() {
     if (i === 0) { const head = document.createElement('div'); head.className = 'cat'; head.textContent = cat; box.appendChild(head); }
     const row = document.createElement('div');
     row.className = 'part';
-    const b = g.members[0].build;
-    row.innerHTML = `<span>${g.name} at ${g.deg}°${b && b.flip ? ' (flipped)' : ''}${g.more ? ` (+${g.more} pieces)` : ''}</span>
+    const b = g.members[0].build, colour = colourOf(g), key = partKey(g.members[0]), targets = targetsOf(g);
+    row.dataset.key = key;
+    if (colour) row.style.setProperty('--tag', colour);
+    if (colour) row.classList.add('tagged');
+    const open = openCards.has(key);
+    row.innerHTML = `<span class="pnm">${targets.length ? `<b class="fold">${open ? '▾' : '▸'}</b>` : ''}${dot(colour)}<span class="nm">${partName(g)}</span>
+        <button class="ren" title="Rename this part (e.g. left leg)">✎</button></span>
       <span>${b ? '<button class="edit">Edit</button> ' : ''}<button class="mirror" data-axis="90" title="Add a mirror copy on the other side: left ↔ right">⇆</button>
         <button class="mirror" data-axis="0" title="Add a mirror copy on the other side: top ↔ bottom">⇅</button>
         <button class="remove">Remove</button></span>`;
+    // tapping the name folds or opens the card, and lights the part up in the tank
+    row.querySelector('.pnm').onclick = (e) => {
+      if (e.target.classList.contains('ren')) return;
+      if (targets.length) { if (open) openCards.delete(key); else openCards.add(key); }
+      glow = { parts: new Set(g.members.map((x) => design.parts.indexOf(x))), until: performance.now() + 1500 };
+      if (targets.length) listParts();
+    };
+    row.querySelector('.ren').onclick = () => {
+      const name = (prompt('Name this part (e.g. left leg, dawn eye); empty: back to its usual name', g.members[0].name || '') ?? null);
+      if (name === null) return;
+      remember(design);
+      if (name.trim()) g.members[0].name = name.trim().slice(0, 30); else delete g.members[0].name;
+      $('json').value = JSON.stringify(design, null, 2);
+      listParts();
+    };
     if (b && b.id === editing) row.classList.add('editing');
     if (b) row.querySelector('.edit').onclick = () => (editing === b.id ? stopEditing() : startEditing(b));
     for (const m of row.querySelectorAll('.mirror')) m.onclick = () => {
@@ -927,8 +1089,12 @@ function listParts() {
       d.parts.splice(k + 1, 0, ...mirrorGroup(g.members, Number(m.dataset.axis), `p${Date.now() % 100000}_${++partCount}`));
       applyDesign(d);
     };
-    const targets = targetsOf(g);
-    if (targets.length) row.appendChild(wiring(g, targets));
+    if (targets.length) {   // the rule in a sentence; the card itself only while open
+      const sum = document.createElement('div'); sum.className = 'psum'; sum.innerHTML = ruleSummary(targets);
+      sum.onclick = () => row.querySelector('.pnm').click();
+      row.appendChild(sum);
+      if (open) row.appendChild(wiring(g, targets));
+    }
     row.querySelector('.remove').onclick = () => {
       if (b && b.id === editing) { editing = null; previewOn = false; $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true; }
       const d = JSON.parse(JSON.stringify(design));
@@ -1221,7 +1387,7 @@ function liveReadings() {
   const find = (id) => cell.design === design && liveReading(cell, id);
   for (const el of document.querySelectorAll('[data-live]')) {
     const sn = find(el.dataset.live);
-    el.textContent = sn ? sn.value.toFixed(2) : '–';
+    el.textContent = sn ? (el.dataset.mean ? `${sn.value.toFixed(2)} (${meaning(el.dataset.mean, sn.value, el.dataset.live)})` : sn.value.toFixed(2)) : '–';
   }
   for (const el of document.querySelectorAll('[data-livebar]')) {
     const sn = find(el.dataset.livebar);
@@ -1303,7 +1469,7 @@ function draw() {
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
   }
   const spd = playing ? Number($('speed').value) : 0;
-  for (const c of world.cells) drawCell(calmPose(c, lastReal, spd) || c, X, Y, s, c);
+  for (const c of world.cells) { c.drawn = calmPose(c, lastReal, spd) || c; drawCell(c.drawn, X, Y, s, c); }   // drawn: for taps
   drawPreview(X, Y, s);
   drawLinks(X, Y, s);
   drawForces(X, Y, s);
@@ -1577,6 +1743,16 @@ function drawGas(ix, iy, inc, X, Y, s, rot = 0) {
   }
 }
 
+// is piece i moved by a motor that is stopped? (its own, or the one up its chain of hinges)
+function stoppedAt(c, i) {
+  for (let k = i; k > 0; k = c.pieces[k].parent) {
+    const j = c.joints[c.pieces[k].joint];
+    if (!j) continue;
+    if (j.type === 'motor') return !j.on && !j.burst;
+    if (j.type !== 'hinge') return false;
+  }
+  return false;
+}
 function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the cell itself
   ctx.lineCap = 'round';
   // segments first, body over them, then inclusions and joints
@@ -1584,16 +1760,21 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
   for (const i of order) {
     const p = c.pieces[i], h = p.L / 2;
     const ax = c.cx[i] - c.cs[i] * h, ay = c.cy[i] - c.sn[i] * h, bx = c.cx[i] + c.cs[i] * h, by = c.cy[i] + c.sn[i] * h;
-    const fill = p.kind === 'body' ? COLOR.body[p.material] : COLOR[p.material];
+    const tag = partColours(c.design).get(p.part);   // a part with its own colour (flagella, springs)
+    const fill = p.kind === 'body' ? COLOR.body[p.material] : tag || COLOR[p.material];
     const w = Math.max(2 * p.a * s, 1.5);
     if (p.kind === 'body') {   // outline (red while starving)
       ctx.strokeStyle = world.metab && c.metab.starving ? COLOR.starving : COLOR.outline; ctx.lineWidth = w + 2;
       ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     }
     const jt = p.joint >= 0 ? c.joints[p.joint] : null;
+    if (real === cell && glow && glow.until > performance.now() && glow.parts.has(p.part) && p.kind !== 'body') {   // lit: its card was tapped
+      ctx.strokeStyle = (tag || '#ffffff') + '66'; ctx.lineWidth = w + 8;
+      ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
+    }
     if (jt && jt.burst) {   // a burst organ: a coil, bright while firing, dull while recharging
       const st = jt.burst.state;
-      ctx.strokeStyle = st === 'firing' ? COLOR.coilFiring : st === 'charged' ? COLOR.coil : COLOR.coilEmpty;
+      ctx.strokeStyle = tag ? tag + (st === 'firing' ? '' : st === 'charged' ? 'cc' : '55') : st === 'firing' ? COLOR.coilFiring : st === 'charged' ? COLOR.coil : COLOR.coilEmpty;
       ctx.lineWidth = Math.max(0.5 * s, 1);
       const turns = 3, amp = 1.2, nx = -(by - ay) / (p.L || 1), ny = (bx - ax) / (p.L || 1);
       ctx.beginPath(); ctx.moveTo(X(ax), Y(ay));
@@ -1604,7 +1785,8 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
       ctx.stroke();
       continue;
     }
-    ctx.strokeStyle = jt && jt.type === 'motor' && !jt.on ? COLOR.stopped : fill; ctx.lineWidth = w;   // a stopped flagellum is grey
+    // a stopped flagellum is grey, or faded in its colour: every piece its motor moves
+    ctx.strokeStyle = stoppedAt(c, i) ? (tag ? tag + '66' : COLOR.stopped) : fill; ctx.lineWidth = w;
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     if (p.kind === 'body') for (const inc of p.inclusions) {
       const ix = c.cx[i] + c.cs[i] * inc.x - c.sn[i] * inc.y, iy = c.cy[i] + c.sn[i] * inc.x + c.cs[i] * inc.y;
@@ -1629,6 +1811,12 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
   }
   for (const sn of c.sensors) {
     const i = sn.piece, px = c.cx[i] + c.cs[i] * sn.x - c.sn[i] * sn.y, py = c.cy[i] + c.sn[i] * sn.x + c.cs[i] * sn.y;
+    const stag = partColours(c.design).get(sn.part);
+    if (stag || (real === cell && glow && glow.until > performance.now() && glow.parts.has(sn.part))) {   // a ring in its colour
+      const lit = real === cell && glow && glow.until > performance.now() && glow.parts.has(sn.part);
+      ctx.strokeStyle = stag || '#ffffff'; ctx.lineWidth = lit ? 4 : 2;
+      ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max((sn.kind === 'statolith' ? sn.r : 1.2) * s, 3) + (lit ? 5 : 2.5), 0, Math.PI * 2); ctx.stroke();
+    }
     if (sn.kind === 'statolith') continue;   // drawn with the inclusions
     if (sn.kind === 'chem') {   // a tan dot, filled as far as the water is rich
       const r = Math.max(1.2 * s, 3);
@@ -1767,7 +1955,7 @@ canvas.addEventListener('pointerdown', (e) => {
   const [wx, wy] = toWorld(e);
   const s = Number($('zoom').value);
   const hit = world.cells.find((c) => Math.hypot(c.q[0] - wx, c.q[1] - wy) < c.pieces[0].a + c.pieces[0].L / 2 + 6 / s);
-  tap = hit ? { x: e.clientX, y: e.clientY, cell: hit, wx, wy, r: 4 / s } : null;
+  tap = hit || cell ? { x: e.clientX, y: e.clientY, cell: hit || cell, wx, wy, r: 4 / s } : null;   // a part can stick out far
   if (hit) {
     if (hit !== cell) select(hit);
     drag = { cell: hit, dx: hit.q[0] - wx, dy: hit.q[1] - wy, view: $('viewMode').value };
@@ -1801,15 +1989,43 @@ window.addEventListener('pointermove', (e) => {
 let tap = null;
 function tappedNucleus(t, e) {
   if (!t || Math.hypot(e.clientX - t.x, e.clientY - t.y) > 8) return false;
-  const c = t.cell;
+  const c = t.cell.drawn || t.cell;
   return c.pieces[0].inclusions.some((inc) => inc.material === 'nucleus' &&
     Math.hypot(c.cx[0] + c.cs[0] * inc.x - c.sn[0] * inc.y - t.wx, c.cy[0] + c.sn[0] * inc.x + c.cs[0] * inc.y - t.wy) < inc.r + t.r);
+}
+// a tap on one of the selected cell's parts (a flagellum, a spring, a sensor): its card opens, lit, in view
+function showPartAt(t, e) {
+  if (Math.hypot(e.clientX - t.x, e.clientY - t.y) > 8 || cell.design !== design) return;
+  const c = cell.drawn || cell;   // where it is drawn (calm: beat-averaged), which is where the finger went
+  let best = null, bestD = t.r * 3;
+  c.pieces.forEach((p, i) => {
+    if (p.kind === 'body') return;
+    const h = p.L / 2, ax = c.cx[i] - c.cs[i] * h, ay = c.cy[i] - c.sn[i] * h, ex = 2 * c.cs[i] * h, ey = 2 * c.sn[i] * h, l2 = ex * ex + ey * ey;
+    let u = l2 > 0 ? ((t.wx - ax) * ex + (t.wy - ay) * ey) / l2 : 0; u = Math.max(0, Math.min(1, u));
+    const d = Math.hypot(t.wx - ax - ex * u, t.wy - ay - ey * u) - p.a;
+    if (d < bestD) { bestD = d; best = p.part; }
+  });
+  for (const sn of c.sensors) {
+    const i = sn.piece, px = c.cx[i] + c.cs[i] * sn.x - c.sn[i] * sn.y, py = c.cy[i] + c.sn[i] * sn.x + c.cs[i] * sn.y;
+    const d = Math.hypot(t.wx - px, t.wy - py) - (sn.r || 1.5);
+    if (d < bestD) { bestD = d; best = sn.part; }
+  }
+  if (best === null || best === undefined) return;
+  const g = partGroups(design.parts || []).find((x) => x.members.includes(design.parts[best]));
+  if (!g) return;
+  const key = partKey(g.members[0]);
+  if (targetsOf(g).length) openCards.add(key);
+  glow = { parts: new Set(g.members.map((x) => design.parts.indexOf(x))), until: performance.now() + 1500 };
+  listParts();
+  const row = document.querySelector(`#partList .part[data-key="${CSS.escape(key)}"]`);
+  if (row) { row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1200); }
 }
 function lift(e) {
   touches.delete(e.pointerId);
   if (touches.size < 2) pinch = null;
   if (touches.size > 0) return;
   if (tap && tap.cell === cell && tappedNucleus(tap, e)) $('patchBtn').onclick();
+  else if (tap && tap.cell === cell) showPartAt(tap, e);
   tap = null;
   if (drag && drag.cell) $('viewMode').value = drag.view;
   drag = null;

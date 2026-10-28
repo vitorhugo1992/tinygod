@@ -88,7 +88,7 @@ export const PARAMS = {
   },
   // The nucleus, the brain box (sim/brain.js): each brain module takes a slot of its cross-section
   brain: {
-    radius: 3.3,            // µm: one nucleus size for now (4 slots); bigger ones later, unlocked by progress
+    radius: 4.3,            // µm: one nucleus size for now (8 slots: two wired oars and their sensors fit); bigger later
     slotArea: 7,            // µm² of nucleus cross-section a slot (r 3 µm: 4 slots)
     upkeep: 1,              // pJ/s per µm³ of nucleus (as much as the body's own)
   },

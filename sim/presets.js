@@ -6,8 +6,8 @@ const spines = (r, n, length, material, start = 45) => Array.from({ length: n },
 
 export const PRESETS = {
   'Round cell': {
-    note: 'A plain sphere with a small nucleus (its brain, 4 slots): sinks at its Stokes speed. The cell to build on.',
-    body: { radius: 10 }, parts: [{ type: 'inclusion', id: 'nucleus', label: 'Nucleus', at: [0, 0], radius: 3.3, material: 'nucleus',
+    note: 'A plain sphere with a nucleus (its brain, 8 slots): sinks at its Stokes speed. The cell to build on.',
+    body: { radius: 10 }, parts: [{ type: 'inclusion', id: 'nucleus', label: 'Nucleus', at: [0, 0], radius: 4.3, material: 'nucleus',
       build: { tpl: 'Nucleus (the brain)', where: 0, tilt: 0, size: 0.35, depth: 0, feels: 'strangers', flip: false, id: 'nucleus' } }],
   },
   'Spiny cell': {

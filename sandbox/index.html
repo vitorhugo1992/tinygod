@@ -55,6 +55,18 @@
   #buildErr, #err { color: var(--bad); }
   .part { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; flex-wrap: wrap; }
   .part button { padding: 1px 7px; font-size: 11px; }
+  /* each part a rule drives, and each sensor, has its colour: a stripe on its card, a dot by its name */
+  .part.tagged { border-left: 4px solid var(--tag); padding-left: 8px; margin: 6px 0; border-radius: 3px; background: rgba(255,255,255,.02); }
+  .part .pnm { display: flex; align-items: center; gap: 6px; cursor: pointer; min-width: 0; }
+  .part .pnm .nm { font-weight: 600; }
+  .part .pnm .fold { color: var(--dim); width: 10px; }
+  .part .pnm .ren { padding: 0 5px; border: none; background: none; color: var(--dim); }
+  .part .psum { width: 100%; color: var(--dim); font-size: 12px; line-height: 1.45; padding: 2px 0 6px; cursor: pointer; }
+  .part .psum b { color: var(--text); font-weight: 500; }
+  .part.flash { box-shadow: 0 0 0 2px var(--tag, var(--accent)); transition: box-shadow .3s; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 3px; vertical-align: middle; flex: none; }
+  .rtools { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; width: 100%; }
+  .rlabel .mean { color: var(--dim); font-weight: 400; }
   .part.editing { outline: 1px solid var(--accent); border-radius: 4px; padding: 2px 4px; background: rgba(111,211,181,.06); }
   .part .wire { font-size: 11px; display: flex; gap: 4px; align-items: center; width: 100%; flex-wrap: wrap; }
   .part .wire select { font-size: 11px; padding: 2px 4px; flex: 1 1 100%; }

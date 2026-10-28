@@ -78,8 +78,8 @@ it stripped and its cables unplugged.
 **The nucleus, the brain box (built 2026-10-28; author: "the brain box will shape much of the users' builds").**
 sim/brain.js, PARAMS.brain. An inclusion (Inside the cell → Nucleus, always round, drawn like a real nucleus: violet,
 envelope, chromatin specks, nucleolus; density 1100, upkeep 1 pJ/s per µm³). Its cross-section gives it **slots**
-(7 µm² each). **One size for now** (author, 2026-10-28: "the size is something for later"): PARAMS.brain.radius 3.3 µm,
-4 slots; no Size slider, a tip says what it is; bigger nuclei later, unlocked by progress. **One per cell:** its Build
+(7 µm² each). **One size for now** (author, 2026-10-28: "the size is something for later"): PARAMS.brain.radius 4.3 µm,
+8 slots (was 4: two wired oars and their two sensors need 6); no Size slider, a tip says what it is; bigger nuclei later, unlocked by progress. **One per cell:** its Build
 button hides while the cell has one. **Moving it:** Where and Inside, like any organelle; moving Where while it sits
 at the very centre brings it halfway out (author: "I can't move it"). **What takes a slot (author chose A):** every sensor on the
 cell, every built-in reading once wired (energy, starch, oil, health), every rule box (each GO box, a part's STOP box);
@@ -91,9 +91,24 @@ nucleus under On this body: the wiring view drawn as the nucleus opened up, a **
 space efficiency) labelled "NUCLEUS · 2 of 4 slots" holding the sensor modules and rule boxes, free slots dashed, the
 parts it drives outside at the rim, unwired built-in readings in an "available" tray above. Modules arrange themselves
 for now (phones); **later: drag modules into the box by hand, fully customisable** (author: "dragging is part of its
-puzzle-like charm"). Every new cell (Round cell) starts with a 4-slot nucleus. **Old designs deleted** (author: "forget
+puzzle-like charm"). Every new cell (Round cell) starts with an 8-slot nucleus. **Old designs deleted** (author: "forget
 the old designs"): the Vesperella preset and its first-visit seeding, designs/my_species_*.json; designs/index.json is
 empty. Not yet: a size cap unlocked by progress; cables costing upkeep (open).
+**Clearer rules in the parts list (built 2026-10-28; author: "the wiring box is more confusing than the menu… first
+improve the menu"; the box stays as it is until the list is clear).** Every part a rule drives and every sensor has
+**its own colour** (8-colour palette, the least used first; stored as the root part's `tag`; copies and mirrors get a
+new one): a stripe and dot on its card, the part drawn in it in the tank (faded while stopped, every piece its motor
+moves), a ring round sensors, the same in the nucleus box. **Names you can recognise:** what and where ("Oar
+(back-bottom)", "Eyespot (top)"; a statolith by the way it faces, "Statolith 45°", author's idea), ✎ to rename
+("left leg"; stored as `name`; a copy's name is dropped). **Cards fold** to a one-line sentence ("Runs when ● Eyespot
+(top) between 15% and 85% of full sun, but stops if ● Statolith 45° tilted below −6°."); tap the name or the sentence to
+open the card. **Readings in words** (author: "many people won't know what a statolith below 0.45 means"): every value
+bar says "= …" and every live reading "0.23 (−33°)": light as % of full sun, energy/stores % full, health % healthy, the
+statolith as a signed angle (+90° up, 0° level, −90° down), touch touching / not, proximity "something within 30 µm",
+nutrients poor / rich. **Tap a part in the tank** (a flagellum, spring or sensor; hit-tested on the drawn, calm pose):
+its card opens, outlined in its colour, the part lit a moment; tapping a card's name lights its part too. **⧉ Copy rule
+/ 📋 Paste rule from …** (author: "a chain of functions for a tail… something similar for another tail with slight
+adjustments"): the rule with its STOP conditions and beat speed, refused with "nucleus full" if the boxes don't fit.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith
