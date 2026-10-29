@@ -219,8 +219,8 @@ follows the finger, its neighbours less (a Gaussian along the edge, half its siz
 if the edge would cross itself or get thinner than 0.4 µm; past the wall it flattens on it; its volume changes. **Pinch**:
 the same shape, bigger or smaller (the statolith: its radius). **Move it into the wall**: the points that touch flatten
 along it, the rest bulge from its centroid until its volume is back (within 0.3%); its middle can't go past ~half its
-thickness from the wall. **Moved off the wall it keeps its moulded shape** (was: round again; Claude's choice, clay
-rather than rubber; ask the author). **A smaller cell** flattens what sticks out against the wall, volume kept.
+thickness from the wall. **Moved off the wall it keeps its moulded shape** (was: round again; clay rather than
+rubber, author agreed 2026-10-29: "clay like is fine"). **A smaller cell** flattens what sticks out against the wall, volume kept.
 **Squish to fit**: overlapping ones are pushed apart; then the points of one inside another go onto the other's edge
 (and where a corner pokes in between its points, that edge is pushed out), each swelling elsewhere to keep its volume;
 out of the wall: eased back in, then flattened against it; at most 1 s. Packing has a real limit: a flattened
