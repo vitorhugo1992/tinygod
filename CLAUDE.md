@@ -180,6 +180,12 @@ Then (author, 2026-10-29): a **Zoom** slider (1-4× the arrange view) and a **Tu
 statolith: the way it reads); **deselect only by tapping the selected organelle again**; **calmer neighbours**
 (resizing or reshaping one leaves the others where they are, red if they overlap; moving one only nudges them, no
 squashing; squashing and moulding happen in Squish to fit and when the cell is made smaller).
+Then (author, 2026-10-29): **neighbours locked** (while arranging nothing else moves; only Squish to fit packs; a
+smaller cell moulds what no longer fits to the wall); **selecting centres the view** on the organelle; **sliders over
+the tank**: Y vertical on the left, Zoom vertical on the right (1-4×), X horizontal along the bottom (the Zoom slider
+left the panel; Turn stays there); the clock box, the tank strip and the day graph hide while arranging; **selection is
+a thin cyan contour**, overlaps a thin dashed red one (no overlays); **bent organelles keep their looks** (bandPath: a
+band's outline along its points; stores fill from the bottom, the nucleus keeps chromatin and nucleolus).
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

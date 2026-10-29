@@ -119,6 +119,14 @@
   textarea { width: 100%; height: 220px; font: 11px/1.35 ui-monospace, Consolas, monospace; resize: vertical; margin-top: 6px; }
   /* the patch view (over the tank on a computer, over the panel on a phone, so the cell stays in sight) */
   #patchBtn, #arrangeBtn, #squishBtn { width: 100%; margin: 4px 0; }
+  /* arranging: sliders over the tank (Y left, Zoom right: vertical, up = more; X along the bottom) */
+  #arrangeView { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+  #arrangeView[hidden] { display: none; }
+  #arrangeView input { position: absolute; pointer-events: auto; accent-color: #5fd0ff; }
+  #arrangeView .vrange { writing-mode: vertical-lr; direction: rtl; width: 28px; top: 70px; bottom: 70px; height: auto; }
+  #arrPanY { left: 6px; }
+  #arrZoom { right: 6px; }
+  #arrPanX { left: 44px; right: 44px; bottom: 40px; width: auto; }
   #patch { position: fixed; left: 0; right: 330px; top: 52vh; bottom: 0; background: var(--bg); z-index: 20;
     display: flex; flex-direction: column; border-right: 1px solid var(--line); border-top: 1px solid var(--line); }
   #patch[hidden] { display: none; }
@@ -187,6 +195,11 @@
 <body>
 <div id="view">
   <canvas id="c"></canvas>
+  <div id="arrangeView" hidden>   <!-- arranging: Y on the left, Zoom on the right, X along the bottom -->
+    <input type="range" id="arrPanY" class="vrange" min="-100" max="100" step="1" value="0" title="Look up or down">
+    <input type="range" id="arrZoom" class="vrange" min="1" max="4" step="0.1" value="1" title="Zoom in, for fine work">
+    <input type="range" id="arrPanX" min="-100" max="100" step="1" value="0" title="Look left or right">
+  </div>
   <div id="bar">
     <button id="play" class="big" title="Play / pause">▶</button>
     <button id="infoBtn" title="Show or hide the numbers">ⓘ</button>
@@ -251,7 +264,6 @@
   <button id="arrangeBtn" title="Hold the cell still and large: tap an organelle to select it; drag it, drag its edge to reshape it, pinch anywhere to resize it; drag the wall to resize the cell">✋ Arrange inside the cell</button>
   <button id="squishBtn" hidden title="Make the overlapping organelles give way: they flatten against each other and the wall">🫧 Squish to fit</button>
   <div id="arrangeTools" hidden>
-    <div class="slider" title="Closer, for fine work">Zoom <input type="range" id="arrZoom" min="1" max="4" step="0.1" value="1"><span id="arrZoomOut">1.0×</span></div>
     <div class="slider" title="Turn the selected organelle (a statolith: the way it reads)">Turn <input type="range" id="arrTurn" min="-180" max="180" step="5" value="0"><span id="arrTurnOut"></span></div>
   </div>
   <button id="patchBtn" title="Open the nucleus, the cell's brain: patch sensors to parts with cables (or tap the nucleus in the tank)">🧬 Open the nucleus (wiring)</button>

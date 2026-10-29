@@ -1435,6 +1435,7 @@ function draw() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
   const view = $('viewMode').value;
   if (view === 'follow') { const q = cell.vis ? cell.vis.q : cell.q; cam = { x: q[0], y: q[1] }; }   // the body as drawn
+  if (arrange) { const [px, py] = arrange.pan; cam = { x: cell.cx[0] + cell.cs[0] * px - cell.sn[0] * py, y: cell.cy[0] + cell.sn[0] * px + cell.cs[0] * py }; }   // arranging: where the X / Y sliders look
   else if (view === 'fit') fit(W, H);
   const s = Number($('zoom').value);                       // pixels per µm
   // on a computer the patch view covers the lower half of the tank: keep a followed cell in the upper part
@@ -1496,10 +1497,12 @@ function draw() {
     arrange.trial.parts.forEach((p, k) => {
       const red = arrange.problems && arrange.problems.over.has(k), sel = k === arrange.sel;
       if (!isInc(p) || (!red && !sel)) return;
-      const pts = linePts(p).map(toW);
-      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.strokeStyle = red ? 'rgba(255,90,74,.5)' : 'rgba(255,255,255,.3)'; ctx.lineWidth = 2 * p.radius * s + (sel ? 7 : 2);
-      ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(X(x) + (i === 1 && pts.length === 2 ? 0.01 : 0), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.stroke();
+      const pts = linePts(p).map(toW).map(([x, y]) => [X(x), Y(y)]), R = p.radius * s + 2;
+      if (Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 0.5) { ctx.beginPath(); ctx.arc(pts[0][0], pts[0][1], R, 0, Math.PI * 2); }
+      else bandPath(pts, R);
+      ctx.strokeStyle = sel ? '#5fd0ff' : COLOR.starving; ctx.lineWidth = sel ? 2.5 : 1.5;
+      if (red && !sel) ctx.setLineDash([5, 4]);
+      ctx.stroke(); ctx.setLineDash([]);
     });
     if (arrange.sel !== null && arrange.trial.parts[arrange.sel]) {   // the selected one's name, just above it
       const p = arrange.trial.parts[arrange.sel], g = partGroups(arrange.trial.parts).find((x) => x.members[0] === p);
@@ -1520,8 +1523,7 @@ function draw() {
     bottom = H - gh - 8;
   }
   drawScale(W, bottom, s);
-  drawMinimap(W, H);
-  drawHud(W, bottom);
+  if (!arrange) { drawMinimap(W, H); drawHud(W, bottom); }   // arranging: only the cell
 }
 
 // ----- saved designs: kept in this browser (they survive a reload; another phone or computer has its own) -----
@@ -1712,9 +1714,32 @@ function drawHud(W, H) {
 }
 
 // A store (starch, oil): its outline, and liquid filling it from the bottom as far as it is full
-// An inclusion's outline as the current path, at screen (cx, cy): a circle, or a rod lying at world angle a
+// The outline of a band along screen points P (a bent organelle's middle line), R wide each side, round at both ends
+function bandPath(P, R) {
+  const n = P.length, left = [], right = [], tan = [];
+  for (let k = 0; k < n; k++) {
+    const a = P[Math.max(0, k - 1)], b = P[Math.min(n - 1, k + 1)];
+    let tx = b[0] - a[0], ty = b[1] - a[1]; const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+    tan.push([tx, ty]); left.push([P[k][0] - ty * R, P[k][1] + tx * R]); right.push([P[k][0] + ty * R, P[k][1] - tx * R]);
+  }
+  ctx.beginPath(); ctx.moveTo(left[0][0], left[0][1]);
+  for (let k = 1; k < n; k++) ctx.lineTo(left[k][0], left[k][1]);
+  const cap = (c, [tx, ty], side) => {   // a half circle from one side, round the end, to the other
+    for (let j = 1; j < 8; j++) {
+      const f = j * Math.PI / 8, lx = -ty * side, ly = tx * side;
+      ctx.lineTo(c[0] + (Math.cos(f) * lx + Math.sin(f) * tx * side) * R, c[1] + (Math.cos(f) * ly + Math.sin(f) * ty * side) * R);
+    }
+  };
+  cap(P[n - 1], tan[n - 1], 1);
+  for (let k = n - 1; k >= 0; k--) ctx.lineTo(right[k][0], right[k][1]);
+  cap(P[0], tan[0], -1);
+  ctx.closePath();
+}
+let bandXf = null;   // body frame -> screen, for the inclusion being drawn (bent ones need it)
+// An inclusion's outline as the current path, at screen (cx, cy): a circle, a rod lying at world angle a, or a band
 function incPath(cx, cy, inc, s, a) {
   const R = Math.max(inc.r * s, 1.5), h = (inc.h || 0) * s;
+  if (inc.bend && inc.pts && bandXf) { bandPath(inc.pts.map(bandXf), R); return; }
   ctx.beginPath();
   if (h <= 0) { ctx.arc(cx, cy, R, 0, Math.PI * 2); return; }
   const t = -a;   // on screen y grows downward, so angles turn the other way
@@ -1725,14 +1750,20 @@ function incPath(cx, cy, inc, s, a) {
 }
 function drawLevel(ix, iy, inc, X, Y, s, a = 0) {
   const R = Math.max(inc.r * s, 1.5), cx = X(ix), cy = Y(iy);
-  const ext = R + Math.abs(Math.sin(a)) * (inc.h || 0) * s;   // how far it reaches up and down on screen
+  // how far it reaches on screen: a rod by its angle; a band by its points
+  let top = cy - R - Math.abs(Math.sin(a)) * (inc.h || 0) * s, bot = 2 * cy - top, lx = cx - R - (inc.h || 0) * s, rx = 2 * cx - lx;
+  if (inc.bend && inc.pts && bandXf) {
+    const P = inc.pts.map(bandXf);
+    top = Math.min(...P.map((p) => p[1])) - R; bot = Math.max(...P.map((p) => p[1])) + R;
+    lx = Math.min(...P.map((p) => p[0])) - R; rx = Math.max(...P.map((p) => p[0])) + R;
+  }
   ctx.save();
   incPath(cx, cy, inc, s, a);
   ctx.fillStyle = 'rgba(8,14,26,.35)'; ctx.fill();
   ctx.clip();
-  const h = 2 * ext * inc.fill;   // the level, from the lowest point up (screen y grows downward)
+  const h = (bot - top) * inc.fill;   // the level, from the lowest point up (screen y grows downward)
   ctx.fillStyle = COLOR[inc.material];
-  ctx.fillRect(cx - R - (inc.h || 0) * s, cy + ext - h, 2 * (R + (inc.h || 0) * s), h);
+  ctx.fillRect(lx, bot - h, rx - lx, h);
   ctx.restore();
   ctx.strokeStyle = COLOR[inc.material]; ctx.lineWidth = 1.5;
   incPath(cx, cy, inc, s, a); ctx.stroke();
@@ -1750,28 +1781,17 @@ function plastidColor(inc) {
   const mix = (a, z) => Math.round(a + (z - a) * t);
   return `rgb(${mix(r, 236)},${mix(g, 228)},${mix(b, 170)})`;
 }
-// A bent organelle (moulded against the wall): drawn along its middle line, its outline darker; a store as full as it is
-function drawBent(c, i, inc, X, Y, s) {
-  const pts = inc.pts.map(([x, y]) => [c.cx[i] + c.cs[i] * x - c.sn[i] * y, c.cy[i] + c.sn[i] * x + c.cs[i] * y]);
-  const line = () => { ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); };
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  const colour = inc.material === 'plastid' ? plastidColor(inc) : inc.material === 'chamber' ? sapColor(inc) : inc.material === 'nucleus' ? COLOR.nucleus : COLOR[inc.material];
-  ctx.strokeStyle = inc.material === 'nucleus' ? COLOR.envelope : 'rgba(0,0,0,.3)'; ctx.lineWidth = 2 * inc.r * s + 2; line(); ctx.stroke();
-  ctx.strokeStyle = colour; ctx.lineWidth = 2 * inc.r * s;
-  if (inc.store) ctx.globalAlpha = 0.3 + 0.7 * inc.fill;
-  line(); ctx.stroke(); ctx.globalAlpha = 1;
-  if (inc.material === 'nucleus') {   // its nucleolus in the middle
-    const [mx, my] = pts[Math.floor(pts.length / 2)];
-    ctx.fillStyle = COLOR.nucleolus; ctx.beginPath(); ctx.arc(X(mx), Y(my), inc.r * s * 0.45, 0, Math.PI * 2); ctx.fill();
-  }
-}
 // The nucleus: a pale violet sphere in its envelope, specks of chromatin and a dark nucleolus (they turn with the cell)
 function drawNucleus(ix, iy, inc, X, Y, s, rot) {
   const r = Math.max(inc.r * s, 2), cx = X(ix), cy = Y(iy), h = (inc.h || 0) * s;   // round, or a rod when moulded
   incPath(cx, cy, inc, s, rot); ctx.fillStyle = COLOR.nucleus; ctx.fill();
   ctx.strokeStyle = COLOR.envelope; ctx.lineWidth = Math.max(1, 0.25 * s); ctx.stroke();
   const ax = Math.cos(rot), ay = -Math.sin(rot);   // its axis on screen (y down)
-  const at = (t, a, d) => [cx + ax * t * h + Math.cos(a - rot) * d * r, cy + ay * t * h + Math.sin(a - rot) * d * r];
+  const P = inc.bend && inc.pts && bandXf ? inc.pts.map(bandXf) : null;   // a bent one: along its points
+  const at = (t, a, d) => {
+    if (P) { const [x, y] = P[Math.max(0, Math.min(P.length - 1, Math.round((t + 1) / 2 * (P.length - 1))))]; return [x + Math.cos(a) * d * r, y + Math.sin(a) * d * r]; }
+    return [cx + ax * t * h + Math.cos(a - rot) * d * r, cy + ay * t * h + Math.sin(a - rot) * d * r];
+  };
   ctx.fillStyle = COLOR.chromatin;
   for (const [t, a, d] of [[-0.6, 0.6, 0.6], [0.5, 2.1, 0.66], [0, 3.4, 0.45], [0.7, 4.6, 0.7], [-0.3, 5.5, 0.35], [0.2, 1.3, 0.25]]) {
     const [x, y] = at(t, a, d); ctx.beginPath(); ctx.arc(x, y, Math.max(r * 0.07, 0.8), 0, Math.PI * 2); ctx.fill();
@@ -1828,7 +1848,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     if (p.kind === 'body') for (const inc of p.inclusions) {
       const ix = c.cx[i] + c.cs[i] * inc.x - c.sn[i] * inc.y, iy = c.cy[i] + c.sn[i] * inc.x + c.cs[i] * inc.y;
       const r = inc.r, a = c.phi[i] + (inc.ang || 0);
-      if (inc.bend) { drawBent(c, i, inc, X, Y, s); continue; }   // moulded along the wall
+      bandXf = ([x, y]) => [X(c.cx[i] + c.cs[i] * x - c.sn[i] * y), Y(c.cy[i] + c.sn[i] * x + c.cs[i] * y)];   // for bent ones
       if (inc.store) { drawLevel(ix, iy, inc, X, Y, s, a); continue; }   // a container, filled as far as it is full
       if (inc.material === 'nucleus') { drawNucleus(ix, iy, inc, X, Y, s, a); continue; }
       ctx.fillStyle = inc.pumpable ? sapColor(inc) : inc.material === 'plastid' ? plastidColor(inc) : COLOR[inc.material];
@@ -2228,7 +2248,7 @@ function arrangeTo(e) {
     const [cx, cy] = wallCentre(d.body, P[0]);
     d.body.radius = Math.round(Math.max(3, Math.min(50, Math.hypot(P[0] - cx, P[1] - cy))) * 2) / 2;
     d.parts.forEach((p, k) => { if (!isInc(p) && (!p.parent || p.parent === 'body') && p.build) placeRim(d, k, p.build.where); });
-    relax(d, -1, 20, { thin: false });   // a smaller cell: what no longer fits is eased in or moulds to the wall
+    d.parts.forEach((p) => { if (isInc(p) && !rigid(p) && outOfWall(p, d.body) > 0) mouldToWall(p, d.body, p.at, incVol(p)); });   // a smaller cell: what no longer fits moulds to the wall
     setTrial(d); return;
   }
   const p = d.parts[g.k], B = a.base.parts[g.k];
@@ -2265,7 +2285,7 @@ function arrangeTo(e) {
     if (outOfWall(probe, d.body) > 0) mouldToWall(p, d.body, want, V);
     else if (B.bend) { delete p.bend; delete p.length; p.radius = Math.round(rEqOf(B) * (a.pinchF || 1) * 100) / 100; }   // off the wall: round again
   } else if (outOfWall(p, d.body) > 0) return;   // the statolith can't go into the wall
-  if (!a.pinchF) relax(d, g.k, 10, { thin: false, mould: false });   // moved: the others are nudged aside; resized: they stay put
+  // the others stay locked where they are (red where they overlap); only Squish to fit packs them
   setTrial(d);
 }
 // the Zoom slider (closer than the arrange view starts) and the selected organelle's Turn
@@ -2275,7 +2295,15 @@ function showTurn() {
   if (p) $('arrTurn').value = Math.round(((p.angle || 0) + 540) % 360 - 180);
   $('arrTurnOut').textContent = p ? `${$('arrTurn').value}°` : 'select one';
 }
-$('arrZoom').oninput = () => { if (!arrange) return; $('zoom').value = Math.min(40, arrange.zoom0 * Number($('arrZoom').value)); $('arrZoomOut').textContent = `${Number($('arrZoom').value).toFixed(1)}×`; };
+$('arrZoom').oninput = () => { if (!arrange) return; $('zoom').value = Math.min(40, arrange.zoom0 * Number($('arrZoom').value)); };
+// the view's centre in the body's frame: X / Y sliders (a share of the cell's size each way); selecting centres on it
+const panSpan = () => (design.body.radius + (design.body.length || 0) / 2) * 1.2;
+function lookAt([x, y]) {
+  if (!arrange) return;
+  arrange.pan = [x, y];
+  $('arrPanX').value = Math.round(x / panSpan() * 100); $('arrPanY').value = Math.round(y / panSpan() * 100);
+}
+$('arrPanX').oninput = $('arrPanY').oninput = () => { if (arrange) arrange.pan = [Number($('arrPanX').value) / 100 * panSpan(), Number($('arrPanY').value) / 100 * panSpan()]; };
 $('arrTurn').oninput = () => {
   const a = arrange;
   if (!a || a.sel === null) return;
@@ -2291,7 +2319,7 @@ function startArrange() {
   playing = false; $('play').textContent = '▶';
   $('viewMode').value = 'follow';
   $('zoom').value = arrange.zoom0 = Math.min(20, 0.45 * Math.min(W, H * 0.55) / (b.radius + (b.length || 0) / 2));
-  $('arrZoom').value = 1; $('arrZoomOut').textContent = '1.0×'; $('arrangeTools').hidden = false; showTurn();
+  $('arrZoom').value = 1; $('arrangeTools').hidden = false; $('arrangeView').hidden = false; arrange.pan = [0, 0]; lookAt([0, 0]); showTurn();
   $('arrangeBtn').textContent = '✓ Done arranging';
   $('squishBtn').hidden = true;
   $('buildErr').textContent = 'tap an organelle to select it · drag it · drag its edge to reshape · pinch to resize · drag the wall to resize the cell';
@@ -2308,7 +2336,7 @@ function stopArrange(force) {
   if (!force && JSON.stringify(arrange.trial) !== JSON.stringify(design)) applyDesign(JSON.parse(JSON.stringify(arrange.trial)));
   $('viewMode').value = arrange.prev.view; $('zoom').value = arrange.prev.zoom;
   arrange = null;
-  $('arrangeTools').hidden = true;
+  $('arrangeTools').hidden = true; $('arrangeView').hidden = true;
   $('arrangeBtn').textContent = '✋ Arrange inside the cell';
   $('squishBtn').hidden = true;
   if (!force) $('buildErr').textContent = '';
@@ -2331,7 +2359,7 @@ function arrangeDown(e) {
     a.base = JSON.parse(JSON.stringify(a.trial));
     if (!hit) { a.drag = null; return; }   // empty water: the selection stays (a pinch may follow)
     a.tapSel = hit.kind === 'inc' && hit.k === a.sel ? { x: e.clientX, y: e.clientY } : null;   // the selected one again: maybe a deselect
-    if (hit.kind === 'inc') { a.sel = hit.k; showTurn(); }
+    if (hit.kind === 'inc') { if (a.sel !== hit.k) lookAt(a.trial.parts[hit.k].at); a.sel = hit.k; showTurn(); }
     a.drag = { ...hit, id: e.pointerId };
   } else if (touches.size === 2 && a.sel !== null) {   // a second finger anywhere: pinch the selected one's size
     a.tapSel = null;
