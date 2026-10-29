@@ -90,7 +90,9 @@ function ruleState(world, cell, controls) {
   for (const ctl of controls) {
     const read = (k) => reading(world, cell, k);
     const v = ctl.vs === undefined ? read(ctl.sensor) : read(ctl.sensor) - read(ctl.vs);
-    const ok = holds(ctl, v) !== ctl.not;   // every condition is updated, so each keeps its hysteresis
+    let ok = holds(ctl, v) !== ctl.not;   // every condition is updated, so each keeps its hysteresis
+    if (ctl.also) for (const e of ctl.also) { const k = holds(e, read(e.sensor)) !== ctl.not; ok = ctl.all ? ok && k : ok || k; }
+    ctl.ok = ok;
     if (ctl.stop) { if (ok) stop = true; continue; }
     if (ctl.or && any) { all = all || group; group = true; }
     any = true;

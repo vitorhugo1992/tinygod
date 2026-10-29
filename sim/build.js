@@ -136,7 +136,14 @@ function resolveControl(sensors, c) {
   else if (c.when === 'dark') max = PARAMS.sensor.threshold;
   else if (c.when !== undefined) throw new Error('control.when must be light or dark');
   if (!(min <= max)) throw new Error('control: min must not be above max');
-  return { sensor: s, min, max, not: !!c.not, or: !!c.or, stop: !!c.stop, holds: null };
+  // several sensors in one condition (author, 2026-10-29): `also` [{ sensor, min, max }], each tested like the first
+  // (the same above / below / outside); `all`: every one must hold, else any one will do
+  const also = (c.also || []).map((e) => {
+    const a = e.min ?? min, b = e.max ?? max;
+    if (!(a <= b)) throw new Error('control: min must not be above max');
+    return { sensor: sensorIndex(sensors, e.sensor), min: a, max: b, holds: null };
+  });
+  return { sensor: s, min, max, not: !!c.not, or: !!c.or, stop: !!c.stop, holds: null, ...(also.length ? { also, all: !!c.all } : {}) };
 }
 
 // A design joint's wiring as a list (`controls`, or the older single `control`)

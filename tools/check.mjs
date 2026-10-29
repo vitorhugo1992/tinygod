@@ -845,6 +845,27 @@ const runDay = (design, y, seconds, opts = {}) => {
     `Wave tail (${tailL} µm) beating ${fmt(run1, 0)} pJ/s, resting ${fmt(rest, 0)}`);
 }
 
+// 28r. Several sensors in one condition: ANY of them reading so is enough, ALL must; the first and the extra ones each
+// tested on their own values
+{
+  const tail = (cond) => ({ type: 'segment', at: [-10, 0], angle: 180, length: 8, radius: 0.25, joint: { type: 'motor', rate: 30, swing: 35, controls: [cond] } });
+  const run = (cond) => {
+    const w = makeWorld(1, { gravity: false });
+    const c = addCell(w, { body: { radius: 10 }, parts: [
+      { type: 'inclusion', material: 'nucleus', at: [0, -5.35], radius: 4.3 },
+      { type: 'sensor', id: 'up', at: [0, 10], angle: 90, kind: 'light' }, { type: 'sensor', id: 'down', at: [0, -10], angle: -90, kind: 'light' },
+      tail(cond)] }, 300, 1990, 0);
+    for (let i = 0; i < 50; i++) stepWorld(w);
+    return { on: c.joints[0].on, up: c.sensors[0].value, down: c.sensors[1].value };
+  };
+  const probe = run({ sensor: 'energy', min: 0, max: 1 }), mid = (probe.up + probe.down) / 2;
+  const cond = (all) => ({ sensor: 'up', min: mid, max: 1, also: [{ sensor: 'down', min: mid, max: 1 }], ...(all ? { all: true } : {}) });
+  const any = run(cond(false)), every = run(cond(true)), both = run({ ...cond(true), also: [{ sensor: 'down', min: 0, max: mid }] });
+  check('several sensors in one condition: ANY of them is enough, ALL need every one (each on its own values)',
+    probe.up > probe.down && any.on && !every.on && both.on,
+    `eyespot up ${fmt(probe.up)}, down ${fmt(probe.down)}; "above ${fmt(mid)}": any ${any.on ? 'runs' : 'stops'}, all ${every.on ? 'runs' : 'stops'}; all with down "below": ${both.on ? 'runs' : 'stops'}`);
+}
+
 // 28q. Resting: while the nucleus's REST rule holds, upkeep and plastid income run at PARAMS.metab.rest, flagella stop
 {
   const day = (rest) => {

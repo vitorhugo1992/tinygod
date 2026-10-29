@@ -13,7 +13,7 @@ chronological log, newest additions last in each block.
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the phone uses http://192.168.1.69:5180/sandbox/ (home Wi-Fi; the page shows it under its title). Restart the server
-after changing tools/serve.mjs. `node tools/check.mjs`: 44 physics checks, all passing (~2 min). Check every change
+after changing tools/serve.mjs. `node tools/check.mjs`: 45 physics checks, all passing (~2 min). Check every change
 in the real page with headless Edge over the DevTools protocol at phone size (400×860) and look at screenshots.
 **The website (author, 2026-10-28):** https://vitorhugo1992.github.io/tinygod/sandbox/ (GitHub Pages from the public
 repo github.com/vitorhugo1992/tinygod, branch main, root). **Push after every finished step** (`git push`) so the
@@ -251,6 +251,14 @@ agreed, 2026-10-29; was 900): at 900 a r 10 cell with a nucleus, a plastid and a
 chamber of 9% of its volume (r 4.5, a fifth of the picture); at 500 that one floats. The holding cost per µm³ is
 unchanged (PARAMS.chamber.holdLight 0.5 / holdHeavy 0.3 pJ/s per µm³ held fully, in proportion on the way; replaces
 hold per kg/m³); rate 25 kg/m³ per s (neutral to light ~21 s). Check 14: the r 6.5 chamber in r 10 rises 23 µm/s (was 1.1).
+**Several sensors in one condition (built 2026-10-29; author: "multiple choices instead of doing one at the time", chose
+an ANY / ALL toggle).** A condition line has ＋ sensor: more sensors join it (one of the same kind first) and an **ANY of
+them / ALL of them** button. Same-kind sensors share the line's value; another kind (an eyespot with a statolith) gets
+its own slider in the line, with the same above / below / between / outside. In the design: `also: [{ sensor, min, max
+}]` and `all: true` on the condition (sim/build.js resolveControl, sim/sense.js ruleState sets ctl.ok, which the cards'
+live green reads); a compare (more / less than) keeps one sensor. Sentences read "any of ● A, ● B below 10% …" (mixed
+kinds: "(● A … or ● B …)"); cables run from every sensor; removing a sensor takes it out of the condition (the next one
+takes the first place). No extra slots (sensors already take theirs). Check 28r.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

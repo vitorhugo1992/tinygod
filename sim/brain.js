@@ -38,7 +38,7 @@ export function brainUse(design) {
   for (const p of parts) {
     if (!p.joint) continue;
     const ctl = p.joint.controls || (p.joint.control ? [p.joint.control] : []);
-    for (const c of ctl) { note(c.sensor); if (c.vs !== undefined) note(c.vs); }
+    for (const c of ctl) { note(c.sensor); if (c.vs !== undefined) note(c.vs); for (const e of c.also || []) note(e.sensor); }
     if (p.joint.speed && p.joint.speed.sensor !== undefined) note(p.joint.speed.sensor);
     const root = rootOf(p);
     if (!ctl.length || seen.has(root)) continue;

@@ -456,23 +456,33 @@ function condWords(c, mode = modeOf(c), lo = c.min, hi = c.max) {
   }
   return mode === 'above' ? `above ${w(lo)}` : mode === 'below' ? `below ${w(hi)}` : `${not}between ${w(lo)} and ${w(hi)}`;
 }
+// a condition with its sensor(s) for a sentence: "● Eyespot (top) below 10% of full sun"; several of one kind: "any of ●
+// Eyespot (top), ● Eyespot (bottom) below 10% …"; of different kinds, each with its own value, joined by or / and
+function condPhrase(c) {
+  const more = (c.also || []);
+  if (!more.length) return `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
+  const k = sensorKind(c.sensor);
+  if (more.every((e) => sensorKind(e.sensor) === k)) return `${c.all ? 'all of' : 'any of'} ${[c.sensor, ...more.map((e) => e.sensor)].map(sensorTag).join(', ')} <b>${condWords(c)}</b>`;
+  const one = (x) => `${sensorTag(x.sensor)} <b>${condWords({ ...x, not: c.not }, modeOf(c), x.min, x.max)}</b>`;
+  return `(${[c, ...more].map(one).join(c.all ? ' and ' : ' or ')})`;
+}
 // a part's rule in one sentence: "Runs when ● Eyespot (top) is above 50% of full sun, but stops if ● Statolith …"
 function ruleSummary(targets) {
   const m = targets[0], verb = verbOf(m), shape = toShape(rulesOf(m)), runs = verb === 'runs';
   if (verb === 'rests') {
-    const one = (c) => `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
+    const one = condPhrase;
     if (!shape.groups.length) return 'Never rests (add REST when… to slow the metabolism: upkeep and income at 40%, flagella stop).';
     return `Rests when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}${shape.stops.length ? `, but not if ${shape.stops.map(one).join(' or ')}` : ''}: upkeep and income at 40%, flagella stop.`;
   }
   if (verb === 'floats') {
-    const one = (c) => `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
+    const one = condPhrase;
     if (!nucleiOf(design).length) return 'Neutral (no nucleus to control it).';
     const fl = shape.groups.length ? `Floats when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}` : '';
     const sk = shape.stops.length ? `${fl ? '; ' : ''}sinks if ${shape.stops.map(one).join(' or ')}${fl ? ' (sinking wins)' : ''}` : '';
     return fl || sk ? `${fl}${sk}; otherwise neutral.` : 'Neutral: no lift, no cost (add FLOAT when… or SINK if…).';
   }
   if (!nucleiOf(design).length) return runs ? 'Runs all the time (no nucleus to control it)' : 'Fires only by hand (no nucleus)';
-  const one = (c) => `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
+  const one = condPhrase;
   let s = shape.groups.length ? `${runs ? 'Runs' : 'Fires'} when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}`
     : runs ? 'Runs all the time' : 'Fires only by hand (⚡ Release)';
   if (shape.stops.length) s += `, but ${runs ? 'stops' : 'never fires'} if ${shape.stops.map(one).join(' or ')}`;
@@ -532,7 +542,8 @@ function rulesOf(m) {
   let any = false;
   return raw.map((c) => {
     const r = { sensor: c.sensor, min: c.when === 'light' ? 0.5 : c.min ?? 0, max: c.when === 'dark' ? 0.5 : c.max ?? 1,
-      ...(c.vs !== undefined ? { vs: c.vs } : {}), not: !!c.not, or: false, stop: !!c.stop };
+      ...(c.vs !== undefined ? { vs: c.vs } : {}), not: !!c.not, or: false, stop: !!c.stop,
+      ...(c.also && c.also.length && c.vs === undefined ? { also: c.also.map((e) => ({ sensor: e.sensor, min: e.min ?? 0, max: e.max ?? 1 })), all: !!c.all } : {}) };
     if (!r.stop) { r.or = any && !!c.or; any = true; }
     return r;
   });
@@ -553,10 +564,11 @@ function fromShape(shape) {
   return out;
 }
 function setRules(targets, next) {
-  if (next.some((c) => c.vs === undefined && !(c.min <= c.max))) { $('buildErr').textContent = 'a range must run from low to high'; return false; }
+  if (next.some((c) => c.vs === undefined && (!(c.min <= c.max) || (c.also || []).some((e) => !(e.min <= e.max))))) { $('buildErr').textContent = 'a range must run from low to high'; return false; }
   // only true marks are stored, and the first GO condition never starts a new group
   const clean = next.map((c) => ({ sensor: c.sensor, ...(c.vs !== undefined ? { vs: c.vs } : { min: c.min, max: c.max }),
-    ...(c.not ? { not: true } : {}), ...(c.or && !c.stop ? { or: true } : {}), ...(c.stop ? { stop: true } : {}) }));
+    ...(c.not ? { not: true } : {}), ...(c.or && !c.stop ? { or: true } : {}), ...(c.stop ? { stop: true } : {}),
+    ...(c.also && c.also.length && c.vs === undefined ? { also: c.also.map((e) => ({ sensor: e.sensor, min: e.min, max: e.max })), ...(c.all ? { all: true } : {}) } : {}) }));
   if (!brainFits(targets, (j) => { if (clean.length) j.controls = clean; else delete j.controls; })) return false;
   $('buildErr').textContent = '';
   remember(design);
@@ -594,6 +606,11 @@ function modeOf(c) {
 }
 const r2 = (v) => Math.round(v * 100) / 100;
 function withMode(c, mode, sensors) {
+  if (c.also && c.also.length) {
+    if (mode === 'more' || mode === 'less') { const { also, all, ...rest } = c; return withMode(rest, mode, sensors); }   // a compare reads one sensor
+    const { also, all, ...one } = c, first = withMode(one, mode, sensors);
+    return { ...first, also: also.map((e) => { const x = withMode({ sensor: e.sensor, min: e.min, max: e.max, not: c.not }, mode, sensors); return { sensor: e.sensor, min: x.min, max: x.max }; }), all };
+  }
   const { vs, ...base } = c, m = modeOf(c);
   const lo = m === 'below' ? r2(c.max / 2) : c.min > 0 && c.min < 1 ? c.min : 0.5, hi = c.max > 0 && c.max < 1 ? c.max : 0.5;
   if (mode === 'above') return { ...base, min: lo, max: 1, not: false };
@@ -609,11 +626,20 @@ function withMode(c, mode, sensors) {
 function condText(c) {
   const m = modeOf(c), f = (v) => r2(v).toString();
   if (m === 'more' || m === 'less') return `${m === 'more' ? '>' : '<'} ${ICON[sensorKind(c.vs)]} ${sensorInfo(c.vs).name}`;
-  return m === 'above' ? `> ${f(c.min)}` : m === 'below' ? `< ${f(c.max)}` : `${m === 'outside' ? 'not ' : ''}${f(c.min)}–${f(c.max)}`;
+  const n = (c.also || []).length ? `${c.all ? 'all' : 'any'} of ${c.also.length + 1}: ` : '';
+  return n + (m === 'above' ? `> ${f(c.min)}` : m === 'below' ? `< ${f(c.max)}` : `${m === 'outside' ? 'not ' : ''}${f(c.min)}–${f(c.max)}`);
+}
+// the extra sensors of a condition kept tidy: none twice, never the first one, and those of the first one's kind on its values
+function tidyAlso(c) {
+  if (!c.also) return c;
+  const k = sensorKind(c.sensor), seen = new Set([c.sensor]);
+  const also = c.also.filter((e) => !seen.has(e.sensor) && seen.add(e.sensor)).map((e) => (sensorKind(e.sensor) === k ? { ...e, min: c.min, max: c.max } : e));
+  if (!also.length) { const { also: _, all, ...rest } = c; return rest; }
+  return { ...c, also };
 }
 // One condition line: sensor, how, value(s); `live` = "part index:condition index" (for the green / red light)
-function condLine(c, sensors, live, onSet, onRemove) {
-  const kind = sensorKind(c.sensor), mode = modeOf(c);
+function condLine(c, sensors, live, onSet0, onRemove) {
+  const kind = sensorKind(c.sensor), mode = modeOf(c), onSet = (nc) => onSet0(tidyAlso(nc));
   const line = document.createElement('div');
   line.className = 'cond' + (c.stop ? ' stopcond' : '');
   line.dataset.livecond = live;
@@ -643,7 +669,48 @@ function condLine(c, sensors, live, onSet, onRemove) {
     const now = document.createElement('div'); now.className = 'rlabel';
     now.innerHTML = `now <b data-live="${c.sensor}">–</b> vs <b data-live="${c.vs}">–</b>`;
     line.append(row, now);
-  } else line.appendChild(valueBar(c, mode, kind, (lo, hi) => onSet({ ...c, min: lo, max: hi })));
+  } else {
+    line.appendChild(valueBar(c, mode, kind, (lo, hi) => onSet({ ...c, min: lo, max: hi })));
+    // more sensors in the same condition (author, 2026-10-29): any one of them, or all of them, must read so
+    const also = c.also || [];
+    also.forEach((e, i) => {
+      const row = document.createElement('div'); row.className = 'condhead alsorow';
+      const lab = document.createElement('span'); lab.className = 'alsolab'; lab.textContent = c.all ? 'and' : 'or';
+      const es = document.createElement('select');
+      for (const s of sensors) if (s.id === e.sensor || (s.id !== c.sensor && !also.some((x) => x.sensor === s.id))) es.add(new Option(`${ICON[s.kind]} ${s.name}`, s.id));
+      es.value = e.sensor;
+      es.onchange = () => {
+        const a = also.map((x) => ({ ...x })), v = sensorKind(es.value) === kind ? c : withMode({ ...freshRule(es.value), not: c.not }, mode, sensors);
+        a[i] = { sensor: es.value, min: v.min, max: v.max };
+        onSet({ ...c, also: a });
+      };
+      const x = document.createElement('button'); x.textContent = '✕'; x.title = 'Take this sensor out of the condition';
+      x.onclick = () => onSet({ ...c, also: also.filter((_, j) => j !== i) });
+      row.append(lab, es, x); line.appendChild(row);
+      const ek = sensorKind(e.sensor);
+      if (ek !== kind) line.appendChild(valueBar({ ...e, not: c.not }, mode, ek, (lo, hi) => { const a = also.map((y) => ({ ...y })); a[i] = { ...a[i], min: lo, max: hi }; onSet({ ...c, also: a }); }));
+    });
+    const free = sensors.filter((s) => s.id !== c.sensor && !also.some((x) => x.sensor === s.id));
+    const row = document.createElement('div'); row.className = 'condhead';
+    if (free.length) {
+      const add = document.createElement('button'); add.className = 'addcond'; add.textContent = '＋ sensor';
+      add.title = 'Another sensor in this condition (say both eyespots): any of them, or all of them, must read so';
+      add.onclick = () => {   // one of the same kind first (it shares this value)
+        const pick = free.find((s) => s.kind === kind) || free[0];
+        const v = pick.kind === kind ? c : withMode({ ...freshRule(pick.id), not: c.not }, mode, sensors);
+        onSet({ ...c, also: [...also, { sensor: pick.id, min: v.min, max: v.max }] });
+      };
+      row.appendChild(add);
+    }
+    if (also.length) {
+      const t = document.createElement('button'); t.className = 'addcond anyall';
+      t.textContent = c.all ? 'ALL of them' : 'ANY of them';
+      t.title = c.all ? 'Every one of these sensors must read so (tap: any one will do)' : 'Any one of these sensors reading so is enough (tap: all must)';
+      t.onclick = () => onSet({ ...c, all: !c.all });
+      row.appendChild(t);
+    }
+    if (row.children.length) line.appendChild(row);
+  }
   return line;
 }
 // The value(s) of a condition: one slider for above / below, two for between / outside; the ends of the scale named;
@@ -754,7 +821,7 @@ function ruleLive() {
       const j = live.joints.find((x) => x.part === k);
       ctl = (j && j.controls ? j.controls : [])[i] || null;
     }
-    const ok = !!ctl && ctl.holds !== null && ctl.holds !== ctl.not;
+    const ok = !!ctl && (ctl.ok !== undefined ? ctl.ok : ctl.holds !== null && ctl.holds !== ctl.not);
     el.classList.toggle('holds', ok && !ctl.stop);
     el.classList.toggle('stopping', ok && !!ctl.stop);
   }
@@ -953,6 +1020,7 @@ function layoutWires() {
       path(a, b, `c${ti}:${c.k}`, stop ? 'stopc' : '');
       const other = c.vs !== undefined && area.querySelector(`[data-src="${c.vs}"]`);
       if (other) path(at(other, true), b, `v${ti}:${c.k}`, stop ? 'stopc' : '');   // the second sensor of a compare
+      for (const e of c.also || []) { const o = area.querySelector(`[data-src="${e.sensor}"]`); if (o) path(at(o, true), b, `v${ti}:${c.k}`, stop ? 'stopc' : ''); }
       const chip = document.createElement('div');
       chip.className = 'pchip' + (stop ? ' stopchip' : ''); chip.dataset.chip = `${ti}:${c.k}`;
       chip.textContent = condText(c);
@@ -1034,7 +1102,7 @@ function patchLive() {
     }
     const st = area.querySelector(`[data-pstate="${ti}"]`); if (st) st.textContent = state;
     const tg = area.querySelector(`[data-tgt="${ti}"]`); if (tg) tg.classList.toggle('lit', on);
-    const okAt = (k) => { const ctl = ctls && ctls[k]; return !!ctl && ctl.holds !== null && ctl.holds !== ctl.not; };
+    const okAt = (k) => { const ctl = ctls && ctls[k]; return !!ctl && (ctl.ok !== undefined ? ctl.ok : ctl.holds !== null && ctl.holds !== ctl.not); };
     const shape = toShape(t.rules);
     const light = (k, ok) => {
       for (const key of [`c${ti}:${k}`, `v${ti}:${k}`]) { const p = area.querySelector(`path[data-key="${key}"]`); if (p) p.classList.toggle('lit', ok); }
@@ -1057,8 +1125,16 @@ function patchLive() {
 // Unplug every cable from the sensors in `ids` (being removed): from the remaining parts' rules and speed settings, so
 // the design still builds
 function unplug(d, ids) {
+  const thin = (c) => {
+    if (!c.also) return c;
+    const rest = c.also.filter((e) => !ids.has(e.sensor));
+    if (ids.has(c.sensor) && rest.length) { const [h, ...t] = rest; c = { ...c, sensor: h.sensor, min: h.min ?? c.min, max: h.max ?? c.max, also: t }; }
+    else c = { ...c, also: rest };
+    if (!c.also.length) { const { also, all, ...r } = c; return r; }
+    return c;
+  };
   const keep = (c) => !ids.has(c.sensor) && !ids.has(c.vs);
-  const tidy = (list) => list.filter(keep).map((c, i) => (i === 0 && c.or ? (({ or, ...rest }) => rest)(c) : c));
+  const tidy = (list) => list.map(thin).filter(keep).map((c, i) => (i === 0 && c.or ? (({ or, ...rest }) => rest)(c) : c));
   for (const p of d.parts) {
     if (p.joint) {
       const cs = tidy(controlsOf(p.joint));
