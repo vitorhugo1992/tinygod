@@ -239,6 +239,11 @@ design's history and refreshes the view (the panel's Undo does the same). **Fit*
 lit while something is red): organelles right on top of each other now come apart too (pushed by how far they overlap
 along the push when their corners can't tell). Known: a cell over ~40% full can stay red with one squeezed below its
 volume; Undo brings it back.
+**Edge reshaping dropped; one finger pans (author, 2026-10-29: "the edge reshape is not allowing me [to grab]… maybe
+scrap it"; the plastid "easily can get a weird shape").** While arranging: nothing selected, one finger slides the view
+(the X / Y sliders follow) and a tap (no slide) on an organelle selects it; the wall and rim parts still drag. One
+selected: on it (or a fingertip from it) the finger moves it, elsewhere it pans; a second finger pinches its size.
+Shapes now change only by pressing into the wall, pinching and Fit. dragSpot stays in mould.js (check 28l3), unused.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith
