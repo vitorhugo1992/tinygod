@@ -4,7 +4,8 @@ import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
 import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
-import { polyDist } from '../sim/shape.js';
+import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
+import { rigid, isInc, bodyPoints, outOfWall, toOutline, dragSpot, scaleBy, moveTo, fitWall, relax } from './mould.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
@@ -1505,7 +1506,8 @@ function draw() {
       const p = arrange.trial.parts[arrange.sel], g = partGroups(arrange.trial.parts).find((x) => x.members[0] === p);
       const [wx, wy] = toW(p.at), name = g ? partName(g, partGroups(arrange.trial.parts)) : p.label || p.material;
       ctx.font = '600 13px system-ui'; ctx.textAlign = 'center';
-      const tx = X(wx), ty = Y(wy) - p.radius * s - 12, w = ctx.measureText(name).width + 12;
+      const inc = c.pieces[0].inclusions.find((x) => x.part === arrange.sel), top = inc ? Math.min(...inc.outline.map(bodyXf(c, X, Y)).map((q) => q[1])) : Y(wy) - p.radius * s;
+      const tx = X(wx), ty = top - 12, w = ctx.measureText(name).width + 12;
       ctx.fillStyle = 'rgba(6,10,18,.8)'; ctx.fillRect(tx - w / 2, ty - 13, w, 18);
       ctx.fillStyle = '#ffffff'; ctx.fillText(name, tx, ty); ctx.textAlign = 'left';
     }
@@ -1768,11 +1770,19 @@ function drawNucleus(inc, xf, s, rot) {
   const r = Math.max(inc.r * s, 2);
   incPath(inc, xf); ctx.fillStyle = COLOR.nucleus; ctx.fill();
   ctx.strokeStyle = COLOR.envelope; ctx.lineWidth = Math.max(1, 0.25 * s); ctx.stroke();
-  const M = inc.mid.map(xf);   // its middle line on screen: specks spread along it
+  // specks spread round its widest inside spot, each as far out as the outline allows that way (a round one: its centre)
+  const P = inc.outline.map(xf), core = inc.core || (inc.core = inscribed(inc.outline, true)), [cx, cy] = xf([core[1], core[2]]);
   const at = (t, a, d) => {
-    const f = (t + 1) / 2 * (M.length - 1), i = Math.min(Math.floor(f), M.length - 2), u = f - Math.max(i, 0);
-    const [x, y] = M.length > 1 ? [M[i][0] + (M[i + 1][0] - M[i][0]) * u, M[i][1] + (M[i + 1][1] - M[i][1]) * u] : M[0];
-    return [x + Math.cos(a - rot) * d * r, y + Math.sin(a - rot) * d * r];
+    const dx = Math.cos(a - rot), dy = Math.sin(a - rot);
+    let reach = Infinity;   // the ray from the core to the outline
+    for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+      const ex = P[i][0] - P[j][0], ey = P[i][1] - P[j][1], den = dx * ey - dy * ex;
+      if (Math.abs(den) < 1e-12) continue;
+      const wx = P[j][0] - cx, wy = P[j][1] - cy, u = (wx * ey - wy * ex) / den, v = (wx * dy - wy * dx) / den;
+      if (u > 0 && v >= 0 && v <= 1 && u < reach) reach = u;
+    }
+    if (!isFinite(reach)) reach = r;
+    return [cx + dx * d * reach, cy + dy * d * reach];
   };
   ctx.fillStyle = COLOR.chromatin;
   for (const [t, a, d] of [[-0.6, 0.6, 0.6], [0.5, 2.1, 0.66], [0, 3.4, 0.45], [0.7, 4.6, 0.7], [-0.3, 5.5, 0.35], [0.2, 1.3, 0.25]]) {
@@ -2026,127 +2036,14 @@ window.addEventListener('pointermove', (e) => {
   const s = Number($('zoom').value);
   cam = { x: drag.cam.x - (e.clientX - drag.x) / s, y: drag.cam.y + (e.clientY - drag.y) / s };
 });
-// ----- arrange: the cell held still and large, everything inside it soft (author, 2026-10-28). Tap an organelle to
-// select it; drag it to move it (pushed into the wall it moulds itself along the wall, flattening the harder it is
-// pushed; pushed into another, the other flattens and slides aside; the statolith is rigid); drag its edge out or in to
-// reshape it (its area changes); pinch anywhere to make it bigger or smaller. Drag the cell's wall to make the cell
-// bigger or smaller. Overlaps are allowed while arranging (drawn red); ✓ Done warns until they are sorted out (Squish to
-// fit tries). Squishing keeps volume; reshaping and pinching change it. -----
+// ----- arrange: the cell held still and large, everything inside it soft (author, 2026-10-28; soft blobs 2026-10-29). Tap an
+// organelle to select it; drag it to move it (pressed into the wall it flattens there and bulges elsewhere, its volume
+// kept; the statolith is rigid); drag a spot of its edge to pull a bump or push a dent (its area changes); pinch
+// anywhere to make it bigger or smaller. Drag the cell's wall to make the cell bigger or smaller. The others stay put;
+// overlaps are allowed while arranging (drawn red); ✓ Done warns until they are sorted out (Squish to fit packs them,
+// denting each other, each keeping its volume). The shaping itself: mould.js. -----
 let arrange = null;   // { prev, trial, cell, sel, drag, base, bad, problems }
-const ARR = { minSquash: 0.65, maxBend: 0.9, minR: 0.6 };   // squashed at most to 65% of its round radius (author: no long thin bands)
-const incVol = (p) => Math.PI * p.radius * p.radius * (p.length || 0) + 4 / 3 * Math.PI * p.radius ** 3;
-const rEqOf = (p) => Math.cbrt(incVol(p) * 3 / (4 * Math.PI));
-const rigid = (p) => p.material === 'statolith';
-const isInc = (p) => p.type === 'inclusion';
-// an organelle's middle line in the body's frame (the same arc as the builder's)
-function linePts(p) {
-  const a = (p.angle || 0) * Math.PI / 180, k = rigid(p) ? 0 : p.bend || 0, L = rigid(p) ? 0 : p.length || 0;
-  const ux = Math.cos(a), uy = Math.sin(a), [x, y] = p.at;
-  if (!k) return [[x - ux * L / 2, y - uy * L / 2], [x + ux * L / 2, y + uy * L / 2]];
-  const out = [];
-  for (let i = 0; i <= 8; i++) { const s = -L / 2 + L * i / 8, t = k * s; out.push([x + ux * Math.sin(t) / k - uy * (1 - Math.cos(t)) / k, y + uy * Math.sin(t) / k + ux * (1 - Math.cos(t)) / k]); }
-  return out;
-}
-// the closest pair of points between a point set's segments and another's, and their distance
-function nearest(P, Q) {
-  let best = { d: Infinity };
-  const seg = (ax, ay, bx, by, px, py) => {
-    const ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey;
-    const t = l2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * ex + (py - ay) * ey) / l2)) : 0;
-    return [ax + ex * t, ay + ey * t];
-  };
-  for (let i = 0; i + 1 < P.length || i === 0; i++) {
-    const a = P[i], b = P[Math.min(i + 1, P.length - 1)];
-    for (let k = 0; k <= 6; k++) {
-      const px = a[0] + (b[0] - a[0]) * k / 6, py = a[1] + (b[1] - a[1]) * k / 6;
-      for (let j = 0; j + 1 < Q.length || j === 0; j++) {
-        const c = Q[j], e = Q[Math.min(j + 1, Q.length - 1)], [qx, qy] = seg(c[0], c[1], e[0], e[1], px, py), d = Math.hypot(qx - px, qy - py);
-        if (d < best.d) best = { d, ax: px, ay: py, bx: qx, by: qy };
-        if (Q.length === 1) break;
-      }
-    }
-    if (P.length === 1) break;
-  }
-  return best;
-}
-const gapOf = (A, B) => nearest(linePts(A), linePts(B)).d - A.radius - B.radius;   // < 0: they overlap
-// where the wall is: the room's centre line for a point (a round body's centre, or the nearest point of a rod body's axis)
-function wallCentre(body, x) { const h = (body.length || 0) / 2; return [Math.max(-h, Math.min(h, x)), 0]; }
-const roomOf = (body) => body.radius - PARAMS.cell.wallThickness - 0.05;
-// how far p sticks out of the wall (≤ 0: inside)
-function outOfWall(p, body) {
-  let worst = -Infinity;
-  for (const [x, y] of linePts(p)) { const [cx, cy] = wallCentre(body, x); worst = Math.max(worst, Math.hypot(x - cx, y - cy) + p.radius - roomOf(body)); }
-  return worst;
-}
-// mould p against the wall where `want` (where its middle should be) presses: the harder the push, the thinner; it bends
-// round a round wall and lies flat along a straight side; its volume kept (V)
-function mouldToWall(p, body, want, V) {
-  const [cx, cy] = wallCentre(body, want[0]), dx = want[0] - cx, dy = want[1] - cy, dist = Math.hypot(dx, dy) || 1e-6;
-  const room = roomOf(body), rEq = Math.cbrt(V * 3 / (4 * Math.PI));
-  // full thickness where a round one would just touch the wall; thinner the further its middle is pushed past that
-  const R = Math.max(rEq * ARR.minSquash, Math.min(rEq, rEq - 0.3 * Math.max(0, dist - (room - rEq))));
-  const L = Math.max(0, (V - 4 / 3 * Math.PI * R ** 3) / (Math.PI * R * R)), rho = room - R - 0.04;   // a hair off the wall
-  const ux0 = dx / dist, uy0 = dy / dist, h = (body.length || 0) / 2;
-  p.radius = Math.round(R * 100) / 100;
-  if (h && Math.abs(want[0]) < h) {   // a rod body's straight side: it lies flat along it
-    p.at = [Math.round(want[0] * 100) / 100, Math.round(Math.sign(dy || 1) * rho * 100) / 100];
-    p.angle = 0; delete p.bend;
-  } else {   // round wall: its middle line runs round it, rho from the centre, the centre on its left (it curves toward it)
-    p.at = [Math.round((cx + ux0 * rho) * 100) / 100, Math.round((cy + uy0 * rho) * 100) / 100];
-    p.angle = Math.round(Math.atan2(ux0, -uy0) * 180 / Math.PI);
-    p.bend = Math.round(1e5 / rho) / 1e5;
-  }
-  if (L > 0.05) p.length = Math.round(Math.min(L, rho * Math.PI * 0.9) * 100) / 100; else { delete p.length; delete p.bend; }
-}
-// p flattened across a push (nx, ny), `r` thick, its volume V kept (straight)
-function squash(p, r, nx, ny, V) {
-  p.radius = Math.round(r * 100) / 100;
-  const L = Math.max(0, (V - 4 / 3 * Math.PI * r ** 3) / (Math.PI * r * r));
-  if (L > 0.05) { p.length = Math.round(L * 100) / 100; p.angle = Math.round(Math.atan2(nx, -ny) * 180 / Math.PI); delete p.bend; }
-}
-// Soft packing: overlapping organelles are nudged apart, a little at a time; ones that stay squeezed slowly flatten
-// (thinner and longer, their volume kept, lying across the push); one out of the wall is eased back in, or moulds to it.
-// `fixed` (the one in hand) and the rigid statolith don't move. Whatever still overlaps is left (drawn red).
-function relax(d, fixed = -1, iters = 40, { thin: canThin = true, mould = true } = {}) {
-  const idx = d.parts.map((p, i) => i).filter((i) => isInc(d.parts[i]));
-  const thin = (p, nx, ny) => {   // a little thinner across the push, volume kept
-    const V = incVol(p), r = Math.max(rEqOf(p) * ARR.minSquash, p.radius * 0.95);
-    if (r >= p.radius - 1e-3) return;
-    p.radius = Math.round(r * 100) / 100;
-    p.length = Math.round(Math.max(0, (V - 4 / 3 * Math.PI * r ** 3) / (Math.PI * r * r)) * 100) / 100;
-    if (!p.bend) p.angle = Math.round(Math.atan2(nx, -ny) * 180 / Math.PI);
-  };
-  for (let it = 0; it < iters; it++) {
-    let busy = false;
-    for (let x = 0; x < idx.length; x++) for (let y = x + 1; y < idx.length; y++) {
-      const i = idx[x], j = idx[y], P = d.parts[i], Q = d.parts[j];
-      const g = nearest(linePts(P), linePts(Q)), o = P.radius + Q.radius - g.d;
-      if (o <= 1e-3) continue;
-      let nx = g.bx - g.ax, ny = g.by - g.ay;
-      if (Math.hypot(nx, ny) < 1e-6) { nx = Q.at[0] - P.at[0]; ny = Q.at[1] - P.at[1]; }
-      if (Math.hypot(nx, ny) < 1e-6) { nx = 1; ny = 0; }
-      const nn = Math.hypot(nx, ny); nx /= nn; ny /= nn;
-      const pm = i === fixed || rigid(P) ? 0 : 1, qm = j === fixed || rigid(Q) ? 0 : 1;
-      if (!pm && !qm) continue;
-      busy = true;
-      const step = 0.6 * (o + 0.03) / (pm + qm);   // part of the way each pass, shared by those that can move
-      if (pm) P.at = [P.at[0] - nx * step, P.at[1] - ny * step];
-      if (qm) Q.at = [Q.at[0] + nx * step, Q.at[1] + ny * step];
-      if (canThin && it > 6) { if (pm) thin(P, nx, ny); if (qm) thin(Q, nx, ny); }
-    }
-    for (const i of idx) {
-      const p = d.parts[i], out = outOfWall(p, d.body);
-      if (out <= 1e-3 || i === fixed) continue;
-      busy = true;
-      if (mould && !rigid(p) && it > 3) { mouldToWall(p, d.body, p.at, incVol(p)); continue; }
-      const [cx, cy] = wallCentre(d.body, p.at[0]), dx = p.at[0] - cx, dy = p.at[1] - cy, n = Math.hypot(dx, dy) || 1;
-      p.at = [p.at[0] - dx / n * (out + 0.03), p.at[1] - dy / n * (out + 0.03)];
-    }
-    if (!busy) break;
-  }
-  for (const p of d.parts) if (isInc(p)) p.at = [Math.round(p.at[0] * 100) / 100, Math.round(p.at[1] * 100) / 100];
-}
+const wallCentre = (body, x) => { const h = (body.length || 0) / 2; return [Math.max(-h, Math.min(h, x)), 0]; };
 // keep the Edit sliders' memory (build) in step with where and how an organelle now is
 function syncBuild(p, body) {
   const b = p.build;
@@ -2163,7 +2060,8 @@ function syncBuild(p, body) {
 // what is wrong with the trial: overlapping organelles (indices) and the builder's own complaint, if any
 function problemsOf(d) {
   const over = new Set(), inc = d.parts.map((p, i) => [p, i]).filter(([p]) => isInc(p));
-  for (let a = 0; a < inc.length; a++) for (let b = a + 1; b < inc.length; b++) if (gapOf(inc[a][0], inc[b][0]) < -1e-3) { over.add(inc[a][1]); over.add(inc[b][1]); }
+  const pts = inc.map(([p]) => bodyPoints(p));
+  for (let a = 0; a < inc.length; a++) for (let b = a + 1; b < inc.length; b++) if (polysOverlap(pts[a], pts[b])) { over.add(inc[a][1]); over.add(inc[b][1]); }
   for (const [p, i] of inc) if (outOfWall(p, d.body) > 1e-3) over.add(i);
   let msg = '';
   try { buildCell(d); } catch (e) { msg = e.message; }
@@ -2197,12 +2095,17 @@ function arrangeHit(e) {
   const P = bodyPoint(e), s = Number($('zoom').value), d = arrange.trial, tol = 7 / s;
   const sel = arrange.sel !== null ? d.parts[arrange.sel] : null;
   if (sel && !rigid(sel)) {   // its edge: a band round its outline
-    const dd = nearest([P], linePts(sel)).d;
-    if (Math.abs(dd - sel.radius) < tol && dd > sel.radius * 0.55) return { k: arrange.sel, kind: 'edge' };
+    const tmp = JSON.parse(JSON.stringify(sel)); toOutline(tmp);   // its points as the drag will have them
+    const Q = bodyPoints(tmp), dd = polyDist(Q, P[0], P[1]);
+    if (Math.abs(dd) < tol) {   // the nearest of its points: that spot follows the finger
+      let i = 0, best = Infinity;
+      Q.forEach(([x, y], k) => { const g = Math.hypot(x - P[0], y - P[1]); if (g < best) { best = g; i = k; } });
+      return { k: arrange.sel, kind: 'edge', i };
+    }
   }
   let best = null, bestD = tol;
   d.parts.forEach((p, k) => {
-    if (isInc(p)) { const g = nearest([P], linePts(p)).d - p.radius; if (g < bestD) { bestD = g; best = { k, kind: 'inc', off: [p.at[0] - P[0], p.at[1] - P[1]] }; } }
+    if (isInc(p)) { const g = polyDist(bodyPoints(p), P[0], P[1]); if (g < bestD) { bestD = g; best = { k, kind: 'inc', off: [p.at[0] - P[0], p.at[1] - P[1]] }; } }
     else if (!p.parent || p.parent === 'body') { const g = Math.hypot(p.at[0] - P[0], p.at[1] - P[1]) - 2; if (g < bestD) { bestD = g; best = { k, kind: 'rim' }; } }
   });
   if (best) return best;
@@ -2225,47 +2128,26 @@ function placeRim(d, k, where) {
 function arrangeTo(e) {
   const a = arrange, P = bodyPoint(e), d = JSON.parse(JSON.stringify(a.base)), g = a.drag;
   if (g.kind === 'rim') { placeRim(d, g.k, (Math.round(Math.atan2(P[1], P[0]) * 180 / Math.PI) + 360) % 360); setTrial(d); return; }
-  if (g.kind === 'wall') {   // the cell bigger or smaller; organelles keep their size (squeezed if they no longer fit)
+  if (g.kind === 'wall') {   // the cell bigger or smaller; organelles keep their size (flattened on the wall if they no longer fit)
     const [cx, cy] = wallCentre(d.body, P[0]);
     d.body.radius = Math.round(Math.max(3, Math.min(50, Math.hypot(P[0] - cx, P[1] - cy))) * 2) / 2;
     d.parts.forEach((p, k) => { if (!isInc(p) && (!p.parent || p.parent === 'body') && p.build) placeRim(d, k, p.build.where); });
-    d.parts.forEach((p) => { if (isInc(p) && !rigid(p) && outOfWall(p, d.body) > 0) mouldToWall(p, d.body, p.at, incVol(p)); });   // a smaller cell: what no longer fits moulds to the wall
+    fitWall(d);
     setTrial(d); return;
   }
   const p = d.parts[g.k], B = a.base.parts[g.k];
-  if (g.kind === 'edge') {   // drag its outline: longer or shorter at that end, or thicker or thinner at its side
-    const pts = linePts(B), n = nearest([P], pts), ends = [pts[0], pts[pts.length - 1]];
-    const ang = (B.angle || 0) * Math.PI / 180, ux = Math.cos(ang), uy = Math.sin(ang);
-    const t = (P[0] - B.at[0]) * ux + (P[1] - B.at[1]) * uy, h = (B.length || 0) / 2;
-    if (!B.bend && (Math.abs(t) > h + B.radius * 0.5 || !h)) {   // past an end: that end follows the finger
-      if (!h) {   // round: pulled out it becomes a rod that way; pushed in it shrinks
-        const dist = Math.hypot(P[0] - B.at[0], P[1] - B.at[1]);
-        if (dist <= B.radius) { p.radius = Math.round(Math.max(ARR.minR, dist) * 100) / 100; }
-        else {
-          const L = dist - B.radius, vx = (P[0] - B.at[0]) / dist, vy = (P[1] - B.at[1]) / dist;
-          p.length = Math.round(L * 100) / 100; p.angle = Math.round(Math.atan2(vy, vx) * 180 / Math.PI);
-          p.at = [Math.round((B.at[0] + vx * L / 2) * 100) / 100, Math.round((B.at[1] + vy * L / 2) * 100) / 100];
-        }
-      } else {
-        const sg = Math.sign(t), [fx, fy] = sg > 0 ? ends[0] : ends[1], reach = (P[0] - fx) * ux * sg + (P[1] - fy) * uy * sg;
-        const L = Math.max(0, reach - B.radius);
-        p.length = Math.round(L * 100) / 100;
-        p.at = [Math.round((fx + ux * sg * L / 2) * 100) / 100, Math.round((fy + uy * sg * L / 2) * 100) / 100];
-        if (!p.length) delete p.length;
-      }
-    } else p.radius = Math.round(Math.max(ARR.minR, n.d) * 100) / 100;   // its side: thickness
-    if (outOfWall(p, d.body) > 0) mouldToWall(p, d.body, p.at, incVol(p));
-    setTrial(d); return;   // the others stay put (red where they overlap): no surprises while reshaping
+  if (a.pinchF) {   // bigger or smaller, the same shape
+    if (rigid(p)) p.radius = Math.round(B.radius * a.pinchF * 100) / 100;
+    else { toOutline(B); p.at = B.at; scaleBy(p, B.outline, a.pinchF, d.body); }
+    setTrial(d); return;
   }
-  // moved: where its middle would be; into the wall it moulds along it (the further pushed, the thinner)
-  const want = [P[0] + g.off[0], P[1] + g.off[1]];
-  if (a.pinchF) { const f = a.pinchF; p.radius = Math.round(B.radius * f * 100) / 100; if (B.length) p.length = Math.round(B.length * f * 100) / 100; if (B.bend) p.bend = B.bend / f; }
-  p.at = [Math.round(want[0] * 100) / 100, Math.round(want[1] * 100) / 100];
-  if (!rigid(p)) {
-    const V = incVol(p), probe = { ...p, at: want, length: 0, bend: 0, radius: rEqOf(p) };
-    if (outOfWall(probe, d.body) > 0) mouldToWall(p, d.body, want, V);
-    else if (B.bend) { delete p.bend; delete p.length; p.radius = Math.round(rEqOf(B) * (a.pinchF || 1) * 100) / 100; }   // off the wall: round again
-  } else if (outOfWall(p, d.body) > 0) return;   // the statolith can't go into the wall
+  if (g.kind === 'edge') {   // a spot of its edge follows the finger, its neighbours less; the others stay put (red where they overlap)
+    toOutline(B);
+    if (dragSpot(p, B.outline, g.i, P, d.body)) setTrial(d);
+    return;
+  }
+  // moved: where its middle would be; pressed into the wall it flattens there and bulges elsewhere (its volume kept)
+  if (!moveTo(p, B, [P[0] + g.off[0], P[1] + g.off[1]], d.body)) return;   // the statolith can't go into the wall
   // the others stay locked where they are (red where they overlap); only Squish to fit packs them
   setTrial(d);
 }
@@ -2304,7 +2186,7 @@ function startArrange() {
   $('arrZoom').value = 1; $('arrangeTools').hidden = false; $('arrangeView').hidden = false; arrange.pan = [0, 0]; lookAt([0, 0]); showTurn();
   $('arrangeBtn').textContent = '✓ Done arranging';
   $('squishBtn').hidden = true;
-  $('buildErr').textContent = 'tap an organelle to select it · drag it · drag its edge to reshape · pinch to resize · drag the wall to resize the cell';
+  $('buildErr').textContent = 'tap an organelle to select it · drag it · drag its edge to bulge or dent it · pinch to resize · drag the wall to resize the cell';
 }
 function stopArrange(force) {
   if (!arrange) return;

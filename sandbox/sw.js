@@ -2,7 +2,7 @@
 // connection. Network first: online it always gets the newest files (and refreshes the copy); offline, or when the
 // network is too slow, the copy. Registered only on https (the website), not on the home server.
 const CACHE = 'tinygod-v3';
-const FILES = ['./', 'index.html', 'main.js', 'parts.js', 'journal.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
+const FILES = ['./', 'index.html', 'main.js', 'parts.js', 'journal.js', 'mould.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
   ...['params', 'rng', 'dmath', 'materials', 'build', 'physics', 'interact', 'sense', 'light', 'nutrient', 'metab', 'world', 'brain', 'shape',
     'presets'].map((f) => `../sim/${f}.js`)];
 

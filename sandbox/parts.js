@@ -191,6 +191,11 @@ export function mirrorGroup(members, axis, id) {
       p.at = [x * c + y * s + 0, x * s - y * c + 0];
       if (p.type === 'segment') p.angle = norm(2 * axis - (p.angle || 0));
       else if ((p.type === 'sensor' || p.type === 'inclusion') && p.angle !== undefined) p.angle = norm(2 * axis - p.angle);
+      if (p.type === 'inclusion') {   // a reflection turns its shape over: a band curves the other way, an outline is mirrored
+        if ((p.outline || p.bend) && p.angle === undefined) p.angle = norm(2 * axis);
+        if (p.bend) p.bend = -p.bend;
+        if (p.outline) p.outline = p.outline.map(([u, v]) => [u, neg(v)]).reverse();
+      }
     }
   }
   if (b) Object.assign(b, { id, where: ((2 * axis - b.where) % 360 + 360) % 360, tilt: -b.tilt + 0, flip: !b.flip });

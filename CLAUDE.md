@@ -13,7 +13,7 @@ chronological log, newest additions last in each block.
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the phone uses http://192.168.1.69:5180/sandbox/ (home Wi-Fi; the page shows it under its title). Restart the server
-after changing tools/serve.mjs. `node tools/check.mjs`: 43 physics checks, all passing (~2 min). Check every change
+after changing tools/serve.mjs. `node tools/check.mjs`: 44 physics checks, all passing (~2 min). Check every change
 in the real page with headless Edge over the DevTools protocol at phone size (400×860) and look at screenshots.
 **The website (author, 2026-10-28):** https://vitorhugo1992.github.io/tinygod/sandbox/ (GitHub Pages from the public
 repo github.com/vitorhugo1992/tinygod, branch main, root). **Push after every finished step** (`git push`) so the
@@ -211,8 +211,23 @@ cached), exact for traced rods and bands (check), a bump adds volume, a dent tak
 the same area and perimeter, made outward bumps *shrink* it). The nucleus's slots come from that volume. Drawing:
 every organelle from its outline (a smooth curve through its edges' middles), stores fill along it, the nucleus's
 chromatin along its middle line, the arrange contours just outside it; tapping the nucleus tests its outline. Seen in
-the page next to the old version: the same pictures. The arranging tools still edit radius / length / bend (stage 2
-moves them to outlines). Check 28l2.
+the page next to the old version: the same pictures. Check 28l2.
+**Soft blobs, stage 2 (built 2026-10-29, author: "yes, go").** The arranging tools work on outlines (sandbox/mould.js,
+pure geometry; check 28l3). An organelle becomes its own `outline` (points evened out along its edge, 48-120) the first
+time a tool reshapes it; untouched ones stay round / rod / band. **Drag a spot of the selected one's edge**: that point
+follows the finger, its neighbours less (a Gaussian along the edge, half its size wide), so it bulges or dents; refused
+if the edge would cross itself or get thinner than 0.4 µm; past the wall it flattens on it; its volume changes. **Pinch**:
+the same shape, bigger or smaller (the statolith: its radius). **Move it into the wall**: the points that touch flatten
+along it, the rest bulge from its centroid until its volume is back (within 0.3%); its middle can't go past ~half its
+thickness from the wall. **Moved off the wall it keeps its moulded shape** (was: round again; Claude's choice, clay
+rather than rubber; ask the author). **A smaller cell** flattens what sticks out against the wall, volume kept.
+**Squish to fit**: overlapping ones are pushed apart; then the points of one inside another go onto the other's edge
+(and where a corner pokes in between its points, that edge is pushed out), each swelling elsewhere to keep its volume;
+out of the wall: eased back in, then flattened against it; at most 1 s. Packing has a real limit: a flattened
+organelle needs *more* cross-section for the same volume, so a cell much over ~35% full can stay red. Mirror copies
+reflect an outline (and now a band's bend, which they didn't before). The nucleus's chromatin spreads from its widest
+inside spot to its outline. Not done: the Edit sliders (Size, Length, Turn in the Build panel) rebuild a moulded one
+round from its template; the ghost and nudge for new parts still place round / rod shapes.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

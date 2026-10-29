@@ -10,6 +10,9 @@ import { clock, daylight } from '../sim/light.js';
 import { PART_TEMPLATES, mirrorGroup } from '../sandbox/parts.js';
 import { slotsOf, brainUse, brainProblem } from '../sim/brain.js';
 import { buildCell as build } from '../sim/build.js';
+import { volumeOf } from '../sim/shape.js';
+import { moveTo, dragSpot, toOutline, ownPoints, relax } from '../sandbox/mould.js';
+import { DEG } from '../sim/dmath.js';
 
 const DT = PARAMS.time.dt;
 // A cocked spring (a latched springy joint), for the no-coasting and one-flick laws; not a part in the Build panel
@@ -719,6 +722,33 @@ const runDay = (design, y, seconds, opts = {}) => {
     `(${fmt(shape(band).v, 1)}); round r 4: ${fmt(v0, 1)}, a bump on its right: ${fmt(vb.v, 1)} (weight ${fmt(vb.x, 2)} µm ` +
     `to the right), a dent: ${fmt(vd, 1)}; bumped, against the wall: ${out ? 'builds' : 'sticks out'}, clear of it: ${inWall}; ` +
     `its bump into a neighbour: ${crossing ? 'builds' : 'overlaps'}, the same without the bump: ${beside}`);
+}
+
+// 28l3. Moulding by hand (sandbox/mould.js): pressed into the wall an organelle flattens there, keeps its volume and
+// still fits; a pulled spot adds volume; Squish to fit packs a crowded cell (they dent each other, each keeping its
+// volume); a mirror copy of a moulded one is its exact reflection
+{
+  const body = { radius: 10 };
+  const inc = (material, at, radius, extra) => ({ type: 'inclusion', material, at, radius, ...extra });
+  const fits = (d) => { try { build(d); return true; } catch (e) { return false; } };
+  const B = inc('oil', [0, 0], 4), p = JSON.parse(JSON.stringify(B));
+  moveTo(p, B, [7.5, 0], body);
+  const pressed = volumeOf(p) / volumeOf(B), pressedFits = fits({ body, parts: [p] }) && !!p.outline;
+  const q = JSON.parse(JSON.stringify(B)); toOutline(q);
+  dragSpot(q, ownPoints(q), 0, [ownPoints(q)[0][0], ownPoints(q)[0][1] - 2], body);
+  const pulled = volumeOf(q) / volumeOf(B);
+  const crowd = { body, parts: [0, 120, 240].map((a, k) => inc(['oil', 'starch', 'plastid'][k], [2 * Math.cos(a * DEG), 2 * Math.sin(a * DEG)], 4.6))
+    .concat([inc('statolith', [0, 0], 1.5, { id: 's' })]) };
+  const v0 = crowd.parts.map(volumeOf), crowdedBefore = fits(crowd);
+  relax(crowd, -1, 150, 5000);
+  const kept = Math.max(...crowd.parts.map((x, i) => Math.abs(volumeOf(x) / v0[i] - 1)));
+  const [m] = mirrorGroup([q], 90, 'm'), A = build({ body, parts: [q] }).pieces[0].inclusions[0].outline, M = build({ body, parts: [m] }).pieces[0].inclusions[0].outline;
+  let off = 0; for (const [x, y] of M) off = Math.max(off, Math.min(...A.map(([u, v]) => Math.hypot(u + x, v - y))));
+  check('moulding by hand: pressed into the wall it flattens and keeps its volume; Squish to fit packs a crowded cell',
+    Math.abs(pressed - 1) < 0.01 && pressedFits && pulled > 1.05 && !crowdedBefore && fits(crowd) && kept < 0.01 && off < 1e-6,
+    `r 4 pressed 3.5 µm into the wall: volume ×${fmt(pressed, 3)}, fits: ${pressedFits}; a spot pulled out 2 µm: volume ×${fmt(pulled, 2)}; ` +
+    `three r 4.6 round a statolith in a r 10 cell: ${crowdedBefore ? 'fit' : 'overlap'}, after Squish to fit: ${fits(crowd) ? 'fit' : 'still overlap'} ` +
+    `(volumes within ${fmt(100 * kept, 1)}%); a mirror copy is off its reflection by ${fmt(off, 6)} µm`);
 }
 
 // 28m. The built-in starch level: a tail wired to "starch 0.2-1" (AND another condition) stops once the starch is low

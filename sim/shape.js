@@ -77,8 +77,9 @@ export function measure(P) {
   return { area: Math.abs(A / 2), cx: cx / (3 * A), cy: cy / (3 * A) };
 }
 
-// The widest circle inside an outline: its radius (a coarse search, then each of the best spots climbed uphill)
-export function inscribed(P) {
+// The widest circle inside an outline: its radius (a coarse search, then each of the best spots climbed uphill); with
+// `where`, [radius, x, y]
+export function inscribed(P, where = false) {
   const [x0, y0, x1, y1] = box(P), G = 16, hx = (x1 - x0) / G, hy = (y1 - y0) / G;
   const depth = (x, y) => -polyDist(P, x, y);
   const spots = [];
@@ -87,7 +88,7 @@ export function inscribed(P) {
     if (d > 0) spots.push([d, x, y]);
   }
   spots.sort((a, b) => b[0] - a[0]);
-  let best = spots.length ? spots[0][0] : 0;
+  let best = spots.length ? spots[0][0] : 0, bx = spots.length ? spots[0][1] : (x0 + x1) / 2, by = spots.length ? spots[0][2] : (y0 + y1) / 2;
   for (const [d0, sx, sy] of spots.slice(0, 4)) {
     let d = d0, x = sx, y = sy, step = Math.max(hx, hy);
     while (step > 1e-6 * (x1 - x0 + y1 - y0)) {
@@ -98,9 +99,9 @@ export function inscribed(P) {
       }
       if (!moved) step /= 2;
     }
-    if (d > best) best = d;
+    if (d > best) { best = d; bx = x; by = y; }
   }
-  return best;
+  return where ? [best, bx, by] : best;
 }
 
 // The volume of an outline (µm³): the rod as thick as its widest inside circle with the same area. (An organelle is
@@ -142,18 +143,20 @@ export function insidePoly(P, x, y) {
   }
   return inside;
 }
-// Distance from (x, y) to the polygon's edge: negative inside
-export function polyDist(P, x, y) {
-  let best = Infinity;
+// The nearest point of the polygon's edge to (x, y): [qx, qy, distance (negative inside), its edge (from corner k-1 to k)]
+export function nearestOn(P, x, y) {
+  let best = Infinity, qx = x, qy = y, edge = 0;
   for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
     const [ax, ay] = P[j], ex = P[i][0] - ax, ey = P[i][1] - ay, l2 = ex * ex + ey * ey;
     let t = l2 > 0 ? ((x - ax) * ex + (y - ay) * ey) / l2 : 0;
     t = t < 0 ? 0 : t > 1 ? 1 : t;
     const dx = x - ax - ex * t, dy = y - ay - ey * t, d = dx * dx + dy * dy;
-    if (d < best) best = d;
+    if (d < best) { best = d; qx = ax + ex * t; qy = ay + ey * t; edge = i; }
   }
-  return insidePoly(P, x, y) ? -Math.sqrt(best) : Math.sqrt(best);
+  return [qx, qy, insidePoly(P, x, y) ? -Math.sqrt(best) : Math.sqrt(best), edge];
 }
+// Distance from (x, y) to the polygon's edge: negative inside
+export const polyDist = (P, x, y) => nearestOn(P, x, y)[2];
 const box = (P) => {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const [x, y] of P) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
