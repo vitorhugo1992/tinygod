@@ -1501,6 +1501,14 @@ function draw() {
       ctx.strokeStyle = red ? 'rgba(255,90,74,.5)' : 'rgba(255,255,255,.3)'; ctx.lineWidth = 2 * p.radius * s + (sel ? 7 : 2);
       ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(X(x) + (i === 1 && pts.length === 2 ? 0.01 : 0), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.stroke();
     });
+    if (arrange.sel !== null && arrange.trial.parts[arrange.sel]) {   // the selected one's name, just above it
+      const p = arrange.trial.parts[arrange.sel], g = partGroups(arrange.trial.parts).find((x) => x.members[0] === p);
+      const [wx, wy] = toW(p.at), name = g ? partName(g, partGroups(arrange.trial.parts)) : p.label || p.material;
+      ctx.font = '600 13px system-ui'; ctx.textAlign = 'center';
+      const tx = X(wx), ty = Y(wy) - p.radius * s - 12, w = ctx.measureText(name).width + 12;
+      ctx.fillStyle = 'rgba(6,10,18,.8)'; ctx.fillRect(tx - w / 2, ty - 13, w, 18);
+      ctx.fillStyle = '#ffffff'; ctx.fillText(name, tx, ty); ctx.textAlign = 'left';
+    }
   }
   drawPreview(X, Y, s);
   drawLinks(X, Y, s);
