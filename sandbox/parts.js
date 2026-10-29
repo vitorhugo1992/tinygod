@@ -111,7 +111,7 @@ export const PART_TEMPLATES = {
   },
   // a buoyancy chamber (author, 2026-10-28): its rule pumps it light (FLOAT when) or heavy (SINK if); neither: neutral
   'Buoyancy chamber': (body, deg, id, size, tilt, depth, feels, len = 0) =>
-    [{ type: 'inclusion', id, label: 'Buoyancy chamber', ...inside(body, deg, size, depth, len, tilt), material: 'chamber' }],
+    [{ type: 'inclusion', id, label: 'Buoyancy chamber', ...inside(body, deg, size, depth, len, tilt), material: 'chamber', joint: { type: 'chamber' } }],
   'Statolith (which way is up)': (body, deg, id, size, tilt, depth) =>   // `tilt` here: the direction it reads, 0 = the front
     [{ type: 'inclusion', id, label: 'Statolith', ...inside(body, deg, size, depth), material: 'statolith', angle: tilt }],
   'Nutrient sensor': (body, deg, id) => [{ type: 'sensor', id, label: 'Nutrient sensor', at: surfacePoint(body, deg), kind: 'chem' }],

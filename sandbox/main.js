@@ -48,6 +48,7 @@ function withoutTimers(d) {
   for (const p of d.parts || []) if (p.label === 'Burst organ') p.label = 'Spring';   // renamed (author, 2026-10-28)
   if (!nucleiOf(d).length) for (const p of d.parts || []) if (p.joint) { delete p.joint.controls; delete p.joint.control; delete p.joint.speed; }
   for (const p of d.parts || []) if (p.type === 'inclusion' && p.material === 'nucleus' && !p.joint) p.joint = { type: 'rest' };   // its REST rule
+  for (const p of d.parts || []) if (p.type === 'inclusion' && p.material === 'chamber' && !p.joint) p.joint = { type: 'chamber' };   // its FLOAT / SINK rule
   tagParts(d);
   const gone = new Set((d.parts || []).filter((p) => p.type === 'sensor' && p.kind === 'timer').map((p) => p.id));
   if (!gone.size) return d;
