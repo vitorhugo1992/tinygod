@@ -259,6 +259,23 @@ its own slider in the line, with the same above / below / between / outside. In 
 live green reads); a compare (more / less than) keeps one sensor. Sentences read "any of ● A, ● B below 10% …" (mixed
 kinds: "(● A … or ● B …)"); cables run from every sensor; removing a sensor takes it out of the condition (the next one
 takes the first place). No extra slots (sensors already take theirs). Check 28r.
+**Desktop layout and the new wiring board: mock-up agreed (author, 2026-10-29: "looks great… we are done with the
+mockup").** design/desk-mockup.html (also at https://claude.ai/artifact/T9fscqviXLoQw6j3VJBAJ6, private to the author;
+a standalone page with pretend readings, not the game). Research behind it: FF XII gambits / Gladiabots (ordered "if → do"
+cards), Factorio deciders (Anything / Everything = our ANY / ALL), Pigments / HALion (colour-coded drag to assign, drop
+spots light green), a user test where blocks beat node graphs (keep the cards as the core, cables only picture them),
+SBGN (arrow = activates, bar = inhibits: our GO / STOP). What it has: three windows (Tank · Cell · Nucleus) with drag
+handles between them (smallest widths 220 / 300 / 540 px; dragged well past it a window folds to a strip; double-click:
+usual sizes; remembered per browser), a – button to fold each; each window rearranges by its own width (container
+queries: part buttons 3-6 a row, a compact nucleus without sensor graphs); the Cell window's sections each with a hue and
+a spine (Body teal, Add a part amber with small pictures, On this body coral, Arrange blue); a help line along the
+bottom (what the thing under the pointer does); the nucleus board: sensor cards with a day trace, built-ins not wired in
+a dimmed tray, one rule card per acting part with a state pill (ON / FLOAT / RESTING), conditions showing their sensors'
+traces with the threshold and the band where they hold, lit green while they hold, a "today" strip per card, cards fold
+to a sentence (Fold all / Open all), the rules column ~390 px; cables: Pathway (each sensor its own lane, branches at
+right angles, arrow or bar) or Cables (synth plugs); Traces on / off; drag a sensor onto a rule or tap then a green spot;
+"nucleus full" refused; a day slider; dark and light themes (☀ / ☾). Phone: windows stack, no handles. **Next: build it
+into the sandbox** (desktop layout first, then the wiring board).
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

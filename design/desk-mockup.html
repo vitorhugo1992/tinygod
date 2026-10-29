@@ -1,0 +1,764 @@
+<title>TinyGod Desk Mock-up</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: three working columns (tank · cell editor · nucleus) under a transport bar, a help line along the bottom.
+   Each editor section owns one hue; sensors keep their own part colours everywhere. Dark like the sandbox, with a light variation (the ☀ switch). */
+:root {
+  color-scheme: dark;
+  --bg: #0a1220; --deck: #101b2c; --well: #0c1524; --line: #22324a; --line2: #2d4260;
+  --text: #dce7ec; --dim: #8398aa; --faint: #5a6f84;
+  --body: #5fd3b0; --parts: #f2b45a; --onbody: #f08a6c; --arrange: #7cb0ff; --nucleus: #b98cff;
+  --go: #6fe0a0; --stop: #ff6f6f; --hold: #fff3b0; --ink: #0a1220;
+  --seg-on: #1b3b46; --veil: rgba(10,18,32,.7); --parts-hover: #1a1a14; --arr-bg: #111d33; --style-on: #2a1f44;
+  --glow: #1a1530; --float: #a8d8ff; --drop-bg: #143022;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --f-data: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+/* the light variation: paper-white decks on a cool grey, deeper hues so they read on white */
+:root.light {
+  color-scheme: light;
+  --bg: #e9eef2; --deck: #fbfcfd; --well: #f2f5f8; --line: #d3dce4; --line2: #b9c7d3;
+  --text: #16212c; --dim: #586a7a; --faint: #8796a4;
+  --body: #12936f; --parts: #b8740c; --onbody: #cc5434; --arrange: #2c68cf; --nucleus: #7446cf;
+  --go: #17945a; --stop: #d23a3a; --hold: #9a6c00; --ink: #ffffff;
+  --seg-on: #d6efe7; --veil: rgba(251,252,253,.82); --parts-hover: #fbf1df; --arr-bg: #e6eefc; --style-on: #ece3fb;
+  --glow: #ece5fa; --float: #4f97dc; --drop-bg: #dcf3e6;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--f-body); }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; background: var(--well); border: 1px solid var(--line2); border-radius: 7px; padding: 5px 10px; }
+button:hover { border-color: var(--text); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--hold); outline-offset: 2px; }
+.app { display: grid; grid-template-rows: auto 1fr auto; min-height: 100%; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px; gap: 12px; }
+
+/* transport */
+.top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { font: 700 22px/1 var(--f-display); letter-spacing: .01em; }
+.brand small { font: 500 12px var(--f-body); color: var(--dim); letter-spacing: .14em; text-transform: uppercase; margin-left: 8px; }
+.transport { display: flex; gap: 6px; align-items: center; }
+.transport .seg button { border-radius: 0; margin-left: -1px; } .seg { display: flex; }
+.seg button:first-child { border-radius: 7px 0 0 7px; } .seg button:last-child { border-radius: 0 7px 7px 0; }
+.seg button.on { background: var(--seg-on); border-color: var(--body); }
+.clock { font: 600 13px var(--f-data); color: var(--dim); display: flex; gap: 14px; align-items: center; margin-left: auto; }
+.clock b { color: var(--text); font-weight: 600; }
+.mock { font: 600 11px var(--f-data); color: var(--ink); background: var(--parts); border-radius: 4px; padding: 2px 6px; letter-spacing: .06em; }
+
+/* the three columns */
+.cols { display: grid; grid-template-columns: minmax(260px, 0.9fr) 350px minmax(460px, 1.5fr); gap: 12px; min-height: 0; }
+.col { background: var(--deck); border: 1px solid var(--line); border-radius: 12px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; container-type: inline-size; }
+/* drag handles between the windows (wide screens only) */
+.split { display: none; }
+@media (min-width: 1101px) {
+  .cols { column-gap: 0; }
+  .split { display: block; width: 14px; cursor: col-resize; position: relative; touch-action: none; }
+  .split::after { content: ""; position: absolute; left: 5px; top: 50%; width: 4px; height: 44px; margin-top: -22px; border-radius: 3px; background: var(--line2); transition: background .15s, height .15s; }
+  .split:hover::after, .split.drag::after { background: var(--nucleus); height: 80px; margin-top: -40px; }
+  body.resizing { cursor: col-resize; user-select: none; }
+}
+.colhead { display: flex; align-items: baseline; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.colhead .mini { padding: 0 7px; font: 600 14px/20px var(--f-data); color: var(--dim); border-color: var(--line); }
+.col.min > :not(.colhead) { display: none; }
+@media (min-width: 1101px) {
+  .col.min .colhead { writing-mode: vertical-rl; flex-direction: row; justify-content: flex-start; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 0; height: 100%; cursor: pointer; }
+  .col.min:hover { border-color: var(--line2); }
+  .col.min .colhead > :not(h2):not(.mini) { display: none; }
+  .col.min .colhead .mini { writing-mode: horizontal-tb; }
+}
+.colhead h2 { margin: 0; font: 700 15px var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
+.colhead .sub { color: var(--dim); font-size: 12.5px; }
+
+/* tank */
+.tankwrap { position: relative; flex: 1; min-height: 360px; }
+#tank { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.depth { position: absolute; left: 12px; bottom: 12px; font: 12px var(--f-data); color: var(--dim); background: var(--veil); padding: 4px 8px; border-radius: 6px; }
+
+/* editor sections: a coloured spine and header per section */
+.editor { overflow: auto; }
+.sec { border-bottom: 1px solid var(--line); padding: 12px 14px 14px 18px; position: relative; display: grid; gap: 10px; }
+.sec::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--hue); }
+.sec h3 { margin: 0; font: 700 12.5px var(--f-display); letter-spacing: .16em; text-transform: uppercase; color: var(--hue); display: flex; align-items: center; gap: 8px; }
+.sec h3 .n { font: 500 11.5px var(--f-body); letter-spacing: .02em; text-transform: none; color: var(--dim); }
+.s-body { --hue: var(--body); } .s-parts { --hue: var(--parts); } .s-on { --hue: var(--onbody); } .s-arr { --hue: var(--arrange); }
+.row { display: grid; grid-template-columns: 70px 1fr 54px; align-items: center; gap: 8px; font-size: 13px; color: var(--dim); }
+.row output { font: 12.5px var(--f-data); color: var(--text); text-align: right; }
+input[type=range] { width: 100%; accent-color: var(--hue, var(--body)); }
+.palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.palette .cat { grid-column: 1 / -1; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-top: 2px; }
+.pbtn { display: grid; justify-items: center; gap: 3px; padding: 7px 2px 6px; font-size: 11.5px; line-height: 1.15; text-align: center; border-color: var(--line); }
+.pbtn svg { width: 34px; height: 24px; }
+.pbtn:hover { border-color: var(--parts); background: var(--parts-hover); }
+.plist { display: grid; gap: 6px; }
+.pitem { display: grid; grid-template-columns: 4px 1fr auto; gap: 10px; align-items: center; background: var(--well); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px 7px 0; overflow: hidden; }
+.pitem .stripe { align-self: stretch; background: var(--c); }
+.pitem .nm { font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 6px; }
+.pitem .nm i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); display: inline-block; }
+.pitem .say { font-size: 12px; color: var(--dim); }
+.pitem .acts { display: flex; gap: 4px; }
+.pitem .acts button { padding: 3px 7px; font-size: 12px; }
+.arrbtn { width: 100%; padding: 10px; font-weight: 600; border-color: var(--arrange); background: var(--arr-bg); }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.tools span { font-size: 12px; color: var(--dim); border: 1px dashed var(--line2); border-radius: 20px; padding: 3px 10px; }
+
+/* nucleus */
+.nuc { --hue: var(--nucleus); }
+.nuc .colhead h2 { color: var(--nucleus); }
+.slots { white-space: nowrap; display: flex; gap: 3px; align-items: center; margin-left: auto; font: 12px var(--f-data); color: var(--dim); }
+.slots i { width: 12px; height: 16px; border-radius: 3px; border: 1px solid var(--nucleus); }
+.slots i.used { background: var(--nucleus); }
+.slots.full i { border-color: var(--stop); } .slots.full i.used { background: var(--stop); }
+.styles { display: flex; }
+.styles button { font-size: 12px; padding: 3px 9px; border-radius: 0; margin-left: -1px; }
+.styles button:first-child { border-radius: 6px 0 0 6px; } .styles button:last-child { border-radius: 0 6px 6px 0; }
+.styles button.on { background: var(--style-on); border-color: var(--nucleus); }
+.scrub { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line); font: 12px var(--f-data); color: var(--dim); }
+.scrub input { accent-color: var(--nucleus); flex: 1; }
+.board { position: relative; flex: 1; display: grid; grid-template-columns: 178px minmax(0, 390px); justify-content: start; column-gap: var(--lanes, 80px); row-gap: 14px; padding: 14px; overflow: auto;
+  background: radial-gradient(120% 90% at 30% 0%, var(--glow) 0%, transparent 60%), var(--well); }
+.board svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.rec { display: grid; gap: 8px; align-content: start; position: relative; z-index: 1; }
+.label { font: 600 11px var(--f-body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+.sensor { background: var(--deck); border: 1px solid var(--line2); border-left: 4px solid var(--c); border-radius: 9px; padding: 7px 9px 6px; cursor: grab; user-select: none; display: grid; gap: 2px; }
+.sensor:hover { border-color: var(--c); }
+.sensor.picked { box-shadow: 0 0 0 2px var(--c); }
+.sensor .nm { font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; gap: 6px; }
+.sensor .val { font: 12px var(--f-data); color: var(--c); }
+.sensor svg { width: 100%; height: 26px; display: block; }
+.sensor.idle { opacity: .55; border-left-style: dashed; }
+.genes { display: grid; gap: 12px; align-content: start; position: relative; z-index: 1; min-width: 0; }
+.gene { background: var(--deck); border: 1px solid var(--line2); border-radius: 11px; overflow: hidden; }
+.gene .gh { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, color-mix(in srgb, var(--c) 18%, transparent), transparent 70%); }
+.gene .gh b { font: 700 14px var(--f-display); }
+.gene .gh i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.pill { margin-left: auto; font: 600 11.5px var(--f-data); padding: 2px 8px; border-radius: 20px; border: 1px solid var(--line2); color: var(--dim); }
+.pill.on { color: var(--ink); background: var(--go); border-color: var(--go); }
+.pill.stop { color: var(--ink); background: var(--stop); border-color: var(--stop); }
+.pill.float { color: var(--ink); background: var(--float); border-color: var(--float); }
+.gb { padding: 8px 11px 10px; display: grid; gap: 6px; }
+.verb { font: 600 11.5px var(--f-body); letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; color: var(--go); }
+.verb.stopv { color: var(--stop); }
+.verb .glyph { font: 700 14px var(--f-data); }
+.group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.join { font: 600 11px var(--f-data); color: var(--faint); }
+.chip { position: relative; flex: 1 1 100%; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; background: var(--well); border: 1px solid var(--line2); border-radius: 9px; padding: 5px 8px; min-width: 0; max-width: 100%; transition: border-color .2s, box-shadow .2s; }
+.chip.holds { border-color: var(--go); box-shadow: 0 0 0 1px var(--go) inset; }
+.chip.stopc.holds { border-color: var(--stop); box-shadow: 0 0 0 1px var(--stop) inset; }
+.chip svg.scope { grid-row: span 2; width: 96px; height: 34px; }
+.chip .w { font-size: 12.5px; min-width: 0; }
+.chip .w .tags span { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; }
+.chip .w .tags span::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.chip .ctl { display: flex; gap: 5px; align-items: center; font: 11.5px var(--f-data); }
+.chip .ctl .op { border: 0; background: none; padding: 0; color: var(--hold); text-decoration: underline dotted; }
+.chip .ctl input { width: 70px; accent-color: var(--hold); }
+.chip .anyall { font: 600 10.5px var(--f-data); padding: 1px 6px; border-radius: 10px; border-color: var(--line2); }
+.chip .x { position: absolute; top: 2px; right: 3px; border: 0; background: none; padding: 0 4px; color: var(--faint); font-size: 12px; }
+.add { font-size: 12px; padding: 3px 9px; border-style: dashed; color: var(--dim); }
+body.picking .drop { border-color: var(--go); color: var(--go); box-shadow: 0 0 0 2px color-mix(in srgb, var(--go) 35%, transparent); }
+body.picking .chip.drop { box-shadow: 0 0 0 2px color-mix(in srgb, var(--go) 35%, transparent); }
+.drop.over { background: var(--drop-bg); }
+.gene .gh { cursor: pointer; user-select: none; }
+.gene .gh .caret { font: 12px var(--f-data); color: var(--dim); width: 10px; }
+.gsum { display: none; padding: 7px 11px 4px; font-size: 12.5px; color: var(--dim); }
+.gsum .t { display: inline-flex; align-items: center; gap: 4px; color: var(--text); }
+.gsum .t::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.gene.collapsed .gb { display: none; } .gene.collapsed .gsum { display: block; }
+.gene.collapsed .daystrip .label { display: none; } .gene.collapsed .daystrip { padding-top: 2px; }
+.genehead { display: flex; align-items: center; gap: 8px; } .genehead .label { flex: 1; } .genehead button { white-space: nowrap; }
+.genehead button { font-size: 11.5px; padding: 2px 8px; }
+body.notrace .chip svg.scope, body.notrace .sensor svg { display: none; }
+body.notrace .chip { grid-template-columns: 1fr; }
+.daystrip { display: grid; gap: 3px; padding: 0 11px 10px; }
+.daystrip .label { font-size: 10px; }
+.daystrip svg { width: 100%; height: 14px; display: block; }
+.avail { display: grid; gap: 6px; }
+
+/* help line (from the DNA sheet: what the thing under the pointer does) */
+.help { background: var(--deck); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; display: flex; gap: 10px; align-items: baseline; min-height: 40px; }
+.help b { font: 700 13px var(--f-display); color: var(--hold); white-space: nowrap; }
+.help span { color: var(--dim); }
+.help.err b { color: var(--stop); }
+
+@media (max-width: 1100px) { .cols { grid-template-columns: 1fr 340px; } .nuc { grid-column: 1 / -1; } }
+@media (max-width: 720px) {
+  .cols { grid-template-columns: 1fr; }
+  .board { grid-template-columns: 1fr; column-gap: 0; }
+  .rec { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rec .label, .rec .avail { grid-column: 1 / -1; }
+  .board svg.wires { display: none; }
+  .chip { min-width: 0; width: 100%; }
+  .tankwrap { min-height: 300px; }
+}
+/* each window rearranges by its own width (container queries), not the screen's; last, so they win */
+@container (min-width: 470px) {
+  .palette { grid-template-columns: repeat(6, 1fr); }
+  .s-body { grid-template-columns: 1fr 1fr; column-gap: 20px; } .s-body h3 { grid-column: 1 / -1; }
+}
+@container (min-width: 640px) { .plist { grid-template-columns: 1fr 1fr; } }
+@container (max-width: 320px) { .palette { grid-template-columns: repeat(3, 1fr); } }
+/* a narrow nucleus: small sensor cards without their graphs, so the rules keep their room */
+@container (min-width: 500px) and (max-width: 660px) {
+  .board { grid-template-columns: 128px minmax(0, 1fr); padding: 10px; }
+  .sensor svg { display: none; } .sensor .nm { flex-direction: column; gap: 0; font-size: 12.5px; }
+  .chip svg.scope { width: 72px; } .chip .ctl input { width: 48px; }
+}
+@container (min-width: 820px) { .board { grid-template-columns: 190px minmax(0, 470px); } }
+@container (min-width: 1050px) { .board { grid-template-columns: 210px minmax(0, 560px); } }
+@media (prefers-reduced-motion: reduce) { .chip { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">TinyGod<small>Sandbox</small></div>
+    <div class="transport">
+      <button id="play" data-help="Play / pause|Runs the tank. The nucleus board below follows the same clock.">⏸</button>
+      <div class="seg" data-help="Speed|How fast the tank runs.">
+        <button>0.1×</button><button class="on">1×</button><button>5×</button><button>20×</button>
+      </div>
+    </div>
+    <span class="mock">MOCK-UP · not the game</span>
+    <button id="themeBtn" data-help="Theme|Switch between the dark and the light look.">☀ Light</button>
+    <div class="clock"><span>☀ <b id="clk">07:30</b></span><span>⚡ <b id="nrg">62%</b></span><span>depth <b id="dep">410 µm</b></span></div>
+  </header>
+
+  <div class="cols">
+    <section class="col">
+      <div class="colhead"><button class="mini" title="Minimise">–</button><h2>Tank</h2><span class="sub">2 mm of still water, light from above</span></div>
+      <div class="tankwrap" data-help="The tank|Your cell in its water column. Brighter at the top; the day passes in 10 minutes.">
+        <canvas id="tank"></canvas>
+        <div class="depth" id="tankinfo">Vesperella · 410 µm deep</div>
+      </div>
+    </section>
+    <div class="split" data-i="0" data-help="Resize|Drag to share the room between the tank and the cell. Past a window's smallest size it folds into a strip; drag back out to open it. Double-click: usual sizes."></div>
+
+    <section class="col editor">
+      <div class="colhead"><button class="mini" title="Minimise">–</button><h2>Cell</h2><span class="sub">build it, then arrange it</span></div>
+
+      <div class="sec s-body">
+        <h3>Body <span class="n">shape and wall</span></h3>
+        <div class="row" data-help="Radius|How big the cell is. A bigger cell holds more but sinks faster and costs more upkeep."><span>Radius</span><input type="range" id="rad" min="4" max="30" value="10"><output id="radv">10 µm</output></div>
+        <div class="row" data-help="Length|0 is round; longer makes a rod with rounded ends."><span>Length</span><input type="range" min="0" max="60" value="0"><output>round</output></div>
+        <div class="row" data-help="Wall|Protein is light and flexible; glass is heavy and stiff."><span>Wall</span><div class="seg" style="grid-column: span 2"><button class="on">Protein</button><button>Glass</button></div></div>
+      </div>
+
+      <div class="sec s-parts">
+        <h3>Add a part <span class="n">tap one, then place it on the cell</span></h3>
+        <div class="palette" id="palette"></div>
+      </div>
+
+      <div class="sec s-on">
+        <h3>On this body <span class="n">5 parts</span></h3>
+        <div class="plist" id="plist"></div>
+      </div>
+
+      <div class="sec s-arr">
+        <h3>Arrange <span class="n">inside the cell, by hand</span></h3>
+        <button class="arrbtn" data-help="Arrange inside the cell|Holds the cell still and large. Drag organelles, pinch to resize, press them into the wall to mould them.">✋ Arrange inside the cell</button>
+        <div class="tools"><span>drag to move</span><span>pinch to resize</span><span>press into the wall</span><span>🫧 Fit</span></div>
+      </div>
+    </section>
+    <div class="split" data-i="1" data-help="Resize|Drag to share the room between the cell and the nucleus. Past a window's smallest size it folds into a strip; drag back out to open it. Double-click: usual sizes."></div>
+
+    <section class="col nuc">
+      <div class="colhead">
+        <button class="mini" title="Minimise">–</button><h2>Nucleus</h2>
+        <div class="styles" data-help="Look|Pathway: each sensor gets its own lane and its cables branch from it, arrows switch on, a bar stops. Cables: loose synth cables with plugs.">
+          <button id="stPath" class="on">Pathway</button><button id="stSynth">Cables</button>
+        </div>
+        <div class="styles" data-help="Traces|Show or hide the little graphs of each sensor's day. Off, the board is calmer; the cables and the green lights still show what holds.">
+          <button id="trace" class="on">Traces</button>
+        </div>
+        <div class="slots" id="slots" data-help="Slots|Every sensor, every built-in reading you wire and every rule box takes one slot of the nucleus. Cables are free."></div>
+      </div>
+      <div class="scrub" data-help="The day|Drag to any time of day: every reading, cable and rule shows what it would do then.">
+        <span>00:00</span><input type="range" id="time" min="0" max="1000" value="312"><span>24:00</span>
+      </div>
+      <div class="board" id="board">
+        <svg class="wires" id="wires"></svg>
+        <div class="rec" id="rec"></div>
+        <div class="genes" id="genes"></div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="help" id="help"><b>Tip</b><span>Drag a sensor onto a rule (or tap the sensor, then a green spot) to wire it. Hover anything to see what it does.</span></footer>
+</div>
+
+<script>
+(() => {
+const $ = (id) => document.getElementById(id);
+const SVGNS = 'http://www.w3.org/2000/svg';
+const clamp = (v) => Math.max(0, Math.min(1, v));
+
+// ----- the example cell: two eyespots and the built-in readings; three things that act -----
+const SENSORS = [
+  { id: 'eyeT', name: 'Eyespot (top)', kind: 'light', c: '#ff7fae', part: true },
+  { id: 'eyeF', name: 'Eyespot (front)', kind: 'light', c: '#ffd166', part: true },
+  { id: 'energy', name: 'Energy level', kind: 'energy', c: '#e9e59a' },
+  { id: 'starch', name: 'Starch level', kind: 'store', c: '#e8d8b0' },
+  { id: 'health', name: 'Plastid health', kind: 'health', c: '#9be37a' },
+];
+const byId = Object.fromEntries(SENSORS.map((s) => [s.id, s]));
+const THEMES = {
+  dark: { s: { eyeT: '#ff7fae', eyeF: '#ffd166', energy: '#e9e59a', starch: '#e8d8b0', health: '#9be37a' }, g: { tail: '#5ad1e6', chamber: '#6aa8ff', rest: '#ff9f43' },
+    night: 'rgba(0,0,0,.28)', band: 'rgba(255,243,176,.10)', thr: '#fff3b0', now: '#ffffff', float: '#a8d8ff', sink: '#ff6f6f', sNight: '#121c2c', sDay: '#1a2638', plug: '#0c1524',
+    water: (L) => [`rgb(${18 + 40 * L},${42 + 70 * L},${70 + 70 * L})`, '#060c16'], grid: 'rgba(255,255,255,.05)' },
+  light: { s: { eyeT: '#d23c7c', eyeF: '#c08400', energy: '#8f8a12', starch: '#9a7a42', health: '#3f9427' }, g: { tail: '#0f8aa6', chamber: '#2c68cf', rest: '#d46a12' },
+    night: 'rgba(30,60,90,.09)', band: 'rgba(154,108,0,.12)', thr: '#9a6c00', now: '#16212c', float: '#4f97dc', sink: '#d23a3a', sNight: '#dfe6ec', sDay: '#eef2f5', plug: '#ffffff',
+    water: (L) => [`rgb(${150 + 70 * L},${196 + 45 * L},${218 + 30 * L})`, '#2a5672'], grid: 'rgba(20,50,80,.08)' },
+};
+let P = THEMES.dark;
+const sun = (t) => clamp(Math.sin(Math.PI * (t - 0.25) / 0.5));   // day from 06:00 to 18:00
+function read(id, t) {
+  const L = t > 0.25 && t < 0.75 ? sun(t) : 0;
+  if (id === 'eyeT') return L * (0.2 + 0.8 * 0.85);
+  if (id === 'eyeF') return L * (0.2 + 0.8 * 0.3);
+  if (id === 'energy') return clamp(0.5 + 0.38 * Math.sin(2 * Math.PI * (t - 0.32)));
+  if (id === 'starch') return clamp(0.45 + 0.42 * Math.sin(2 * Math.PI * (t - 0.42)));
+  if (id === 'health') return clamp(1 - 0.35 * Math.max(0, L - 0.55) / 0.45);
+  return 0;
+}
+const UNIT = { light: 'of full sun', energy: 'full', store: 'full', health: 'healthy' };
+const words = (c) => `${c.op} ${Math.round(c.v * 100)}% ${UNIT[byId[c.s[0]].kind]}`;
+const GENES = [
+  { id: 'tail', name: 'Wave tail (back)', c: '#5ad1e6', verb: ['GO when', 'OR GO when', 'STOP if'], states: ['ON', 'OFF'],
+    groups: [[{ s: ['eyeT', 'eyeF'], all: false, op: 'above', v: 0.3 }]], stops: [{ s: ['energy'], op: 'below', v: 0.25 }] },
+  { id: 'chamber', name: 'Buoyancy chamber', c: '#6aa8ff', verb: ['FLOAT when', 'OR FLOAT when', 'SINK if'], states: ['FLOAT', 'neutral', 'SINK'],
+    groups: [[{ s: ['eyeT'], op: 'below', v: 0.1 }]], stops: [{ s: ['starch'], op: 'above', v: 0.85 }] },
+  { id: 'rest', name: 'Nucleus · rest', c: '#ff9f43', verb: ['REST when', 'OR REST when', "DON'T REST if"], states: ['RESTING', 'awake'],
+    groups: [[{ s: ['eyeT', 'eyeF'], all: true, op: 'below', v: 0.05 }]], stops: [] },
+];
+const CAP = 10;   // the mock-up's nucleus is a size bigger than the game's (8), so there is room to try things
+const holdsAt = (c, t) => { const r = c.s.map((id) => (c.op === 'above' ? read(id, t) > c.v : read(id, t) < c.v)); return c.all ? r.every(Boolean) : r.some(Boolean); };
+function geneAt(g, t) {
+  const go = g.groups.some((gr) => gr.every((c) => holdsAt(c, t))), stop = g.stops.some((c) => holdsAt(c, t));
+  if (g.id === 'chamber') return stop ? 'SINK' : go ? 'FLOAT' : 'neutral';
+  if (g.id === 'rest') return go && !stop ? 'RESTING' : 'awake';
+  return go && !stop ? 'ON' : 'OFF';
+}
+function slotsUsed() {
+  const wired = new Set();
+  let boxes = 0;
+  for (const g of GENES) {
+    boxes += g.groups.length + (g.stops.length ? 1 : 0);
+    for (const c of [...g.groups.flat(), ...g.stops]) c.s.forEach((id) => wired.add(id));
+  }
+  const builtins = [...wired].filter((id) => !byId[id].part).length;
+  return SENSORS.filter((s) => s.part).length + builtins + boxes;
+}
+const isWired = (id) => GENES.some((g) => [...g.groups.flat(), ...g.stops].some((c) => c.s.includes(id)));
+
+// ----- state -----
+let t = 0.312, playing = true, look = 'path', picked = null;
+const hhmm = (t) => { const m = Math.round(t * 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+
+// ----- help line -----
+const help = $('help');
+function say(title, text, err) { help.classList.toggle('err', !!err); help.innerHTML = `<b></b><span></span>`; help.querySelector('b').textContent = title; help.querySelector('span').textContent = text; }
+document.addEventListener('pointerover', (e) => {
+  const el = e.target.closest('[data-help]');
+  if (!el || help.classList.contains('err')) return;
+  const [a, b] = el.dataset.help.split('|'); say(a, b);
+});
+
+// ----- small drawings -----
+function spark(svg, ids, opts = {}) {
+  const W = 100, H = 30; svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('preserveAspectRatio', 'none');
+  svg.innerHTML = '';
+  const add = (tag, attrs) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); svg.appendChild(e); return e; };
+  add('rect', { x: 0, y: 0, width: W, height: H, fill: 'transparent' });
+  for (let i = 0; i < 4; i++) add('rect', { x: (i === 0 ? 0 : i === 3 ? 75 : 0), y: 0, width: i === 0 ? 25 : i === 3 ? 25 : 0, height: H, fill: P.night });   // night
+  if (opts.c) {   // the band where the condition holds, and its threshold
+    const y = H - 2 - opts.c.v * (H - 4);
+    add('rect', { x: 0, y: opts.c.op === 'above' ? 0 : y, width: W, height: opts.c.op === 'above' ? y : H - y, fill: P.band });
+    add('line', { x1: 0, x2: W, y1: y, y2: y, stroke: P.thr, 'stroke-width': 1, 'stroke-dasharray': '3 2', 'vector-effect': 'non-scaling-stroke' });
+  }
+  for (const id of ids) {
+    let d = '';
+    for (let i = 0; i <= 96; i++) { const x = i / 96 * W, v = read(id, i / 96); d += `${i ? 'L' : 'M'}${x.toFixed(1)},${(H - 2 - v * (H - 4)).toFixed(1)}`; }
+    add('path', { d, fill: 'none', stroke: byId[id].c, 'stroke-width': 1.6, 'vector-effect': 'non-scaling-stroke' });
+  }
+  const now = add('line', { x1: 0, x2: 0, y1: 0, y2: H, stroke: P.now, 'stroke-width': 1, opacity: .7, 'vector-effect': 'non-scaling-stroke' });
+  now.classList.add('now');
+}
+const placeNow = (root) => root.querySelectorAll('line.now').forEach((l) => { l.setAttribute('x1', t * 100); l.setAttribute('x2', t * 100); });
+
+// ----- receptors (left of the board) -----
+function buildReceptors() {
+  const rec = $('rec'); rec.innerHTML = '<div class="label">Sensors</div>';
+  const card = (s) => {
+    const d = document.createElement('div');
+    d.className = 'sensor' + (picked === s.id ? ' picked' : '') + (!s.part && !isWired(s.id) ? ' idle' : '');
+    d.style.setProperty('--c', s.c); d.dataset.sensor = s.id; d.draggable = true;
+    d.dataset.help = `${s.name}|${s.part ? 'A sensor on the cell. ' : 'Built in: free until you wire it, then it takes a slot. '}Drag it onto a rule, or tap it and then a green spot.`;
+    d.innerHTML = `<div class="nm"><span>${s.name}</span><span class="val" data-val="${s.id}"></span></div><svg></svg>`;
+    spark(d.querySelector('svg'), [s.id]);
+    d.onclick = () => { picked = picked === s.id ? null : s.id; document.body.classList.toggle('picking', !!picked); buildReceptors(); if (picked) say(`${s.name} picked`, 'Now tap a green spot: a rule to join it to, + and, + or, or + stop.'); };
+    d.ondragstart = (e) => { picked = s.id; document.body.classList.add('picking'); e.dataTransfer.setData('text/plain', s.id); };
+    d.ondragend = () => { setTimeout(() => { picked = null; document.body.classList.remove('picking'); buildReceptors(); }, 0); };
+    return d;
+  };
+  SENSORS.filter((s) => s.part || isWired(s.id)).forEach((s) => rec.appendChild(card(s)));
+  const idle = SENSORS.filter((s) => !s.part && !isWired(s.id));
+  if (idle.length) { const a = document.createElement('div'); a.className = 'avail'; a.innerHTML = '<div class="label">Built in, not wired</div>'; idle.forEach((s) => a.appendChild(card(s))); rec.appendChild(a); }
+}
+
+// ----- rules (genes) -----
+function fits(extraBoxes, sid) {
+  const extra = extraBoxes + (sid && !byId[sid].part && !isWired(sid) ? 1 : 0);
+  if (slotsUsed() + extra <= CAP) return true;
+  say('Nucleus full', `That needs ${extra} more slot${extra > 1 ? 's' : ''}: ${slotsUsed()} of ${CAP} are used. Join the sensor to a rule box that is already there (cables are free), or remove a box.`, true);
+  $('slots').classList.add('full'); setTimeout(() => { $('slots').classList.remove('full'); help.classList.remove('err'); }, 2600);
+  return false;
+}
+function dropTarget(el, act) {   // tap after picking, or drop a dragged sensor
+  el.classList.add('drop');
+  el.addEventListener('click', (e) => { if (!picked) return; e.stopPropagation(); act(picked); finish(); });
+  el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('over'));
+  el.addEventListener('drop', (e) => { e.preventDefault(); el.classList.remove('over'); act(e.dataTransfer.getData('text/plain')); finish(); });
+}
+function finish() { picked = null; document.body.classList.remove('picking'); build(); }
+const fresh = (sid) => ({ s: [sid], op: byId[sid].kind === 'light' ? 'above' : 'below', v: byId[sid].kind === 'light' ? 0.3 : 0.3 });
+
+function chipEl(g, c, list, i, stop) {
+  const d = document.createElement('div');
+  d.className = 'chip' + (stop ? ' stopc' : '');
+  d.dataset.help = `${stop ? 'A STOP condition' : 'A condition'}|The yellow line is its value, the shaded band where it holds; the traces are its sensors over today. ${c.s.length > 1 ? 'ANY: one sensor reading so is enough; ALL: every one must. ' : ''}Drop another sensor of the same kind on it to add it.`;
+  const tags = c.s.map((id) => `<span data-sid="${id}" style="--c:${byId[id].c}">${byId[id].name}</span>`).join('');
+  d.innerHTML = `<svg class="scope"></svg><div class="w"><div class="tags">${tags}</div></div>
+    <div class="ctl">${c.s.length > 1 ? `<button class="anyall">${c.all ? 'ALL' : 'ANY'}</button>` : ''}<button class="op">${c.op}</button><input type="range" min="0" max="1" step="0.05" value="${c.v}"><span>${Math.round(c.v * 100)}%</span></div>
+    <button class="x" title="Remove">✕</button>`;
+  spark(d.querySelector('svg'), c.s, { c });
+  d.querySelector('.op').onclick = () => { c.op = c.op === 'above' ? 'below' : 'above'; build(); };
+  const r = d.querySelector('input'); r.oninput = () => { c.v = Number(r.value); d.querySelector('.ctl span').textContent = `${Math.round(c.v * 100)}%`; spark(d.querySelector('svg'), c.s, { c }); placeNow(d); refreshStrip(g); };
+  const aa = d.querySelector('.anyall'); if (aa) aa.onclick = () => { c.all = !c.all; build(); };
+  d.querySelector('.x').onclick = () => { list.splice(i, 1); build(); };
+  dropTarget(d, (sid) => {
+    if (c.s.includes(sid)) return;
+    if (byId[sid].kind !== byId[c.s[0]].kind) { if (fits(0, sid)) list.splice(i + 1, 0, fresh(sid)); return; }   // another kind: its own condition beside it
+    if (!fits(0, sid)) return;
+    c.s.push(sid);
+  });
+  d.dataset.gene = g.id;
+  return d;
+}
+function geneEl(g) {
+  const el = document.createElement('div'); el.className = 'gene' + (g.collapsed ? ' collapsed' : ''); el.style.setProperty('--c', g.c); el.dataset.gene = g.id;
+  el.innerHTML = `<div class="gh" data-help="${g.name}|Tap to fold or open this card. The pill shows what it is doing at the time on the day slider."><span class="caret">${g.collapsed ? '▸' : '▾'}</span><i></i><b>${g.name}</b><span class="pill" data-pill="${g.id}"></span></div><div class="gsum">${sumHTML(g)}</div><div class="gb"></div>
+    <div class="daystrip" data-help="Today|When it was switched on over the day (night shaded)."><div class="label">today</div><svg data-strip="${g.id}"></svg></div>`;
+  el.querySelector('.gh').onclick = () => { if (picked) return; g.collapsed = !g.collapsed; build(); };
+  const gb = el.querySelector('.gb');
+  g.groups.forEach((gr, gi) => {
+    const v = document.createElement('div'); v.className = 'verb'; v.innerHTML = `<span class="glyph">→</span>${gi ? g.verb[1] : g.verb[0]}`; gb.appendChild(v);
+    const row = document.createElement('div'); row.className = 'group';
+    gr.forEach((c, ci) => { if (ci) { const j = document.createElement('span'); j.className = 'join'; j.textContent = 'AND'; row.appendChild(j); } row.appendChild(chipEl(g, c, gr, ci, false)); });
+    const and = document.createElement('button'); and.className = 'add'; and.textContent = '+ and'; and.dataset.help = '+ and|Another condition in this box: all of them must hold. Free (cables cost no slot).';
+    dropTarget(and, (sid) => { if (fits(0, sid)) gr.push(fresh(sid)); });
+    row.appendChild(and); gb.appendChild(row);
+  });
+  const or = document.createElement('button'); or.className = 'add'; or.textContent = g.groups.length ? `+ ${g.verb[1].toLowerCase()}` : `+ ${g.verb[0].toLowerCase()}`;
+  or.dataset.help = `${or.textContent}|A new box: it also goes when all of this one hold. Takes one slot.`;
+  dropTarget(or, (sid) => { if (fits(1, sid)) g.groups.push([fresh(sid)]); });
+  const wrap = document.createElement('div'); wrap.className = 'group'; wrap.appendChild(or);
+  if (!g.stops.length) {
+    const st = document.createElement('button'); st.className = 'add'; st.textContent = `+ ${g.verb[2].toLowerCase()}`;
+    st.dataset.help = `${st.textContent}|An override: when it holds, it wins over everything above. Takes one slot.`;
+    dropTarget(st, (sid) => { if (fits(1, sid)) g.stops.push(fresh(sid)); });
+    wrap.appendChild(st);
+  }
+  gb.appendChild(wrap);
+  if (g.stops.length) {
+    const v = document.createElement('div'); v.className = 'verb stopv'; v.innerHTML = `<span class="glyph">⊣</span>${g.verb[2]} <span style="color:var(--faint);text-transform:none;letter-spacing:0">(beats everything above)</span>`; gb.appendChild(v);
+    const row = document.createElement('div'); row.className = 'group';
+    g.stops.forEach((c, ci) => { if (ci) { const j = document.createElement('span'); j.className = 'join'; j.textContent = 'OR'; row.appendChild(j); } row.appendChild(chipEl(g, c, g.stops, ci, true)); });
+    const more = document.createElement('button'); more.className = 'add'; more.textContent = '+ or'; more.dataset.help = '+ or|Another STOP condition: any one of them stops it. Free.';
+    dropTarget(more, (sid) => { if (fits(0, sid)) g.stops.push(fresh(sid)); });
+    row.appendChild(more); gb.appendChild(row);
+  }
+  return el;
+}
+// the folded card's sentence, sensors as coloured dots
+function sumHTML(g) {
+  const t = (id) => `<span class="t" style="--c:${byId[id].c}">${byId[id].name}</span>`;
+  const ph = (c) => `${c.s.length > 1 ? (c.all ? 'all of ' : 'any of ') : ''}${c.s.map(t).join(', ')} ${words(c)}`;
+  const go = g.groups.map((gr) => gr.map(ph).join(' and ')).join('; or ');
+  const v0 = g.verb[0][0] + g.verb[0].slice(1).toLowerCase();
+  return `${go ? `${v0} ${go}` : 'No rule yet'}${g.stops.length ? `; ${g.verb[2].toLowerCase()} ${g.stops.map(ph).join(' or ')}` : ''}.`;
+}
+function refreshStrip(g) {
+  const svg = document.querySelector(`[data-strip="${g.id}"]`); if (!svg) return;
+  svg.setAttribute('viewBox', '0 0 96 10'); svg.setAttribute('preserveAspectRatio', 'none'); svg.innerHTML = '';
+  for (let i = 0; i < 96; i++) {
+    const s = geneAt(g, (i + 0.5) / 96), r = document.createElementNS(SVGNS, 'rect');
+    const col = s === 'ON' || s === 'RESTING' ? g.c : s === 'FLOAT' ? P.float : s === 'SINK' ? P.sink : (i < 24 || i >= 72 ? P.sNight : P.sDay);
+    r.setAttribute('x', i); r.setAttribute('y', 0); r.setAttribute('width', 1.05); r.setAttribute('height', 10); r.setAttribute('fill', col);
+    svg.appendChild(r);
+  }
+  const now = document.createElementNS(SVGNS, 'line'); now.classList.add('now');
+  now.setAttribute('y1', 0); now.setAttribute('y2', 10); now.setAttribute('stroke', P.now); now.setAttribute('stroke-width', 1); now.setAttribute('vector-effect', 'non-scaling-stroke');
+  svg.appendChild(now);
+}
+function buildSlots() {
+  const n = slotsUsed(), el = $('slots'); el.innerHTML = '';
+  for (let i = 0; i < CAP; i++) { const s = document.createElement('i'); if (i < n) s.className = 'used'; el.appendChild(s); }
+  const lab = document.createElement('span'); lab.textContent = ` ${n} of ${CAP}`; el.appendChild(lab);
+}
+function build() {
+  buildReceptors();
+  const genes = $('genes'); genes.innerHTML = '<div class="genehead"><span class="label">Rules</span><button id="foldAll">Fold all</button><button id="openAll">Open all</button></div>';
+  genes.querySelector('#foldAll').onclick = () => { GENES.forEach((g) => { g.collapsed = true; }); build(); };
+  genes.querySelector('#openAll').onclick = () => { GENES.forEach((g) => { g.collapsed = false; }); build(); };
+  // one lane per wired sensor between the sensors and the rules
+  const n = SENSORS.filter((x) => isWired(x.id)).length;
+  $('board').style.setProperty('--lanes', `${34 + n * 16}px`);
+  GENES.forEach((g) => genes.appendChild(geneEl(g)));
+  GENES.forEach(refreshStrip);
+  buildSlots(); buildParts();
+  frame(true);
+}
+
+// ----- cables: from each sensor to every condition (or folded card) that reads it. Pathway: each sensor has its own
+// lane in the gap, its cables leave the trunk at right angles, so they never cross each other's lanes. -----
+function links() {
+  const out = [];
+  for (const g of GENES) {
+    const conds = [...g.groups.flat(), ...g.stops];
+    if (g.collapsed) {
+      const card = document.querySelector(`.gene[data-gene="${g.id}"] .gh`); if (!card) continue;
+      const ids = [...new Set(conds.flatMap((c) => c.s))];
+      ids.forEach((id, k) => {
+        const mine = conds.filter((c) => c.s.includes(id));
+        out.push({ id, el: card, k, n: ids.length, held: mine.some((c) => holdsAt(c, t)), stop: mine.every((c) => g.stops.includes(c)) });
+      });
+      continue;
+    }
+    document.querySelectorAll(`.chip[data-gene="${g.id}"]`).forEach((chip, ci) => {
+      const tags = [...chip.querySelectorAll('.tags [data-sid]')];
+      tags.forEach((tag, k) => out.push({ id: tag.dataset.sid, el: chip, k, n: tags.length, held: chip.classList.contains('holds'), stop: chip.classList.contains('stopc') }));
+    });
+  }
+  return out;
+}
+function drawWires() {
+  const svg = $('wires'), board = $('board');
+  if (getComputedStyle(svg).display === 'none') return;
+  const B = board.getBoundingClientRect(), sx = board.scrollLeft, sy = board.scrollTop;
+  const wired = SENSORS.filter((x) => isWired(x.id)).map((x) => x.id);
+  let out = '';
+  const L = links();
+  // dim cables first, lit ones on top
+  L.sort((p, q) => p.held - q.held);
+  for (const l of L) {
+    const src = document.querySelector(`.sensor[data-sensor="${l.id}"]`); if (!src) continue;
+    const S = src.getBoundingClientRect(), C = l.el.getBoundingClientRect(), col = byId[l.id].c;
+    const x1 = S.right - B.left + sx, y1 = S.top + S.height / 2 - B.top + sy;
+    const x2 = C.left - B.left + sx - 2, y2 = C.top - B.top + sy + Math.min(C.height - 6, 12 + l.k * 7);
+    const op = l.held ? 1 : 0.26;
+    if (look === 'synth') {
+      const sag = 26 + Math.abs(y2 - y1) * 0.08;
+      out += `<path d="M${x1},${y1} C${x1 + 40},${y1 + sag} ${x2 - 40},${y2 + sag} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="3.2" stroke-linecap="round" opacity="${op}"/>`;
+      out += `<circle cx="${x1}" cy="${y1}" r="4.5" fill="${P.plug}" stroke="${col}" stroke-width="2" opacity="${op}"/><circle cx="${x2}" cy="${y2}" r="4.5" fill="${P.plug}" stroke="${col}" stroke-width="2" opacity="${op}"/>`;
+      continue;
+    }
+    const lane = x1 + 16 + wired.indexOf(l.id) * 16, r = Math.min(6, Math.abs(y2 - y1) / 2), dy = y2 > y1 ? 1 : -1;
+    const d = Math.abs(y2 - y1) < 1 ? `M${x1},${y1} H${x2 - 8}`
+      : `M${x1},${y1} H${lane - r} Q${lane},${y1} ${lane},${y1 + dy * r} V${y2 - dy * r} Q${lane},${y2} ${lane + r},${y2} H${x2 - 8}`;
+    out += `<path d="${d}" fill="none" stroke="${col}" stroke-width="${l.held ? 2.2 : 1.6}" stroke-linejoin="round" opacity="${op}"/>`;
+    out += `<circle cx="${x1 + 1}" cy="${y1}" r="3" fill="${col}" opacity="${op}"/>`;
+    out += l.stop ? `<line x1="${x2 - 7}" x2="${x2 - 7}" y1="${y2 - 6}" y2="${y2 + 6}" stroke="${col}" stroke-width="3" opacity="${op}"/>`
+      : `<path d="M${x2 - 10},${y2 - 4.5} L${x2 - 2},${y2} L${x2 - 10},${y2 + 4.5} Z" fill="${col}" opacity="${op}"/>`;
+  }
+  svg.setAttribute('width', board.scrollWidth); svg.setAttribute('height', board.scrollHeight);
+  svg.style.width = board.scrollWidth + 'px'; svg.style.height = board.scrollHeight + 'px';
+  svg.innerHTML = out;
+}
+
+// ----- every frame: readings, lit conditions, states, cables -----
+function frame(force) {
+  for (const s of SENSORS) document.querySelectorAll(`[data-val="${s.id}"]`).forEach((e) => { e.textContent = `${Math.round(read(s.id, t) * 100)}%`; });
+  for (const g of GENES) {
+    const conds = [...g.groups.flat(), ...g.stops];
+    document.querySelectorAll(`.chip[data-gene="${g.id}"]`).forEach((chip, k) => { conds[k].__el = chip; chip.classList.toggle('holds', holdsAt(conds[k], t)); });
+    const p = document.querySelector(`[data-pill="${g.id}"]`), st = geneAt(g, t);
+    p.textContent = st; p.className = 'pill' + (st === 'ON' || st === 'RESTING' ? ' on' : st === 'FLOAT' ? ' float' : st === 'SINK' ? ' stop' : '');
+  }
+  placeNow(document);
+  $('clk').textContent = hhmm(t); $('nrg').textContent = `${Math.round(read('energy', t) * 100)}%`;
+  drawWires(); drawTank();
+}
+
+// ----- the parts list and palette (the middle column) -----
+const PALETTE = [
+  ['Flagella'], ['Wave tail', 'M2 12 C8 4 12 20 18 12 S28 4 32 12'], ['Flexible oar', 'M4 18 L16 10 Q24 6 30 8'],
+  ['Spines & escapes'], ['Spine', 'M4 20 L30 4'], ['Spring', 'M4 12 q3 -8 6 0 t6 0 t6 0 t6 0'], ['Feeler', 'M4 20 Q10 4 30 6 M28 4 l4 2 -4 2'],
+  ['Sensors'], ['Eyespot', 'C17 12 6'], ['Statolith', 'C17 12 8|C17 17 3'],
+  ['Inside the cell'], ['Nucleus', 'C17 12 8|C15 11 2'], ['Plastid', 'E17 12 12 6'], ['Energy store', 'C17 12 7|M10 14 L24 14'], ['Chamber', 'C17 12 8'], ['Pad', 'M6 16 Q17 4 28 16'],
+];
+function icon(spec, col) {
+  const svg = document.createElementNS(SVGNS, 'svg'); svg.setAttribute('viewBox', '0 0 34 24');
+  for (const p of spec.split('|')) {
+    let e;
+    if (p[0] === 'C') { const [x, y, r] = p.slice(1).split(' ').map(Number); e = document.createElementNS(SVGNS, 'circle'); e.setAttribute('cx', x); e.setAttribute('cy', y); e.setAttribute('r', r); }
+    else if (p[0] === 'E') { const [x, y, rx, ry] = p.slice(1).split(' ').map(Number); e = document.createElementNS(SVGNS, 'ellipse'); e.setAttribute('cx', x); e.setAttribute('cy', y); e.setAttribute('rx', rx); e.setAttribute('ry', ry); }
+    else { e = document.createElementNS(SVGNS, 'path'); e.setAttribute('d', p); }
+    e.setAttribute('fill', 'none'); e.setAttribute('stroke', col); e.setAttribute('stroke-width', 1.8); e.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(e);
+  }
+  return svg;
+}
+function buildPalette() {
+  const box = $('palette'); box.innerHTML = '';
+  for (const [name, spec] of PALETTE) {
+    if (!spec) { const c = document.createElement('div'); c.className = 'cat'; c.textContent = name; box.appendChild(c); continue; }
+    const b = document.createElement('button'); b.className = 'pbtn'; b.dataset.help = `${name}|Tap, then point where it goes on the cell. A ghost shows it before you add it.`;
+    b.appendChild(icon(spec, 'var(--parts)')); b.append(name); box.appendChild(b);
+  }
+}
+function sentence(g) {
+  const ph = (c) => `${c.s.length > 1 ? (c.all ? 'all of ' : 'any of ') : ''}${c.s.map((id) => byId[id].name).join(', ')} ${words(c)}`;
+  const go = g.groups.map((gr) => gr.map(ph).join(' and ')).join('; or ');
+  return `${go ? `${g.verb[0][0] + g.verb[0].slice(1).toLowerCase()} ${go}` : 'No rule yet'}${g.stops.length ? `, ${g.verb[2].toLowerCase()} ${g.stops.map(ph).join(' or ')}` : ''}.`;
+}
+function buildParts() {
+  const box = $('plist'); box.innerHTML = '';
+  const items = [
+    { c: GENES[0].c, nm: 'Wave tail (back)', say: sentence(GENES[0]) },
+    { c: GENES[1].c, nm: 'Buoyancy chamber', say: sentence(GENES[1]) },
+    { c: GENES[2].c, nm: 'Nucleus (bottom)', say: sentence(GENES[2]) },
+    { c: byId.eyeT.c, nm: 'Eyespot (top)', say: 'Sensor · read by 2 rules' },
+    { c: byId.eyeF.c, nm: 'Eyespot (front)', say: 'Sensor · read by 2 rules' },
+  ];
+  for (const it of items) {
+    const d = document.createElement('div'); d.className = 'pitem'; d.style.setProperty('--c', it.c);
+    d.dataset.help = `${it.nm}|Its colour is the same in the tank, this list and the nucleus. Edit moves or resizes it; ⇆ ⇅ add a mirror copy.`;
+    d.innerHTML = `<span class="stripe"></span><div><div class="nm"><i></i>${it.nm}</div><div class="say"></div></div><div class="acts"><button title="Edit">Edit</button><button title="Mirror left-right">⇆</button><button title="Remove">✕</button></div>`;
+    d.querySelector('.say').textContent = it.say; box.appendChild(d);
+  }
+}
+
+// ----- the tank (a sketch: depth follows the chamber; tail beats while ON) -----
+const cv = $('tank'), cx = cv.getContext('2d');
+let depth = 0.42;
+function drawTank() {
+  const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+  const W = cv.width, H = cv.height; cx.setTransform(1, 0, 0, 1, 0, 0);
+  const L = t > 0.25 && t < 0.75 ? sun(t) : 0;
+  const gr = cx.createLinearGradient(0, 0, 0, H);
+  const [w0, w1] = P.water(L); gr.addColorStop(0, w0); gr.addColorStop(1, w1);
+  cx.fillStyle = gr; cx.fillRect(0, 0, W, H);
+  cx.strokeStyle = P.grid; cx.lineWidth = dpr;
+  for (let y = 0; y < H; y += 40 * dpr) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(W, y); cx.stroke(); }
+  const st = geneAt(GENES[1], t), tail = geneAt(GENES[0], t) === 'ON';
+  depth += ((st === 'FLOAT' ? -0.0012 : st === 'SINK' ? 0.0016 : 0.0005) + (tail ? -0.0008 : 0)) * (playing ? 1 : 0);
+  depth = Math.max(0.12, Math.min(0.88, depth));
+  const R = Math.min(W, H) * 0.11, X = W / 2, Y = H * depth, k = performance.now() / 1000;
+  // tail
+  cx.strokeStyle = GENES[0].c; cx.lineWidth = 2.2 * dpr; cx.beginPath();
+  for (let i = 0; i <= 30; i++) { const u = i / 30, x = X - R - u * R * 1.9, y = Y + R * 0.2 + Math.sin(u * 7 - (tail ? k * 9 : 0)) * u * R * 0.22; i ? cx.lineTo(x, y) : cx.moveTo(x, y); }
+  cx.globalAlpha = tail ? 1 : 0.4; cx.stroke(); cx.globalAlpha = 1;
+  // body and organelles
+  cx.fillStyle = '#3f8a62'; cx.strokeStyle = '#cfe9d6'; cx.lineWidth = 1.6 * dpr;
+  cx.beginPath(); cx.arc(X, Y, R, 0, 7); cx.fill(); cx.stroke();
+  const blob = (dx, dy, rr, col) => { cx.fillStyle = col; cx.beginPath(); cx.arc(X + dx * R, Y + dy * R, rr * R, 0, 7); cx.fill(); };
+  blob(-0.38, 0.15, 0.36, '#93cc4f');
+  blob(0.3, -0.32, 0.36, st === 'FLOAT' ? '#d6ecff' : st === 'SINK' ? '#2f56a8' : '#6a93cf');
+  blob(0.05, 0.45, 0.34, '#8d8fb0'); blob(0.08, 0.45, 0.1, '#5c3f8f');
+  // eyespots in their colours
+  const eye = (a, col) => { cx.fillStyle = '#7a2424'; cx.strokeStyle = col; cx.lineWidth = 2 * dpr; cx.beginPath(); cx.arc(X + Math.cos(a) * R, Y - Math.sin(a) * R, R * 0.13, 0, 7); cx.fill(); cx.stroke(); };
+  eye(Math.PI / 2, byId.eyeT.c); eye(0, byId.eyeF.c);
+  if (geneAt(GENES[2], t) === 'RESTING') { cx.strokeStyle = '#7cb0ff'; cx.lineWidth = 3 * dpr; cx.beginPath(); cx.arc(X, Y, R + 4 * dpr, 0, 7); cx.stroke(); }
+  const um = Math.round(depth * 2000); $('dep').textContent = `${um} µm`; $('tankinfo').textContent = `Vesperella · ${um} µm deep · chamber ${st}`;
+}
+
+// ----- wiring up the page -----
+$('time').oninput = () => { t = Number($('time').value) / 1000; frame(); };
+$('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '⏸' : '▶'; };
+$('stPath').onclick = () => { look = 'path'; $('stPath').classList.add('on'); $('stSynth').classList.remove('on'); drawWires(); };
+$('trace').onclick = () => { const on = !$('trace').classList.toggle('on') ? false : true; document.body.classList.toggle('notrace', !on); requestAnimationFrame(drawWires); };
+$('stSynth').onclick = () => { look = 'synth'; $('stSynth').classList.add('on'); $('stPath').classList.remove('on'); drawWires(); };
+$('rad').oninput = () => { $('radv').textContent = `${$('rad').value} µm`; };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && picked) finish(); });
+$('board').addEventListener('scroll', drawWires);
+window.addEventListener('resize', () => frame(true));
+// windows: each column folds to a thin strip (its name standing up); the others take the room
+// Sizes: the tank and the cell editor have a width each (px), the nucleus takes the rest. A handle shares the room of its
+// two neighbours; each window has a smallest width its contents fit in, and dragged well past it the window folds.
+const COLS = [...document.querySelectorAll('.cols > .col')], BOX = document.querySelector('.cols');
+const MIN = [220, 300, 540], USUAL = [360, 350], STRIP = 44, HANDLE = 14;
+let widths = [...USUAL];
+try { const w = JSON.parse(localStorage.getItem('tg-widths')); if (Array.isArray(w) && w.length === 2) widths = w; } catch (e) {}
+const isMin = (i) => COLS[i].classList.contains('min');
+function setMin(i, m) {
+  const col = COLS[i], b = col.querySelector('.mini');
+  col.classList.toggle('min', m); b.textContent = m ? '+' : '–'; b.title = m ? 'Open' : 'Minimise';
+}
+const room = () => BOX.clientWidth - 2 * HANDLE;
+function layoutCols() {
+  if (window.innerWidth <= 1100) { BOX.style.gridTemplateColumns = ''; return; }
+  // never more than the screen: the nucleus (when open) keeps at least its smallest width
+  const keep = isMin(2) ? STRIP : MIN[2];
+  let a = isMin(0) ? STRIP : Math.max(MIN[0], widths[0]), b = isMin(1) ? STRIP : Math.max(MIN[1], widths[1]);
+  const over = a + b + keep - room();
+  if (over > 0) { if (!isMin(0)) a = Math.max(MIN[0], a - over); const left = a + b + keep - room(); if (left > 0 && !isMin(1)) b = Math.max(MIN[1], b - left); }
+  // the nucleus folded: the cell editor takes what is left over
+  const third = isMin(2) ? `${STRIP}px` : 'minmax(0, 1fr)';
+  const mid = isMin(2) && !isMin(1) ? 'minmax(0, 1fr)' : `${b}px`;
+  BOX.style.gridTemplateColumns = `${a}px ${HANDLE}px ${mid} ${HANDLE}px ${third}`;
+  try { localStorage.setItem('tg-widths', JSON.stringify(widths)); } catch (e) {}
+}
+const widthOf = (i) => COLS[i].getBoundingClientRect().width;
+document.querySelectorAll('.split').forEach((h) => {
+  const i = Number(h.dataset.i);   // between window i and i + 1
+  h.addEventListener('pointerdown', (e) => {
+    e.preventDefault();   // no text selection or native drag, which would cancel the resize
+    window.getSelection()?.removeAllRanges();
+    h.setPointerCapture(e.pointerId); h.classList.add('drag'); document.body.classList.add('resizing');
+    const x0 = e.clientX, wl = isMin(i) ? 0 : widthOf(i), wr = isMin(i + 1) ? 0 : widthOf(i + 1);
+    const move = (ev) => {
+      const dx = ev.clientX - x0, L = wl + dx, R = wr - dx;
+      // fold one that is dragged well below its smallest width; open one dragged back out
+      if (L < MIN[i] - 90) setMin(i, true); else if (L >= MIN[i] - 90) { setMin(i, false); if (i < 2) widths[i] = Math.max(MIN[i], L); }
+      if (R < MIN[i + 1] - 90) setMin(i + 1, true);
+      else { setMin(i + 1, false); if (i + 1 < 2) widths[i + 1] = Math.max(MIN[i + 1], R); }
+      layoutCols(); frame(true);
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); h.classList.remove('drag'); document.body.classList.remove('resizing'); };
+    window.addEventListener('pointermove', move);   // on the window: the finger may leave the narrow handle
+    window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  });
+  h.addEventListener('dblclick', () => { widths = [...USUAL]; [0, 1, 2].forEach((k) => setMin(k, false)); layoutCols(); frame(true); });
+});
+COLS.forEach((col, i) => {
+  const b = col.querySelector('.mini'), head = col.querySelector('.colhead');
+  const toggle = () => { setMin(i, !isMin(i)); layoutCols(); requestAnimationFrame(() => frame(true)); };
+  b.dataset.help = `${head.querySelector('h2').textContent}|Minimise this window to a thin strip; the others take its room. Tap the strip to open it again.`;
+  b.onclick = (e) => { e.stopPropagation(); toggle(); };
+  head.addEventListener('click', () => { if (col.classList.contains('min')) toggle(); });
+});
+window.addEventListener('resize', layoutCols);
+layoutCols();
+function applyTheme(name) {
+  P = THEMES[name];
+  document.documentElement.classList.toggle('light', name === 'light');
+  SENSORS.forEach((x) => { x.c = P.s[x.id]; }); GENES.forEach((g) => { g.c = P.g[g.id]; });
+  $('themeBtn').textContent = name === 'light' ? '☾ Dark' : '☀ Light';
+  try { localStorage.setItem('tg-theme', name); } catch (e) {}
+}
+let theme = 'dark';
+try { theme = localStorage.getItem('tg-theme') || 'dark'; } catch (e) {}
+applyTheme(theme === 'light' ? 'light' : 'dark');
+$('themeBtn').onclick = () => { applyTheme(document.documentElement.classList.contains('light') ? 'dark' : 'light'); build(); };
+buildPalette(); build();
+let last = performance.now();
+(function loop(now) {
+  const dt = (now - last) / 1000; last = now;
+  if (playing) { t = (t + dt / 120) % 1; $('time').value = Math.round(t * 1000); }   // a day in 2 minutes here
+  frame();
+  requestAnimationFrame(loop);
+})(last);
+})();
+</script>
