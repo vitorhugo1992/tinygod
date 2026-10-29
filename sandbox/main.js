@@ -2291,7 +2291,7 @@ function arrangeTo(e) {
 // the Zoom slider (closer than the arrange view starts) and the selected organelle's Turn
 function showTurn() {
   const a = arrange, p = a && a.sel !== null ? a.trial.parts[a.sel] : null;
-  $('arrTurn').disabled = !p;
+  $('arrTurn').disabled = !p; $('arrDeselect').disabled = !p;
   if (p) $('arrTurn').value = Math.round(((p.angle || 0) + 540) % 360 - 180);
   $('arrTurnOut').textContent = p ? `${$('arrTurn').value}°` : 'select one';
 }
@@ -2312,6 +2312,7 @@ $('arrTurn').oninput = () => {
   setTrial(d); $('arrTurnOut').textContent = `${$('arrTurn').value}°`;
 };
 $('arrTurn').onchange = () => { if (arrange) commitIfFits(); };
+$('arrDeselect').onclick = () => { if (arrange) { arrange.sel = null; showTurn(); } };
 function startArrange() {
   if (arrange || !cell || cell.design !== design) return;
   const W = canvas.clientWidth, H = canvas.clientHeight, b = design.body;
@@ -2358,11 +2359,12 @@ function arrangeDown(e) {
     const hit = arrangeHit(e);
     a.base = JSON.parse(JSON.stringify(a.trial));
     if (!hit) { a.drag = null; return; }   // empty water: the selection stays (a pinch may follow)
-    a.tapSel = hit.kind === 'inc' && hit.k === a.sel ? { x: e.clientX, y: e.clientY } : null;   // the selected one again: maybe a deselect
     if (hit.kind === 'inc') { if (a.sel !== hit.k) lookAt(a.trial.parts[hit.k].at); a.sel = hit.k; showTurn(); }
     a.drag = { ...hit, id: e.pointerId };
+  } else if (touches.size === 2 && a.sel === null) {   // nothing selected: two fingers zoom, as usual
+    const [p, q] = [...touches.values()];
+    a.drag = null; a.zoomPinch = { d0: Math.hypot(p.x - q.x, p.y - q.y), z0: Number($('arrZoom').value) };
   } else if (touches.size === 2 && a.sel !== null) {   // a second finger anywhere: pinch the selected one's size
-    a.tapSel = null;
     const [p, q] = [...touches.values()];
     a.base = JSON.parse(JSON.stringify(a.trial));
     a.pinch0 = Math.hypot(p.x - q.x, p.y - q.y);
@@ -2372,6 +2374,12 @@ function arrangeDown(e) {
 }
 function arrangeMove(e) {
   const a = arrange;
+  if (a.zoomPinch && touches.size === 2) {
+    const [p, q] = [...touches.values()];
+    $('arrZoom').value = Math.max(1, Math.min(4, a.zoomPinch.z0 * Math.hypot(p.x - q.x, p.y - q.y) / Math.max(a.zoomPinch.d0, 1)));
+    $('arrZoom').oninput();
+    return;
+  }
   if (!a.drag) return;
   if (a.pinchF && touches.size === 2) {
     const [p, q] = [...touches.values()];
@@ -2387,9 +2395,7 @@ function arrangeUp(e) {
   touches.delete(e.pointerId);
   const a = arrange;
   if (touches.size > 0) return;
-  if (a.tapSel && e.clientX !== undefined && Math.hypot(e.clientX - a.tapSel.x, e.clientY - a.tapSel.y) < 8) { a.sel = null; showTurn(); }   // tapped again: deselected
-  a.tapSel = null;
-  a.drag = null; a.pinchF = null;
+  a.drag = null; a.pinchF = null; a.zoomPinch = null;
   commitIfFits();
 }
 // what fits becomes the design at once (one Undo step); what doesn't waits, red, until it fits or ✓ Done
@@ -2405,7 +2411,7 @@ function commitIfFits() {
 // the mouse wheel resizes the selected organelle (as a pinch would)
 function arrangeWheel(e) {
   const a = arrange;
-  if (a.sel === null) return;
+  if (a.sel === null) { $('arrZoom').value = Math.max(1, Math.min(4, Number($('arrZoom').value) * (e.deltaY < 0 ? 1.1 : 1 / 1.1))); $('arrZoom').oninput(); return; }
   a.base = JSON.parse(JSON.stringify(a.trial));
   a.drag = { kind: 'inc', k: a.sel, off: [0, 0], id: -1 };
   a.pinchF = e.deltaY < 0 ? 1.08 : 1 / 1.08;
