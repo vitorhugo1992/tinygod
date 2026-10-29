@@ -5,7 +5,7 @@ import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
 import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
 import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
-import { rigid, isInc, bodyPoints, outOfWall, toOutline, dragSpot, scaleBy, moveTo, fitWall, relax } from './mould.js';
+import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax } from './mould.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
@@ -2038,7 +2038,7 @@ window.addEventListener('pointermove', (e) => {
 });
 // ----- arrange: the cell held still and large, everything inside it soft (author, 2026-10-28; soft blobs 2026-10-29). Tap an
 // organelle to select it; drag it to move it (pressed into the wall it flattens there and bulges elsewhere, its volume
-// kept; the statolith is rigid); drag a spot of its edge to pull a bump or push a dent (its area changes); pinch
+// kept; the statolith is rigid); one finger elsewhere pans the view; pinch
 // anywhere to make it bigger or smaller. Drag the cell's wall to make the cell bigger or smaller. The others stay put;
 // overlaps are allowed while arranging (drawn red); ✓ Done warns until they are sorted out (Squish to fit packs them,
 // denting each other, each keeping its volume). The shaping itself: mould.js. -----
@@ -2090,31 +2090,26 @@ function bodyPoint(e) {
   const [wx, wy] = toWorld(e), c = cell, dx = wx - c.cx[0], dy = wy - c.cy[0];
   return [c.cs[0] * dx + c.sn[0] * dy, -c.sn[0] * dx + c.cs[0] * dy];
 }
-// what is under the finger: the selected organelle's edge, an organelle, a part on the rim, or the cell's wall
+// what is under the finger. One selected: on it (or a fingertip from it) the finger moves it; anywhere else it pans the
+// view. Nothing selected: a part on the rim or the cell's wall is dragged; anywhere else the finger pans the view, and a
+// tap (no slide) on an organelle selects it (author, 2026-10-29: edge reshaping was dropped, it caught the grab).
 function arrangeHit(e) {
   const P = bodyPoint(e), s = Number($('zoom').value), d = arrange.trial, tol = 16 / s;   // about a fingertip
   const sel = arrange.sel !== null ? d.parts[arrange.sel] : null;
-  if (sel) {   // one selected: the finger works on it alone (Deselect to pick another, or to reach the wall)
-    const tmp = JSON.parse(JSON.stringify(sel)); toOutline(tmp);   // its points as the drag will have them
-    const Q = bodyPoints(tmp), dd = polyDist(Q, P[0], P[1]);
-    const inner = rigid(sel) ? 0 : Math.min(tol, 0.45 * (tmp.radius || 1));   // the edge band reaches this far inside
-    if (!rigid(sel) && dd > -inner && dd < tol) {   // its edge: the nearest of its points follows the finger
-      let i = 0, best = Infinity;
-      Q.forEach(([x, y], k) => { const g = Math.hypot(x - P[0], y - P[1]); if (g < best) { best = g; i = k; } });
-      return { k: arrange.sel, kind: 'edge', i, P0: P };
-    }
-    if (dd < tol) return { k: arrange.sel, kind: 'inc', off: [sel.at[0] - P[0], sel.at[1] - P[1]] };
-    return null;
+  if (sel) {
+    if (polyDist(bodyPoints(sel), P[0], P[1]) < tol) return { k: arrange.sel, kind: 'inc', off: [sel.at[0] - P[0], sel.at[1] - P[1]] };
+    return { kind: 'pan' };
   }
-  let best = null, bestD = tol;
+  let inc = null, incD = tol, rim = null, rimD = tol;
   d.parts.forEach((p, k) => {
-    if (isInc(p)) { const g = polyDist(bodyPoints(p), P[0], P[1]); if (g < bestD) { bestD = g; best = { k, kind: 'inc', off: [p.at[0] - P[0], p.at[1] - P[1]] }; } }
-    else if (!p.parent || p.parent === 'body') { const g = Math.hypot(p.at[0] - P[0], p.at[1] - P[1]) - 2; if (g < bestD) { bestD = g; best = { k, kind: 'rim' }; } }
+    if (isInc(p)) { const g = polyDist(bodyPoints(p), P[0], P[1]); if (g < incD) { incD = g; inc = k; } }
+    else if (!p.parent || p.parent === 'body') { const g = Math.hypot(p.at[0] - P[0], p.at[1] - P[1]) - 2; if (g < rimD) { rimD = g; rim = k; } }
   });
-  if (best) return best;
+  if (incD < 0) return { kind: 'pan', tapK: inc };   // inside an organelle
+  if (rim !== null && rimD < incD) return { k: rim, kind: 'rim' };
   const [cx, cy] = wallCentre(d.body, P[0]), r = Math.hypot(P[0] - cx, P[1] - cy);
-  if (Math.abs(r - d.body.radius) < tol) return { kind: 'wall', r0: r };
-  return null;
+  if (inc === null && Math.abs(r - d.body.radius) < tol) return { kind: 'wall', r0: r };
+  return { kind: 'pan', tapK: inc };
 }
 // a rim part rebuilt where `where` says, keeping its rule, colour and name
 function placeRim(d, k, where) {
@@ -2143,12 +2138,6 @@ function arrangeTo(e) {
     if (rigid(p)) p.radius = Math.round(B.radius * a.pinchF * 100) / 100;
     else { toOutline(B); p.at = B.at; scaleBy(p, B.outline, a.pinchF, d.body); }
     setTrial(d); return;
-  }
-  if (g.kind === 'edge') {   // a spot of its edge follows the finger, its neighbours less; the others stay put (red where they overlap)
-    toOutline(B);
-    const [sx, sy] = bodyPoints(B)[g.i], F = [sx + P[0] - g.P0[0], sy + P[1] - g.P0[1]];   // as far as the finger moved
-    if (dragSpot(p, B.outline, g.i, F, d.body)) setTrial(d);
-    return;
   }
   // moved: where its middle would be; pressed into the wall it flattens there and bulges elsewhere (its volume kept)
   if (!moveTo(p, B, [P[0] + g.off[0], P[1] + g.off[1]], d.body)) return;   // the statolith can't go into the wall
@@ -2200,7 +2189,7 @@ function startArrange() {
   $('arrZoom').value = 1; $('arrangeTools').hidden = false; $('arrangeView').hidden = false; arrange.pan = [0, 0]; lookAt([0, 0]); showTurn();
   $('arrangeBtn').textContent = '✓ Done arranging';
   $('squishBtn').hidden = true;
-  $('buildErr').textContent = 'tap an organelle to select it · drag it · drag its edge to bulge or dent it · pinch to resize · drag the wall to resize the cell';
+  $('buildErr').textContent = 'slide to look around · tap an organelle to select it, then drag it · pinch to resize it · drag the wall to resize the cell';
 }
 function stopArrange(force) {
   if (!arrange) return;
@@ -2235,9 +2224,7 @@ function arrangeDown(e) {
   if (touches.size === 1) {
     const hit = arrangeHit(e);
     a.base = JSON.parse(JSON.stringify(a.trial));
-    if (!hit) { a.drag = null; return; }   // empty water: the selection stays (a pinch may follow)
-    if (hit.kind === 'inc' && a.sel === null) { lookAt(a.trial.parts[hit.k].at); a.sel = hit.k; showTurn(); }
-    a.drag = { ...hit, id: e.pointerId };
+    a.drag = { ...hit, id: e.pointerId, x: e.clientX, y: e.clientY, pan0: [...a.pan] };
   } else if (touches.size === 2 && a.sel === null) {   // nothing selected: two fingers zoom, as usual
     const [p, q] = [...touches.values()];
     a.drag = null; a.zoomPinch = { d0: Math.hypot(p.x - q.x, p.y - q.y), z0: Number($('arrZoom').value) };
@@ -2266,12 +2253,24 @@ function arrangeMove(e) {
     arrangeTo({ clientX: r.left + r.width / 2 + (wx - cam.x) * s, clientY: r.top + r.height / 2 - (wy - cam.y) * s });
     return;
   }
-  if (e.pointerId === a.drag.id) arrangeTo(e);
+  if (e.pointerId !== a.drag.id) return;
+  if (a.drag.kind === 'pan') {   // the view follows the finger (as a slide of the X / Y sliders)
+    const g = a.drag, s = Number($('zoom').value), wx = -(e.clientX - g.x) / s, wy = (e.clientY - g.y) / s, m = panSpan();
+    if (Math.hypot(e.clientX - g.x, e.clientY - g.y) > 8) g.moved = true;
+    const bx = cell.cs[0] * wx + cell.sn[0] * wy, by = -cell.sn[0] * wx + cell.cs[0] * wy;
+    lookAt([Math.max(-m, Math.min(m, g.pan0[0] + bx)), Math.max(-m, Math.min(m, g.pan0[1] + by))]);
+    return;
+  }
+  arrangeTo(e);
 }
 function arrangeUp(e) {
   touches.delete(e.pointerId);
   const a = arrange;
   if (touches.size > 0) return;
+  const g = a.drag;   // a tap on an organelle (no slide, one finger): select it and look at it
+  if (g && g.kind === 'pan' && !g.moved && g.tapK !== undefined && g.tapK !== null && a.sel === null) {
+    a.sel = g.tapK; lookAt(a.trial.parts[g.tapK].at); showTurn();
+  }
   a.drag = null; a.pinchF = null; a.zoomPinch = null;
   commitIfFits();
 }
