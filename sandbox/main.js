@@ -2052,7 +2052,7 @@ window.addEventListener('pointermove', (e) => {
 // bigger or smaller. Overlaps are allowed while arranging (drawn red); ✓ Done warns until they are sorted out (Squish to
 // fit tries). Squishing keeps volume; reshaping and pinching change it. -----
 let arrange = null;   // { prev, trial, cell, sel, drag, base, bad, problems }
-const ARR = { minSquash: 0.45, maxBend: 0.9, minR: 0.6 };
+const ARR = { minSquash: 0.65, maxBend: 0.9, minR: 0.6 };   // squashed at most to 65% of its round radius (author: no long thin bands)
 const incVol = (p) => Math.PI * p.radius * p.radius * (p.length || 0) + 4 / 3 * Math.PI * p.radius ** 3;
 const rEqOf = (p) => Math.cbrt(incVol(p) * 3 / (4 * Math.PI));
 const rigid = (p) => p.material === 'statolith';
@@ -2104,8 +2104,8 @@ function mouldToWall(p, body, want, V) {
   const [cx, cy] = wallCentre(body, want[0]), dx = want[0] - cx, dy = want[1] - cy, dist = Math.hypot(dx, dy) || 1e-6;
   const room = roomOf(body), rEq = Math.cbrt(V * 3 / (4 * Math.PI));
   // full thickness where a round one would just touch the wall; thinner the further its middle is pushed past that
-  const R = Math.max(rEq * ARR.minSquash, Math.min(rEq, rEq - 0.5 * Math.max(0, dist - (room - rEq))));
-  const L = Math.max(0, (V - 4 / 3 * Math.PI * R ** 3) / (Math.PI * R * R)), rho = room - R;
+  const R = Math.max(rEq * ARR.minSquash, Math.min(rEq, rEq - 0.3 * Math.max(0, dist - (room - rEq))));
+  const L = Math.max(0, (V - 4 / 3 * Math.PI * R ** 3) / (Math.PI * R * R)), rho = room - R - 0.04;   // a hair off the wall
   const ux0 = dx / dist, uy0 = dy / dist, h = (body.length || 0) / 2;
   p.radius = Math.round(R * 100) / 100;
   if (h && Math.abs(want[0]) < h) {   // a rod body's straight side: it lies flat along it
@@ -2114,7 +2114,7 @@ function mouldToWall(p, body, want, V) {
   } else {   // round wall: its middle line runs round it, rho from the centre, the centre on its left (it curves toward it)
     p.at = [Math.round((cx + ux0 * rho) * 100) / 100, Math.round((cy + uy0 * rho) * 100) / 100];
     p.angle = Math.round(Math.atan2(ux0, -uy0) * 180 / Math.PI);
-    p.bend = Math.round(1000 / rho) / 1000;
+    p.bend = Math.round(1e5 / rho) / 1e5;
   }
   if (L > 0.05) p.length = Math.round(Math.min(L, rho * Math.PI * 0.9) * 100) / 100; else { delete p.length; delete p.bend; }
 }
