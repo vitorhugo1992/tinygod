@@ -170,12 +170,18 @@ export function relax(d, fixed = -1, iters = 60, budget = 1000) {   // budget: m
       const pm = still(i) ? 0 : 1, qm = still(j) ? 0 : 1;
       if (!pm && !qm) continue;
       busy = true;
-      // how deep they are in each other, and which way apart
-      let depth = 0;
+      // which way apart (right on top of each other: some way), and how far they are in each other
+      const cp = measure(P), cq = measure(Q);
+      let nx = cq.cx - cp.cx, ny = cq.cy - cp.cy;
+      if (Math.hypot(nx, ny) < 1e-3) { const t = 2.4 * (a + 2 * b); nx = Math.cos(t); ny = Math.sin(t); }
+      const nl = Math.hypot(nx, ny); nx /= nl; ny /= nl;
+      let pMax = -Infinity, qMin = Infinity;
+      for (const [x, y] of P) pMax = Math.max(pMax, x * nx + y * ny);
+      for (const [x, y] of Q) qMin = Math.min(qMin, x * nx + y * ny);
+      let depth = 0;   // how deep their corners are in each other; none (one right inside the other): their overlap that way
       for (const [x, y] of P) if (insidePoly(Q, x, y)) depth = Math.max(depth, -nearestOn(Q, x, y)[2]);
       for (const [x, y] of Q) if (insidePoly(P, x, y)) depth = Math.max(depth, -nearestOn(P, x, y)[2]);
-      const cp = measure(P), cq = measure(Q);
-      let nx = cq.cx - cp.cx, ny = cq.cy - cp.cy; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+      if (depth < 0.05) depth = Math.max(pMax - qMin, 0);
       if (it < 6 || depth > 1.5) {   // apart, shared by those that can move
         const step = 0.5 * (depth + 0.03) / (pm + qm);
         if (pm) { const p = d.parts[i]; p.at = [p.at[0] - nx * step, p.at[1] - ny * step]; }

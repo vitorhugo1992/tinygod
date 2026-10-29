@@ -726,7 +726,7 @@ const runDay = (design, y, seconds, opts = {}) => {
 
 // 28l3. Moulding by hand (sandbox/mould.js): pressed into the wall an organelle flattens there, keeps its volume and
 // still fits; a pulled spot adds volume; Squish to fit packs a crowded cell (they dent each other, each keeping its
-// volume); a mirror copy of a moulded one is its exact reflection
+// volume), even four right on top of each other; a mirror copy of a moulded one is its exact reflection
 {
   const body = { radius: 10 };
   const inc = (material, at, radius, extra) => ({ type: 'inclusion', material, at, radius, ...extra });
@@ -742,13 +742,16 @@ const runDay = (design, y, seconds, opts = {}) => {
   const v0 = crowd.parts.map(volumeOf), crowdedBefore = fits(crowd);
   relax(crowd, -1, 150, 5000);
   const kept = Math.max(...crowd.parts.map((x, i) => Math.abs(volumeOf(x) / v0[i] - 1)));
+  const stack = { body: { radius: 12 }, parts: ['oil', 'starch', 'plastid', 'chamber'].map((mat) => inc(mat, [1, 1], 3)) };
+  relax(stack, -1, 150, 5000);
+  const unstacked = fits(stack);
   const [m] = mirrorGroup([q], 90, 'm'), A = build({ body, parts: [q] }).pieces[0].inclusions[0].outline, M = build({ body, parts: [m] }).pieces[0].inclusions[0].outline;
   let off = 0; for (const [x, y] of M) off = Math.max(off, Math.min(...A.map(([u, v]) => Math.hypot(u + x, v - y))));
   check('moulding by hand: pressed into the wall it flattens and keeps its volume; Squish to fit packs a crowded cell',
-    Math.abs(pressed - 1) < 0.01 && pressedFits && pulled > 1.05 && !crowdedBefore && fits(crowd) && kept < 0.01 && off < 1e-6,
+    Math.abs(pressed - 1) < 0.01 && pressedFits && pulled > 1.05 && !crowdedBefore && fits(crowd) && kept < 0.01 && unstacked && off < 1e-6,
     `r 4 pressed 3.5 µm into the wall: volume ×${fmt(pressed, 3)}, fits: ${pressedFits}; a spot pulled out 2 µm: volume ×${fmt(pulled, 2)}; ` +
     `three r 4.6 round a statolith in a r 10 cell: ${crowdedBefore ? 'fit' : 'overlap'}, after Squish to fit: ${fits(crowd) ? 'fit' : 'still overlap'} ` +
-    `(volumes within ${fmt(100 * kept, 1)}%); a mirror copy is off its reflection by ${fmt(off, 6)} µm`);
+    `(volumes within ${fmt(100 * kept, 1)}%); four right on top of each other: ${unstacked ? 'fit' : 'still overlap'}; a mirror copy is off its reflection by ${fmt(off, 6)} µm`);
 }
 
 // 28m. The built-in starch level: a tail wired to "starch 0.2-1" (AND another condition) stops once the starch is low

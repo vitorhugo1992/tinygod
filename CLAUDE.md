@@ -228,6 +228,17 @@ organelle needs *more* cross-section for the same volume, so a cell much over ~3
 reflect an outline (and now a band's bend, which they didn't before). The nucleus's chromatin spreads from its widest
 inside spot to its outline. Not done: the Edit sliders (Size, Length, Turn in the Build panel) rebuild a moulded one
 round from its template; the ghost and nudge for new parts still place round / rod shapes.
+**Easier arranging (author, 2026-10-29: "denting and pushing a wall is a bit finicky, undo buttons needed… a button to
+deselect, selecting other organelle while one is selected should not work… an autofit option").** Buttons over the
+tank, under the top bar: ↶ Undo, ↷ Redo, 🫧 Fit, ✕ Deselect (Deselect left the panel). **While one is selected the
+finger works on it alone**: its edge band (16 px out, up to 45% of its thickness in) drags a spot, inside it moves it,
+anywhere else nothing (no other selection, no wall, no rim part; Deselect first); a second finger still pinches it.
+Drags follow **how far the finger moves**, not where it is (the spot and the wall no longer jump to the fingertip);
+hit zones are fingertip size (16 px). Undo while arranging first drops a change not yet kept (red), then steps the
+design's history and refreshes the view (the panel's Undo does the same). **Fit** (= Squish to fit, any time,
+lit while something is red): organelles right on top of each other now come apart too (pushed by how far they overlap
+along the push when their corners can't tell). Known: a cell over ~40% full can stay red with one squeezed below its
+volume; Undo brings it back.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

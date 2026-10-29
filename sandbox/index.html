@@ -127,6 +127,8 @@
   #arrPanY { left: 6px; }
   #arrZoom { right: 6px; }
   #arrPanX { left: 44px; right: 44px; bottom: 40px; width: auto; }
+  #arrButtons { position: absolute; left: 44px; right: 44px; top: 46px; display: flex; gap: 8px; justify-content: center; pointer-events: none; }
+  #arrButtons button { pointer-events: auto; padding: 8px 12px; background: rgba(8,14,26,.85); }
   #patch { position: fixed; left: 0; right: 330px; top: 52vh; bottom: 0; background: var(--bg); z-index: 20;
     display: flex; flex-direction: column; border-right: 1px solid var(--line); border-top: 1px solid var(--line); }
   #patch[hidden] { display: none; }
@@ -199,6 +201,12 @@
     <input type="range" id="arrPanY" class="vrange" min="-100" max="100" step="1" value="0" title="Look up or down">
     <input type="range" id="arrZoom" class="vrange" min="1" max="4" step="0.1" value="1" title="Zoom in, for fine work">
     <input type="range" id="arrPanX" min="-100" max="100" step="1" value="0" title="Look left or right">
+    <div id="arrButtons">
+      <button id="arrUndo" title="Undo the last change">↶ Undo</button>
+      <button id="arrRedo" title="Redo">↷ Redo</button>
+      <button id="arrFit" disabled title="Fit: organelles on top of each other or sticking out of the wall are pushed apart, then squish against each other and the wall (each keeps its volume)">🫧 Fit</button>
+      <button id="arrDeselect" disabled title="Let go of the selected organelle (then another can be picked)">✕ Deselect</button>
+    </div>
   </div>
   <div id="bar">
     <button id="play" class="big" title="Play / pause">▶</button>
@@ -265,7 +273,6 @@
   <button id="squishBtn" hidden title="Make the overlapping organelles give way: they flatten against each other and the wall">🫧 Squish to fit</button>
   <div id="arrangeTools" hidden>
     <div class="slider" title="Turn the selected organelle (a statolith: the way it reads)">Turn <input type="range" id="arrTurn" min="-180" max="180" step="5" value="0"><span id="arrTurnOut"></span></div>
-    <button id="arrDeselect" disabled title="Let go of the selected organelle">Deselect</button>
   </div>
   <button id="patchBtn" title="Open the nucleus, the cell's brain: patch sensors to parts with cables (or tap the nucleus in the tank)">🧬 Open the nucleus (wiring)</button>
   <div id="partList"></div>

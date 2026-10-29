@@ -109,8 +109,8 @@ function travel(from, to) {
     listParts();
   } else applyDesign(d, false);
 }
-$('undo').onclick = () => travel(past, future);
-$('redo').onclick = () => travel(future, past);
+$('undo').onclick = () => (arrange ? arrangeTravel(past, future) : travel(past, future));
+$('redo').onclick = () => (arrange ? arrangeTravel(future, past) : travel(future, past));
 $('clearParts').onclick = () => {
   if (!(design.parts || []).length) return;
   editing = null; $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true;
@@ -2092,16 +2092,19 @@ function bodyPoint(e) {
 }
 // what is under the finger: the selected organelle's edge, an organelle, a part on the rim, or the cell's wall
 function arrangeHit(e) {
-  const P = bodyPoint(e), s = Number($('zoom').value), d = arrange.trial, tol = 7 / s;
+  const P = bodyPoint(e), s = Number($('zoom').value), d = arrange.trial, tol = 16 / s;   // about a fingertip
   const sel = arrange.sel !== null ? d.parts[arrange.sel] : null;
-  if (sel && !rigid(sel)) {   // its edge: a band round its outline
+  if (sel) {   // one selected: the finger works on it alone (Deselect to pick another, or to reach the wall)
     const tmp = JSON.parse(JSON.stringify(sel)); toOutline(tmp);   // its points as the drag will have them
     const Q = bodyPoints(tmp), dd = polyDist(Q, P[0], P[1]);
-    if (Math.abs(dd) < tol) {   // the nearest of its points: that spot follows the finger
+    const inner = rigid(sel) ? 0 : Math.min(tol, 0.45 * (tmp.radius || 1));   // the edge band reaches this far inside
+    if (!rigid(sel) && dd > -inner && dd < tol) {   // its edge: the nearest of its points follows the finger
       let i = 0, best = Infinity;
       Q.forEach(([x, y], k) => { const g = Math.hypot(x - P[0], y - P[1]); if (g < best) { best = g; i = k; } });
-      return { k: arrange.sel, kind: 'edge', i };
+      return { k: arrange.sel, kind: 'edge', i, P0: P };
     }
+    if (dd < tol) return { k: arrange.sel, kind: 'inc', off: [sel.at[0] - P[0], sel.at[1] - P[1]] };
+    return null;
   }
   let best = null, bestD = tol;
   d.parts.forEach((p, k) => {
@@ -2109,8 +2112,8 @@ function arrangeHit(e) {
     else if (!p.parent || p.parent === 'body') { const g = Math.hypot(p.at[0] - P[0], p.at[1] - P[1]) - 2; if (g < bestD) { bestD = g; best = { k, kind: 'rim' }; } }
   });
   if (best) return best;
-  const [cx, cy] = wallCentre(d.body, P[0]);
-  if (Math.abs(Math.hypot(P[0] - cx, P[1] - cy) - d.body.radius) < tol * 1.5) return { kind: 'wall' };
+  const [cx, cy] = wallCentre(d.body, P[0]), r = Math.hypot(P[0] - cx, P[1] - cy);
+  if (Math.abs(r - d.body.radius) < tol) return { kind: 'wall', r0: r };
   return null;
 }
 // a rim part rebuilt where `where` says, keeping its rule, colour and name
@@ -2130,7 +2133,7 @@ function arrangeTo(e) {
   if (g.kind === 'rim') { placeRim(d, g.k, (Math.round(Math.atan2(P[1], P[0]) * 180 / Math.PI) + 360) % 360); setTrial(d); return; }
   if (g.kind === 'wall') {   // the cell bigger or smaller; organelles keep their size (flattened on the wall if they no longer fit)
     const [cx, cy] = wallCentre(d.body, P[0]);
-    d.body.radius = Math.round(Math.max(3, Math.min(50, Math.hypot(P[0] - cx, P[1] - cy))) * 2) / 2;
+    d.body.radius = Math.round(Math.max(3, Math.min(50, a.base.body.radius + Math.hypot(P[0] - cx, P[1] - cy) - g.r0)) * 2) / 2;
     d.parts.forEach((p, k) => { if (!isInc(p) && (!p.parent || p.parent === 'body') && p.build) placeRim(d, k, p.build.where); });
     fitWall(d);
     setTrial(d); return;
@@ -2143,7 +2146,8 @@ function arrangeTo(e) {
   }
   if (g.kind === 'edge') {   // a spot of its edge follows the finger, its neighbours less; the others stay put (red where they overlap)
     toOutline(B);
-    if (dragSpot(p, B.outline, g.i, P, d.body)) setTrial(d);
+    const [sx, sy] = bodyPoints(B)[g.i], F = [sx + P[0] - g.P0[0], sy + P[1] - g.P0[1]];   // as far as the finger moved
+    if (dragSpot(p, B.outline, g.i, F, d.body)) setTrial(d);
     return;
   }
   // moved: where its middle would be; pressed into the wall it flattens there and bulges elsewhere (its volume kept)
@@ -2176,6 +2180,16 @@ $('arrTurn').oninput = () => {
 };
 $('arrTurn').onchange = () => { if (arrange) commitIfFits(); };
 $('arrDeselect').onclick = () => { if (arrange) { arrange.sel = null; showTurn(); } };
+function arrangeTravel(from, to) {
+  const a = arrange;
+  if (from === past && JSON.stringify(a.trial) !== JSON.stringify(design)) { setTrial(JSON.parse(JSON.stringify(design))); $('squishBtn').hidden = true; return; }
+  travel(from, to);
+  const sel = a.sel;
+  setTrial(JSON.parse(JSON.stringify(design)));
+  a.sel = sel !== null && a.trial.parts[sel] && isInc(a.trial.parts[sel]) ? sel : null; showTurn(); $('squishBtn').hidden = true;
+}
+$('arrUndo').onclick = () => { if (arrange) arrangeTravel(past, future); };
+$('arrRedo').onclick = () => { if (arrange) arrangeTravel(future, past); };
 function startArrange() {
   if (arrange || !cell || cell.design !== design) return;
   const W = canvas.clientWidth, H = canvas.clientHeight, b = design.body;
@@ -2207,7 +2221,7 @@ function stopArrange(force) {
 }
 $('arrangeBtn').onclick = () => (arrange ? stopArrange() : startArrange());
 // Squish to fit: soft packing until nothing overlaps (or it can't do better)
-$('squishBtn').onclick = () => {
+$('squishBtn').onclick = $('arrFit').onclick = () => {
   if (!arrange) return;
   const d = JSON.parse(JSON.stringify(arrange.trial));
   relax(d, -1, 150);
@@ -2222,7 +2236,7 @@ function arrangeDown(e) {
     const hit = arrangeHit(e);
     a.base = JSON.parse(JSON.stringify(a.trial));
     if (!hit) { a.drag = null; return; }   // empty water: the selection stays (a pinch may follow)
-    if (hit.kind === 'inc') { if (a.sel !== hit.k) lookAt(a.trial.parts[hit.k].at); a.sel = hit.k; showTurn(); }
+    if (hit.kind === 'inc' && a.sel === null) { lookAt(a.trial.parts[hit.k].at); a.sel = hit.k; showTurn(); }
     a.drag = { ...hit, id: e.pointerId };
   } else if (touches.size === 2 && a.sel === null) {   // nothing selected: two fingers zoom, as usual
     const [p, q] = [...touches.values()];
@@ -2407,6 +2421,8 @@ function syncButtons() {
   $('flipBtn').classList.toggle('on', $('partFlip').checked);
   $('pullBtn').classList.toggle('on', $('partPull').checked);
   $('undo').disabled = !past.length; $('redo').disabled = !future.length;
+  $('arrUndo').disabled = !past.length && !(arrange && arrange.problems && arrange.problems.over.size); $('arrRedo').disabled = !future.length;
+  $('arrFit').disabled = !(arrange && arrange.problems && (arrange.problems.over.size || arrange.problems.msg));
   $('clearParts').disabled = !(design.parts || []).length;
 }
 
