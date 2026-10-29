@@ -625,7 +625,7 @@ function condLine(c, sensors, live, onSet, onRemove) {
   const how = document.createElement('select');
   how.className = 'howsel';
   // above / below / more / less: between is above AND below, outside below OR above (shown only on old conditions)
-  for (const [k, label] of Object.entries(MODES)) if ((sensors.length > 1 || (k !== 'more' && k !== 'less')) && ((k !== 'between' && k !== 'outside') || k === mode)) how.add(new Option(label, k));
+  for (const [k, label] of Object.entries(MODES)) if ((sensors.length > 1 || (k !== 'more' && k !== 'less'))) how.add(new Option(label, k));
   how.value = mode;
   how.title = 'above / below a value, between or outside two, or more / less than another sensor';
   how.onchange = () => onSet(withMode(c, how.value, sensors));
@@ -2148,7 +2148,7 @@ function arrangeTo(e) {
 // the Zoom slider (closer than the arrange view starts) and the selected organelle's Turn
 function showTurn() {
   const a = arrange, p = a && a.sel !== null ? a.trial.parts[a.sel] : null;
-  $('arrTurn').disabled = !p; $('arrDeselect').disabled = !p;
+  $('arrTurn').disabled = !p; $('arrDeselect').disabled = !p; $('arrRemove').disabled = !p;
   if (p) $('arrTurn').value = Math.round(((p.angle || 0) + 540) % 360 - 180);
   $('arrTurnOut').textContent = p ? `${$('arrTurn').value}°` : 'select one';
 }
@@ -2170,6 +2170,16 @@ $('arrTurn').oninput = () => {
 };
 $('arrTurn').onchange = () => { if (arrange) commitIfFits(); };
 $('arrDeselect').onclick = () => { if (arrange) { arrange.sel = null; showTurn(); } };
+// the selected organelle removed (its cables unplugged; one Undo step once the rest fits)
+$('arrRemove').onclick = () => {
+  const a = arrange;
+  if (!a || a.sel === null) return;
+  const d = JSON.parse(JSON.stringify(a.trial)), p = d.parts[a.sel];
+  d.parts.splice(a.sel, 1);
+  if (p.id) unplug(d, new Set([p.id]));
+  a.sel = null; showTurn();
+  setTrial(d); commitIfFits();
+};
 function arrangeTravel(from, to) {
   const a = arrange;
   if (from === past && JSON.stringify(a.trial) !== JSON.stringify(design)) { setTrial(JSON.parse(JSON.stringify(design))); $('squishBtn').hidden = true; return; }

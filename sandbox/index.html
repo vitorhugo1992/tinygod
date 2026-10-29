@@ -127,8 +127,8 @@
   #arrPanY { left: 6px; }
   #arrZoom { right: 6px; }
   #arrPanX { left: 44px; right: 44px; bottom: 40px; width: auto; }
-  #arrButtons { position: absolute; left: 44px; right: 44px; top: 46px; display: flex; gap: 8px; justify-content: center; pointer-events: none; }
-  #arrButtons button { pointer-events: auto; padding: 8px 12px; background: rgba(8,14,26,.85); }
+  #arrButtons { position: absolute; left: 40px; right: 40px; top: 46px; display: flex; gap: 5px; justify-content: center; pointer-events: none; }
+  #arrButtons button { pointer-events: auto; padding: 8px 7px; background: rgba(8,14,26,.85); }
   #patch { position: fixed; left: 0; right: 330px; top: 52vh; bottom: 0; background: var(--bg); z-index: 20;
     display: flex; flex-direction: column; border-right: 1px solid var(--line); border-top: 1px solid var(--line); }
   #patch[hidden] { display: none; }
@@ -205,6 +205,7 @@
       <button id="arrUndo" title="Undo the last change">↶ Undo</button>
       <button id="arrRedo" title="Redo">↷ Redo</button>
       <button id="arrFit" disabled title="Fit: organelles on top of each other or sticking out of the wall are pushed apart, then squish against each other and the wall (each keeps its volume)">🫧 Fit</button>
+      <button id="arrRemove" disabled title="Remove the selected organelle (Undo brings it back)">🗑 Remove</button>
       <button id="arrDeselect" disabled title="Let go of the selected organelle (then another can be picked)">✕ Deselect</button>
     </div>
   </div>
