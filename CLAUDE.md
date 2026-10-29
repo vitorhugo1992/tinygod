@@ -13,7 +13,7 @@ chronological log, newest additions last in each block.
 
 **Run it:** `node tools/serve.mjs --lan` (from this folder), then http://localhost:5180/sandbox/ on the computer;
 the phone uses http://192.168.1.69:5180/sandbox/ (home Wi-Fi; the page shows it under its title). Restart the server
-after changing tools/serve.mjs. `node tools/check.mjs`: 42 physics checks, all passing (~2 min). Check every change
+after changing tools/serve.mjs. `node tools/check.mjs`: 43 physics checks, all passing (~2 min). Check every change
 in the real page with headless Edge over the DevTools protocol at phone size (400×860) and look at screenshots.
 **The website (author, 2026-10-28):** https://vitorhugo1992.github.io/tinygod/sandbox/ (GitHub Pages from the public
 repo github.com/vitorhugo1992/tinygod, branch main, root). **Push after every finished step** (`git push`) so the
@@ -197,6 +197,22 @@ radius and its neighbours smoothly; pinch scales all radii; round / rod / band d
 (the statolith stays round). **Two stages, check with the author between:** (1) blobs in sim/build.js and the
 drawing, old designs converted and looking as now, checks passing; (2) the arranging tools (drag a spot, pinch,
 local moulding to the wall and to neighbours in Squish to fit). Started in a fresh chat (this one was long).
+**Soft blobs, stage 1 (built 2026-10-29; stage 2 waits for the author).** sim/shape.js: every organelle's shape is a
+closed outline (polygon, counter-clockwise, body frame); room, overlap (edges crossing or one inside the other) and
+inside-the-wall are tested on it; weight and light at its centroid (round ones and straight rods: at `at`, as before).
+A design inclusion either has its own `outline` ([[x, y], ...] round `at`, in its own frame, x along `angle`; nothing
+writes it yet: stage 2) or is round / rod / band as before, built as the offset of its middle line (a band's arc now 24
+pieces, was 8) with PARAMS.shape.points 48 corners round a round one, on the curve. **Two changes from the plan, to
+tell the author:** (1) points round the outline, not ~12 radii from a centre (12 radii can't draw a long thin rod or a
+band); (2) **volume is not "a sphere of the same area"** (that doubles a rod: 3 × 20 µm oil, 678 → 1358 µm³, so old
+designs would change): round, rod and band keep their exact capsule volume; any other outline is "the rod with its area
+and its thickness" (thickness = the widest circle inside it; V = π·t²·ℓ + 4/3·π·t³, ℓ = (A − π·t²)/(2t); blobVolume,
+cached), exact for traced rods and bands (check), a bump adds volume, a dent takes some (a first try, the capsule with
+the same area and perimeter, made outward bumps *shrink* it). The nucleus's slots come from that volume. Drawing:
+every organelle from its outline (a smooth curve through its edges' middles), stores fill along it, the nucleus's
+chromatin along its middle line, the arrange contours just outside it; tapping the nucleus tests its outline. Seen in
+the page next to the old version: the same pictures. The arranging tools still edit radius / length / bend (stage 2
+moves them to outlines). Check 28l2.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

@@ -29,7 +29,9 @@
 // A plastid has a `pigment`: 'sun' (chlorophyll; the default) or 'shade' (with phycobilins: efficient in dim light,
 // a lower top output, more upkeep; PARAMS.metab.shade).
 // An inclusion can be a rod: `length` µm of straight part between its rounded ends, lying `angle` degrees from the
-// body's axis (default 0: along it); its volume, room and weight are the capsule's (its weight at its centre).
+// body's axis (default 0: along it), or a band bent round the wall (`bend`), or any shape (`outline`: its own points round
+// `at`, in its own frame); its shape is an outline (sim/shape.js): room, overlap and the wall are tested on it, its weight
+// sits at its centroid, its volume is the capsule's with the same area and perimeter (a rod's: the rod's).
 // A buoyancy chamber is an inclusion (material 'chamber') with a rule in `joint: { type: 'chamber', controls }`: its GO
 // conditions are FLOAT when (it pumps itself light), its STOP conditions SINK if (heavy; sinking wins); neither: neutral
 // (seawater's density: no lift, no cost). PARAMS.chamber.
@@ -65,6 +67,8 @@ import { PARAMS } from './params.js';
 import { material } from './materials.js';
 import { DEG, dlog, dcos, dsin } from './dmath.js';
 import { brainProblem } from './brain.js';
+import { shapeOf, polysOverlap } from './shape.js';
+export { arcPoints } from './shape.js';
 
 const PI = Math.PI;
 const MU = PARAMS.water.viscosity;
@@ -74,43 +78,6 @@ const G = PARAMS.gravity * 1e-6;  // pN per (kg/m³ × µm³)
 const weight = (rho, vol) => (rho - PARAMS.water.density) * vol * G;
 const capsuleVolume = (L, a) => PI * a * a * L + (4 / 3) * PI * a * a * a;
 
-// Distance from point (px, py) to the segment a-b
-function pointSeg(px, py, ax, ay, bx, by) {
-  const ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey;
-  let t = l2 > 0 ? ((px - ax) * ex + (py - ay) * ey) / l2 : 0;
-  t = t < 0 ? 0 : t > 1 ? 1 : t;
-  const dx = px - ax - ex * t, dy = py - ay - ey * t;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-// Shortest distance between segments a-b and c-d: 0 if they cross, else at an endpoint of one of them (2D)
-// The points of an organelle's middle line: its two ends if straight; along an arc if bent (k: curvature, toward the left
-// of its direction), `n` pieces, midpoint at (x, y), tangent (ux, uy) there
-export function arcPoints(x, y, ux, uy, L, k, n = 8) {
-  if (!k) return [[x - ux * L / 2, y - uy * L / 2], [x + ux * L / 2, y + uy * L / 2]];
-  const nx = -uy, ny = ux, out = [];
-  for (let i = 0; i <= n; i++) {
-    const s = -L / 2 + L * i / n, a = k * s, along = dsin(a) / k, side = (1 - dcos(a)) / k;
-    out.push([x + ux * along + nx * side, y + uy * along + ny * side]);
-  }
-  return out;
-}
-// The least distance between two middle lines (polylines)
-export function polyGap(p, q) {
-  let best = Infinity;
-  for (let i = 0; i + 1 < p.length; i++) for (let j = 0; j + 1 < q.length; j++) {
-    const d = segDist(p[i][0], p[i][1], p[i + 1][0], p[i + 1][1], q[j][0], q[j][1], q[j + 1][0], q[j + 1][1]);
-    if (d < best) best = d;
-  }
-  return best;
-}
-function segDist(ax, ay, bx, by, cx, cy, dx, dy) {
-  const side = (px, py, qx, qy, rx, ry) => (qx - px) * (ry - py) - (qy - py) * (rx - px);
-  const d1 = side(cx, cy, dx, dy, ax, ay), d2 = side(cx, cy, dx, dy, bx, by);
-  const d3 = side(ax, ay, bx, by, cx, cy), d4 = side(ax, ay, bx, by, dx, dy);
-  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return 0;
-  return Math.min(pointSeg(ax, ay, cx, cy, dx, dy), pointSeg(bx, by, cx, cy, dx, dy),
-    pointSeg(cx, cy, ax, ay, bx, by), pointSeg(dx, dy, ax, ay, bx, by));
-}
 const capsuleArea = (L, a) => 2 * PI * a * L + 4 * PI * a * a;
 
 // Drag of a capsule about its centre, in its own frame: along the axis (xt), across it (xn), turning (xr).
@@ -267,37 +234,38 @@ export function buildCell(design, opts = {}) {
     } else if (part.type === 'inclusion') {
       const host = pieces[parent];
       if (host.kind !== 'body') throw new Error('inclusions go inside the body');
-      const r = part.radius, mat = material(part.material);
+      const mat = material(part.material);
       const fill = mat.store ? Math.min(Math.max(part.fill ?? 1, 0), 1) : 1;
       const rho = part.density !== undefined ? part.density : mat.density;
       if (mat.min !== undefined && (rho < mat.min || rho > mat.max)) throw new Error(`${part.material} density out of range`);
-      // round, or a rod with rounded ends (`length` its straight part, lying `angle` degrees from the body's axis; a
-      // statolith stays round, its angle being the way it reads)
-      const L = part.material === 'statolith' ? 0 : Math.max(part.length || 0, 0);
-      const ang = part.material === 'statolith' ? 0 : (part.angle || 0) * DEG;
+      // its shape: an outline (sim/shape.js): its own points (`outline`), or round, a rod (`length` its straight part,
+      // lying `angle` degrees from the body's axis) or a band bent round the wall (`bend`: 1/radius of curvature, µm⁻¹,
+      // curving toward its left); a statolith stays round, its angle being the way it reads
+      const rigid = part.material === 'statolith';
+      const L = rigid ? 0 : Math.max(part.length || 0, 0);
+      const ang = rigid ? 0 : (part.angle || 0) * DEG;
       const ux = dcos(ang), uy = dsin(ang), h = L / 2;
-      // its middle line: two ends (straight), or points along an arc (`bend`: 1/radius of curvature, µm⁻¹, curving
-      // toward its left; moulded against the wall), `length` long either way
-      const k = part.material === 'statolith' ? 0 : part.bend || 0;
-      const pts = arcPoints(x, y, ux, uy, L, k);
-      // inside the wall: each point's distance from the body's axis plus its radius (a capsule in a capsule: the ends decide)
-      for (const [ex, ey] of pts) {
+      const k = rigid ? 0 : part.bend || 0;
+      const own = !rigid && Array.isArray(part.outline);
+      const shape = shapeOf(part), { outline, mid } = shape;
+      const r = own ? shape.thick : part.radius;
+      // inside the wall: each corner's distance from the body's axis (a convex body: the corners decide)
+      for (const [ex, ey] of outline) {
         const dx = Math.max(Math.abs(ex) - host.L / 2, 0);
-        if (!loose && Math.sqrt(dx * dx + ey * ey) + r > host.a - C.wallThickness + 1e-9) throw new Error('inclusion sticks out of the body');
+        if (!loose && Math.sqrt(dx * dx + ey * ey) > host.a - C.wallThickness + 1e-9) throw new Error('inclusion sticks out of the body');
       }
       for (const o of host.inclusions) {
-        if (!loose && polyGap(pts, o.pts) < o.r + r - 1e-9) throw new Error('inclusions overlap: there is no room for both there');
+        if (!loose && polysOverlap(outline, o.outline)) throw new Error('inclusions overlap: there is no room for both there');
       }
-      const v = capsuleVolume(L, r);
+      const v = shape.volume;
       inclusionVol += v;
-      // it replaces cytoplasm, so only the difference counts
-      // a bent one's weight sits at the middle of its points (toward the inside of its curve)
-      let wx = x, wy = y;
-      if (k) { wx = 0; wy = 0; for (const [px, py] of pts) { wx += px; wy += py; } wx /= pts.length; wy /= pts.length; }
+      // it replaces cytoplasm, so only the difference counts; its weight (and the light it gets) at its centroid
+      // (a round one or a straight rod: at its middle)
+      const wx = k || own ? shape.cx : x, wy = k || own ? shape.cy : y;
       const wpt = { x: wx, y: wy, w: (rho - C.cytoplasm) * v * fill * G };
       host.wpts.push(wpt);
       // v: its full volume (the room it takes); a store holds v × fill of its stuff, the rest is cytoplasm
-      host.inclusions.push({ x: wx, y: wy, r, v, wpt, L, ang, ux, uy, h, pts, bend: k, pigment: part.pigment === 'shade' ? 'shade' : 'sun', material: part.material, density: rho, target: rho,
+      host.inclusions.push({ x: wx, y: wy, at: [x, y], r, v, wpt, L, ang, ux, uy, h, outline, mid, bend: k, pigment: part.pigment === 'shade' ? 'shade' : 'sun', material: part.material, density: rho, target: rho,
         pumpable: mat.min !== undefined, min: mat.min, max: mat.max, store: mat.store, fill,
         part: design.parts.indexOf(part) });
       // a buoyancy chamber's rule (FLOAT when: its GO conditions; SINK if: its STOP ones), kept like a part's joint's

@@ -4,6 +4,7 @@ import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
 import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
+import { polyDist } from '../sim/shape.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
@@ -341,10 +342,7 @@ function drawPreview(X, Y, s) {
     ctx.stroke();
   }
   ctx.lineWidth = 1.5;
-  for (const inc of c.pieces[0].inclusions) {
-    const [ix, iy] = pieceToWorld(c, 0, inc.x, inc.y);
-    incPath(X(ix), Y(iy), inc, s, c.phi[0] + (inc.ang || 0)); ctx.stroke();
-  }
+  for (const inc of c.pieces[0].inclusions) { incPath(inc, bodyXf(c, X, Y)); ctx.stroke(); }
   ctx.setLineDash([]);
   for (const d of [...c.sensors, ...c.pads]) {
     const [px, py] = pieceToWorld(c, d.piece, d.x, d.y);
@@ -1496,10 +1494,9 @@ function draw() {
     const c = arrange.cell || cell, toW = ([x, y]) => [c.cx[0] + c.cs[0] * x - c.sn[0] * y, c.cy[0] + c.sn[0] * x + c.cs[0] * y];
     arrange.trial.parts.forEach((p, k) => {
       const red = arrange.problems && arrange.problems.over.has(k), sel = k === arrange.sel;
-      if (!isInc(p) || (!red && !sel)) return;
-      const pts = linePts(p).map(toW).map(([x, y]) => [X(x), Y(y)]), R = p.radius * s + 2;
-      if (Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 0.5) { ctx.beginPath(); ctx.arc(pts[0][0], pts[0][1], R, 0, Math.PI * 2); }
-      else bandPath(pts, R);
+      const inc = c.pieces[0].inclusions.find((x) => x.part === k);
+      if (!isInc(p) || !inc || (!red && !sel)) return;
+      outlinePath(grow(inc.outline.map(bodyXf(c, X, Y)), 2));
       ctx.strokeStyle = sel ? '#5fd0ff' : COLOR.starving; ctx.lineWidth = sel ? 2.5 : 1.5;
       if (red && !sel) ctx.setLineDash([5, 4]);
       ctx.stroke(); ctx.setLineDash([]);
@@ -1713,52 +1710,37 @@ function drawHud(W, H) {
   if (world.metab && m.starving) { ctx.fillStyle = COLOR.starving; ctx.fillText('STARVING', 17 + tw - 82, H - 46); }
 }
 
-// A store (starch, oil): its outline, and liquid filling it from the bottom as far as it is full
-// The outline of a band along screen points P (a bent organelle's middle line), R wide each side, round at both ends
-function bandPath(P, R) {
-  const n = P.length, left = [], right = [], tan = [];
-  for (let k = 0; k < n; k++) {
-    const a = P[Math.max(0, k - 1)], b = P[Math.min(n - 1, k + 1)];
-    let tx = b[0] - a[0], ty = b[1] - a[1]; const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
-    tan.push([tx, ty]); left.push([P[k][0] - ty * R, P[k][1] + tx * R]); right.push([P[k][0] + ty * R, P[k][1] - tx * R]);
-  }
-  ctx.beginPath(); ctx.moveTo(left[0][0], left[0][1]);
-  for (let k = 1; k < n; k++) ctx.lineTo(left[k][0], left[k][1]);
-  const cap = (c, [tx, ty], side) => {   // a half circle from one side, round the end, to the other
-    for (let j = 1; j < 8; j++) {
-      const f = j * Math.PI / 8, lx = -ty * side, ly = tx * side;
-      ctx.lineTo(c[0] + (Math.cos(f) * lx + Math.sin(f) * tx * side) * R, c[1] + (Math.cos(f) * ly + Math.sin(f) * ty * side) * R);
-    }
-  };
-  cap(P[n - 1], tan[n - 1], 1);
-  for (let k = n - 1; k >= 0; k--) ctx.lineTo(right[k][0], right[k][1]);
-  cap(P[0], tan[0], -1);
-  ctx.closePath();
-}
-let bandXf = null;   // body frame -> screen, for the inclusion being drawn (bent ones need it)
-// An inclusion's outline as the current path, at screen (cx, cy): a circle, a rod lying at world angle a, or a band
-function incPath(cx, cy, inc, s, a) {
-  const R = Math.max(inc.r * s, 1.5), h = (inc.h || 0) * s;
-  if (inc.bend && inc.pts && bandXf) { bandPath(inc.pts.map(bandXf), R); return; }
+// An organelle's outline (screen points P) as the current path: a smooth curve through the middles of its edges
+function outlinePath(P) {
+  const n = P.length, mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
   ctx.beginPath();
-  if (h <= 0) { ctx.arc(cx, cy, R, 0, Math.PI * 2); return; }
-  const t = -a;   // on screen y grows downward, so angles turn the other way
-  const ex = Math.cos(t) * h, ey = Math.sin(t) * h;
-  ctx.arc(cx + ex, cy + ey, R, t - Math.PI / 2, t + Math.PI / 2);
-  ctx.arc(cx - ex, cy - ey, R, t + Math.PI / 2, t + 3 * Math.PI / 2);
+  const m0 = mid(P[n - 1], P[0]); ctx.moveTo(m0[0], m0[1]);
+  for (let k = 0; k < n; k++) { const m = mid(P[k], P[(k + 1) % n]); ctx.quadraticCurveTo(P[k][0], P[k][1], m[0], m[1]); }
   ctx.closePath();
 }
-function drawLevel(ix, iy, inc, X, Y, s, a = 0) {
-  const R = Math.max(inc.r * s, 1.5), cx = X(ix), cy = Y(iy);
-  // how far it reaches on screen: a rod by its angle; a band by its points
-  let top = cy - R - Math.abs(Math.sin(a)) * (inc.h || 0) * s, bot = 2 * cy - top, lx = cx - R - (inc.h || 0) * s, rx = 2 * cx - lx;
-  if (inc.bend && inc.pts && bandXf) {
-    const P = inc.pts.map(bandXf);
-    top = Math.min(...P.map((p) => p[1])) - R; bot = Math.max(...P.map((p) => p[1])) + R;
-    lx = Math.min(...P.map((p) => p[0])) - R; rx = Math.max(...P.map((p) => p[0])) + R;
-  }
+// screen points pushed `d` px outward (for a contour drawn just outside an organelle)
+function grow(P, d) {
+  const n = P.length;
+  let A = 0;
+  for (let k = 0; k < n; k++) A += P[k][0] * P[(k + 1) % n][1] - P[(k + 1) % n][0] * P[k][1];
+  const out = A > 0 ? 1 : -1;   // which side of each edge is outside
+  return P.map((p, k) => {
+    const a = P[(k + n - 1) % n], b = P[(k + 1) % n];
+    const nx = b[1] - a[1], ny = a[0] - b[0], l = Math.hypot(nx, ny) || 1;
+    return [p[0] + out * nx / l * d, p[1] + out * ny / l * d];
+  });
+}
+// body frame -> screen for cell c's body
+const bodyXf = (c, X, Y) => ([x, y]) => [X(c.cx[0] + c.cs[0] * x - c.sn[0] * y), Y(c.cy[0] + c.sn[0] * x + c.cs[0] * y)];
+// An inclusion's outline as the current path (xf: body frame -> screen)
+function incPath(inc, xf) { outlinePath(inc.outline.map(xf)); }
+// A store (starch, oil): its outline, and liquid filling it from the bottom as far as it is full
+function drawLevel(inc, xf) {
+  const P = inc.outline.map(xf);
+  const top = Math.min(...P.map((p) => p[1])), bot = Math.max(...P.map((p) => p[1]));
+  const lx = Math.min(...P.map((p) => p[0])), rx = Math.max(...P.map((p) => p[0]));
   ctx.save();
-  incPath(cx, cy, inc, s, a);
+  outlinePath(P);
   ctx.fillStyle = 'rgba(8,14,26,.35)'; ctx.fill();
   ctx.clip();
   const h = (bot - top) * inc.fill;   // the level, from the lowest point up (screen y grows downward)
@@ -1766,7 +1748,7 @@ function drawLevel(ix, iy, inc, X, Y, s, a = 0) {
   ctx.fillRect(lx, bot - h, rx - lx, h);
   ctx.restore();
   ctx.strokeStyle = COLOR[inc.material]; ctx.lineWidth = 1.5;
-  incPath(cx, cy, inc, s, a); ctx.stroke();
+  outlinePath(P); ctx.stroke();
 }
 // A buoyancy chamber's colour: pale while light, clear blue-grey at neutral, deep blue while heavy
 function sapColor(inc) {
@@ -1782,15 +1764,15 @@ function plastidColor(inc) {
   return `rgb(${mix(r, 236)},${mix(g, 228)},${mix(b, 170)})`;
 }
 // The nucleus: a pale violet sphere in its envelope, specks of chromatin and a dark nucleolus (they turn with the cell)
-function drawNucleus(ix, iy, inc, X, Y, s, rot) {
-  const r = Math.max(inc.r * s, 2), cx = X(ix), cy = Y(iy), h = (inc.h || 0) * s;   // round, or a rod when moulded
-  incPath(cx, cy, inc, s, rot); ctx.fillStyle = COLOR.nucleus; ctx.fill();
+function drawNucleus(inc, xf, s, rot) {
+  const r = Math.max(inc.r * s, 2);
+  incPath(inc, xf); ctx.fillStyle = COLOR.nucleus; ctx.fill();
   ctx.strokeStyle = COLOR.envelope; ctx.lineWidth = Math.max(1, 0.25 * s); ctx.stroke();
-  const ax = Math.cos(rot), ay = -Math.sin(rot);   // its axis on screen (y down)
-  const P = inc.bend && inc.pts && bandXf ? inc.pts.map(bandXf) : null;   // a bent one: along its points
+  const M = inc.mid.map(xf);   // its middle line on screen: specks spread along it
   const at = (t, a, d) => {
-    if (P) { const [x, y] = P[Math.max(0, Math.min(P.length - 1, Math.round((t + 1) / 2 * (P.length - 1))))]; return [x + Math.cos(a) * d * r, y + Math.sin(a) * d * r]; }
-    return [cx + ax * t * h + Math.cos(a - rot) * d * r, cy + ay * t * h + Math.sin(a - rot) * d * r];
+    const f = (t + 1) / 2 * (M.length - 1), i = Math.min(Math.floor(f), M.length - 2), u = f - Math.max(i, 0);
+    const [x, y] = M.length > 1 ? [M[i][0] + (M[i + 1][0] - M[i][0]) * u, M[i][1] + (M[i + 1][1] - M[i][1]) * u] : M[0];
+    return [x + Math.cos(a - rot) * d * r, y + Math.sin(a - rot) * d * r];
   };
   ctx.fillStyle = COLOR.chromatin;
   for (const [t, a, d] of [[-0.6, 0.6, 0.6], [0.5, 2.1, 0.66], [0, 3.4, 0.45], [0.7, 4.6, 0.7], [-0.3, 5.5, 0.35], [0.2, 1.3, 0.25]]) {
@@ -1847,12 +1829,11 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     if (p.kind === 'body') for (const inc of p.inclusions) {
       const ix = c.cx[i] + c.cs[i] * inc.x - c.sn[i] * inc.y, iy = c.cy[i] + c.sn[i] * inc.x + c.cs[i] * inc.y;
-      const r = inc.r, a = c.phi[i] + (inc.ang || 0);
-      bandXf = ([x, y]) => [X(c.cx[i] + c.cs[i] * x - c.sn[i] * y), Y(c.cy[i] + c.sn[i] * x + c.cs[i] * y)];   // for bent ones
-      if (inc.store) { drawLevel(ix, iy, inc, X, Y, s, a); continue; }   // a container, filled as far as it is full
-      if (inc.material === 'nucleus') { drawNucleus(ix, iy, inc, X, Y, s, a); continue; }
+      const r = inc.r, a = c.phi[i] + (inc.ang || 0), xf = bodyXf(c, X, Y);
+      if (inc.store) { drawLevel(inc, xf); continue; }   // a container, filled as far as it is full
+      if (inc.material === 'nucleus') { drawNucleus(inc, xf, s, a); continue; }
       ctx.fillStyle = inc.pumpable ? sapColor(inc) : inc.material === 'plastid' ? plastidColor(inc) : COLOR[inc.material];
-      if (r > 0.02) { incPath(X(ix), Y(iy), inc, s, a); ctx.fill(); }
+      if (r > 0.02) { incPath(inc, xf); ctx.fill(); }
       if (inc.material === 'statolith') {   // the grain lies on the chamber's lower wall (in the middle with gravity off)
         const g = 0.4 * inc.r, drop = world.gravity ? inc.r - g : 0;
         ctx.fillStyle = COLOR.grain;
@@ -2426,8 +2407,8 @@ let tap = null;
 function tappedNucleus(t, e) {
   if (!t || Math.hypot(e.clientX - t.x, e.clientY - t.y) > 8) return false;
   const c = t.cell.drawn || t.cell;
-  return c.pieces[0].inclusions.some((inc) => inc.material === 'nucleus' &&
-    Math.hypot(c.cx[0] + c.cs[0] * inc.x - c.sn[0] * inc.y - t.wx, c.cy[0] + c.sn[0] * inc.x + c.cs[0] * inc.y - t.wy) < inc.r + t.r);
+  const dx = t.wx - c.cx[0], dy = t.wy - c.cy[0], bx = c.cs[0] * dx + c.sn[0] * dy, by = -c.sn[0] * dx + c.cs[0] * dy;   // in the body's frame
+  return c.pieces[0].inclusions.some((inc) => inc.material === 'nucleus' && polyDist(inc.outline, bx, by) < t.r);
 }
 // a tap on one of the selected cell's parts (a flagellum, a spring, a sensor): its card opens, lit, in view
 function showPartAt(t, e) {

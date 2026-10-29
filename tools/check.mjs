@@ -693,6 +693,34 @@ const runDay = (design, y, seconds, opts = {}) => {
     `holds ${fmt(rodBig / roundMax, 1)}× the biggest round one: ${bigRod}, one too long sticks out: ${!tooLong}`);
 }
 
+// 28l2. Soft blobs: an organelle's shape is its outline. An outline traced round a rod or a band holds what the rod or
+// band holds; a bump that adds area adds volume, a dent takes some away; an outline sticking out of the wall, or into
+// another organelle, does not build; a bump on one side moves the weight that way.
+{
+  const body = { radius: 10 };
+  const oil = (extra) => ({ type: 'inclusion', material: 'oil', at: [0, 0], ...extra });
+  const shape = (p) => build({ body, parts: [p] }).pieces[0].inclusions[0];
+  const own = (p) => { const s = shape(p); return s.outline.map(([x, y]) => [x - p.at[0], y - p.at[1]]); };   // its points round `at`
+  const rod = oil({ radius: 3, length: 8, angle: 30 }), band = oil({ at: [0, 5], radius: 2.5, length: 10, bend: 1 / 5, angle: 180 });
+  const rodBack = shape({ ...oil({ angle: 30 }), outline: own(rod).map(([x, y]) => [x * 0.866 + y * 0.5, -x * 0.5 + y * 0.866]) });
+  const bandBack = shape({ ...oil({ at: [0, 5] }), outline: own(band) });
+  const round = oil({ radius: 4 }), pts = own(round), bump = pts.map((p, k) => { const f = 1 + 0.25 * Math.max(0, p[0] / Math.hypot(p[0], p[1])) ** 3; return [p[0] * f, p[1] * f]; });
+  const dent = pts.map((p) => { const f = 1 - 0.2 * Math.max(0, p[0] / Math.hypot(p[0], p[1])) ** 3; return [p[0] * f, p[1] * f]; });
+  const v0 = shape(round).v, vb = shape(oil({ outline: bump })), vd = shape(oil({ outline: dent })).v;
+  const builds = (parts) => { try { build({ body, parts }); return true; } catch (e) { return false; } };
+  const out = builds([oil({ at: [5.6, 0], outline: bump })]), inWall = builds([oil({ at: [4, 0], outline: bump })]);
+  const crossing = builds([oil({ at: [-1, 0], outline: bump }), oil({ at: [4.5, 0], radius: 1 })]);
+  const beside = builds([oil({ at: [-1, 0], outline: pts }), oil({ at: [4.5, 0], radius: 1 })]);
+  const near = (a, b) => Math.abs(a / b - 1) < 1e-3;
+  check('soft blobs: an outline holds what its shape holds; bumps add volume, dents take it; the wall and neighbours count',
+    near(rodBack.v, shape(rod).v) && near(bandBack.v, shape(band).v) && vb.v > v0 * 1.05 && vd < v0 * 0.97 && vb.x > 0.2 &&
+    !out && inWall && !crossing && beside,
+    `a rod traced as an outline: ${fmt(rodBack.v, 1)} µm³ (the rod: ${fmt(shape(rod).v, 1)}); a band: ${fmt(bandBack.v, 1)} ` +
+    `(${fmt(shape(band).v, 1)}); round r 4: ${fmt(v0, 1)}, a bump on its right: ${fmt(vb.v, 1)} (weight ${fmt(vb.x, 2)} µm ` +
+    `to the right), a dent: ${fmt(vd, 1)}; bumped, against the wall: ${out ? 'builds' : 'sticks out'}, clear of it: ${inWall}; ` +
+    `its bump into a neighbour: ${crossing ? 'builds' : 'overlaps'}, the same without the bump: ${beside}`);
+}
+
 // 28m. The built-in starch level: a tail wired to "starch 0.2-1" (AND another condition) stops once the starch is low
 {
   const on = (fill) => {

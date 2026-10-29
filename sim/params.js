@@ -90,8 +90,13 @@ export const PARAMS = {
     slotArea: 7,            // µm² of nucleus cross-section a slot (r 3 µm: 4 slots)
     upkeep: 1,              // pJ/s per µm³ of nucleus (as much as the body's own)
   },
+  // Organelle outlines (sim/shape.js): a closed polygon round each one
+  shape: {
+    points: 48,             // corners round a round one (a cap of 24 at each end of a rod or a band)
+    arcPieces: 24,          // straight pieces along a bent one's middle line
+  },
   pads: {
-    stiffness: 5,           // pN/µm, the spring of a stuck pad
+    stiffness: 5,          // pN/µm, the spring of a stuck pad
     kinBreak: 40,           // pN a kin pad holds before it snaps
     mucusBreak: 4,          // pN a mucus pad holds
     maxChain: 32,           // hidden backstop: a new link may not make a group bigger than this
