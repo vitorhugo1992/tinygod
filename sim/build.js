@@ -83,6 +83,26 @@ function pointSeg(px, py, ax, ay, bx, by) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 // Shortest distance between segments a-b and c-d: 0 if they cross, else at an endpoint of one of them (2D)
+// The points of an organelle's middle line: its two ends if straight; along an arc if bent (k: curvature, toward the left
+// of its direction), `n` pieces, midpoint at (x, y), tangent (ux, uy) there
+export function arcPoints(x, y, ux, uy, L, k, n = 8) {
+  if (!k) return [[x - ux * L / 2, y - uy * L / 2], [x + ux * L / 2, y + uy * L / 2]];
+  const nx = -uy, ny = ux, out = [];
+  for (let i = 0; i <= n; i++) {
+    const s = -L / 2 + L * i / n, a = k * s, along = dsin(a) / k, side = (1 - dcos(a)) / k;
+    out.push([x + ux * along + nx * side, y + uy * along + ny * side]);
+  }
+  return out;
+}
+// The least distance between two middle lines (polylines)
+export function polyGap(p, q) {
+  let best = Infinity;
+  for (let i = 0; i + 1 < p.length; i++) for (let j = 0; j + 1 < q.length; j++) {
+    const d = segDist(p[i][0], p[i][1], p[i + 1][0], p[i + 1][1], q[j][0], q[j][1], q[j + 1][0], q[j + 1][1]);
+    if (d < best) best = d;
+  }
+  return best;
+}
 function segDist(ax, ay, bx, by, cx, cy, dx, dy) {
   const side = (px, py, qx, qy, rx, ry) => (qx - px) * (ry - py) - (qy - py) * (rx - px);
   const d1 = side(cx, cy, dx, dy, ax, ay), d2 = side(cx, cy, dx, dy, bx, by);
@@ -185,7 +205,9 @@ export function respeed(cell, partIndex, speed) {
   }
 }
 
-export function buildCell(design) {
+// opts.loose: build even if organelles overlap, stick out, overfill the cell or the nucleus (only to draw while arranging)
+export function buildCell(design, opts = {}) {
+  const loose = !!opts.loose;
   const pieces = [];
   const joints = [];
   const pads = [];
@@ -254,23 +276,28 @@ export function buildCell(design) {
       const L = part.material === 'statolith' ? 0 : Math.max(part.length || 0, 0);
       const ang = part.material === 'statolith' ? 0 : (part.angle || 0) * DEG;
       const ux = dcos(ang), uy = dsin(ang), h = L / 2;
-      const ends = [[x - ux * h, y - uy * h], [x + ux * h, y + uy * h]];
-      // inside the wall: each end's distance from the body's axis plus its radius (a capsule in a capsule: the ends decide)
-      for (const [ex, ey] of ends) {
+      // its middle line: two ends (straight), or points along an arc (`bend`: 1/radius of curvature, µm⁻¹, curving
+      // toward its left; moulded against the wall), `length` long either way
+      const k = part.material === 'statolith' ? 0 : part.bend || 0;
+      const pts = arcPoints(x, y, ux, uy, L, k);
+      // inside the wall: each point's distance from the body's axis plus its radius (a capsule in a capsule: the ends decide)
+      for (const [ex, ey] of pts) {
         const dx = Math.max(Math.abs(ex) - host.L / 2, 0);
-        if (Math.sqrt(dx * dx + ey * ey) + r > host.a - C.wallThickness + 1e-9) throw new Error('inclusion sticks out of the body');
+        if (!loose && Math.sqrt(dx * dx + ey * ey) + r > host.a - C.wallThickness + 1e-9) throw new Error('inclusion sticks out of the body');
       }
       for (const o of host.inclusions) {
-        const gap = segDist(ends[0][0], ends[0][1], ends[1][0], ends[1][1], o.x - o.ux * o.h, o.y - o.uy * o.h, o.x + o.ux * o.h, o.y + o.uy * o.h);
-        if (gap < o.r + r - 1e-9) throw new Error('inclusions overlap: there is no room for both there');
+        if (!loose && polyGap(pts, o.pts) < o.r + r - 1e-9) throw new Error('inclusions overlap: there is no room for both there');
       }
       const v = capsuleVolume(L, r);
       inclusionVol += v;
       // it replaces cytoplasm, so only the difference counts
-      const wpt = { x, y, w: (rho - C.cytoplasm) * v * fill * G };
+      // a bent one's weight sits at the middle of its points (toward the inside of its curve)
+      let wx = x, wy = y;
+      if (k) { wx = 0; wy = 0; for (const [px, py] of pts) { wx += px; wy += py; } wx /= pts.length; wy /= pts.length; }
+      const wpt = { x: wx, y: wy, w: (rho - C.cytoplasm) * v * fill * G };
       host.wpts.push(wpt);
       // v: its full volume (the room it takes); a store holds v × fill of its stuff, the rest is cytoplasm
-      host.inclusions.push({ x, y, r, v, wpt, L, ang, ux, uy, h, pigment: part.pigment === 'shade' ? 'shade' : 'sun', material: part.material, density: rho, target: rho,
+      host.inclusions.push({ x: wx, y: wy, r, v, wpt, L, ang, ux, uy, h, pts, bend: k, pigment: part.pigment === 'shade' ? 'shade' : 'sun', material: part.material, density: rho, target: rho,
         pumpable: mat.min !== undefined, min: mat.min, max: mat.max, store: mat.store, fill,
         part: design.parts.indexOf(part) });
       // a buoyancy chamber's rule (FLOAT when: its GO conditions; SINK if: its STOP ones), kept like a part's joint's
@@ -295,9 +322,9 @@ export function buildCell(design) {
       throw new Error(`unknown part type: ${part.type}`);
     }
   }
-  if (inclusionVol > C.maxInclusionFraction * vol) throw new Error('inclusions overfill the body');
+  if (!loose && inclusionVol > C.maxInclusionFraction * vol) throw new Error('inclusions overfill the body');
   const brain = brainProblem(design);   // the nucleus must hold every brain module (sim/brain.js)
-  if (brain) throw new Error(brain);
+  if (brain && !loose) throw new Error(brain);
 
   // Unknowns: the body's slide (x, y) and turn, then one angle per joint.
   // Each piece's columns: the unknowns that move it (its parent's, plus its own joint). Parents come first.

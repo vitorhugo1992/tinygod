@@ -162,6 +162,20 @@ instead. Every move is tried by building the cell (refused: the organelle outlin
 letting go the design updates (one Undo step). The nucleus is mouldable: its slots now count its volume
 (brain.js nucleusSlots), not its radius. Each moved organelle's Edit sliders (build: where, depth, size, length, turn)
 follow it. Code: the arrange block in sandbox/main.js (capsule geometry, squash, stretch, snuggle, syncBuild).
+**Squishy arranging (built 2026-10-29; author: "it should feel more moldable… like a softy squishy thing").** Replaces
+the first arrange. Tap an organelle to select it (outlined); drag it; **drag its edge** to reshape it (past an end: that
+end follows; at its side: thicker or thinner; its area changes); **pinch anywhere** (two fingers, even outside the
+cell) to resize the selected one (author: "pinch is size only"); **drag the cell's wall** to resize the cell (organelles
+keep their size and get squeezed). Pushed into the wall, an organelle **moulds along it**: a band bent round a round
+wall (or flat along a rod body's side), thinner the harder it is pushed (half the push), its volume kept, at most 0.9π
+of the way round. **Bent organelles** are new physics (sim/build.js arcPoints, polyGap; part.bend = 1/radius of
+curvature): a chain of 8 short straight pieces along an arc; room, overlap, inside-the-wall all on the chain; weight
+and light at its centroid; volume as a rod of the same length. **Soft packing** (relax): overlapping organelles are
+nudged apart a little each pass, ones that stay squeezed slowly flatten (volume kept), ones out of the wall ease back
+in or mould to it; the one in hand and the statolith don't move. **Overlaps are allowed while arranging** (buildCell
+opts.loose, drawn red); a change that fits becomes the design when the finger lifts (one Undo step); ✓ Done with
+something red shows a warning and 🫧 **Squish to fit** (soft packing until nothing overlaps). Tested in the page: a
+plastid pushed into the top wall becomes a band; after an oversized pinch, Squish packs it into a bean along the wall.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith
