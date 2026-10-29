@@ -246,9 +246,11 @@ selected: on it (or a fingertip from it) the finger moves it, elsewhere it pans;
 Shapes now change only by pressing into the wall, pinching and Fit. dragSpot stays in mould.js (check 28l3), unused.
 Then (author, 2026-10-29): 🗑 **Remove** over the tank while arranging (the selected organelle, cables unplugged, undoable);
 conditions offer **between / outside** again (author: "I miss the range option"); the buoyancy chamber's template had
-no rule slot (no card): fixed, old designs get one on load. **The chamber is weak (open, asked the author):** at 900
-kg/m³ a r 10 cell with a nucleus, a plastid and a half-full starch store still sinks with a chamber of 9% of its volume
-(r 4.5, which looks like a fifth of the picture); it needs about a third of the volume (r ~7) to lift.
+no rule slot (no card): fixed, old designs get one on load. **The chamber was too weak, so light is now 500 kg/m³** (author
+agreed, 2026-10-29; was 900): at 900 a r 10 cell with a nucleus, a plastid and a half-full starch store still sank with a
+chamber of 9% of its volume (r 4.5, a fifth of the picture); at 500 that one floats. The holding cost per µm³ is
+unchanged (PARAMS.chamber.holdLight 0.5 / holdHeavy 0.3 pJ/s per µm³ held fully, in proportion on the way; replaces
+hold per kg/m³); rate 25 kg/m³ per s (neutral to light ~21 s). Check 14: the r 6.5 chamber in r 10 rises 23 µm/s (was 1.1).
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

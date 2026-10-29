@@ -10,7 +10,7 @@
 //   while it is emptier than burnBelow, starch then oil are burned to refill it. A store's weight follows how full it
 //   is: starch is heavy, oil light, so buoyancy changes as the cell eats and fasts.
 // - A buoyancy chamber costs nothing while neutral (seawater's density) and, held light or heavy, energy every second in
-//   proportion to its size and how far it is from neutral (PARAMS.chamber.hold); a starving cell can't hold it: neutral.
+//   proportion to its size and how far it is from neutral (PARAMS.chamber.holdLight / holdHeavy); a starving cell can't hold it: neutral.
 // - Starving: an empty pool stops the motors (and pumps) until energy comes back.
 // Numbers are round and tuned for play (CLAUDE.md), not measured.
 import { PARAMS } from './params.js';
@@ -87,7 +87,10 @@ export function metabolize(world, cell) {
   m.income = income; m.motors = motors / DT; m.pumps = pumps / DT; m.repair = repair / DT;
   // buoyancy chambers held away from neutral
   let hold = 0;
-  for (const inc of body.inclusions) if (inc.material === 'chamber') hold += P.chamber.hold * inc.v * Math.abs(inc.density - P.chamber.neutral);
+  for (const inc of body.inclusions) if (inc.material === 'chamber') {
+    const C = P.chamber, dn = inc.density - C.neutral;
+    hold += inc.v * (dn < 0 ? C.holdLight * dn / (C.light - C.neutral) : C.holdHeavy * dn / (C.heavy - C.neutral));
+  }
   m.chamber = hold;
   m.E += (income - m.upkeep * slow - hold) * DT - motors - pumps - repair;
 

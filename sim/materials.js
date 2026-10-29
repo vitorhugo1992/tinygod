@@ -4,7 +4,7 @@
 export const MATERIALS = {
   protein: { density: 1100, label: 'protein', note: 'flexible, cheap: thecal plates, flagella' },
   glass:   { density: 2000, label: 'glass',   note: 'stiff and heavy: hydrated biogenic opal' },
-  chamber: { density: 1025, min: 900, max: 1100, label: 'buoyancy chamber', note: 'an ion vacuole pumped lighter or heavier than seawater (Pyrocystis, Ethmodiscus)' },
+  chamber: { density: 1025, min: 500, max: 1100, label: 'buoyancy chamber', note: 'an ion vacuole pumped lighter or heavier than seawater (Pyrocystis, Ethmodiscus)' },
   oil:     { density: 920,  label: 'oil',     note: 'light: lipid droplets; an energy store, compact and slow', store: 'oil' },
   starch:  { density: 1500, label: 'starch',  note: 'heavy: starch or chrysolaminarin; an energy store, quick', store: 'starch' },
   plastid: { density: 1100, label: 'plastid', note: 'a chloroplast: makes energy from light' },

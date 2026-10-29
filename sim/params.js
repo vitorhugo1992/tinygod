@@ -74,10 +74,12 @@ export const PARAMS = {
   // The buoyancy chamber (made playable): an ion vacuole pumped light, neutral or heavy by its rule (author, 2026-10-28)
   chamber: {
     neutral: 1025,          // kg/m³: seawater, no lift and no cost
-    light: 900,             // FLOAT: lighter than seawater (made playable: a chamber a quarter of the cell floats it)...
+    light: 500,             // FLOAT: far lighter than seawater (made playable, author 2026-10-29: at 900 a chamber had to
+                            // be a third of the cell's volume; at 500 one about half the cell's width floats a typical cell)...
     heavy: 1100,            // ...SINK: heavier (to sink on purpose)
-    rate: 10,               // kg/m³ per s it can change (neutral to light ~12 s, light to heavy ~20 s)
-    hold: 0.004,            // pJ/s per µm³ per kg/m³ away from neutral: a mid-size one (r 5.5) held light ~5% of income
+    rate: 25,               // kg/m³ per s it can change (neutral to light ~21 s, light to heavy ~24 s)
+    holdLight: 0.5,         // pJ/s per µm³ held fully light (r 5.5: ~350 pJ/s, ~5% of income), in proportion on the way
+    holdHeavy: 0.3,         // pJ/s per µm³ held fully heavy, the same
   },
   // Nutrients (a fixed layer until step 1's ecology): poor at the surface, rich deep, a nutricline between
   nutrient: {
