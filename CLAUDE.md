@@ -186,6 +186,17 @@ the tank**: Y vertical on the left, Zoom vertical on the right (1-4×), X horizo
 left the panel; Turn stays there); the clock box, the tank strip and the day graph hide while arranging; **selection is
 a thin cyan contour**, overlaps a thin dashed red one (no overlays); **bent organelles keep their looks** (bandPath: a
 band's outline along its points; stores fill from the bottom, the nucleus keeps chromatin and nucleolus).
+Then (author, 2026-10-29): with nothing selected two fingers (or the wheel) zoom the view; **deselect only with the
+Deselect button** (taps deselected by accident).
+**NEXT, agreed (author said go, 2026-10-29): soft blobs (option A).** Why: dragging part of a selected organelle's wall
+should make a local bump or dent there; today's shapes (round, rod, band) can't. Plan: every mouldable organelle's
+outline becomes ~12 radii round its centre (a smooth closed curve when drawn); volume from the outline's area as a
+sphere of the same cross-section (4/3·π·(A/π)^1.5); room, overlap and inside-the-wall checks on the polygon; weight and
+light at its centroid; moulding to the wall clamps only the radii that touch it; dragging a spot moves the nearest
+radius and its neighbours smoothly; pinch scales all radii; round / rod / band designs convert to outlines on load
+(the statolith stays round). **Two stages, check with the author between:** (1) blobs in sim/build.js and the
+drawing, old designs converted and looking as now, checks passing; (2) the arranging tools (drag a spot, pinch,
+local moulding to the wall and to neighbours in Squish to fit). Started in a fresh chat (this one was long).
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith
