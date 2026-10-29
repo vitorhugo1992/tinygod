@@ -176,6 +176,10 @@ in or mould to it; the one in hand and the statolith don't move. **Overlaps are 
 opts.loose, drawn red); a change that fits becomes the design when the finger lifts (one Undo step); ✓ Done with
 something red shows a warning and 🫧 **Squish to fit** (soft packing until nothing overlaps). Tested in the page: a
 plastid pushed into the top wall becomes a band; after an oversized pinch, Squish packs it into a bean along the wall.
+Then (author, 2026-10-29): a **Zoom** slider (1-4× the arrange view) and a **Turn** slider for the selected organelle (a
+statolith: the way it reads); **deselect only by tapping the selected organelle again**; **calmer neighbours**
+(resizing or reshaping one leaves the others where they are, red if they overlap; moving one only nudges them, no
+squashing; squashing and moulding happen in Squish to fit and when the cell is made smaller).
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

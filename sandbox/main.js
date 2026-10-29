@@ -2099,7 +2099,7 @@ function squash(p, r, nx, ny, V) {
 // Soft packing: overlapping organelles are nudged apart, a little at a time; ones that stay squeezed slowly flatten
 // (thinner and longer, their volume kept, lying across the push); one out of the wall is eased back in, or moulds to it.
 // `fixed` (the one in hand) and the rigid statolith don't move. Whatever still overlaps is left (drawn red).
-function relax(d, fixed = -1, iters = 40) {
+function relax(d, fixed = -1, iters = 40, { thin: canThin = true, mould = true } = {}) {
   const idx = d.parts.map((p, i) => i).filter((i) => isInc(d.parts[i]));
   const thin = (p, nx, ny) => {   // a little thinner across the push, volume kept
     const V = incVol(p), r = Math.max(rEqOf(p) * ARR.minSquash, p.radius * 0.95);
@@ -2124,13 +2124,13 @@ function relax(d, fixed = -1, iters = 40) {
       const step = 0.6 * (o + 0.03) / (pm + qm);   // part of the way each pass, shared by those that can move
       if (pm) P.at = [P.at[0] - nx * step, P.at[1] - ny * step];
       if (qm) Q.at = [Q.at[0] + nx * step, Q.at[1] + ny * step];
-      if (it > 6) { if (pm) thin(P, nx, ny); if (qm) thin(Q, nx, ny); }
+      if (canThin && it > 6) { if (pm) thin(P, nx, ny); if (qm) thin(Q, nx, ny); }
     }
     for (const i of idx) {
       const p = d.parts[i], out = outOfWall(p, d.body);
       if (out <= 1e-3 || i === fixed) continue;
       busy = true;
-      if (!rigid(p) && it > 3) { mouldToWall(p, d.body, p.at, incVol(p)); continue; }
+      if (mould && !rigid(p) && it > 3) { mouldToWall(p, d.body, p.at, incVol(p)); continue; }
       const [cx, cy] = wallCentre(d.body, p.at[0]), dx = p.at[0] - cx, dy = p.at[1] - cy, n = Math.hypot(dx, dy) || 1;
       p.at = [p.at[0] - dx / n * (out + 0.03), p.at[1] - dy / n * (out + 0.03)];
     }
@@ -2220,7 +2220,7 @@ function arrangeTo(e) {
     const [cx, cy] = wallCentre(d.body, P[0]);
     d.body.radius = Math.round(Math.max(3, Math.min(50, Math.hypot(P[0] - cx, P[1] - cy))) * 2) / 2;
     d.parts.forEach((p, k) => { if (!isInc(p) && (!p.parent || p.parent === 'body') && p.build) placeRim(d, k, p.build.where); });
-    relax(d, -1, 40);
+    relax(d, -1, 20, { thin: false });   // a smaller cell: what no longer fits is eased in or moulds to the wall
     setTrial(d); return;
   }
   const p = d.parts[g.k], B = a.base.parts[g.k];
@@ -2246,7 +2246,7 @@ function arrangeTo(e) {
       }
     } else p.radius = Math.round(Math.max(ARR.minR, n.d) * 100) / 100;   // its side: thickness
     if (outOfWall(p, d.body) > 0) mouldToWall(p, d.body, p.at, incVol(p));
-    relax(d, g.k, 30); setTrial(d); return;
+    setTrial(d); return;   // the others stay put (red where they overlap): no surprises while reshaping
   }
   // moved: where its middle would be; into the wall it moulds along it (the further pushed, the thinner)
   const want = [P[0] + g.off[0], P[1] + g.off[1]];
@@ -2257,16 +2257,33 @@ function arrangeTo(e) {
     if (outOfWall(probe, d.body) > 0) mouldToWall(p, d.body, want, V);
     else if (B.bend) { delete p.bend; delete p.length; p.radius = Math.round(rEqOf(B) * (a.pinchF || 1) * 100) / 100; }   // off the wall: round again
   } else if (outOfWall(p, d.body) > 0) return;   // the statolith can't go into the wall
-  relax(d, g.k, 30);
+  if (!a.pinchF) relax(d, g.k, 10, { thin: false, mould: false });   // moved: the others are nudged aside; resized: they stay put
   setTrial(d);
 }
+// the Zoom slider (closer than the arrange view starts) and the selected organelle's Turn
+function showTurn() {
+  const a = arrange, p = a && a.sel !== null ? a.trial.parts[a.sel] : null;
+  $('arrTurn').disabled = !p;
+  if (p) $('arrTurn').value = Math.round(((p.angle || 0) + 540) % 360 - 180);
+  $('arrTurnOut').textContent = p ? `${$('arrTurn').value}°` : 'select one';
+}
+$('arrZoom').oninput = () => { if (!arrange) return; $('zoom').value = Math.min(40, arrange.zoom0 * Number($('arrZoom').value)); $('arrZoomOut').textContent = `${Number($('arrZoom').value).toFixed(1)}×`; };
+$('arrTurn').oninput = () => {
+  const a = arrange;
+  if (!a || a.sel === null) return;
+  const d = JSON.parse(JSON.stringify(a.trial));
+  d.parts[a.sel].angle = Number($('arrTurn').value);
+  setTrial(d); $('arrTurnOut').textContent = `${$('arrTurn').value}°`;
+};
+$('arrTurn').onchange = () => { if (arrange) commitIfFits(); };
 function startArrange() {
   if (arrange || !cell || cell.design !== design) return;
   const W = canvas.clientWidth, H = canvas.clientHeight, b = design.body;
   arrange = { prev: { view: $('viewMode').value, zoom: $('zoom').value }, trial: JSON.parse(JSON.stringify(design)), cell: null, sel: null, drag: null, base: null, pinchF: null, problems: { over: new Set(), msg: '' } };
   playing = false; $('play').textContent = '▶';
   $('viewMode').value = 'follow';
-  $('zoom').value = Math.min(20, 0.45 * Math.min(W, H * 0.55) / (b.radius + (b.length || 0) / 2));
+  $('zoom').value = arrange.zoom0 = Math.min(20, 0.45 * Math.min(W, H * 0.55) / (b.radius + (b.length || 0) / 2));
+  $('arrZoom').value = 1; $('arrZoomOut').textContent = '1.0×'; $('arrangeTools').hidden = false; showTurn();
   $('arrangeBtn').textContent = '✓ Done arranging';
   $('squishBtn').hidden = true;
   $('buildErr').textContent = 'tap an organelle to select it · drag it · drag its edge to reshape · pinch to resize · drag the wall to resize the cell';
@@ -2283,6 +2300,7 @@ function stopArrange(force) {
   if (!force && JSON.stringify(arrange.trial) !== JSON.stringify(design)) applyDesign(JSON.parse(JSON.stringify(arrange.trial)));
   $('viewMode').value = arrange.prev.view; $('zoom').value = arrange.prev.zoom;
   arrange = null;
+  $('arrangeTools').hidden = true;
   $('arrangeBtn').textContent = '✋ Arrange inside the cell';
   $('squishBtn').hidden = true;
   if (!force) $('buildErr').textContent = '';
@@ -2303,11 +2321,12 @@ function arrangeDown(e) {
   if (touches.size === 1) {
     const hit = arrangeHit(e);
     a.base = JSON.parse(JSON.stringify(a.trial));
-    if (!hit) { a.drag = null; a.emptyTap = { x: e.clientX, y: e.clientY }; return; }   // empty water: maybe a deselect, maybe a pinch
-    if (hit.kind === 'inc') a.sel = hit.k;
+    if (!hit) { a.drag = null; return; }   // empty water: the selection stays (a pinch may follow)
+    a.tapSel = hit.kind === 'inc' && hit.k === a.sel ? { x: e.clientX, y: e.clientY } : null;   // the selected one again: maybe a deselect
+    if (hit.kind === 'inc') { a.sel = hit.k; showTurn(); }
     a.drag = { ...hit, id: e.pointerId };
   } else if (touches.size === 2 && a.sel !== null) {   // a second finger anywhere: pinch the selected one's size
-    a.emptyTap = null;
+    a.tapSel = null;
     const [p, q] = [...touches.values()];
     a.base = JSON.parse(JSON.stringify(a.trial));
     a.pinch0 = Math.hypot(p.x - q.x, p.y - q.y);
@@ -2332,10 +2351,14 @@ function arrangeUp(e) {
   touches.delete(e.pointerId);
   const a = arrange;
   if (touches.size > 0) return;
-  if (a.emptyTap && Math.hypot(e.clientX - a.emptyTap.x, e.clientY - a.emptyTap.y) < 8) a.sel = null;   // a tap on empty water
-  a.emptyTap = null;
+  if (a.tapSel && e.clientX !== undefined && Math.hypot(e.clientX - a.tapSel.x, e.clientY - a.tapSel.y) < 8) { a.sel = null; showTurn(); }   // tapped again: deselected
+  a.tapSel = null;
   a.drag = null; a.pinchF = null;
-  // what fits becomes the design at once (one Undo step); what doesn't waits, red, until it fits or ✓ Done
+  commitIfFits();
+}
+// what fits becomes the design at once (one Undo step); what doesn't waits, red, until it fits or ✓ Done
+function commitIfFits() {
+  const a = arrange;
   const pr = problemsOf(a.trial);
   if (!pr.over.size && !pr.msg && JSON.stringify(a.trial) !== JSON.stringify(design)) {
     const keep = JSON.parse(JSON.stringify(a.trial)), sel = a.sel;
