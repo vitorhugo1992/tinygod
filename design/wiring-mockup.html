@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TinyGod Rules Mock-up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Rules as sentences about the cell. Left: the cell, live, and the pretend world (time, depth, tilt).
+   Middle: one card per moving part, a sentence with tappable words and a map of when it runs.
+   Right (a sheet on a phone): the word being edited, on its sensor's own scale. One dark world, like the sandbox. */
+:root {
+  color-scheme: dark;
+  --bg: #0a1220; --deck: #101b2c; --well: #0c1524; --line: #22324a; --line2: #2d4260;
+  --text: #dce7ec; --dim: #8398aa; --faint: #5a6f84;
+  --go: #6fe0a0; --stop: #ff6f6f; --hold: #fff3b0; --ink: #0a1220; --nucleus: #b98cff;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --f-data: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--f-body); }
+button { font: inherit; color: var(--text); cursor: pointer; background: var(--well); border: 1px solid var(--line2); border-radius: 7px; padding: 5px 10px; }
+button:hover { border-color: var(--text); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--hold); outline-offset: 2px; }
+input[type=range] { width: 100%; accent-color: var(--hold); }
+h1, h2, h3 { text-wrap: balance; }
+
+.app { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 12px 16px 24px; max-width: 1500px; margin: 0 auto; }
+@media (min-width: 980px) { .app { grid-template-columns: 330px minmax(0, 1fr) 360px; align-items: start; } }
+.top { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand { font: 700 21px/1 var(--f-display); }
+.brand small { font: 500 11px var(--f-body); color: var(--dim); letter-spacing: .14em; text-transform: uppercase; margin-left: 8px; }
+.mock { font: 600 10.5px var(--f-data); color: var(--ink); background: #f2b45a; border-radius: 4px; padding: 2px 6px; letter-spacing: .06em; }
+.try { color: var(--dim); font-size: 13px; }
+
+.panel { background: var(--deck); border: 1px solid var(--line); border-radius: 12px; }
+.ph { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); }
+.ph h2 { margin: 0; font: 700 13px var(--f-display); letter-spacing: .12em; text-transform: uppercase; }
+.ph .sub { color: var(--dim); font-size: 12px; }
+
+/* the cell and the pretend world */
+.cellp { position: sticky; top: 8px; z-index: 3; }
+@media (max-width: 979px) { .cellp { top: 0; border-radius: 0 0 12px 12px; margin: 0 -16px; border-left: 0; border-right: 0; } }
+#cell { display: block; width: 100%; height: auto; max-height: 34vh; touch-action: manipulation;
+  background: radial-gradient(90% 80% at 60% 10%, #13324a 0%, var(--well) 70%); }
+@media (min-width: 980px) { #cell { max-height: none; } }
+.world { display: grid; grid-template-columns: auto 1fr 64px; gap: 4px 10px; align-items: center; padding: 8px 14px 10px; font: 12px var(--f-data); color: var(--dim); }
+.world output { color: var(--text); text-align: right; }
+#play { padding: 2px 10px; font-size: 13px; }
+.wirebar { display: flex; gap: 8px; align-items: center; padding: 0 14px 12px; flex-wrap: wrap; }
+#wireBtn { font-weight: 600; border-color: var(--go); }
+#wireBtn.on { background: #143022; }
+.wirehint { font-size: 12.5px; color: var(--hold); }
+.slots { margin-left: auto; display: flex; gap: 3px; align-items: center; font: 11.5px var(--f-data); color: var(--dim); }
+.slots i { width: 9px; height: 14px; border-radius: 2px; border: 1px solid var(--nucleus); }
+.slots i.used { background: var(--nucleus); }
+.slots.full i.used { background: var(--stop); border-color: var(--stop); }
+
+/* cell drawing */
+.hit { cursor: pointer; }
+.pulse { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+/* rule cards */
+.cards { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.card { background: var(--deck); border: 1px solid var(--line2); border-radius: 12px; overflow: hidden; }
+.card.focus { border-color: var(--c); box-shadow: 0 0 0 1px var(--c); }
+.ch { display: flex; align-items: center; gap: 9px; padding: 9px 12px; cursor: pointer;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 20%, transparent), transparent 75%); }
+.ch i { width: 11px; height: 11px; border-radius: 50%; background: var(--c); flex: none; }
+.ch b { font: 700 15px var(--f-display); }
+.ch .kind { color: var(--dim); font-size: 12px; }
+.pill { margin-left: auto; font: 600 11.5px var(--f-data); padding: 2px 9px; border-radius: 20px; border: 1px solid var(--line2); color: var(--dim); white-space: nowrap; }
+.pill.on { color: var(--ink); background: var(--go); border-color: var(--go); }
+.pill.float { color: var(--ink); background: #cdeeff; border-color: #cdeeff; }
+.pill.sink { color: #fff; background: #2d5bd1; border-color: #2d5bd1; }
+.pill.rest { color: var(--ink); background: #9fd0ff; border-color: #9fd0ff; }
+
+.say { padding: 10px 12px 4px; font-size: 16px; line-height: 2.05; }
+.say .line + .line { border-top: 1px dashed var(--line); margin-top: 4px; padding-top: 4px; }
+.subj { font-weight: 600; }
+.verb { color: var(--dim); }
+.w { display: inline; border-radius: 7px; padding: 2px 7px; margin: 0 1px; border: 1px solid var(--line2); background: var(--well); cursor: pointer; white-space: nowrap;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone; transition: border-color .2s, background .2s; }
+.w:hover { border-color: var(--text); }
+.w.s::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--c); margin-right: 6px; vertical-align: 1px; }
+.w.v { color: var(--hold); }
+.w.v .z { color: var(--dim); font-size: 12.5px; margin-left: 4px; }
+.term { white-space: nowrap; }
+.term.holds .w { border-color: var(--go); background: color-mix(in srgb, var(--go) 12%, var(--well)); }
+.term.stopping .w { border-color: var(--stop); background: color-mix(in srgb, var(--stop) 14%, var(--well)); }
+.term.editing .w { box-shadow: 0 0 0 2px var(--hold); }
+.j { font-weight: 600; color: var(--text); border-bottom: 1px dotted var(--dim); cursor: pointer; padding: 0 2px; }
+.unl { color: var(--stop); font-weight: 600; }
+.never { color: var(--faint); font-style: italic; }
+.add { font-size: 12.5px; padding: 1px 8px; border-style: dashed; color: var(--dim); background: none; vertical-align: 1px; }
+.speed { color: var(--dim); }
+
+.map { padding: 4px 12px 12px; display: grid; gap: 4px; }
+.map .mh { display: flex; justify-content: space-between; font: 11px var(--f-data); color: var(--faint); letter-spacing: .04em; }
+.map canvas { width: 100%; height: 92px; display: block; border-radius: 6px; border: 1px solid var(--line); }
+.map .cap { font-size: 12.5px; color: var(--dim); }
+.map .cap b { color: var(--text); font-weight: 600; }
+
+/* the editor: a side panel on a computer, a sheet from the bottom on a phone */
+.ed { min-width: 0; }
+@media (min-width: 980px) { .ed { position: sticky; top: 8px; } }
+@media (max-width: 979px) {
+  .ed { position: fixed; left: 0; right: 0; bottom: 0; max-height: 72vh; overflow: auto; z-index: 10; border-radius: 14px 14px 0 0;
+    box-shadow: 0 -10px 30px rgba(0,0,0,.55); transform: translateY(105%); transition: transform .25s; }
+  .ed.open { transform: none; }
+}
+@media (max-width: 979px) and (prefers-reduced-motion: reduce) { .ed { transition: none; } }
+.edb { padding: 12px 14px 16px; display: grid; gap: 12px; }
+.empty { color: var(--dim); font-size: 13.5px; line-height: 1.55; }
+.edq { font: 600 17px/1.4 var(--f-display); }
+.edq .z { color: var(--dim); font-size: 14px; margin-left: 5px; }
+.edq .sd { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: var(--c); margin-right: 6px; }
+.lab { font: 600 10.5px var(--f-body); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+.row { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg { display: flex; }
+.seg button { border-radius: 0; margin-left: -1px; font-size: 13px; }
+.seg button:first-child { border-radius: 7px 0 0 7px; margin-left: 0; } .seg button:last-child { border-radius: 0 7px 7px 0; }
+.seg button.on, .sbtn.on { background: #1b3b46; border-color: var(--go); }
+.sbtn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.sbtn i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); }
+#scale, #trace { width: 100%; display: block; touch-action: none; user-select: none; }
+#scale { cursor: ew-resize; }
+.note { font-size: 12px; color: var(--dim); }
+.edfoot { display: flex; gap: 8px; }
+.edfoot .del { color: var(--stop); border-color: color-mix(in srgb, var(--stop) 50%, var(--line2)); }
+.edfoot .done { margin-left: auto; font-weight: 600; border-color: var(--go); }
+#toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--stop); color: var(--ink); font-weight: 600; padding: 8px 14px; border-radius: 8px; z-index: 20; display: none; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">TinyGod<small>Rules</small></div>
+    <span class="mock">MOCK-UP · pretend readings</span>
+    <span class="try">Tap any coloured word to change it. Drag the threshold and watch the map. Or tap 🔗 Wire, then a sensor, then a part.</span>
+  </header>
+
+  <section class="panel cellp" aria-label="The cell">
+    <div class="ph"><h2>Your cell</h2><span class="sub">a pretend migrator</span></div>
+    <svg id="cell" viewBox="0 0 320 210" role="img" aria-label="The cell with its parts and sensors"></svg>
+    <div class="world">
+      <button id="play" title="Run the pretend day">▶</button><input type="range" id="tIn" min="0" max="24" step="0.05" value="9.5" aria-label="Time of day"><output id="tOut"></output>
+      <span>depth</span><input type="range" id="dIn" min="0" max="2000" step="10" value="420" aria-label="Depth"><output id="dOut"></output>
+      <span>tilt</span><input type="range" id="aIn" min="-90" max="90" step="1" value="8" aria-label="Tilt"><output id="aOut"></output>
+    </div>
+    <div class="wirebar">
+      <button id="wireBtn" title="Wire a new condition: tap a sensor on the cell, then the part it should drive">🔗 Wire</button>
+      <span class="wirehint" id="wireHint"></span>
+      <span class="slots" id="slots" title="The nucleus: each sensor in use and each sentence takes a slot"></span>
+    </div>
+  </section>
+
+  <main class="cards" id="cards" aria-label="What each part does"></main>
+
+  <aside class="panel ed" id="ed" aria-label="Edit a condition"></aside>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SLOTS = 8;
+
+// ----- the pretend world: a day of 24 h, a 2 mm water column, light fading with depth -----
+const W = { t: 9.5, d: 420, tilt: 8, play: false };
+const sun = (t) => (t > 6 && t < 18 ? Math.sin(Math.PI * (t - 6) / 12) : 0);
+const lightAt = (t, d) => sun(t) * Math.exp(-d / 650);
+const energyAt = (t) => 0.55 + 0.35 * Math.sin(2 * Math.PI * (t - 10) / 24);   // fullest late afternoon, lowest before dawn
+const starchAt = (t) => 0.5 + 0.45 * Math.sin(2 * Math.PI * (t - 12) / 24);
+const hhmm = (t) => { const m = Math.round(t * 60) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+
+// ----- what each kind of reading means, in words -----
+const KINDS = {
+  light: { lo: 0, hi: 1, step: 0.01, sqrt: true, def: { op: 'more', a: 0.25, b: 0.6 }, unit: (v) => `${Math.round(v * 100)}% sun`,
+    zones: [[0, 0.05, 'dark'], [0.05, 0.25, 'dim'], [0.25, 0.6, 'bright'], [0.6, 1, 'full sun']], ops: { more: 'more than', less: 'less than', between: 'between' } },
+  tilt: { lo: -90, hi: 90, step: 1, def: { op: 'less', a: -20, b: 20 }, unit: (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v))}°`,
+    zones: [[-90, -30, 'head down'], [-30, 30, 'level'], [30, 90, 'head up']], ops: { more: 'above', less: 'below', between: 'between' } },
+  level: { lo: 0, hi: 1, step: 0.01, def: { op: 'less', a: 0.3, b: 0.7 }, unit: (v) => `${Math.round(v * 100)}%`,
+    zones: [[0, 0.15, 'empty'], [0.15, 0.4, 'low'], [0.4, 0.75, 'half'], [0.75, 1, 'full']], ops: { more: 'more than', less: 'less than', between: 'between' } },
+};
+const SENSORS = {
+  eye: { name: 'Eyespot', c: '#ffb547', kind: 'light', verb: 'sees', at: [229, 62], read: (t, d) => lightAt(t, d) },
+  stat: { name: 'Statolith', c: '#6fa8ff', kind: 'tilt', verb: 'tilts', at: [158, 90], read: () => W.tilt },
+  energy: { name: 'Energy', c: '#ffe066', kind: 'level', verb: 'is', at: [238, 112], read: (t) => energyAt(t) },
+  starch: { name: 'Starch', c: '#e8d9b0', kind: 'level', verb: 'is', at: [206, 134], read: (t) => starchAt(t) },
+};
+const zoneOf = (k, v) => (KINDS[k].zones.find((z) => v >= z[0] && v < z[1]) || KINDS[k].zones[KINDS[k].zones.length - 1])[2];
+// the light scale is drawn stretched at the dim end (a square root), so dark and dim get room
+const warp = (K, v) => (K.sqrt ? Math.sqrt(Math.max(0, v)) : (v - K.lo) / (K.hi - K.lo));
+const unwarp = (K, u) => (K.sqrt ? u * u : K.lo + u * (K.hi - K.lo));
+
+// ----- the rules: one card per moving part; a sentence = when (all / any) and unless (any stops it) -----
+const PARTS = [
+  { id: 'tail', name: 'Tail', kind: 'wave tail', c: '#f08a6c', at: [70, 105], speed: 'full',
+    lines: [{ verb: 'beats', when: [{ s: 'eye', op: 'more', a: 0.05, b: 0.6 }], join: 'and', unless: [{ s: 'energy', op: 'less', a: 0.25, b: 0.5 }] }] },
+  { id: 'leg', name: 'Leg', kind: 'flexible oar', c: '#c49bff', at: [150, 188], speed: 'full',
+    lines: [{ verb: 'rows', when: [{ s: 'stat', op: 'less', a: -20, b: 20 }], join: 'and', unless: [] }] },
+  { id: 'cham', name: 'Buoyancy chamber', kind: 'floats or sinks the cell', c: '#7cc8ff', at: [190, 80],
+    lines: [{ verb: 'floats', when: [], join: 'and', unless: [] }, { verb: 'sinks', when: [{ s: 'eye', op: 'more', a: 0.6, b: 0.9 }], join: 'and', unless: [] }] },
+  { id: 'rest', name: 'The cell', kind: 'rests: slower upkeep, flagella stop', c: '#9fb3c8', at: [150, 130],
+    lines: [{ verb: 'rests', when: [], join: 'and', unless: [] }] },
+];
+const partById = (id) => PARTS.find((p) => p.id === id);
+const needsWhen = (p) => p.id === 'cham' || p.id === 'rest';   // these do nothing until told when
+
+function holds(term, t, d) {
+  const v = SENSORS[term.s].read(t, d);
+  return term.op === 'more' ? v > term.a : term.op === 'less' ? v < term.a : v >= Math.min(term.a, term.b) && v <= Math.max(term.a, term.b);
+}
+function lineRuns(p, L, t, d) {
+  if (!L.when.length && needsWhen(p)) return false;
+  const go = !L.when.length || (L.join === 'and' ? L.when.every((x) => holds(x, t, d)) : L.when.some((x) => holds(x, t, d)));
+  return go && !L.unless.some((x) => holds(x, t, d));
+}
+// what the part does at (t, d): 'on' / 'off', or for the chamber 'float' / 'sink' / 'neutral', for the cell 'rest' / 'awake'
+function stateOf(p, t, d) {
+  if (p.id === 'cham') return lineRuns(p, p.lines[1], t, d) ? 'sink' : lineRuns(p, p.lines[0], t, d) ? 'float' : 'neutral';
+  if (p.id === 'rest') return lineRuns(p, p.lines[0], t, d) ? 'rest' : 'awake';
+  return lineRuns(p, p.lines[0], t, d) ? 'on' : 'off';
+}
+const PILL = { on: ['RUNNING', 'on'], off: ['STOPPED', ''], float: ['FLOAT', 'float'], sink: ['SINK', 'sink'], neutral: ['NEUTRAL', ''], rest: ['RESTING', 'rest'], awake: ['AWAKE', ''] };
+
+function slotsUsed() {
+  const s = new Set(); let n = 0;
+  for (const p of PARTS) for (const L of p.lines) { const all = [...L.when, ...L.unless]; if (all.length) n++; all.forEach((x) => s.add(x.s)); }
+  return s.size + n;
+}
+function toast(msg) { const el = $('toast'); el.textContent = msg; el.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(() => { el.style.display = 'none'; }, 2600); }
+
+// ----- the sentences -----
+let focus = 'tail';            // the card whose links are drawn on the cell
+let editing = null;            // { p, li, list, ti }
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function valueText(x) {
+  const K = KINDS[SENSORS[x.s].kind], u = K.unit;
+  if (x.op === 'between') return `${K.ops.between} ${u(Math.min(x.a, x.b))} and ${u(Math.max(x.a, x.b))}`;
+  return `${K.ops[x.op]} ${u(x.a)}<span class="z">(${zoneOf(SENSORS[x.s].kind, x.a)})</span>`;
+}
+function termHTML(pid, li, list, ti, x) {
+  const S = SENSORS[x.s];
+  const ed = editing && editing.p === pid && editing.li === li && editing.list === list && editing.ti === ti;
+  return `<span class="term${ed ? ' editing' : ''}" data-term="${pid}|${li}|${list}|${ti}"><span class="w s" style="--c:${S.c}" data-act="edit">${S.name}</span> <span class="verb">${S.verb}</span> <span class="w v" data-act="edit">${valueText(x)}</span></span>`;
+}
+function lineHTML(p, li) {
+  const L = p.lines[li];
+  let h = `<span class="subj">${p.id === 'rest' ? 'The cell' : `The ${p.name.toLowerCase()}`}</span> <span class="verb">${L.verb}</span> `;
+  if (!L.when.length) h += needsWhen(p) ? '<span class="never">never</span> ' : '<span class="never">all the time</span> ';
+  else {
+    h += 'when ';
+    L.when.forEach((x, ti) => { if (ti) h += ` <span class="j" data-act="join" title="Tap: and / or">${L.join}</span> `; h += termHTML(p.id, li, 'when', ti, x); });
+  }
+  if (L.unless.length) {
+    h += ', <span class="unl">unless</span> ';
+    L.unless.forEach((x, ti) => { if (ti) h += ' <span class="verb">or</span> '; h += termHTML(p.id, li, 'unless', ti, x); });
+  }
+  if (p.speed && li === 0) h += `, <span class="speed">at</span> <span class="w v" data-act="speed" title="Tap: full speed, or a speed that follows the light">${p.speed === 'full' ? 'full speed' : p.speed === 'up' ? 'more speed the brighter' : 'more speed the darker'}</span>`;
+  h += `. <button class="add" data-act="add-when" title="Add a condition it needs">+ ${L.when.length ? (L.join === 'and' ? 'and' : 'or') : 'when'}…</button> <button class="add" data-act="add-unless" title="Add something that stops it">+ unless…</button>`;
+  return `<div class="line" data-line="${p.id}|${li}">${h}</div>`;
+}
+function cardHTML(p) {
+  return `<article class="card${focus === p.id ? ' focus' : ''}" style="--c:${p.c}" data-card="${p.id}">
+    <div class="ch" data-act="focus"><i></i><b>${esc(p.name)}</b><span class="kind">${esc(p.kind)}</span><span class="pill" data-pill="${p.id}"></span></div>
+    <div class="say">${p.lines.map((_, li) => lineHTML(p, li)).join('')}</div>
+    <div class="map"><div class="mh"><span>WHEN IT ${p.id === 'cham' ? 'FLOATS AND SINKS' : p.id === 'rest' ? 'RESTS' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
+      <canvas data-map="${p.id}" width="480" height="92" aria-label="Map of when this part runs over a day and the water column"></canvas>
+      <div class="cap" data-cap="${p.id}"></div></div>
+  </article>`;
+}
+function renderCards() { $('cards').innerHTML = PARTS.map(cardHTML).join(''); drawMaps(); live(); renderSlots(); }
+function renderSlots() {
+  const n = slotsUsed(), el = $('slots');
+  el.classList.toggle('full', n >= SLOTS);
+  el.innerHTML = `nucleus ${n}/${SLOTS} ` + Array.from({ length: SLOTS }, (_, i) => `<i class="${i < n ? 'used' : ''}"></i>`).join('');
+}
+
+// ----- the maps: a day across, the water column down; shaded where the part runs -----
+const MAPC = { on: null, float: '#cdeeff', sink: '#2d5bd1', rest: '#9fd0ff' };
+const mapCache = {};
+function drawMaps() { for (const p of PARTS) drawMap(p); }
+function drawMap(p) {
+  const NX = 96, NY = 40, cv = document.createElement('canvas'); cv.width = NX; cv.height = NY;
+  const g = cv.getContext('2d'), img = g.createImageData(NX, NY);
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const on = hex(p.c), counts = {};
+  for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+    const t = (i + 0.5) / NX * 24, d = (j + 0.5) / NY * 2000, st = stateOf(p, t, d), k = (j * NX + i) * 4;
+    counts[st] = (counts[st] || 0) + 1;
+    const night = sun(t) === 0, base = night ? [9, 14, 26] : [14 + 20 * lightAt(t, d), 26 + 40 * lightAt(t, d), 44 + 50 * lightAt(t, d)];
+    let c = base;
+    if (st === 'on' || st === 'rest' || st === 'float' || st === 'sink') c = st === 'on' ? on : hex(MAPC[st]);
+    img.data[k] = c[0]; img.data[k + 1] = c[1]; img.data[k + 2] = c[2]; img.data[k + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  mapCache[p.id] = { cv, counts, total: NX * NY };
+}
+function paintMap(p) {
+  const el = document.querySelector(`[data-map="${p.id}"]`); if (!el) return;
+  const m = mapCache[p.id], g = el.getContext('2d'), Wd = el.width, H = el.height;
+  g.imageSmoothingEnabled = false; g.drawImage(m.cv, 0, 0, Wd, H);
+  g.strokeStyle = 'rgba(220,231,236,.16)'; g.lineWidth = 1; g.font = '10px JetBrains Mono, monospace'; g.fillStyle = 'rgba(220,231,236,.55)';
+  for (const h of [6, 12, 18]) { const x = h / 24 * Wd; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); g.fillText(String(h).padStart(2, '0'), x + 3, H - 4); }
+  g.fillText('surface', 4, 11); g.fillText('2 mm', 4, H - 4 - 12);
+  const x = W.t / 24 * Wd, y = W.d / 2000 * H;
+  g.fillStyle = '#fff3b0'; g.strokeStyle = '#0a1220'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, 4.5, 0, Math.PI * 2); g.stroke(); g.fill();
+}
+function capText(p) {
+  const m = mapCache[p.id], pct = (k) => Math.round(100 * (m.counts[k] || 0) / m.total);
+  if (p.id === 'cham') return `Floats in <b>${pct('float')}%</b>, sinks in <b>${pct('sink')}%</b> of the map; neutral elsewhere.`;
+  if (p.id === 'rest') return `Rests in <b>${pct('rest')}%</b> of the map.`;
+  const tilt = PARTS.find((q) => q.id === p.id).lines.some((L) => [...L.when, ...L.unless].some((x) => x.s === 'stat'));
+  return `Runs in <b>${pct('on')}%</b> of the map${tilt ? ` (tilt taken as now, ${KINDS.tilt.unit(W.tilt)})` : ''}.`;
+}
+
+// ----- live: the pills, the green and red words, the cell -----
+function live() {
+  for (const p of PARTS) {
+    const st = stateOf(p, W.t, W.d), el = document.querySelector(`[data-pill="${p.id}"]`);
+    if (el) { el.textContent = PILL[st][0]; el.className = `pill ${PILL[st][1]}`; }
+    paintMap(p);
+    const cap = document.querySelector(`[data-cap="${p.id}"]`); if (cap) cap.innerHTML = capText(p);
+  }
+  for (const el of document.querySelectorAll('[data-term]')) {
+    const [pid, li, list, ti] = el.dataset.term.split('|'), x = partById(pid).lines[li][list][ti];
+    const h = holds(x, W.t, W.d);
+    el.classList.toggle('holds', h && list === 'when'); el.classList.toggle('stopping', h && list === 'unless');
+  }
+  $('tIn').value = W.t; $('tOut').textContent = hhmm(W.t);
+  $('dIn').value = W.d; $('dOut').textContent = `${W.d} µm`;
+  $('aIn').value = W.tilt; $('aOut').textContent = KINDS.tilt.unit(W.tilt);
+  if (editing) liveEditor();
+}
+
+// ----- the cell drawing -----
+let wire = null;   // null, 'sensor' (tap a sensor), { s } (now tap a part)
+let flash = null;  // { s, p, until }
+function cellSVG(now) {
+  const st = Object.fromEntries(PARTS.map((p) => [p.id, stateOf(p, W.t, W.d)]));
+  const k = now / 1000, a = W.tilt * Math.PI / 180;
+  const fp = PARTS.find((p) => p.id === focus);
+  const used = new Set(fp ? fp.lines.flatMap((L) => [...L.when, ...L.unless].map((x) => x.s)) : []);
+  // tail: a travelling wave while it runs
+  const run = st.tail === 'on', amp = run ? 13 : 4, ph = run ? k * 9 : 0;
+  let tail = 'M123 105';
+  for (let i = 1; i <= 24; i++) { const s = i / 24, x = 123 - s * 100, y = 105 + amp * s * Math.sin(s * 7 - ph) + (run ? 0 : 6 * s * s); tail += ` L${x.toFixed(1)} ${y.toFixed(1)}`; }
+  // leg: a flexible oar under the body
+  const legRun = st.leg === 'on', sw = legRun ? 0.45 * Math.sin(k * 7) : 0, lag = legRun ? 0.35 * Math.sin(k * 7 - 1.2) : 0.2;
+  const b0 = 2.2 + sw, x1 = 160 + 24 * Math.cos(b0), y1 = 158 + 24 * Math.sin(b0), x2 = x1 + 22 * Math.cos(b0 + lag), y2 = y1 + 22 * Math.sin(b0 + lag);
+  const legP = `M160 158 L${x1.toFixed(1)} ${y1.toFixed(1)} L${x2.toFixed(1)} ${y2.toFixed(1)}`;
+  const chamFill = st.cham === 'float' ? '#cdeeff' : st.cham === 'sink' ? '#2d5bd1' : '#5b8db8';
+  const resting = st.rest === 'rest';
+  const lv = (v) => Math.max(0, Math.min(1, v));
+  const en = lv(energyAt(W.t)), sc = lv(starchAt(W.t)), eye = lightAt(W.t, W.d);
+  const gx = 158 + 6 * Math.sin(a), gy = 90 + 6 * Math.cos(a);   // the grain rolls to the lower wall
+  const dim = (id, isS) => (fp && !(isS ? used.has(id) : id === focus) ? 0.45 : 1);
+  const pick = wire === 'sensor' ? 'sensor' : wire && wire.s ? 'part' : '';
+  const ring = (x, y, r, c, on) => (on ? `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${c}" stroke-width="2" class="pulse"/>` : '');
+  let s = `<g transform="rotate(${-W.tilt} 185 105)">`;
+  s += `<ellipse cx="185" cy="105" rx="62" ry="56" fill="#1d4a40" fill-opacity=".85" stroke="${resting ? '#9fd0ff' : '#bfe8d8'}" stroke-width="${resting ? 3 : 1.5}"/>`;
+  s += `<path d="${tail}" fill="none" stroke="${PARTS[0].c}" stroke-width="3.5" stroke-linecap="round" opacity="${dim('tail')}"/>`;
+  s += `<path d="${legP}" fill="none" stroke="${PARTS[1].c}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" opacity="${dim('leg')}"/>`;
+  s += `<g opacity="${dim('cham')}"><circle cx="190" cy="80" r="13" fill="${chamFill}" stroke="${PARTS[2].c}" stroke-width="1.5"/></g>`;
+  s += `<g opacity="${dim('rest')}"><circle cx="150" cy="130" r="15" fill="#6c4fa0" stroke="#c9b6ea" stroke-width="1.5"/><circle cx="153" cy="127" r="4" fill="#3a2763"/><circle cx="144" cy="134" r="1.6" fill="#c9b6ea"/><circle cx="157" cy="137" r="1.6" fill="#c9b6ea"/></g>`;
+  s += `<g opacity="${dim('stat', 1)}"><circle cx="158" cy="90" r="10" fill="#0f2a3a" stroke="${SENSORS.stat.c}" stroke-width="1.5"/><circle cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" r="3.5" fill="${SENSORS.stat.c}"/></g>`;
+  s += `<g opacity="${dim('starch', 1)}"><clipPath id="sc"><rect x="192" y="${(146 - 24 * sc).toFixed(1)}" width="28" height="30"/></clipPath><circle cx="206" cy="134" r="12" fill="#13261f" stroke="${SENSORS.starch.c}" stroke-width="1.5"/><circle cx="206" cy="134" r="11" fill="${SENSORS.starch.c}" clip-path="url(#sc)"/></g>`;
+  s += `<g opacity="${dim('energy', 1)}"><rect x="228" y="106" width="20" height="11" rx="2" fill="#0d1d18" stroke="${SENSORS.energy.c}" stroke-width="1.3"/><rect x="248" y="109" width="2.5" height="5" fill="${SENSORS.energy.c}"/><rect x="230" y="108" width="${(16 * en).toFixed(1)}" height="7" fill="${SENSORS.energy.c}"/></g>`;
+  s += `<g opacity="${dim('eye', 1)}"><path d="M221 55 A10 10 0 0 0 236 70" fill="none" stroke="#5a1d12" stroke-width="5"/><circle cx="229" cy="62" r="5.5" fill="${SENSORS.eye.c}" fill-opacity="${(0.35 + 0.65 * eye).toFixed(2)}" stroke="${SENSORS.eye.c}"/></g>`;
+  // links of the focused card: sensor to part, in the sensor's colour
+  if (fp) for (const id of used) {
+    const [sx, sy] = SENSORS[id].at, [px, py] = fp.at;
+    s += `<path d="M${sx} ${sy} Q ${(sx + px) / 2} ${Math.min(sy, py) - 30} ${px} ${py}" fill="none" stroke="${SENSORS[id].c}" stroke-width="1.6" stroke-dasharray="4 4" opacity=".8"/>`;
+  }
+  if (flash && now < flash.until) {
+    const [sx, sy] = SENSORS[flash.s].at, [px, py] = partById(flash.p).at, f = (flash.until - now) / 1400;
+    s += `<path d="M${sx} ${sy} Q ${(sx + px) / 2} ${Math.min(sy, py) - 30} ${px} ${py}" fill="none" stroke="#fff3b0" stroke-width="${(2 + 3 * f).toFixed(1)}" opacity="${f.toFixed(2)}"/>`;
+  }
+  // tap targets, pulsing while wiring
+  for (const [id, S] of Object.entries(SENSORS)) s += `${ring(S.at[0], S.at[1], 15, S.c, pick === 'sensor')}<circle class="hit" data-sensor="${id}" cx="${S.at[0]}" cy="${S.at[1]}" r="16" fill="transparent"><title>${S.name}</title></circle>`;
+  for (const p of PARTS) s += `${ring(p.at[0], p.at[1], 18, p.c, pick === 'part')}<circle class="hit" data-part="${p.id}" cx="${p.at[0]}" cy="${p.at[1]}" r="18" fill="transparent"><title>${p.name}</title></circle>`;
+  s += '</g>';
+  // light from above
+  s = `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0" stop-opacity="${(0.28 * lightAt(W.t, W.d)).toFixed(3)}"/><stop offset="1" stop-color="#fff3b0" stop-opacity="0"/></linearGradient></defs><rect width="320" height="210" fill="url(#sky)"/>` + s;
+  s += `<text x="10" y="200" fill="#8398aa" font-family="JetBrains Mono, monospace" font-size="10">${hhmm(W.t)} · ${W.d} µm · light ${Math.round(100 * lightAt(W.t, W.d))}% · energy ${Math.round(100 * en)}%</text>`;
+  $('cell').innerHTML = s;
+}
+
+// ----- the editor -----
+function curTerm() { if (!editing) return null; const L = partById(editing.p).lines[editing.li]; return L[editing.list][editing.ti] || null; }
+function renderEditor() {
+  const ed = $('ed'), x = curTerm();
+  ed.classList.toggle('open', !!x);
+  if (!x) {
+    ed.innerHTML = `<div class="ph"><h2>Edit</h2></div><div class="edb"><p class="empty">Tap a coloured word in a sentence to change it here.<br><br>The <b>sensor</b> word picks what the part listens to (or tap the sensor on the cell). The <b>threshold</b> word sets when it counts, on the sensor's own scale, with today's readings drawn behind it.</p></div>`;
+    return;
+  }
+  const p = partById(editing.p), S = SENSORS[x.s], K = KINDS[S.kind];
+  ed.innerHTML = `<div class="ph"><h2>${editing.list === 'unless' ? 'Stops it' : 'It needs'}</h2><span class="sub">${esc(p.name)} · ${p.lines[editing.li].verb}</span></div>
+  <div class="edb">
+    <div class="edq" id="edq"></div>
+    <div><div class="lab">Listens to (or tap a sensor on the cell)</div><div class="row" id="edS">${Object.entries(SENSORS).map(([id, s]) => `<button class="sbtn${id === x.s ? ' on' : ''}" style="--c:${s.c}" data-s="${id}"><i></i>${s.name}</button>`).join('')}</div></div>
+    <div><div class="lab">Counts when it reads</div><div class="seg" id="edOp">${['more', 'less', 'between'].map((o) => `<button data-op="${o}" class="${x.op === o ? 'on' : ''}">${K.ops[o]}</button>`).join('')}</div></div>
+    <div><div class="lab">Threshold · drag it</div><svg id="scale" viewBox="0 0 320 64"></svg></div>
+    <div><div class="lab">Today at this depth (<span style="text-transform:none">${W.d} µm</span>) · where it counts</div><svg id="trace" viewBox="0 0 320 86"></svg><div class="note" id="edNote"></div></div>
+    <div class="edfoot"><button class="del" id="edDel">Remove</button><button class="done" id="edDone">Done</button></div>
+  </div>`;
+  $('edS').onclick = (e) => { const b = e.target.closest('[data-s]'); if (b) setSensor(b.dataset.s); };
+  $('edOp').onclick = (e) => { const b = e.target.closest('[data-op]'); if (!b) return; x.op = b.dataset.op; changed(); };
+  $('edDel').onclick = () => { partById(editing.p).lines[editing.li][editing.list].splice(editing.ti, 1); editing = null; changed(); };
+  $('edDone').onclick = () => { editing = null; changed(); };
+  scaleDrag($('scale'));
+  liveEditor();
+}
+function setSensor(id) {
+  const x = curTerm(); if (!x || x.s === id) return;
+  const was = x.s; x.s = id;
+  if (slotsUsed() > SLOTS) { x.s = was; toast('Nucleus full: free a slot first (remove a condition)'); return; }
+  if (SENSORS[was].kind !== SENSORS[id].kind) Object.assign(x, KINDS[SENSORS[id].kind].def);
+  changed();
+}
+function changed() { drawMaps(); renderCards(); renderEditor(); }
+const xOf = (K, v) => 12 + warp(K, v) * 296;
+const vOf = (K, px) => { const v = unwarp(K, Math.max(0, Math.min(1, (px - 12) / 296))); return Math.max(K.lo, Math.min(K.hi, Math.round(v / K.step) * K.step)); };
+function liveEditor() {
+  const x = curTerm(); if (!x || !$('scale')) return;
+  const S = SENSORS[x.s], K = KINDS[S.kind], stop = editing.list === 'unless', hc = stop ? '#ff6f6f' : '#6fe0a0';
+  $('edq').innerHTML = `<span class="sd" style="--c:${S.c}"></span>${S.name} ${S.verb} ${valueText(x)}`;
+  // the scale: named zones, the band where it counts, the handle(s), the reading now
+  const lo = x.op === 'more' ? x.a : x.op === 'less' ? K.lo : Math.min(x.a, x.b), hi = x.op === 'more' ? K.hi : x.op === 'less' ? x.a : Math.max(x.a, x.b);
+  let s = '';
+  K.zones.forEach((z, i) => { s += `<rect x="${xOf(K, z[0])}" y="18" width="${xOf(K, z[1]) - xOf(K, z[0])}" height="18" fill="${i % 2 ? '#14223a' : '#101b2c'}"/><text x="${(xOf(K, z[0]) + xOf(K, z[1])) / 2}" y="54" text-anchor="middle" fill="#8398aa" font-size="10.5" font-family="Instrument Sans, sans-serif">${z[2]}</text>`; });
+  s += `<rect x="${xOf(K, lo)}" y="22" width="${Math.max(0, xOf(K, hi) - xOf(K, lo))}" height="10" rx="3" fill="${hc}" fill-opacity=".75"/>`;
+  const now = S.read(W.t, W.d);
+  s += `<line x1="${xOf(K, now)}" x2="${xOf(K, now)}" y1="14" y2="40" stroke="#ff8a3c" stroke-width="2.5"/><text x="${xOf(K, now)}" y="10" text-anchor="middle" fill="#ff8a3c" font-size="10" font-family="JetBrains Mono, monospace">now ${K.unit(now)}</text>`;
+  const hs = x.op === 'between' ? [x.a, x.b] : [x.a];
+  for (const v of hs) s += `<circle cx="${xOf(K, v)}" cy="27" r="8" fill="#dce7ec" stroke="${hc}" stroke-width="2.5"/>`;
+  $('scale').innerHTML = s;
+  // today's trace at this depth, green (or red) where it counts
+  const T = (t) => 8 + t / 24 * 304, Y = (v) => 70 - warp(K, v) * 60;
+  let tr = `<rect x="8" y="10" width="304" height="60" fill="#0c1524" stroke="#22324a"/>`;
+  for (const h of [6, 12, 18]) tr += `<line x1="${T(h)}" x2="${T(h)}" y1="10" y2="70" stroke="#22324a"/><text x="${T(h)}" y="82" text-anchor="middle" fill="#5a6f84" font-size="10" font-family="JetBrains Mono, monospace">${String(h).padStart(2, '0')}:00</text>`;
+  tr += `<rect x="8" y="${Y(hi)}" width="304" height="${Math.max(0, Y(lo) - Y(hi))}" fill="${hc}" fill-opacity=".08"/>`;
+  for (const v of hs) tr += `<line x1="8" x2="312" y1="${Y(v)}" y2="${Y(v)}" stroke="${hc}" stroke-dasharray="4 3"/>`;
+  let pts = '', on = '', onAt = 0;
+  for (let i = 0; i <= 96; i++) {
+    const t = i / 4, v = S.read(t, W.d), P = `${T(t).toFixed(1)},${Y(v).toFixed(1)}`;
+    pts += `${P} `;
+    if (holds(x, t, W.d)) { on += (on && on.endsWith(' ') ? '' : ' ') + P + ' '; onAt++; } else on += '|';
+  }
+  tr += `<polyline points="${pts}" fill="none" stroke="${S.c}" stroke-width="1.5" opacity=".7"/>`;
+  for (const seg of on.split('|')) if (seg.trim().split(' ').length > 1) tr += `<polyline points="${seg.trim()}" fill="none" stroke="${hc}" stroke-width="3.5"/>`;
+  tr += `<circle cx="${T(W.t)}" cy="${Y(S.read(W.t, W.d))}" r="4" fill="#ff8a3c"/>`;
+  $('trace').innerHTML = tr;
+  const hrs = (onAt / 97 * 24).toFixed(1);
+  $('edNote').textContent = S.kind === 'tilt' ? 'Tilt does not follow the clock: drag the tilt slider to see it count or not.'
+    : `${stop ? 'Stops it' : 'Counts'} for about ${hrs} h of the day at this depth. Change the depth slider to see another depth.`;
+}
+function scaleDrag(svg) {
+  let which = null;
+  const at = (e) => { const r = svg.getBoundingClientRect(); return (e.clientX - r.left) / r.width * 320; };
+  svg.addEventListener('pointerdown', (e) => {
+    const x = curTerm(); if (!x) return;
+    const K = KINDS[SENSORS[x.s].kind], px = at(e);
+    which = x.op === 'between' && Math.abs(px - xOf(K, x.b)) < Math.abs(px - xOf(K, x.a)) ? 'b' : 'a';
+    svg.setPointerCapture(e.pointerId); move(e);
+  });
+  const move = (e) => {
+    if (!which) return; const x = curTerm(); if (!x) return;
+    x[which] = vOf(KINDS[SENSORS[x.s].kind], at(e));
+    const p = partById(editing.p); drawMap(p);
+    const card = document.querySelector(`[data-card="${p.id}"]`);
+    if (card) card.querySelector('.say').innerHTML = p.lines.map((_, li) => lineHTML(p, li)).join('');
+    live();
+  };
+  svg.addEventListener('pointermove', move);
+  svg.addEventListener('pointerup', () => { which = null; });
+  svg.addEventListener('pointercancel', () => { which = null; });
+}
+
+// ----- taps -----
+$('cards').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const card = el.closest('[data-card]'), p = partById(card.dataset.card), act = el.dataset.act;
+  focus = p.id;
+  if (act === 'focus') { renderCards(); return; }
+  if (act === 'edit') { const [, li, list, ti] = el.closest('[data-term]').dataset.term.split('|'); editing = { p: p.id, li: +li, list, ti: +ti }; renderCards(); renderEditor(); return; }
+  const li = +el.closest('[data-line]').dataset.line.split('|')[1], L = p.lines[li];
+  if (act === 'join') { L.join = L.join === 'and' ? 'or' : 'and'; changed(); return; }
+  if (act === 'speed') { p.speed = { full: 'up', up: 'down', down: 'full' }[p.speed]; renderCards(); return; }
+  if (act === 'add-when' || act === 'add-unless') {
+    const list = act === 'add-when' ? 'when' : 'unless';
+    const s = Object.keys(SENSORS).find((id) => !L.when.concat(L.unless).some((x) => x.s === id)) || 'eye';
+    L[list].push({ s, ...KINDS[SENSORS[s].kind].def });
+    if (slotsUsed() > SLOTS) { L[list].pop(); toast('Nucleus full: free a slot first (remove a condition)'); return; }
+    editing = { p: p.id, li, list, ti: L[list].length - 1 };
+    changed();
+  }
+});
+$('cell').addEventListener('pointerdown', (e) => {   // on the press: the drawing is redrawn every frame, so a click could lose its target
+  const sEl = e.target.closest('[data-sensor]'), pEl = e.target.closest('[data-part]');
+  if (wire === 'sensor' && sEl) { wire = { s: sEl.dataset.sensor }; hint(); return; }
+  if (wire && wire.s && pEl) {
+    const p = partById(pEl.dataset.part), L = p.lines[p.id === 'cham' ? (lightOrDark(wire.s) ? 1 : 0) : 0];
+    const K = KINDS[SENSORS[wire.s].kind], now = SENSORS[wire.s].read(W.t, W.d);
+    L.when.push({ s: wire.s, op: K.def.op, a: Math.round(now / K.step) * K.step, b: K.def.b });
+    if (slotsUsed() > SLOTS) { L.when.pop(); toast('Nucleus full: free a slot first (remove a condition)'); return; }
+    flash = { s: wire.s, p: p.id, until: performance.now() + 1400 };
+    focus = p.id; editing = { p: p.id, li: p.lines.indexOf(L), list: 'when', ti: L.when.length - 1 };
+    wire = null; hint(); changed(); return;
+  }
+  if (!wire && editing && sEl) { setSensor(sEl.dataset.sensor); return; }
+  if (!wire && pEl) { focus = pEl.dataset.part; renderCards(); document.querySelector(`[data-card="${focus}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+});
+const lightOrDark = (s) => s === 'eye';   // wired to the chamber, light goes to "sinks", the rest to "floats" (just a guess to start from)
+function hint() {
+  $('wireBtn').classList.toggle('on', !!wire);
+  $('wireHint').textContent = wire === 'sensor' ? 'Tap a sensor on the cell…' : wire ? `${SENSORS[wire.s].name}: now tap the part it should drive` : '';
+}
+$('wireBtn').onclick = () => { wire = wire ? null : 'sensor'; hint(); };
+$('tIn').oninput = () => { W.t = +$('tIn').value; live(); };
+$('dIn').oninput = () => { W.d = +$('dIn').value; drawMaps(); live(); };
+$('aIn').oninput = () => { W.tilt = +$('aIn').value; drawMaps(); live(); };
+$('play').onclick = () => { W.play = !W.play; $('play').textContent = W.play ? '⏸' : '▶'; };
+
+let last = performance.now(), acc = 0;
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (W.play) { W.t = (W.t + dt * 1.0) % 24; acc += dt; if (acc > 0.12) { acc = 0; live(); } }
+  cellSVG(now);
+  requestAnimationFrame(frame);
+}
+renderCards(); renderEditor(); hint();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
