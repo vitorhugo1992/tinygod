@@ -655,6 +655,7 @@ function ruleCard(targets, where = 'list') {
   card.className = 'wire rcard';
   card.innerHTML = `<div class="say">${sentence(targets, true, where)}</div>`;
   card.onclick = (e) => {
+    linkFocus = key;   // its links are drawn on the cell
     const t = e.target.closest('[data-ed], [data-join], [data-add], [data-alsojoin]');
     if (!t) return;
     e.stopPropagation();
@@ -686,6 +687,7 @@ function ruleCard(targets, where = 'list') {
       if (writeRule(targets, L.go, L.st)) { ruleEd = { key, list, i: arr.length - 1, ei: 0, where }; listParts(); }
     }
   };
+  if (nucleiOf(design).length) card.appendChild(runMapEl(targets));
   if (ruleEd && ruleEd.key === key && ruleEd.where === where) card.appendChild(ruleEditor(targets));
   if (!nucleiOf(design).length) return card;
   // copy this rule, to paste into another part and adjust (author, 2026-10-28)
@@ -792,6 +794,7 @@ function ruleEditor(targets) {
   const rng = () => (ei === 0 || shared ? c : c.also[ei - 1]);   // whose range the scale moves
   const stop = ed.list === 'stop', colour = stop ? '#ff8a7a' : '#6fd3b5';
   const commit = () => writeTerm(targets, ed.list, ed.i, c);
+  ruleEdPick = (id) => { const b = box.querySelector(`[data-pick="${CSS.escape(id)}"]`); if (b) b.click(); };
   const head = stop ? (verbOf(m) === 'floats' ? 'Sinks when' : 'Stops it') : (verbOf(m) === 'floats' ? 'Floats when' : 'It needs');
   const chip = (s, attr, on) => `<button class="sbtn${on ? ' on' : ''}" ${attr} style="--c:${s.colour || '#8197a8'}"><i></i>${esc(s.short)}</button>`;
   const inCond = [c.sensor, ...also.map((e) => e.sensor)];
@@ -799,7 +802,7 @@ function ruleEditor(targets) {
   let h = `<div class="edq"><span class="edh ${stop ? 'st' : ''}">${head}</span> <span data-edq>${termWords(c)}</span></div>`;
   if (!cmp && also.length) h += `<div class="lab">Sensors in this condition</div><div class="row">${inCond.map((id, i) => chip({ ...sensorInfo(id), short: sensorInfo(id).name }, `data-ei="${i}"`, i === ei)).join('')}
     <button class="sbtn" data-anyall title="Any one of them reading so is enough, or all must">${c.all ? 'ALL of them' : 'ANY of them'}</button>${ei ? '<button class="sbtn" data-unei title="Take this sensor out of the condition">✕ out</button>' : ''}</div>`;
-  h += `<div class="lab">Listens to${also.length ? ' (the one picked above)' : ''}</div><div class="row">${sensors.map((s) => chip(s, `data-pick="${esc(s.id)}"`, s.id === sid)).join('')}</div>`;
+  h += `<div class="lab">Listens to${also.length ? ' (the one picked above)' : ''} · or tap a sensor on the cell</div><div class="row">${sensors.map((s) => chip(s, `data-pick="${esc(s.id)}"`, s.id === sid)).join('')}</div>`;
   if (!cmp && free.length) h += `<div class="row"><button class="add" data-plus title="Another sensor in this condition (say both eyespots): any of them, or all of them">+ another sensor</button></div>`;
   h += `<div class="lab">Counts when the reading is</div><div class="seg"><button data-out="0" class="${!cmp && !c.not ? 'on' : ''}">inside the range</button><button data-out="1" class="${!cmp && c.not ? 'on' : ''}">outside it</button>${sensors.length > 1 ? `<button data-cmp class="${cmp ? 'on' : ''}" title="More or less than another sensor's reading (say the right eyespot more than the left)">than another sensor</button>` : ''}</div>`;
   if (cmp) {
@@ -814,6 +817,9 @@ function ruleEditor(targets) {
   box.innerHTML = h;
   const redraw = () => {
     box.querySelector('[data-edq]').innerHTML = termWords(c);
+    // the card's map follows the change as it is dragged
+    const mp = box.closest('.rcard') && box.closest('.rcard').querySelector('.rmap');
+    if (mp) { const L2 = listsOf(m); (stop ? L2.st : L2.go)[ed.i] = c; mp.querySelector('.cap').innerHTML = drawRunMap(mp.querySelector('canvas'), m, [...L2.go, ...L2.st]); }
     if (cmp) return;
     const r = rng();
     box.querySelector('.scale').innerHTML = scaleSVG(sid, r.min, r.max, c.not, colour);
@@ -884,6 +890,7 @@ function dragScale(svg, id, rng, onMove, onDone, onZone, minGap = 0) {
 // the beat speed: always full, or following a reading (up: stopped at the low end of its range, full at the high end;
 // down: the other way round)
 function speedEditor(targets, box) {
+  ruleEdPick = null;
   const sp0 = targets[0].joint.speed, sp = sp0 ? { ...sp0 } : null, sensors = sensorList();
   let h = `<div class="edq"><span class="edh">Beat speed</span></div><div class="row"><button class="sbtn${sp ? '' : ' on'}" data-sp="">always full</button>${sensors.map((s) => `<button class="sbtn${sp && sp.sensor === s.id ? ' on' : ''}" data-sp="${esc(s.id)}" style="--c:${s.colour || '#8197a8'}"><i></i>follows ${esc(s.short)}</button>`).join('')}</div>`;
   if (sp) h += `<div class="seg"><button data-dir="up" class="${sp.down ? '' : 'on'}">faster as it reads more</button><button data-dir="down" class="${sp.down ? 'on' : ''}">faster as it reads less</button></div>
@@ -909,6 +916,143 @@ function speedEditor(targets, box) {
   });
   return box;
 }
+
+// ----- the map of when it runs (author's mock-up, 2026-11-01): time of day across, depth down, coloured where the rule
+// would make the part act. A guess from the rule alone: light sensors read the light at that hour and depth (facing as
+// they face now), energy and stores as they were at that hour over the last day (or as now), anything else as now. -----
+const MAP_W = 96, MAP_H = 40;
+// what each reading would be at hour h, depth dz (µm): a function (id) => value
+function mapReader(live) {
+  const L = PARAMS.light, facing = {}, byHour = {};
+  if (live) {
+    // each eyespot as squarely as it has faced the light lately (the journal's running mean); none yet: facing up
+    const face = (live.journal && live.journal.face) || {};
+    for (const s of live.sensors) if (s.kind === 'light') facing[s.id] = face[s.id] !== undefined ? Math.max(PARAMS.sensor.scatter, face[s.id]) : 1;
+    const j = live.journal, from = worldTime(world) - PARAMS.metab.day;
+    if (j) for (const x of j.s) if (x.t > from) {
+      const h = Math.floor(clockOf(x.t)) % 24;
+      for (const [id, f] of [['energy', 'E'], ['starch', 'starch'], ['oil', 'oil'], ['health', 'health']]) if (x[f] !== null && x[f] !== undefined) {
+        const b = byHour[id] || (byHour[id] = Array.from({ length: 24 }, () => [0, 0]));
+        b[h][0] += x[f]; b[h][1]++;
+      }
+    }
+  }
+  return (h, dz) => (id) => {
+    const kind = sensorKind(id);
+    if (kind === 'light') {
+      if (!world.light) return 0;
+      const sun = world.day ? Math.sqrt(Math.max(0, Math.sin(2 * Math.PI * (h - 6) / 24))) : 1;
+      return L.strength * sun * Math.exp(-L.attenuation * dz) * (facing[id] ?? 1);
+    }
+    if (kind === 'chem') return nutrientAt(TH - dz);
+    const b = byHour[id] && byHour[id][Math.floor(h) % 24];
+    if (b && b[1]) return b[0] / b[1];
+    const r = live && liveReading(live, id);
+    return r ? r.value : 0.5;
+  };
+}
+const clockOf = (t) => { const h = 6 + 24 * (t / PARAMS.metab.day + PARAMS.metab.dawn); return h - 24 * Math.floor(h / 24); };
+// one condition, without hysteresis
+function condHolds(c, read) {
+  const one = (id, a, b) => { const v = read(id); return (a <= 0 || v >= a) && (b >= 1 || v <= b); };
+  if (c.vs !== undefined) return (read(c.sensor) - read(c.vs) > PARAMS.sensor.compareMargin) !== !!c.not;
+  let ok = one(c.sensor, c.min, c.max);
+  for (const e of c.also || []) { const k = one(e.sensor, e.min, e.max); ok = c.all ? ok && k : ok || k; }
+  return ok !== !!c.not;
+}
+// a rule (canon order: GO conditions, each `or` starting a group, then STOP ones): { go, stop }
+function ruleAt(R, read) {
+  let any = false, all = false, group = true, stop = false;
+  for (const c of R) {
+    const ok = condHolds(c, read);
+    if (c.stop) { if (ok) stop = true; continue; }
+    if (c.or && any) { all = all || group; group = true; }
+    any = true;
+    if (!ok) group = false;
+  }
+  return { any, go: any && (all || group), stop };
+}
+// draw the map of rule R for part m on canvas cv; returns the caption
+function drawRunMap(cv, m, R) {
+  const verb = verbOf(m), live = cell && cell.design === design ? cell : null, reader = mapReader(live);
+  const g = groupOfPart(m), col = (g && colourOf(g)) || '#6fd3b5';
+  const ctx2 = cv.getContext('2d'), img = ctx2.createImageData(MAP_W, MAP_H);
+  const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+  const ON = hex(col), FLOAT = [205, 238, 255], SINK = [45, 91, 209], REST = [159, 208, 255];
+  let on = 0, fl = 0, sk = 0;
+  for (let x = 0; x < MAP_W; x++) {
+    const h = (x + 0.5) / MAP_W * 24, night = world.day && Math.sin(2 * Math.PI * (h - 6) / 24) <= 0;
+    for (let y = 0; y < MAP_H; y++) {
+      const dz = (y + 0.5) / MAP_H * TH, r = ruleAt(R, reader(h, dz));
+      let c = null;
+      if (verb === 'floats') { if (r.stop) { c = SINK; sk++; } else if (r.go) { c = FLOAT; fl++; } }
+      else if (verb === 'rests') { if (r.go && !r.stop) { c = REST; on++; } }
+      else if ((r.any ? r.go : true) && !r.stop) { c = ON; on++; }
+      const i = (y * MAP_W + x) * 4, base = night ? [9, 14, 24] : [17, 28, 46];
+      const v = c || base;
+      img.data[i] = v[0]; img.data[i + 1] = v[1]; img.data[i + 2] = v[2]; img.data[i + 3] = c ? 210 : 255;
+    }
+  }
+  ctx2.putImageData(img, 0, 0);
+  const n = MAP_W * MAP_H, pc2 = (v) => `<b>${Math.round(v / n * 100)}%</b>`;
+  const what = verb === 'floats' ? `Floats in ${pc2(fl)}, sinks in ${pc2(sk)} of the map; neutral elsewhere`
+    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : 'Fires'} in ${pc2(on)} of the map`;
+  return `${what}${live ? '' : ' (select a cell of this design for its eyespots\' facing and its day)'}.`;
+}
+// the map under a card's sentence: a canvas, the axes, a dot for the selected cell now (moved every frame)
+function runMapEl(targets, R) {
+  const m = targets[0], k0 = design.parts.indexOf(m);
+  const box = document.createElement('div'); box.className = 'rmap';
+  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
+    <div class="mbox"><canvas width="${MAP_W}" height="${MAP_H}"></canvas><span class="ml t">surface</span><span class="ml b">2 mm</span>
+    <span class="mx" style="left:25%">06</span><span class="mx" style="left:50%">12</span><span class="mx" style="left:75%">18</span><i class="mdot" data-mapdot="${k0}"></i></div><div class="cap"></div>`;
+  box.redraw = () => { box.querySelector('.cap').innerHTML = drawRunMap(box.querySelector('canvas'), m, R || canon(m)); };
+  box.redraw();
+  return box;
+}
+
+// ----- the rule's links on the cell (author's mock-up, 2026-11-01): the card last tapped (or opened) has its sensors
+// joined to the part it drives by dashed lines in each sensor's colour on the selected cell (red for an "unless") -----
+let linkFocus = null;   // partKey of the card whose links are drawn
+function drawRuleLinks(X, Y, s) {
+  if (!linkFocus || !cell || cell.design !== design || arrange) return;
+  const g = partGroups(design.parts || []).find((x) => partKey(x.members[0]) === linkFocus);
+  const targets = g && targetsOf(g);
+  if (!targets || !targets.length) return;
+  const c = cell.drawn || cell, m = targets[0], k0 = design.parts.indexOf(m);
+  const bodyAt = (x, y) => [c.cx[0] + c.cs[0] * x - c.sn[0] * y, c.cy[0] + c.sn[0] * x + c.cs[0] * y];
+  // where the part is: its first piece's root, or the organelle's middle
+  let to = null;
+  const i = c.pieces.findIndex((p) => p.part === k0 && p.kind !== 'body');
+  if (i > 0) { const p = c.pieces[i], h = p.L / 2; to = [c.cx[i] - c.cs[i] * h, c.cy[i] - c.sn[i] * h]; }
+  const inc = c.pieces[0].inclusions.find((x) => x.part === k0);
+  if (!to && inc) to = bodyAt(inc.x, inc.y);
+  if (!to) return;
+  const sensorAt = (id) => {
+    const sn = c.sensors.find((x) => x.id === id);
+    if (!sn) return null;
+    const j = sn.piece;
+    return [c.cx[j] + c.cs[j] * sn.x - c.sn[j] * sn.y, c.cy[j] + c.sn[j] * sn.x + c.cs[j] * sn.y];
+  };
+  const seen = new Set();
+  ctx.save();
+  ctx.lineWidth = 1.8; ctx.setLineDash([5, 4]);
+  for (const cond of canon(m)) for (const id of [cond.sensor, cond.vs, ...(cond.also || []).map((e) => e.sensor)]) {
+    if (id === undefined || seen.has(`${id}${cond.stop}`)) continue;
+    seen.add(`${id}${cond.stop}`);
+    const from = sensorAt(id);
+    if (!from) continue;   // a built-in reading (energy, stores, plastid health): inside, no spot
+    const col = cond.stop ? '#ff6f6f' : sensorInfo(id).colour || '#fff3b0';
+    ctx.strokeStyle = col;
+    ctx.beginPath(); ctx.moveTo(X(from[0]), Y(from[1])); ctx.lineTo(X(to[0]), Y(to[1])); ctx.stroke();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X(from[0]), Y(from[1]), 3, 0, 2 * Math.PI); ctx.fill();
+  }
+  ctx.setLineDash([]); ctx.strokeStyle = '#fff3b0'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(X(to[0]), Y(to[1]), 5, 0, 2 * Math.PI); ctx.stroke();
+  ctx.restore();
+}
+// while a condition is open in the editor, tapping a sensor on the cell puts it in the condition (set by the editor)
+let ruleEdPick = null;
 
 // ----- live: each condition green while it holds (red for an "unless" that is stopping the part), the state pills, the
 // editors' needles; for the selected cell if it is this design -----
@@ -943,6 +1087,10 @@ function ruleLive() {
     const r = live && liveRule(live, Number(el.dataset.pill));
     el.textContent = r ? r.state : '';
     el.className = `pill ${r ? r.cls : ''}`;
+  }
+  for (const d of document.querySelectorAll('[data-mapdot]')) {   // the selected cell on the maps: its hour and depth
+    d.style.display = live ? '' : 'none';
+    if (live) { d.style.left = `${clock(world) / 24 * 100}%`; d.style.top = `${Math.max(0, Math.min(1, (TH - live.q[1]) / TH)) * 100}%`; }
   }
   for (const g of document.querySelectorAll('[data-needle]')) {
     const sn = live && liveReading(live, g.dataset.needle);
@@ -1064,7 +1212,7 @@ function listParts() {
     // tapping the name folds or opens the card, and lights the part up in the tank
     row.querySelector('.pnm').onclick = (e) => {
       if (e.target.classList.contains('ren')) return;
-      if (targets.length) { if (open) openCards.delete(key); else openCards.add(key); }
+      if (targets.length) { if (open) openCards.delete(key); else { openCards.add(key); linkFocus = key; } }
       glow = { parts: new Set(g.members.map((x) => design.parts.indexOf(x))), until: performance.now() + 1500 };
       if (targets.length) listParts();
     };
@@ -1277,7 +1425,7 @@ function calmPose(c, realDt, speed) {
 }
 
 let last = performance.now();
-let budgetAt = 0;
+let budgetAt = 0, mapsAt = 0;
 function frame(now) {
   const elapsed = Math.min((now - last) / 1000, 0.1);
   last = now;
@@ -1297,6 +1445,10 @@ function frame(now) {
     $('stats').style.top = desk ? '8px' : `${$('bar').offsetHeight + 14}px`;
     if (desk) topClock();
     if (now - budgetAt > 1000) { budgetAt = now; showBudget(); }   // the depth it is judged at follows the cell
+    if (now - mapsAt > 4000) {   // the rule maps follow the cell's day (not one being edited: it shows the change)
+      mapsAt = now;
+      for (const el of document.querySelectorAll('.rmap')) if (el.redraw && !el.closest('.rcard').querySelector('.red')) el.redraw();
+    }
   }
   requestAnimationFrame(frame);
 }
@@ -1374,11 +1526,14 @@ function showBudget() {
   const warn = [];
   const rests = (design.parts || []).some((x) => x.material === 'nucleus' && x.joint && controlsOf(x.joint).length);
   const still = rests ? b.upkeep * PARAMS.metab.rest : b.upkeep;   // what a night costs a second, resting if it has a rest rule
-  if (b.supply > 0 && b.supply < still) warn.push(`at night its stores can give only ${k(b.supply)} pJ/s, less than it spends ${rests ? 'even resting' : 'sitting still'} (${k(still)}): it starves with store left (a bigger store, or starch: 4× quicker)`);
-  else if (b.supply > 0 && b.beat > 0 && b.supply < b.upkeep + b.beat) warn.push(`swimming at night it spends ${k(b.upkeep + b.beat)} pJ/s, more than its stores can give (${k(b.supply)}): it would starve with store left${rests ? `; resting it spends ${k(still)}` : ''} (a bigger store, or starch: 4× quicker)`);
-  if (rests && b.earn > 0 && b.deepest < TH - 50) warn.push(b.deepest < 0 ? 'even at the surface its plastids earn less than its upkeep at noon: resting, it may never wake by earning'
-    : `below ~${b.deepest} µm its plastids earn less than its upkeep even at noon: resting there, its energy can't rise to wake it`);
-  if (warn.length) el.innerHTML += warn.map((w) => `<span class="warn">⚠ ${w}</span>`).join('');
+  // each warning short, its explanation in its tooltip
+  if (b.supply > 0 && b.supply < still) warn.push([`stores too slow to feed it at night${rests ? ', even resting' : ''} (${k(b.supply)} of ${k(still)} pJ/s)`,
+    `At night its stores can give only ${k(b.supply)} pJ/s, less than it spends ${rests ? 'even resting' : 'sitting still'} (${k(still)}): it starves with store left. A bigger store, or starch (4× quicker), helps.`]);
+  else if (b.supply > 0 && b.beat > 0 && b.supply < b.upkeep + b.beat) warn.push([`stores too slow for swimming at night (${k(b.supply)} of ${k(b.upkeep + b.beat)} pJ/s)`,
+    `Swimming at night it spends ${k(b.upkeep + b.beat)} pJ/s, more than its stores can give (${k(b.supply)}): it would starve with store left${rests ? `; resting it spends ${k(still)}` : ''}. A bigger store, or starch (4× quicker), helps.`]);
+  if (rests && b.earn > 0 && b.deepest < TH - 50) warn.push(b.deepest < 0 ? ['resting, it may never wake: it earns less than its upkeep even at the surface', 'Even at the surface at noon its plastids earn less than its upkeep.']
+    : [`resting below ~${b.deepest} µm, it can't wake`, `Below ~${b.deepest} µm its plastids earn less than its upkeep even at noon (they work while it rests, at 40%, as does upkeep): resting there, its energy can't rise to wake it.`]);
+  if (warn.length) el.innerHTML += warn.map(([w, why]) => `<span class="warn" title="${esc(why)}">⚠ ${w}</span>`).join('');
   el.title = `An estimate from the design, swimming not counted (beating costs extra). Upkeep ${Math.round(b.upkeep)} pJ/s: a day costs ${Math.round(b.cost / 1000)} k, a night ${Math.round(b.night / 1000)} k; `
     + `its plastids earn ${Math.round(b.earn / 1000)} k a day at ${depth} µm; full stores and half its pool hold ${Math.round(b.stores / 1000)} k, and can give ${Math.round(b.supply)} pJ/s; beating, its flagella cost ${Math.round(b.beat)} pJ/s; it earns its upkeep at noon down to ${b.deepest < 0 ? 'nowhere' : `${b.deepest} µm`}. Resting: upkeep at ${Math.round(PARAMS.metab.rest * 100)}%.`;
 }
@@ -1585,6 +1740,7 @@ function draw() {
   }
   drawPreview(X, Y, s);
   drawLinks(X, Y, s);
+  drawRuleLinks(X, Y, s);
   drawForces(X, Y, s);
   let bottom = H;   // the day graph sits along the bottom; the scale and the clock above it
   if (graphOn) {
@@ -2414,7 +2570,8 @@ function showPartAt(t, e) {
   const g = partGroups(design.parts || []).find((x) => x.members.includes(design.parts[best]));
   if (!g) return;
   const key = partKey(g.members[0]);
-  if (targetsOf(g).length) openCards.add(key);
+  if (ruleEdPick && ruleEd && g.category === 'Sensors') { ruleEdPick(g.members[0].id); return; }   // editing a condition: this sensor
+  if (targetsOf(g).length) { openCards.add(key); linkFocus = key; }
   glow = { parts: new Set(g.members.map((x) => design.parts.indexOf(x))), until: performance.now() + 1500 };
   showSection('parts');
   listParts();
@@ -2481,7 +2638,34 @@ function showSection(name) {
 for (const b of $('tabs').querySelectorAll('button')) b.onclick = () => showSection(b.dataset.sec);
 showSection((() => { try { return localStorage.getItem(SECTION_KEY); } catch (e) { return null; } })() || 'add');
 
-// Part buttons by category (short names); tapping one picks it
+// A small picture of each part (as in design/desk-mockup.html), in the colour it is drawn in the tank: circles C x y r,
+// ellipses E x y rx ry, paths otherwise; a trailing * fills it faintly
+const PART_ICONS = {
+  'Wave tail (swims)': ['#ff8a6c', 'C5 12 3*|M8 12 C12 5 15 19 19 12 S26 5 31 12'],
+  'Flexible oar (swims)': ['#ff8a6c', 'C5 18 3*|M8 17 L17 11 Q24 6 31 8'],
+  'Spine': ['#a8d8a0', 'C5 20 3*|M8 18 L31 4'],
+  'Burst organ (escape)': ['#ffb54a', 'C5 12 3*|M8 12 q3 -7 5 0 t5 0 t5 0 t5 0 t4 0'],
+  'Nucleus (the brain)': ['#c9b6ea', 'C17 12 8*|C15 11 2.2*|C20 15 1|C13 15 1'],
+  'Plastid (makes energy)': ['#8fc94a', 'E17 12 12 6*|M8 12 L26 12'],
+  'Energy store': ['#ece3c4', 'C17 12 7|M11 14.5 Q17 13 23 14.5 L23 16 Q17 21 11 16 Z*'],
+  'Buoyancy chamber': ['#7cb0ff', 'C17 12 8*|M13 8 l2 0|M19 9 l1 0|M15 14 l1 0'],
+  'Pad': ['#e070ff', 'M5 18 Q17 4 29 18|M8 20 L26 20'],
+  'Light sensor (eyespot)': ['#ff8a3c', 'C17 12 5*|M7 6 L11 9|M17 2 L17 5|M27 6 L23 9'],
+  'Statolith (which way is up)': ['#e8eef5', 'C17 12 8|C17 17.5 2.6*'],
+  'Feeler': ['#5fd0ff', 'C5 20 3*|M8 18 Q14 5 30 6|M27 3 l3 3 -3 3'],
+};
+function partIcon(name) {
+  const [col, spec] = PART_ICONS[name] || ['#8197a8', 'C17 12 7'];
+  const el = spec.split('|').map((q) => {
+    const fill = q.endsWith('*'), d = fill ? q.slice(0, -1) : q, f = fill ? ` fill="${col}" fill-opacity=".25"` : ' fill="none"';
+    const n = d.slice(1).split(' ').map(Number);
+    if (d[0] === 'C') return `<circle cx="${n[0]}" cy="${n[1]}" r="${n[2]}"${f}/>`;
+    if (d[0] === 'E') return `<ellipse cx="${n[0]}" cy="${n[1]}" rx="${n[2]}" ry="${n[3]}"${f}/>`;
+    return `<path d="${d}"${f}/>`;
+  }).join('');
+  return `<svg viewBox="0 0 34 24" stroke="${col}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${el}</svg>`;
+}
+// Part buttons by category (short names, small pictures); tapping one picks it
 const SHORT = {
   'Wave tail (swims)': 'Wave tail', 'Flexible oar (swims)': 'Flexible oar', 'Stiff flap (goes nowhere)': 'Stiff flap',
   'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Spring',
@@ -2493,12 +2677,19 @@ const SHORT = {
   'Energy store': 'Energy store', 'Buoyancy chamber': 'Buoyancy chamber', 'Statolith (which way is up)': 'Statolith',
   'Nutrient sensor': 'Nutrients', 'Vacuole (store or float)': 'Vacuole',
 };
+// shown in four rows: the small categories outside the body share one
+const SHOWN = {};
 for (const [cat, names] of Object.entries(CATEGORIES)) {
+  const row = ['Spines & appendages', 'Escapes', 'Pads'].includes(cat) ? 'On the outside' : cat;
+  (SHOWN[row] = SHOWN[row] || []).push(...names);
+}
+for (const [cat, names] of Object.entries(SHOWN)) {
   const head = document.createElement('div'); head.className = 'cat'; head.textContent = cat;
   const chips = document.createElement('div'); chips.className = 'chips';
   for (const name of names) {
     const b = document.createElement('button');
-    b.textContent = SHORT[name] || name; b.title = name; b.dataset.v = name;
+    b.className = 'pbtn'; b.title = name; b.dataset.v = name;
+    b.innerHTML = `${partIcon(name)}<span>${SHORT[name] || name}</span>`;
     b.onclick = () => {   // picking a part shows its ghost; tapping the lit one again hides it
       if (!editing && previewOn && $('partWhat').value === name) { previewOn = false; updatePreview(); return; }
       previewOn = true; showSection('add');

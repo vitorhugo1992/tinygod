@@ -61,6 +61,11 @@
   .cat { color: var(--dim); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
   .chips { display: flex; flex-wrap: wrap; gap: 4px; }
   .chips button { padding: 4px 8px; font-size: 12px; }
+  /* the part buttons: a small picture over the name, in a grid (author, 2026-11-01: "i like the other icons") */
+  #chips .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 5px; }
+  #chips .pbtn { display: grid; justify-items: center; align-content: start; gap: 2px; padding: 6px 2px 5px; font-size: 11.5px; line-height: 1.15; text-align: center; }
+  #chips .pbtn svg { width: 34px; height: 24px; }
+  #chips .pbtn.on { border-color: var(--h-add); background: rgba(242,180,90,.12); }
   #addPart { width: 100%; padding: 8px; font-size: 14px; background: var(--on); border-color: var(--accent); }
   #buildErr, #err { color: var(--bad); }
   /* the energy budget, always in sight while building */
@@ -105,6 +110,17 @@
   .rcard .never, .psum .never { color: var(--dim); font-style: italic; }
   .rcard .add { font-size: 11.5px; padding: 1px 8px; border-style: dashed; color: var(--dim); background: none; vertical-align: 1px; }
   .psum b.s { font-weight: 600; color: var(--text); }
+  /* the map of when it runs: time across, depth down */
+  .rmap { display: grid; gap: 3px; margin: 2px 0 4px; max-width: 520px; }
+  .rmap .mh { display: flex; justify-content: space-between; font: 10.5px ui-monospace, Consolas, monospace; color: #5f7488; letter-spacing: .04em; }
+  .rmap .mbox { position: relative; }
+  .rmap canvas { width: 100%; height: 72px; display: block; border-radius: 6px; border: 1px solid var(--line); image-rendering: pixelated; }
+  .rmap .ml, .rmap .mx { position: absolute; font: 9.5px ui-monospace, Consolas, monospace; color: rgba(216,228,234,.55); pointer-events: none; }
+  .rmap .ml { left: 5px; } .rmap .ml.t { top: 2px; } .rmap .ml.b { bottom: 2px; }
+  .rmap .mx { bottom: 2px; transform: translateX(-50%); }
+  .rmap .mdot { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #fff3b0; box-shadow: 0 0 0 2px #0b1322; }
+  .rmap .cap { font-size: 11.5px; color: var(--dim); }
+  .rmap .cap b { color: var(--text); }
   /* the editor, under the sentence */
   .red { display: grid; gap: 8px; margin: 6px 0 4px; padding: 10px; border: 1px solid #3b4f6c; border-radius: 10px; background: #0d1626; }
   .red .edq { font-size: 14px; font-weight: 600; line-height: 1.5; }

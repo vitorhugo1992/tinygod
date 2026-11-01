@@ -27,6 +27,13 @@ export function note(world, c) {
   const health = inc.some((i) => i.material === 'plastid') ? plastidHealth(world, c) : null;
   j.s.push({ t, depth, E, starch, oil, gas, health, sun, up });
   if (j.s.length > KEEP) j.s.shift();
+  // how squarely each eyespot has faced the light lately (its reading against the light there; ~1 min memory), for the
+  // rule maps
+  const here = lightAt(world, c.q[1]);
+  if (here > 0.01) for (const s of c.sensors) if (s.kind === 'light') {
+    const f = Math.min(1, s.value / here), face = j.face || (j.face = {});
+    face[s.id] = face[s.id] === undefined ? f : face[s.id] * 0.98 + f * 0.02;
+  }
 
   const w = j.was;
   const say = (text, serious = false) => { j.ev.push({ t, h: clock(world), text, serious }); if (j.ev.length > 40) j.ev.shift(); };
