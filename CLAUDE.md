@@ -358,6 +358,22 @@ tipped it front-down even with all the weight behind (starch at −6 µm); the f
 again); (2) on the floor jumps don't turn the cell at all (a one-sided "righting kick" did nothing), so a jumper must
 land front-up; (3) the burst organ fires while resting (only flagella stop); (4) a rule with a mirrored pair, three
 eyes and rest fills the 8 slots exactly (a righting kick needed 9-10).
+**16 brain slots (author, 2026-11-01: "increase the starter brain slots, so creativity is not constrained").** The
+nucleus keeps its size (r 4.3 µm, no more room taken); a slot is smaller: PARAMS.brain.slotArea 3.6 µm² (was 7: 8
+slots). Check 28p's too-small nucleus is now r 2 (3 slots). Bigger or smaller nuclei by progress stay for later.
+**Claude's sixth species, Trochilla (the author's idea, 2026-11-01: "a species surrounded by oars or tails, with a
+statolith that it uses to maneuver"; designs/trochilla.json).** Round, r 10; four 40 µm flexible oars in a plus; two
+small statoliths at right angles (facing front and left: one alone can't tell left from right); four eyespots on the
+diagonals; 11 of 16 slots. **Each oar rows only while it points within ~80° of down** (one statolith condition per oar:
+the back oar while "Statolith 0°" reads above 0.6, the front below 0.4, the sides on "Statolith 90°"), so the oars
+underneath always push it up: it has no right way up and climbs from the floor lying any way (Saltella can't). Plus
+the light: row while no eyespot sees more than 25% and one sees more than 1.5%; rest below 1%. **Surprise: it
+cartwheels** (~20°/s): each stroke twists the body, and the job passes oar to oar. Measured: climbs ~9.5 µm/s from any
+start angle; zones of ±45° (one oar at a time) climbed half as fast, and longer oars slower (60 µm: 2 µm/s, 80: 1);
+stopping at 15% sun it rode too deep (starch never past 65%), at 35% it spent nights near the surface. Its day: rolls up
+at dawn, rides 700-900 µm, follows dusk to ~400 µm, rests and sinks to ~1.7 mm. 3 days from the floor at 0/45/90/180/
+270°: never starving. Seen in the page: the rule sentence is long (four eyespots named twice): the case for naming a
+group of sensors ("any eyespot").
 **The mock-up's last pieces (built 2026-11-01; author: "better do this now").** (1) **Part buttons with small pictures** (sandbox/main.js PART_ICONS, partIcon), in the colour each part is drawn in the tank, in a grid; four rows: Flagella, On the outside (spine, spring, pad), Inside the cell, Sensors. (2) **The map of when it runs** under every rule card: time across (night darker), depth down, coloured where the rule makes the part act (its colour; a chamber pale FLOAT / deep blue SINK; resting pale blue), the selected cell as a dot; a guess from the rule: light at that hour and depth as each eyespot has faced the light lately (journal.js keeps a ~1 min running mean, j.face; none yet: facing up), energy and stores as at that hour over the last day, the rest as now; redrawn every 4 s and live while a range is dragged (sandbox/main.js mapReader, ruleAt, drawRunMap). (3) **Links on the cell**: the card last tapped or opened has its sensors joined to its part by dashed lines in the sensors' colours (red for unless) on the selected cell (drawRuleLinks); **tapping a sensor on the cell while a condition is open puts it in the condition**. A separate 🔗 Wire mode was not built (Claude: filler now that the sentences do it; the author asked).
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor

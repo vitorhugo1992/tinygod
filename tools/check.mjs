@@ -894,14 +894,14 @@ const runDay = (design, y, seconds, opts = {}) => {
   const eye = { type: 'sensor', id: 'eye', at: [10, 0], kind: 'light' };
   const rule = [{ sensor: 'eye', min: 0.1, max: 1 }, { sensor: 'energy', min: 0.2, max: 1 }, { sensor: 'starch', min: 0.5, max: 1, stop: true }];
   const d = (r) => ({ body: { radius: 10 }, parts: [nucleus(r), eye, tail(rule)] });
-  const use = brainUse(d(3));   // eyespot, energy, starch, one GO box, the STOP box
+  const use = brainUse(d(2));   // eyespot, energy, starch, one GO box, the STOP box
   const refuses = (x) => { try { build(x); return ''; } catch (e) { return e.message; } };
-  const small = refuses(d(3)), big = refuses(d(4.5)), two = refuses({ body: { radius: 10 }, parts: [nucleus(2, [-4, 0]), nucleus(2, [4, 0])] });
+  const small = refuses(d(2)), big = refuses(d(4.5)), two = refuses({ body: { radius: 10 }, parts: [nucleus(2, [-4, 0]), nucleus(2, [4, 0])] });
   check('the nucleus is the brain box: slots grow with its size; too many modules for its slots, or two nuclei, do not build',
     slotsOf(2) < slotsOf(3) && slotsOf(3) < slotsOf(4.5) && use.total === 5 && use.boxes === 2 && small.startsWith('nucleus full') && big === '' &&
     two === 'a cell has one nucleus' && brainProblem({ body: { radius: 10 }, parts: [eye, tail(rule)] }) === '',
     `slots at r 2, 3, 4.5 µm: ${slotsOf(2)}, ${slotsOf(3)}, ${slotsOf(4.5)}. Eyespot + energy + starch, a GO box and a STOP box: ` +
-    `${use.total} modules; r 3: "${small}"; r 4.5: builds; two nuclei: "${two}"`);
+    `${use.total} modules; r 2: "${small}"; r 4.5: builds; two nuclei: "${two}"`);
 }
 
 // 29. Determinism with day, metabolism and stores

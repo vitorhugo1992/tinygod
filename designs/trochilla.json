@@ -1,0 +1,654 @@
+{
+  "name": "Trochilla (Claude, the cartwheel)",
+  "from": "Claude",
+  "note": "The author's idea: oars all round and statoliths to steer. Round, 20 µm; four 40 µm flexible oars in a plus (front, back, left, right); two small statoliths at right angles (one faces the front, one the left: together they know which way up the cell is; one alone can't tell left from right); four eyespots on the diagonals. Each oar rows only while it points within ~80° of DOWN (its statolith above 60% or below 40%), so whatever way up the cell is, the oars underneath push it up: it has no right way up and climbs from the floor lying any way (Saltella can't). Each stroke twists the body, so it doesn't swim straight: it cartwheels (~20°/s), handing the job from oar to oar. Oars row while no eyespot sees more than 25% sun and one sees more than 1.5%; it rests when all see less than 1%. Its day: rolls up from the depths at dawn (~9 µm/s), rides 700-900 µm, chases the dusk light to ~400 µm, rests and sinks to ~1.7 mm by dawn (off the surface at night). Measured from the floor at any angle: 3 days, never starving, starch full by mid-afternoon. Uses 11 brain slots (needs the 16-slot nucleus).",
+  "design": {
+    "body": {
+      "radius": 10
+    },
+    "parts": [
+      {
+        "type": "sensor",
+        "id": "eyeFL",
+        "label": "Light sensor",
+        "at": [
+          7.0710678118654755,
+          7.071067811865475
+        ],
+        "angle": 45,
+        "kind": "light",
+        "cone": 180,
+        "build": {
+          "tpl": "Light sensor (eyespot)",
+          "where": 45,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "eyeFL"
+        },
+        "name": "Eyespot (front-left)"
+      },
+      {
+        "type": "sensor",
+        "id": "eyeBL",
+        "label": "Light sensor",
+        "at": [
+          -7.071067811865475,
+          7.0710678118654755
+        ],
+        "angle": 135,
+        "kind": "light",
+        "cone": 180,
+        "build": {
+          "tpl": "Light sensor (eyespot)",
+          "where": 135,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "eyeBL"
+        },
+        "name": "Eyespot (back-left)"
+      },
+      {
+        "type": "sensor",
+        "id": "eyeBR",
+        "label": "Light sensor",
+        "at": [
+          -7.071067811865477,
+          -7.071067811865475
+        ],
+        "angle": 225,
+        "kind": "light",
+        "cone": 180,
+        "build": {
+          "tpl": "Light sensor (eyespot)",
+          "where": 225,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "eyeBR"
+        },
+        "name": "Eyespot (back-right)"
+      },
+      {
+        "type": "sensor",
+        "id": "eyeFR",
+        "label": "Light sensor",
+        "at": [
+          7.071067811865474,
+          -7.071067811865477
+        ],
+        "angle": 315,
+        "kind": "light",
+        "cone": 180,
+        "build": {
+          "tpl": "Light sensor (eyespot)",
+          "where": 315,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "eyeFR"
+        },
+        "name": "Eyespot (front-right)"
+      },
+      {
+        "type": "segment",
+        "id": "oarF_0",
+        "label": "Flexible oar",
+        "at": [
+          10,
+          0
+        ],
+        "angle": 0,
+        "length": 15,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 20,
+          "swing": 60,
+          "stroke": 0.25,
+          "controls": [
+            {
+              "sensor": "st0",
+              "min": 0,
+              "max": 0.4
+            },
+            {
+              "sensor": "eyeFL",
+              "min": 0,
+              "max": 0.25,
+              "also": [
+                {
+                  "sensor": "eyeBL",
+                  "min": 0,
+                  "max": 0.25
+                },
+                {
+                  "sensor": "eyeBR",
+                  "min": 0,
+                  "max": 0.25
+                },
+                {
+                  "sensor": "eyeFR",
+                  "min": 0,
+                  "max": 0.25
+                }
+              ],
+              "all": true
+            },
+            {
+              "sensor": "eyeFL",
+              "min": 0.015,
+              "max": 1,
+              "also": [
+                {
+                  "sensor": "eyeBL",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeBR",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeFR",
+                  "min": 0.015,
+                  "max": 1
+                }
+              ]
+            }
+          ]
+        },
+        "build": {
+          "tpl": "Flexible oar (swims)",
+          "where": 0,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "oarF",
+          "length": 40
+        },
+        "name": "Oar (front)"
+      },
+      {
+        "type": "segment",
+        "id": "oarF_1",
+        "parent": "oarF_0",
+        "at": [
+          7.5,
+          0
+        ],
+        "length": 25,
+        "radius": 0.25,
+        "joint": {
+          "type": "hinge",
+          "stiffness": 700
+        }
+      },
+      {
+        "type": "segment",
+        "id": "oarB_0",
+        "label": "Flexible oar",
+        "at": [
+          -10,
+          1.2246467991473533e-15
+        ],
+        "angle": 180,
+        "length": 15,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 20,
+          "swing": 60,
+          "stroke": 0.25,
+          "controls": [
+            {
+              "sensor": "st0",
+              "min": 0.6,
+              "max": 1
+            },
+            {
+              "sensor": "eyeFL",
+              "min": 0,
+              "max": 0.25,
+              "also": [
+                {
+                  "sensor": "eyeBL",
+                  "min": 0,
+                  "max": 0.25
+                },
+                {
+                  "sensor": "eyeBR",
+                  "min": 0,
+                  "max": 0.25
+                },
+                {
+                  "sensor": "eyeFR",
+                  "min": 0,
+                  "max": 0.25
+                }
+              ],
+              "all": true
+            },
+            {
+              "sensor": "eyeFL",
+              "min": 0.015,
+              "max": 1,
+              "also": [
+                {
+                  "sensor": "eyeBL",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeBR",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeFR",
+                  "min": 0.015,
+                  "max": 1
+                }
+              ]
+            }
+          ]
+        },
+        "build": {
+          "tpl": "Flexible oar (swims)",
+          "where": 180,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "oarB",
+          "length": 40
+        },
+        "name": "Oar (back)"
+      },
+      {
+        "type": "segment",
+        "id": "oarB_1",
+        "parent": "oarB_0",
+        "at": [
+          7.5,
+          0
+        ],
+        "length": 25,
+        "radius": 0.25,
+        "joint": {
+          "type": "hinge",
+          "stiffness": 700
+        }
+      },
+      {
+        "type": "segment",
+        "id": "oarL_0",
+        "label": "Flexible oar",
+        "at": [
+          6.123233995736766e-16,
+          10
+        ],
+        "angle": 90,
+        "length": 15,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 20,
+          "swing": 60,
+          "stroke": 0.25,
+          "controls": [
+            {
+              "sensor": "st90",
+              "min": 0,
+              "max": 0.4
+            },
+            {
+              "sensor": "eyeFL",
+              "min": 0,
+              "max": 0.25,
+              "also": [
+                {
+                  "sensor": "eyeBL",
+                  "min": 0,
+                  "max": 0.25
+                },
+                {
+                  "sensor": "eyeBR",
+                  "min": 0,
+                  "max": 0.25
+                },
+                {
+                  "sensor": "eyeFR",
+                  "min": 0,
+                  "max": 0.25
+                }
+              ],
+              "all": true
+            },
+            {
+              "sensor": "eyeFL",
+              "min": 0.015,
+              "max": 1,
+              "also": [
+                {
+                  "sensor": "eyeBL",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeBR",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeFR",
+                  "min": 0.015,
+                  "max": 1
+                }
+              ]
+            }
+          ]
+        },
+        "build": {
+          "tpl": "Flexible oar (swims)",
+          "where": 90,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "oarL",
+          "length": 40
+        },
+        "name": "Oar (left)"
+      },
+      {
+        "type": "segment",
+        "id": "oarL_1",
+        "parent": "oarL_0",
+        "at": [
+          7.5,
+          0
+        ],
+        "length": 25,
+        "radius": 0.25,
+        "joint": {
+          "type": "hinge",
+          "stiffness": 700
+        }
+      },
+      {
+        "type": "segment",
+        "id": "oarR_0",
+        "label": "Flexible oar",
+        "at": [
+          -1.8369701987210296e-15,
+          -10
+        ],
+        "angle": 270,
+        "length": 15,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 20,
+          "swing": 60,
+          "stroke": 0.25,
+          "controls": [
+            {
+              "sensor": "st90",
+              "min": 0.6,
+              "max": 1
+            },
+            {
+              "sensor": "eyeFL",
+              "min": 0,
+              "max": 0.25,
+              "also": [
+                {
+                  "sensor": "eyeBL",
+                  "min": 0,
+                  "max": 0.25
+                },
+                {
+                  "sensor": "eyeBR",
+                  "min": 0,
+                  "max": 0.25
+                },
+                {
+                  "sensor": "eyeFR",
+                  "min": 0,
+                  "max": 0.25
+                }
+              ],
+              "all": true
+            },
+            {
+              "sensor": "eyeFL",
+              "min": 0.015,
+              "max": 1,
+              "also": [
+                {
+                  "sensor": "eyeBL",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeBR",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeFR",
+                  "min": 0.015,
+                  "max": 1
+                }
+              ]
+            }
+          ]
+        },
+        "build": {
+          "tpl": "Flexible oar (swims)",
+          "where": 270,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "oarR",
+          "length": 40
+        },
+        "name": "Oar (right)"
+      },
+      {
+        "type": "segment",
+        "id": "oarR_1",
+        "parent": "oarR_0",
+        "at": [
+          7.5,
+          0
+        ],
+        "length": 25,
+        "radius": 0.25,
+        "joint": {
+          "type": "hinge",
+          "stiffness": 700
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "nucleus",
+        "label": "Nucleus",
+        "at": [
+          5.35,
+          0
+        ],
+        "radius": 4.3,
+        "material": "nucleus",
+        "joint": {
+          "type": "rest",
+          "controls": [
+            {
+              "sensor": "eyeFL",
+              "min": 0,
+              "max": 0.01,
+              "also": [
+                {
+                  "sensor": "eyeBL",
+                  "min": 0,
+                  "max": 0.01
+                },
+                {
+                  "sensor": "eyeBR",
+                  "min": 0,
+                  "max": 0.01
+                },
+                {
+                  "sensor": "eyeFR",
+                  "min": 0,
+                  "max": 0.01
+                }
+              ],
+              "all": true
+            }
+          ]
+        },
+        "build": {
+          "tpl": "Nucleus (the brain)",
+          "where": 0,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "nucleus"
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "st0",
+        "label": "Statolith",
+        "at": [
+          6.05,
+          6.05
+        ],
+        "radius": 1.1,
+        "material": "statolith",
+        "angle": 0,
+        "build": {
+          "tpl": "Statolith (which way is up)",
+          "where": 45,
+          "tilt": 0,
+          "size": 0.12,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "st0"
+        },
+        "name": "Statolith 0°"
+      },
+      {
+        "type": "inclusion",
+        "id": "st90",
+        "label": "Statolith",
+        "at": [
+          6.05,
+          -6.05
+        ],
+        "radius": 1.1,
+        "material": "statolith",
+        "angle": 90,
+        "build": {
+          "tpl": "Statolith (which way is up)",
+          "where": 315,
+          "tilt": 90,
+          "size": 0.12,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "st90"
+        },
+        "name": "Statolith 90°"
+      },
+      {
+        "type": "inclusion",
+        "id": "plastid",
+        "label": "Plastid",
+        "at": [
+          0,
+          6.15
+        ],
+        "radius": 3.5,
+        "material": "plastid",
+        "build": {
+          "tpl": "Plastid (makes energy)",
+          "where": 90,
+          "tilt": 0,
+          "size": 0.38,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "plastid",
+          "content": "sun"
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "plastid2",
+        "label": "Plastid",
+        "at": [
+          0,
+          -6.15
+        ],
+        "radius": 3.5,
+        "material": "plastid",
+        "build": {
+          "tpl": "Plastid (makes energy)",
+          "where": 270,
+          "tilt": 0,
+          "size": 0.38,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "plastid2",
+          "content": "sun"
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "store",
+        "at": [
+          -5.95,
+          0
+        ],
+        "radius": 3.7,
+        "label": "Starch store",
+        "material": "starch",
+        "fill": 0.5,
+        "build": {
+          "tpl": "Energy store",
+          "where": 180,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "store",
+          "content": "starch"
+        }
+      }
+    ]
+  }
+}
