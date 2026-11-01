@@ -2040,8 +2040,8 @@ function drawScale(W, H, s) {
 }
 
 function drawMinimap(W, H) {
-  // the whole tank at its true shape (1.6 × 2 mm), small in the top-right corner: at most a third of the view's width
-  const k = Math.min((H - 40) / TH, 0.33 * W / TW, 160 / TW);
+  // the whole tank at its true shape (1.6 × 2 mm), small in the top-right corner: 56 px wide at most
+  const k = Math.min((H - 40) / TH, 0.15 * W / TW, 56 / TW);
   const mw = TW * k, mh = TH * k, mx = W - mw - 12;
   let my = 12;   // below the numbers box when that reaches across to it
   const st = $('stats'), cr = canvas.getBoundingClientRect();
