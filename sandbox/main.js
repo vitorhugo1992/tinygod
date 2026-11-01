@@ -1337,7 +1337,24 @@ function dayBudget(d, depth) {
   }
   let stores = 0.5 * c.metab.C;   // the pool's middle, then every store full
   for (const inc of c.pieces[0].inclusions) if (inc.store) stores += inc.v * M[inc.store].energy;
-  return { earn, cost: c.metab.upkeep * M.day, night: c.metab.upkeep * NIGHT, stores, upkeep: c.metab.upkeep };
+  // what its stores can give a second when the pool runs low (starch quick, oil slow), and what its flagella cost beating
+  let supply = 0, beat = 0;
+  for (const inc of c.pieces[0].inclusions) if (inc.store) supply += inc.v * M[inc.store].energy * M[inc.store].burn;
+  for (const L of c.metab.beatL.values()) beat += M.beat * L;
+  // the deepest it earns its upkeep at noon: below it, a resting cell can't earn its way awake
+  const noon = (dz) => {
+    let e = 0;
+    const L = Lp.strength * Math.exp(-Lp.attenuation * dz);
+    for (const inc of c.pieces[0].inclusions) if (inc.material === 'plastid') {
+      const shade = inc.pigment === 'shade', over = L - (shade ? M.shade.safe : M.photo.safe);
+      const k = over > 0 ? M.photo.damage * (shade ? M.shade.damage : 1) * over : 0, dmg = k / (k + M.photo.repair);
+      e += inc.v * ((1 - dmg) * (shade ? M.shade.max * L / (L + M.shade.half) : M.plastidMax * L / (L + M.plastidHalf)) - M.photo.repair * dmg * M.photo.cost);
+    }
+    return e;
+  };
+  let deepest = -1;
+  for (let dz = 0; dz <= TH; dz += 10) if (noon(dz) >= c.metab.upkeep) deepest = dz;
+  return { earn, cost: c.metab.upkeep * M.day, night: c.metab.upkeep * NIGHT, stores, upkeep: c.metab.upkeep, supply, beat, deepest };
 }
 // the depth to judge at: the selected cell's (of this design), else 400 µm
 const budgetDepth = () => (cell && cell.design === design ? Math.max(0, Math.round(TH - cell.q[1])) : 400);
@@ -1352,8 +1369,18 @@ function showBudget() {
   el.innerHTML = b.earn <= 0
     ? `⚖ <b class="bad">no plastid: it earns nothing</b> · its stores last <b class="${tone(night)}">${pct(night)}</b> of a night`
     : `⚖ At ${depth} µm a day earns <b class="${tone(ratio)}">${ratio.toFixed(1)}×</b> its upkeep (<b class="${tone(ratioRest)}">${ratioRest.toFixed(1)}×</b> resting at night) · stores carry <b class="${tone(night)}">${pct(night)}</b> of a night (<b class="${tone(rest)}">${pct(rest)}</b> resting)`;
+  // warnings (author, 2026-11-01): stores too slow to feed it, and the depth below which a resting cell can't wake
+  const k = (v) => (v >= 10000 ? `${(v / 1000).toFixed(0)} k` : `${Math.round(v)}`);
+  const warn = [];
+  const rests = (design.parts || []).some((x) => x.material === 'nucleus' && x.joint && controlsOf(x.joint).length);
+  const still = rests ? b.upkeep * PARAMS.metab.rest : b.upkeep;   // what a night costs a second, resting if it has a rest rule
+  if (b.supply > 0 && b.supply < still) warn.push(`at night its stores can give only ${k(b.supply)} pJ/s, less than it spends ${rests ? 'even resting' : 'sitting still'} (${k(still)}): it starves with store left (a bigger store, or starch: 4× quicker)`);
+  else if (b.supply > 0 && b.beat > 0 && b.supply < b.upkeep + b.beat) warn.push(`swimming at night it spends ${k(b.upkeep + b.beat)} pJ/s, more than its stores can give (${k(b.supply)}): it would starve with store left${rests ? `; resting it spends ${k(still)}` : ''} (a bigger store, or starch: 4× quicker)`);
+  if (rests && b.earn > 0 && b.deepest < TH - 50) warn.push(b.deepest < 0 ? 'even at the surface its plastids earn less than its upkeep at noon: resting, it may never wake by earning'
+    : `below ~${b.deepest} µm its plastids earn less than its upkeep even at noon: resting there, its energy can't rise to wake it`);
+  if (warn.length) el.innerHTML += warn.map((w) => `<span class="warn">⚠ ${w}</span>`).join('');
   el.title = `An estimate from the design, swimming not counted (beating costs extra). Upkeep ${Math.round(b.upkeep)} pJ/s: a day costs ${Math.round(b.cost / 1000)} k, a night ${Math.round(b.night / 1000)} k; `
-    + `its plastids earn ${Math.round(b.earn / 1000)} k a day at ${depth} µm; full stores and half its pool hold ${Math.round(b.stores / 1000)} k. Resting: upkeep at ${Math.round(PARAMS.metab.rest * 100)}%.`;
+    + `its plastids earn ${Math.round(b.earn / 1000)} k a day at ${depth} µm; full stores and half its pool hold ${Math.round(b.stores / 1000)} k, and can give ${Math.round(b.supply)} pJ/s; beating, its flagella cost ${Math.round(b.beat)} pJ/s; it earns its upkeep at noon down to ${b.deepest < 0 ? 'nowhere' : `${b.deepest} µm`}. Resting: upkeep at ${Math.round(PARAMS.metab.rest * 100)}%.`;
 }
 // the part being placed or edited, as a share of the cell, and what that means: "11% of the cell", "~60% of a night"
 function sizeShare() {
