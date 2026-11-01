@@ -66,7 +66,9 @@ export const PARAMS = {
   sensor: {
     threshold: 0.5,         // 'light' / 'dark' wiring splits here
     scatter: 0.2,           // share of the light an eyespot sees facing away (scattered light, and through its shield)
-    hysteresis: 0.03,       // a wired part changes state only this far inside or outside its range (no flicker)
+    hysteresis: 0.03,       // a wired part changes state only this far inside or outside its range (no flicker)...
+    hysteresisShare: 0.3,   // ...but never more than this share of the room to the scale's end or of the range's width, so a
+                            // small threshold ("more than 2% sun") still switches in dim water (Claude, 2026-11-01: it needed 5%)
     touchRange: 2,          // µm from a touch sensor's spot that counts as touching
     nearRange: 60,          // µm a proximity sensor feels another species from (default)
     compareMargin: 0.05,    // a compare condition holds once one reading is this much more than the other
