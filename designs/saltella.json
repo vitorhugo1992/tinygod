@@ -1,0 +1,508 @@
+{
+  "name": "Saltella (Claude, a jumper)",
+  "from": "Claude",
+  "note": "No tail, no chamber: it travels by jumping. Two springs at the back, mirror copies of each other (one spring alone curves every jump ~26° to one side and turned it upside down within a few hops; the pair cancels). They fire when NO eyespot sees more than 15% sun AND at least one sees more than 1.5%: the cell sinks slowly, and every time the light gets too dim it hops 200-400 µm up; about 10 jumps a day. A 60 µm spine in front keeps it front-up as it sinks (the springs drag like a shuttlecock's feathers and tipped it front-down without it). Rests when all eyespots see less than 1%. Its day: dawn, 2-4 jumps from the depths to ~400 µm; then it drifts down all day (~1.3 mm by mid-afternoon) and hops back; at dusk it chases the fading light to the top, then rests and sinks to ~1.6 mm by dawn. Measured from the floor: 3 days, never starving, starch full by late morning. Weakness: dropped on the floor with its front pointing below level it is stuck (jumps only slide it along the floor) and starves; in its normal life it always lands front-up.",
+  "design": {
+    "body": {
+      "radius": 10
+    },
+    "parts": [
+      {
+        "type": "sensor",
+        "id": "eye",
+        "label": "Light sensor",
+        "at": [
+          10,
+          0
+        ],
+        "angle": 0,
+        "kind": "light",
+        "cone": 180,
+        "build": {
+          "tpl": "Light sensor (eyespot)",
+          "where": 0,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "eye"
+        },
+        "name": "Eyespot (front)"
+      },
+      {
+        "type": "sensor",
+        "id": "eyeL",
+        "label": "Light sensor",
+        "at": [
+          6.123233995736766e-16,
+          10
+        ],
+        "angle": 90,
+        "kind": "light",
+        "cone": 180,
+        "build": {
+          "tpl": "Light sensor (eyespot)",
+          "where": 90,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "eyeL"
+        },
+        "name": "Eyespot (left)"
+      },
+      {
+        "type": "sensor",
+        "id": "eyeR",
+        "label": "Light sensor",
+        "at": [
+          -1.8369701987210296e-15,
+          -10
+        ],
+        "angle": 270,
+        "kind": "light",
+        "cone": 180,
+        "build": {
+          "tpl": "Light sensor (eyespot)",
+          "where": 270,
+          "tilt": 0,
+          "size": 1,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "eyeR"
+        },
+        "name": "Eyespot (right)"
+      },
+      {
+        "type": "segment",
+        "id": "spring_0",
+        "parent": "body",
+        "at": [
+          -9.659258262890681,
+          2.58819045102521
+        ],
+        "angle": 180,
+        "length": 5,
+        "radius": 0.3,
+        "material": "protein",
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": 40,
+          "phase": 0,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "spring"
+          },
+          "controls": [
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.15,
+              "also": [
+                {
+                  "sensor": "eyeL",
+                  "min": 0,
+                  "max": 0.15
+                },
+                {
+                  "sensor": "eyeR",
+                  "min": 0,
+                  "max": 0.15
+                }
+              ],
+              "all": true
+            },
+            {
+              "sensor": "eye",
+              "min": 0.015,
+              "max": 1,
+              "also": [
+                {
+                  "sensor": "eyeL",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeR",
+                  "min": 0.015,
+                  "max": 1
+                }
+              ]
+            }
+          ]
+        },
+        "label": "Spring",
+        "build": {
+          "tpl": "Burst organ (escape)",
+          "where": 165,
+          "tilt": 15,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "spring",
+          "length": 20
+        },
+        "name": "Spring (left)"
+      },
+      {
+        "type": "segment",
+        "id": "spring_1",
+        "parent": "spring_0",
+        "at": [
+          2.5,
+          0
+        ],
+        "angle": 0,
+        "length": 5,
+        "radius": 0.3,
+        "material": "protein",
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": 40,
+          "phase": -0.2,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "spring"
+          }
+        }
+      },
+      {
+        "type": "segment",
+        "id": "spring_2",
+        "parent": "spring_1",
+        "at": [
+          2.5,
+          0
+        ],
+        "angle": 0,
+        "length": 5,
+        "radius": 0.3,
+        "material": "protein",
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": 40,
+          "phase": -0.4,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "spring"
+          }
+        }
+      },
+      {
+        "type": "segment",
+        "id": "spring_3",
+        "parent": "spring_2",
+        "at": [
+          2.5,
+          0
+        ],
+        "angle": 0,
+        "length": 5,
+        "radius": 0.3,
+        "material": "protein",
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": 40,
+          "phase": -0.6000000000000001,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "spring"
+          }
+        }
+      },
+      {
+        "type": "segment",
+        "id": "springB_0",
+        "parent": "body",
+        "at": [
+          -9.659258262890681,
+          -2.58819045102521
+        ],
+        "angle": -180,
+        "length": 5,
+        "radius": 0.3,
+        "material": "protein",
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": -40,
+          "phase": 0,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "springB"
+          },
+          "controls": [
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.15,
+              "also": [
+                {
+                  "sensor": "eyeL",
+                  "min": 0,
+                  "max": 0.15
+                },
+                {
+                  "sensor": "eyeR",
+                  "min": 0,
+                  "max": 0.15
+                }
+              ],
+              "all": true
+            },
+            {
+              "sensor": "eye",
+              "min": 0.015,
+              "max": 1,
+              "also": [
+                {
+                  "sensor": "eyeL",
+                  "min": 0.015,
+                  "max": 1
+                },
+                {
+                  "sensor": "eyeR",
+                  "min": 0.015,
+                  "max": 1
+                }
+              ]
+            }
+          ]
+        },
+        "label": "Spring",
+        "build": {
+          "tpl": "Burst organ (escape)",
+          "where": 195,
+          "tilt": -15,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": true,
+          "id": "springB",
+          "length": 20
+        },
+        "name": "Spring (right)"
+      },
+      {
+        "type": "segment",
+        "id": "springB_1",
+        "parent": "springB_0",
+        "at": [
+          2.5,
+          0
+        ],
+        "angle": 0,
+        "length": 5,
+        "radius": 0.3,
+        "material": "protein",
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": -40,
+          "phase": -0.2,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "springB"
+          }
+        }
+      },
+      {
+        "type": "segment",
+        "id": "springB_2",
+        "parent": "springB_1",
+        "at": [
+          2.5,
+          0
+        ],
+        "angle": 0,
+        "length": 5,
+        "radius": 0.3,
+        "material": "protein",
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": -40,
+          "phase": -0.4,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "springB"
+          }
+        }
+      },
+      {
+        "type": "segment",
+        "id": "springB_3",
+        "parent": "springB_2",
+        "at": [
+          2.5,
+          0
+        ],
+        "angle": 0,
+        "length": 5,
+        "radius": 0.3,
+        "material": "protein",
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": -40,
+          "phase": -0.6000000000000001,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "springB"
+          }
+        }
+      },
+      {
+        "type": "segment",
+        "id": "spine",
+        "label": "Protein spine",
+        "at": [
+          10,
+          0
+        ],
+        "angle": 0,
+        "length": 60,
+        "radius": 0.5,
+        "material": "protein",
+        "build": {
+          "tpl": "Spine",
+          "where": 0,
+          "tilt": 0,
+          "size": 0.6,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "spine"
+        },
+        "name": "Spine (front)"
+      },
+      {
+        "type": "inclusion",
+        "id": "nucleus",
+        "label": "Nucleus",
+        "at": [
+          -3.78,
+          -3.78
+        ],
+        "radius": 4.3,
+        "material": "nucleus",
+        "joint": {
+          "type": "rest",
+          "controls": [
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.01,
+              "also": [
+                {
+                  "sensor": "eyeL",
+                  "min": 0,
+                  "max": 0.01
+                },
+                {
+                  "sensor": "eyeR",
+                  "min": 0,
+                  "max": 0.01
+                }
+              ],
+              "all": true
+            }
+          ]
+        },
+        "build": {
+          "tpl": "Nucleus (the brain)",
+          "where": 225,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "nucleus"
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "plastid",
+        "label": "Plastid",
+        "at": [
+          3.95,
+          4.71
+        ],
+        "radius": 3.5,
+        "material": "plastid",
+        "build": {
+          "tpl": "Plastid (makes energy)",
+          "where": 50,
+          "tilt": 0,
+          "size": 0.38,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "plastid",
+          "content": "sun"
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "plastid2",
+        "label": "Plastid",
+        "at": [
+          3.95,
+          -4.71
+        ],
+        "radius": 3.5,
+        "material": "plastid",
+        "build": {
+          "tpl": "Plastid (makes energy)",
+          "where": 310,
+          "tilt": 0,
+          "size": 0.38,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "plastid2",
+          "content": "sun"
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "store",
+        "at": [
+          -4.21,
+          4.21
+        ],
+        "radius": 3.7,
+        "label": "Starch store",
+        "material": "starch",
+        "fill": 0.5,
+        "build": {
+          "tpl": "Energy store",
+          "where": 135,
+          "tilt": 0,
+          "size": 0.4,
+          "depth": 1,
+          "feels": "strangers",
+          "flip": false,
+          "id": "store",
+          "content": "starch"
+        }
+      }
+    ]
+  }
+}
