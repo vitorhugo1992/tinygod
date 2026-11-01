@@ -6,6 +6,20 @@ authoritative.
 
 ## Start here (handoff, 2026-10-24)
 
+**Latest handoff (2026-11-01): implement the agreed mock-up.** The author: "mockup is great, I need to start a fresh chat
+to implement it". Open design/desk-mockup.html (the reference; read its CSS tokens, the windows / handles code and the
+nucleus board code) and the paragraph "Desktop layout and the new wiring board" near the end of the log below. Plan
+agreed with the author, two stages, show each in the real page and check with the author between them:
+(1) **the desktop layout** in sandbox/index.html + main.js: Tank · Cell · Nucleus windows with fold (–) and drag handles
+(remembered per browser), the Cell window's coloured sections (Body, Add a part with small pictures, On this body,
+Arrange), the help line along the bottom, dark and light themes; the phone layout stays as it is (windows stack, no
+handles). (2) **the new nucleus wiring board**, replacing today's 🎛 wiring view: sensor cards with day traces, one
+foldable rule card per acting part with a state pill and a "today" strip, conditions with traces / threshold / band and
+green while holding, Pathway lanes or Cables, Traces on / off, drag (or tap) a sensor onto a rule, "nucleus full"
+refused. The traces in the game come from the cell's journal (sandbox/journal.js), not from pretend curves. Keep every
+rule feature the game already has (ANY / ALL several sensors, between / outside, more / less than, beat speed,
+copy / paste rule). Ask before anything not in the mock-up.
+
 **Where we are:** step 0, the physics sandbox, is built and being played with by the author; step 1 (the ecology) is
 next once they are happy with it. Two long chats so far (2026-10-21 to 23: design and sandbox; 2026-10-23 to 24:
 building tools, sensors, rules, journal). Every decision is in this file; the sections below the handoff are a
