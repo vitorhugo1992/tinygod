@@ -211,7 +211,7 @@ const ROD = { length: { min: 0, max: 80, step: 2, def: 0, round: true }, tilt: t
 export const CONTROLS = {
   'Nucleus (the brain)': { inside: true, tip: () => `The brain: ${slotsOf(PARAMS.brain.radius)} slots, one for each sensor, each wired built-in reading and each rule box. Tap it in the tank to open it` },
   'Vacuole (store or float)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, content: true, sizeDefault: 30, ...ROD },
-  'Energy store': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, content: true, sizeDefault: 30, ...ROD },
+  'Energy store': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, content: true, sizeDefault: 40, ...ROD },
   'Buoyancy chamber': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 50, ...ROD,
     tip: () => 'Pumped light, it lifts the cell; heavy, it sinks it; neutral, nothing (and free). Its rule: FLOAT when… / SINK if…. Bigger pushes harder, takes room, costs more to hold' },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
@@ -227,7 +227,7 @@ export const CONTROLS = {
   'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), sizeLabel: 'Sensitivity', feels: true, sizeDefault: 10 },
   'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long`, material: true },
   'Pad': { sticks: true },
-  'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, pigment: true, ...ROD },
+  'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, pigment: true, sizeDefault: 50, ...ROD },   // ~11% of the cell: enough for a day
   'Starch granule (quick store, heavy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor': { feels: true },
   'Proximity sensor': { size: (s) => `${Math.round(200 * s)} µm range`, feels: true },

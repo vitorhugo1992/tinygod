@@ -9,6 +9,7 @@ import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWal
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
 import { nutrientAt } from '../sim/nutrient.js';
+import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast } from './journal.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
@@ -165,7 +166,7 @@ const showTilt = () => { $('partTiltOut').textContent = `${$('partTilt').value}�
 $('partTilt').oninput = showTilt; showTilt();
 const showSize = () => {
   const what = (CONTROLS[$('partWhat').value] || {}).size;
-  $('partSizeOut').textContent = what ? what(Number($('partSize').value) / 100, design && design.body) : '';
+  $('partSizeOut').textContent = what ? what(Number($('partSize').value) / 100, design && design.body) + sizeShare() : '';
 };
 $('partSize').oninput = showSize;
 const showInside = () => { $('partInsideOut').textContent = `${$('partInside').value}%`; };
@@ -204,7 +205,7 @@ function showLength() {
   const v = Number($('partLength').value), c = CONTROLS[$('partWhat').value] || {};
   $('partLengthOut').textContent = v === 0 && c.length && c.length.round ? '0 (round)' : `${v} µm`;
 }
-$('partLength').oninput = showLength;
+$('partLength').oninput = () => { showLength(); showSize(); };
 $('partWhat').onchange = () => { showControls(); if (editing) updateEdited(); else updatePreview(); }; showControls();
 $('flipBtn').onclick = () => { $('partFlip').checked = !$('partFlip').checked; $('partFlip').dispatchEvent(new Event('change')); };
 $('pullBtn').onclick = () => { $('partPull').checked = !$('partPull').checked; $('partPull').dispatchEvent(new Event('change')); };
@@ -1086,6 +1087,7 @@ function listParts() {
   });
   if (!box.children.length) box.textContent = 'No parts yet: just a body.';
   drawPatch();   // the patch view follows every change (when open)
+  showBudget();
 }
 
 // A new tank with the design. Rebuilding after an edit (carry: the old world, its selected cell and design) keeps the
@@ -1260,6 +1262,7 @@ function calmPose(c, realDt, speed) {
 }
 
 let last = performance.now();
+let budgetAt = 0;
 function frame(now) {
   const elapsed = Math.min((now - last) / 1000, 0.1);
   last = now;
@@ -1278,8 +1281,76 @@ function frame(now) {
     if (!$('stats').hidden) stats(); liveReadings(); ruleLive(); syncButtons();
     $('stats').style.top = desk ? '8px' : `${$('bar').offsetHeight + 14}px`;
     if (desk) topClock();
+    if (now - budgetAt > 1000) { budgetAt = now; showBudget(); }   // the depth it is judged at follows the cell
   }
   requestAnimationFrame(frame);
+}
+
+// ----- the energy budget while building (author, 2026-11-01: "still have trouble surviving the night"): what a day at a
+// depth earns against what the cell costs, and how much of a night its stores carry. An estimate from the design alone
+// (no swimming: beating costs extra), so it can be shown before anything runs. -----
+const NIGHT = PARAMS.metab.day / 2;   // s of darkness in a day
+const bodyVolume = (b) => 4 / 3 * Math.PI * b.radius ** 3 + Math.PI * b.radius ** 2 * (b.length || 0);
+let budgetKey = '', budgetCell = null;
+// the design built once (upkeep, inclusions' volumes), kept while the design is the same
+function budgetBuild(d) {
+  const key = JSON.stringify(d);
+  if (key !== budgetKey) {
+    budgetKey = key;
+    try { budgetCell = buildCell(d); initMetab(budgetCell); } catch (e) { budgetCell = null; }
+  }
+  return budgetCell;
+}
+// a day at `depth` µm: { earn, cost, stores, night } in pJ (earn: its plastids' day, less repairing bright-light damage)
+function dayBudget(d, depth) {
+  const c = budgetBuild(d);
+  if (!c) return null;
+  const M = PARAMS.metab, Lp = PARAMS.light, steps = 96, dt = M.day / steps;
+  let earn = 0;
+  for (const inc of c.pieces[0].inclusions) {
+    if (inc.material !== 'plastid') continue;
+    const shade = inc.pigment === 'shade';
+    for (let i = 0; i < steps; i++) {
+      const sun = Math.sqrt(Math.max(0, Math.sin(2 * Math.PI * (i + 0.5) / steps)));
+      const L = Lp.strength * sun * Math.exp(-Lp.attenuation * depth);
+      // bright light: the damage where hurting and mending balance, its lost output and the cost of mending it
+      const over = L - (shade ? M.shade.safe : M.photo.safe), k = over > 0 ? M.photo.damage * (shade ? M.shade.damage : 1) * over : 0;
+      const dmg = k / (k + M.photo.repair);
+      const out = shade ? M.shade.max * L / (L + M.shade.half) : M.plastidMax * L / (L + M.plastidHalf);
+      earn += inc.v * ((1 - dmg) * out - M.photo.repair * dmg * M.photo.cost) * dt;
+    }
+  }
+  let stores = 0.5 * c.metab.C;   // the pool's middle, then every store full
+  for (const inc of c.pieces[0].inclusions) if (inc.store) stores += inc.v * M[inc.store].energy;
+  return { earn, cost: c.metab.upkeep * M.day, night: c.metab.upkeep * NIGHT, stores, upkeep: c.metab.upkeep };
+}
+// the depth to judge at: the selected cell's (of this design), else 400 µm
+const budgetDepth = () => (cell && cell.design === design ? Math.max(0, Math.round(TH - cell.q[1])) : 400);
+function showBudget() {
+  const el = $('budgetLine');
+  if (!design || !el) return;
+  const depth = budgetDepth(), b = dayBudget(design, depth);
+  if (!b) { el.innerHTML = ''; return; }
+  const ratio = b.earn / b.cost, ratioRest = b.earn / (b.cost - b.night * (1 - PARAMS.metab.rest)), night = b.stores / b.night, rest = b.stores / (b.night * PARAMS.metab.rest);
+  const tone = (v) => (v >= 1.2 ? 'good' : v >= 1 ? 'meh' : 'bad');
+  const pct = (v) => (v >= 10 ? '1000%+' : `${Math.round(v * 100)}%`);
+  el.innerHTML = b.earn <= 0
+    ? `⚖ <b class="bad">no plastid: it earns nothing</b> · its stores last <b class="${tone(night)}">${pct(night)}</b> of a night`
+    : `⚖ At ${depth} µm a day earns <b class="${tone(ratio)}">${ratio.toFixed(1)}×</b> its upkeep (<b class="${tone(ratioRest)}">${ratioRest.toFixed(1)}×</b> resting at night) · stores carry <b class="${tone(night)}">${pct(night)}</b> of a night (<b class="${tone(rest)}">${pct(rest)}</b> resting)`;
+  el.title = `An estimate from the design, swimming not counted (beating costs extra). Upkeep ${Math.round(b.upkeep)} pJ/s: a day costs ${Math.round(b.cost / 1000)} k, a night ${Math.round(b.night / 1000)} k; `
+    + `its plastids earn ${Math.round(b.earn / 1000)} k a day at ${depth} µm; full stores and half its pool hold ${Math.round(b.stores / 1000)} k. Resting: upkeep at ${Math.round(PARAMS.metab.rest * 100)}%.`;
+}
+// the part being placed or edited, as a share of the cell, and what that means: "11% of the cell", "~60% of a night"
+function sizeShare() {
+  const name = $('partWhat').value, c = CONTROLS[name] || {};
+  if (!c.inside || !design || !/Plastid|Energy store|Vacuole|Buoyancy|Starch|Oil/.test(name)) return '';
+  const r = insideRadius(design.body, Number($('partSize').value) / 100), len = c.length ? Number($('partLength').value) : 0;
+  const v = 4 / 3 * Math.PI * r ** 3 + Math.PI * r * r * len, share = v / bodyVolume(design.body);
+  let s = ` · ${(share * 100).toFixed(share < 0.1 ? 1 : 0)}% of the cell`;
+  const content = name.startsWith('Plastid') ? null : name.startsWith('Starch') ? 'starch' : name.startsWith('Oil') ? 'oil' : c.content ? $('partContent').value : null;
+  const b = dayBudget(design, budgetDepth());
+  if (b && (content === 'starch' || content === 'oil')) s += ` · ~${Math.round(v * PARAMS.metab[content].energy / b.night * 100)}% of a night`;
+  return s;
 }
 
 // ----- numbers -----

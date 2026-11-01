@@ -63,6 +63,10 @@
   .chips button { padding: 4px 8px; font-size: 12px; }
   #addPart { width: 100%; padding: 8px; font-size: 14px; background: var(--on); border-color: var(--accent); }
   #buildErr, #err { color: var(--bad); }
+  /* the energy budget, always in sight while building */
+  #budgetLine { font-size: 12px; color: var(--dim); line-height: 1.45; margin-top: 4px; }
+  #budgetLine:empty { display: none; }
+  #budgetLine b.good { color: #6fe0a0; } #budgetLine b.meh { color: #ffd84a; } #budgetLine b.bad { color: #ff8a7a; }
   .part { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 12px; flex-wrap: wrap; }
   .part button { padding: 1px 7px; font-size: 11px; }
   /* each part a rule drives, and each sensor, has its colour: a stripe on its card, a dot by its name */
@@ -344,6 +348,7 @@
       <button id="undo" title="Undo the last change to the design">↶ Undo</button>
       <button id="redo" title="Redo what was undone">↷ Redo</button>
     </div>
+    <div id="budgetLine"></div>
     <div id="buildErr"></div>
   </div>
   <!-- a phone: one section at a time, picked from the tabs down the left; a computer: all of them -->
