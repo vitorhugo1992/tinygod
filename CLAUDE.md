@@ -374,6 +374,13 @@ stopping at 15% sun it rode too deep (starch never past 65%), at 35% it spent ni
 at dawn, rides 700-900 µm, follows dusk to ~400 µm, rests and sinks to ~1.7 mm. 3 days from the floor at 0/45/90/180/
 270°: never starving. Seen in the page: the rule sentence is long (four eyespots named twice): the case for naming a
 group of sensors ("any eyespot").
+**Sensor groups in words; numbers hidden (author, 2026-11-01).** A condition naming EVERY sensor of one kind on the
+cell reads as the group: "every ●●●● eyespot sees less than 25% sun" (all) / "any ●●●● eyespot sees…" (any), the
+sensors' colour dots before the word; tapping "every / any" switches it (data-groupq), the group word opens the editor,
+where each sensor is still listed. Nouns: eyespot, statolith, feeler, nutrient sensor (GROUP_NOUN; built-in readings are
+single). A subset still lists its sensors. Trochilla's oar cards: 6 lines to 3 on a phone. **The numbers box starts
+hidden on every screen** (was shown on computers; author: "remove that text box from the tank view"); ⓘ still opens it,
+as it holds the trouble log.
 **The mock-up's last pieces (built 2026-11-01; author: "better do this now").** (1) **Part buttons with small pictures** (sandbox/main.js PART_ICONS, partIcon), in the colour each part is drawn in the tank, in a grid; four rows: Flagella, On the outside (spine, spring, pad), Inside the cell, Sensors. (2) **The map of when it runs** under every rule card: time across (night darker), depth down, coloured where the rule makes the part act (its colour; a chamber pale FLOAT / deep blue SINK; resting pale blue), the selected cell as a dot; a guess from the rule: light at that hour and depth as each eyespot has faced the light lately (journal.js keeps a ~1 min running mean, j.face; none yet: facing up), energy and stores as at that hour over the last day, the rest as now; redrawn every 4 s and live while a range is dragged (sandbox/main.js mapReader, ruleAt, drawRunMap). (3) **Links on the cell**: the card last tapped or opened has its sensors joined to its part by dashed lines in the sensors' colours (red for unless) on the selected cell (drawRuleLinks); **tapping a sensor on the cell while a condition is open puts it in the condition**. A separate 🔗 Wire mode was not built (Claude: filler now that the sentences do it; the author asked).
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor

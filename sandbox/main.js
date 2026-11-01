@@ -487,13 +487,25 @@ const valueWord = (html, ref) => (ref ? `<span class="w v" data-ed="${ref}">${ht
 // one condition in words: "● Eyespot (top) sees more than 5% sun (dim)"; several sensors: "● A or ● B sees …" (any),
 // "● A and ● B sees …" (all), of different kinds each with its own value; a compare: "● A sees more than ● B".
 // `ref` ("go:0"): tappable words, each opening the editor on its sensor
+const GROUP_NOUN = { light: 'eyespot', statolith: 'statolith', touch: 'feeler', near: 'feeler', chem: 'nutrient sensor' };
+// the ids of every sensor of a kind on the design
+const kindIds = (kind) => (design.parts || []).filter((x) => x.id && (x.type === 'sensor' || x.material === 'statolith') && sensorKind(x.id) === kind).map((x) => x.id);
 function termWords(c, ref) {
   const r = (i) => (ref ? `${ref}:${i}` : null), K = kindOf(c.sensor), verb = `<span class="verb">${K.verb}</span>`;
   if (c.vs !== undefined) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(c.not ? 'less than' : 'more than', r(0))} ${sensorWord(c.vs, r(0))}`;
   const also = c.also || [], all = [c, ...also];
   if (!also.length) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
   const jw = c.all ? 'and' : 'or', join = ref ? ` <span class="j" data-alsojoin="${ref}" title="Tap: or / and / but not when">${jw}</span> ` : ` ${jw} `;
-  if (also.every((e) => sensorKind(e.sensor) === sensorKind(c.sensor))) return `${all.map((e, i) => sensorWord(e.sensor, r(i))).join(join)} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
+  // every sensor of one kind on the cell: "any eyespot" / "every eyespot" (author, 2026-11-01: name the group, shorter);
+  // the quantifier is tapped to switch any / every, the group word opens the editor (each sensor still listed there)
+  const kind = sensorKind(c.sensor), same = also.every((e) => sensorKind(e.sensor) === kind), ofKind = kindIds(kind);
+  if (same && GROUP_NOUN[kind] && ofKind.length === all.length && ofKind.every((id) => all.some((e) => e.sensor === id))) {
+    const q = c.all ? 'every' : 'any', dots = all.map((e) => dot(sensorInfo(e.sensor).colour)).join('');
+    const qw = ref ? `<span class="j" data-groupq="${ref}" title="Tap: any / every">${q}</span>` : q;
+    const gw = ref ? `<span class="w s" data-ed="${r(0)}">${dots}${GROUP_NOUN[kind]}</span>` : `<b class="s">${dots}${GROUP_NOUN[kind]}</b>`;
+    return `${qw} ${gw} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
+  }
+  if (same) return `${all.map((e, i) => sensorWord(e.sensor, r(i))).join(join)} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
   return `(${all.map((e, i) => `${sensorWord(e.sensor, r(i))} <span class="verb">${kindOf(e.sensor).verb}</span> ${valueWord(rangeWords(e.sensor, e.min, e.max, c.not), r(i))}`).join(join)})`;
 }
 // A part's rule as stored, in its reading order: GO conditions (each `or` starting a new group), then the STOP ones;
@@ -656,7 +668,7 @@ function ruleCard(targets, where = 'list') {
   card.innerHTML = `<div class="say">${sentence(targets, true, where)}</div>`;
   card.onclick = (e) => {
     linkFocus = key;   // its links are drawn on the cell
-    const t = e.target.closest('[data-ed], [data-join], [data-add], [data-alsojoin]');
+    const t = e.target.closest('[data-ed], [data-join], [data-add], [data-alsojoin], [data-groupq]');
     if (!t) return;
     e.stopPropagation();
     if (t.dataset.ed) {
@@ -667,6 +679,10 @@ function ruleCard(targets, where = 'list') {
     } else if (t.dataset.join) {   // and -> or (a new group starts here) -> and not (this condition turned inside out) -> and
       const L = listsOf(m), i = +t.dataset.join, c = L.go[i];
       L.go[i] = !c.or && !c.not ? { ...c, or: true } : c.or ? { ...c, or: false, not: !c.not } : { ...c, not: false };
+      writeRule(targets, L.go, L.st);
+    } else if (t.dataset.groupq) {   // "any eyespot" <-> "every eyespot"
+      const [list, i] = t.dataset.groupq.split(':'), L = listsOf(m), arr = list === 'stop' ? L.st : L.go;
+      arr[+i] = tidyAlso({ ...arr[+i], all: !arr[+i].all });
       writeRule(targets, L.go, L.st);
     } else if (t.dataset.alsojoin) {   // inside one condition: or -> and -> and not (the last sensor becomes its own condition, inside out)
       const [list, i] = t.dataset.alsojoin.split(':'), L = listsOf(m), arr = list === 'stop' ? L.st : L.go, c = { ...arr[+i] };
@@ -2614,7 +2630,7 @@ const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked =
 $('calmBtn').onclick = () => { calmBeats = !calmBeats; };
 toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day');
 $('day').onchange = () => { if (world) world.day = $('day').checked; };
-if (window.matchMedia('(max-width: 760px)').matches) $('stats').hidden = true;   // phones: the tank first
+$('stats').hidden = true;   // the numbers start hidden everywhere (author, 2026-11-01): ⓘ shows them
 $('infoBtn').onclick = () => { $('stats').hidden = !$('stats').hidden; };
 // a phone: the speed is one button that steps through them, and the rarer tools wait behind ⋯ More
 $('speedBtn').onclick = () => { const sel = $('speed'); sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length; sel.dispatchEvent(new Event('change')); };
