@@ -433,82 +433,109 @@ function meaning(kind, v, id) {
   return v.toFixed(2);
 }
 const nearRange = (id) => { const p = (design.parts || []).find((x) => x.id === id); return (p && p.range) || PARAMS.sensor.nearRange; };
-const UNIT = { light: 'of full sun', energy: 'full', starch: 'full', oil: 'full', health: 'healthy' };
-// a condition in words, without the sensor's name: "above 50% of full sun", "pointing lower than 6° down"
-function condWords(c, mode = modeOf(c), lo = c.min, hi = c.max) {
-  const kind = sensorKind(c.sensor), w = (v) => meaning(kind, v, c.sensor), pc = (v) => `${Math.round(v * 100)}%`;
-  if (mode === 'more' || mode === 'less') return `reads ${mode} than ${sensorInfo(c.vs).name}`;
-  const not = mode === 'outside' ? 'not ' : '';
-  if (UNIT[kind]) {
-    if (mode === 'above') return `above ${pc(lo)} ${UNIT[kind]}`;
-    if (mode === 'below') return `below ${pc(hi)} ${UNIT[kind]}`;
-    return `${not}between ${pc(lo)} and ${pc(hi)} ${UNIT[kind]}`;
-  }
-  if (kind === 'statolith') {
-    if (mode === 'above') return `tilted above ${w(lo)}`;
-    if (mode === 'below') return `tilted below ${w(hi)}`;
-    return `${not}tilted between ${w(lo)} and ${w(hi)}`;
-  }
-  if (kind === 'touch') return mode === 'above' ? 'touching' : mode === 'below' ? 'not touching' : `${not}touching`;
+// ----- rules as sentences (author, 2026-11-01, from design/wiring-mockup.html): each kind of reading on its own scale,
+// with named zones, a verb, and its value in words. `pos` places a reading (0-1) along the drawn scale (light stretched
+// at the dim end, the statolith by its angle), `unpos` back. A condition is one range on that scale, the part counting
+// while the reading is inside it (or outside: `not`); a range reaching an end of the scale reads "more than" / "less
+// than". -----
+const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+const degOf = (v) => Math.asin(Math.min(1, Math.max(-1, 2 * v - 1))) * 180 / Math.PI;
+const pc = (v) => `${Math.round(v * 100)}%`;
+const LEVEL_ZONES = [[0, 0.15, 'empty'], [0.15, 0.4, 'low'], [0.4, 0.75, 'half'], [0.75, 1, 'full']];
+const KINDS = {
+  light: { verb: 'sees', zones: [[0, 0.05, 'dark'], [0.05, 0.25, 'dim'], [0.25, 0.6, 'bright'], [0.6, 1, 'full sun']], u: (v) => `${pc(v)} sun`,
+    pos: Math.sqrt, unpos: (p) => p * p },
+  statolith: { verb: 'points', more: 'above', less: 'below', zones: [[0, 0.25, 'down'], [0.25, 0.75, 'level'], [0.75, 1, 'up']],
+    u: (v) => { const a = Math.round(degOf(v)); return a > 0 ? `+${a}°` : a < 0 ? `−${-a}°` : '0°'; },
+    pos: (v) => (degOf(v) + 90) / 180, unpos: (p) => (1 - Math.cos(p * Math.PI)) / 2 },
+  energy: { verb: 'is', zones: LEVEL_ZONES, u: pc },
+  starch: { verb: 'is', zones: LEVEL_ZONES, u: pc },
+  oil: { verb: 'is', zones: LEVEL_ZONES, u: pc },
+  health: { verb: 'is', zones: [[0, 0.3, 'wrecked'], [0.3, 0.7, 'hurt'], [0.7, 1, 'healthy']], u: (v) => `${pc(v)} healthy` },
+  touch: { verb: 'is', zones: [[0, 0.5, 'not touching'], [0.5, 1, 'touching']], u: (v) => (v >= 0.5 ? 'touching' : 'not touching') },
+  near: { verb: 'feels', zones: [[0, 0.05, 'nothing'], [0.05, 0.5, 'far'], [0.5, 0.95, 'close'], [0.95, 1, 'touching']],
+    u: (v, id) => `${Math.round((1 - v) * nearRange(id))} µm` },
+  chem: { verb: 'tastes', zones: [[0, 0.5, 'poor water'], [0.5, 1, 'rich water']], u: pc },
+};
+const kindOf = (id) => KINDS[sensorKind(id)] || KINDS.energy;
+const posOf = (K, v) => (K.pos ? K.pos(v) : v);
+const unposOf = (K, p) => (K.unpos ? K.unpos(p) : p);
+const zoneAt = (K, v) => (K.zones.find((z) => v >= z[0] && v < z[1]) || K.zones[K.zones.length - 1])[2];
+// a range in words: "more than 5% sun (dim)", "between 5 and 25% sun (dim)", "not between …"
+function rangeWords(id, a, b, out) {
+  const kind = sensorKind(id), K = kindOf(id), u = (v) => K.u(v, id), z = (v) => ` <span class="z">(${zoneAt(K, v)})</span>`;
+  const lo = a <= 0, hi = b >= 1, more = K.more || 'more than', less = K.less || 'less than';
+  const bare = (v) => u(v).replace(/ (sun|healthy)$/, '');
+  if (lo && hi) return out ? 'never' : 'anything';
+  if (kind === 'touch') return hi !== out ? 'touching' : 'not touching';
   if (kind === 'near') {
-    if (mode === 'above') return `something within ${Math.round((1 - lo) * nearRange(c.sensor))} µm`;
-    if (mode === 'below') return `nothing within ${Math.round((1 - hi) * nearRange(c.sensor))} µm`;
+    if (hi !== out && (hi || lo)) return `something within ${u(hi ? a : b)}`;
+    if (lo || hi) return `nothing within ${u(lo ? b : a)}`;
+    return `${out ? 'nothing' : 'something'} between ${u(b)} and ${u(a)} away`;
   }
-  return mode === 'above' ? `above ${w(lo)}` : mode === 'below' ? `below ${w(hi)}` : `${not}between ${w(lo)} and ${w(hi)}`;
+  if (!out) return lo ? `${less} ${u(b)}${z(b - 0.005)}` : hi ? `${more} ${u(a)}${z(a)}`
+    : `between ${bare(a)} and ${u(b)}${zoneAt(K, a) === zoneAt(K, b - 0.005) ? z(a) : ''}`;
+  return lo ? `${more} ${u(b)}${z(b)}` : hi ? `${less} ${u(a)}${z(a - 0.005)}` : `not between ${bare(a)} and ${u(b)}`;
 }
-// a condition with its sensor(s) for a sentence: "● Eyespot (top) below 10% of full sun"; several of one kind: "any of ●
-// Eyespot (top), ● Eyespot (bottom) below 10% …"; of different kinds, each with its own value, joined by or / and
-function condPhrase(c) {
-  const more = (c.also || []);
-  if (!more.length) return `${sensorTag(c.sensor)} <b>${condWords(c)}</b>`;
-  const k = sensorKind(c.sensor);
-  if (more.every((e) => sensorKind(e.sensor) === k)) return `${c.all ? 'all of' : 'any of'} ${[c.sensor, ...more.map((e) => e.sensor)].map(sensorTag).join(', ')} <b>${condWords(c)}</b>`;
-  const one = (x) => `${sensorTag(x.sensor)} <b>${condWords({ ...x, not: c.not }, modeOf(c), x.min, x.max)}</b>`;
-  return `(${[c, ...more].map(one).join(c.all ? ' and ' : ' or ')})`;
+// a sensor's word: its colour dot and name; `ref` makes it tappable (opens the editor on that sensor)
+const sensorWord = (id, ref) => {
+  const s = sensorInfo(id), html = `${dot(s.colour)}${esc(s.name)}`;
+  return ref ? `<span class="w s" data-ed="${ref}">${html}</span>` : `<b class="s">${html}</b>`;
+};
+const valueWord = (html, ref) => (ref ? `<span class="w v" data-ed="${ref}">${html}</span>` : `<b class="v">${html}</b>`);
+// one condition in words: "● Eyespot (top) sees more than 5% sun (dim)"; several sensors: "● A or ● B sees …" (any),
+// "● A and ● B sees …" (all), of different kinds each with its own value; a compare: "● A sees more than ● B".
+// `ref` ("go:0"): tappable words, each opening the editor on its sensor
+function termWords(c, ref) {
+  const r = (i) => (ref ? `${ref}:${i}` : null), K = kindOf(c.sensor), verb = `<span class="verb">${K.verb}</span>`;
+  if (c.vs !== undefined) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(c.not ? 'less than' : 'more than', r(0))} ${sensorWord(c.vs, r(0))}`;
+  const also = c.also || [], all = [c, ...also];
+  if (!also.length) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
+  const join = c.all ? ' and ' : ' or ';
+  if (also.every((e) => sensorKind(e.sensor) === sensorKind(c.sensor))) return `${all.map((e, i) => sensorWord(e.sensor, r(i))).join(join)} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
+  return `(${all.map((e, i) => `${sensorWord(e.sensor, r(i))} <span class="verb">${kindOf(e.sensor).verb}</span> ${valueWord(rangeWords(e.sensor, e.min, e.max, c.not), r(i))}`).join(join)})`;
 }
-// a part's rule in one sentence: "Runs when ● Eyespot (top) is above 50% of full sun, but stops if ● Statolith …"
-function ruleSummary(targets) {
-  const m = targets[0], verb = verbOf(m), shape = toShape(rulesOf(m)), runs = verb === 'runs';
-  if (verb === 'rests') {
-    const one = condPhrase;
-    if (!shape.groups.length) return 'Never rests (add REST when… to slow the metabolism: upkeep and income at 40%, flagella stop).';
-    return `Rests when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}${shape.stops.length ? `, but not if ${shape.stops.map(one).join(' or ')}` : ''}: upkeep and income at 40%, flagella stop.`;
+// A part's rule as stored, in its reading order: GO conditions (each `or` starting a new group), then the STOP ones;
+// each keeps k, its place in the stored list (the living cell's conditions are in that order)
+function canon(m) {
+  const sh = toShape(rulesOf(m));
+  return [...sh.groups.flatMap((g, gi) => g.map((c, ci) => ({ ...c, or: gi > 0 && ci === 0, stop: false }))), ...sh.stops.map((c) => ({ ...c, or: false, stop: true }))];
+}
+// The rule as one sentence (ref: tappable words, with + buttons). Runs / fires: "Runs when A and B or C, unless D, at
+// full speed." A buoyancy chamber: "Floats when …" and "Sinks when …" (sinking wins). The nucleus: "Rests when …".
+function sentence(targets, tappable, where) {
+  const m = targets[0], verb = verbOf(m), R = canon(m), go = R.filter((c) => !c.stop), st = R.filter((c) => c.stop);
+  const k0 = design.parts.indexOf(m), key = partKey(m), ed = tappable && ruleEd && ruleEd.key === key && ruleEd.where === where ? ruleEd : null;
+  const term = (c, list, i) => `<span class="term${ed && ed.list === list && ed.i === i ? ' editing' : ''}${c.stop ? ' st' : ''}" data-livecond="${k0}:${c.k}">${termWords(c, tappable ? `${list}:${i}` : null)}</span>`;
+  const goWords = () => go.map((c, i) => (i ? (tappable ? ` <span class="j" data-join="${i}" title="Tap: and / or">${c.or ? 'or' : 'and'}</span> ` : ` ${c.or ? 'or' : 'and'} `) : '') + term(c, 'go', i)).join('');
+  const stWords = () => st.map((c, i) => (i ? ' or ' : '') + term(c, 'stop', i)).join('');
+  const add = (list, label, title) => (tappable ? ` <button class="add" data-add="${list}" title="${title}">${label}</button>` : '');
+  const never = (t) => `<span class="never">${t}</span>`;
+  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
+  if (verb === 'floats') return `<div class="line">Floats ${go.length ? `when ${goWords()}` : never('never')}.${add('go', go.length ? '+ and…' : '+ when…', 'A condition that floats it')}</div>
+    <div class="line">Sinks ${st.length ? `when ${stWords()}` : never('never')}.${add('stop', st.length ? '+ or…' : '+ when…', 'A condition that sinks it (sinking wins)')}</div>
+    <div class="line small">Sinking wins; neither: neutral, no cost.</div>`;
+  const V = { runs: 'Runs', fires: 'Fires', rests: 'Rests' }[verb];
+  const none = verb === 'runs' ? never('all the time') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
+  let s = `${V} ${go.length ? `when ${goWords()}` : none}`;
+  if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
+  if (verb === 'runs') {
+    const sp = m.joint.speed;
+    const sw = sp ? `faster as ${sensorWord(sp.sensor)} reads ${sp.down ? 'less' : 'more'}` : 'at full speed';
+    s += `, ${tappable ? `<span class="w sp${ed && ed.list === 'speed' ? ' editing' : ''}" data-ed="speed:0:0">${sw}</span>` : sw}`;
   }
-  if (verb === 'floats') {
-    const one = condPhrase;
-    if (!nucleiOf(design).length) return 'Neutral (no nucleus to control it).';
-    const fl = shape.groups.length ? `Floats when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}` : '';
-    const sk = shape.stops.length ? `${fl ? '; ' : ''}sinks if ${shape.stops.map(one).join(' or ')}${fl ? ' (sinking wins)' : ''}` : '';
-    return fl || sk ? `${fl}${sk}; otherwise neutral.` : 'Neutral: no lift, no cost (add FLOAT when… or SINK if…).';
-  }
-  if (!nucleiOf(design).length) return runs ? 'Runs all the time (no nucleus to control it)' : 'Fires only by hand (no nucleus)';
-  const one = condPhrase;
-  let s = shape.groups.length ? `${runs ? 'Runs' : 'Fires'} when ${shape.groups.map((g) => g.map(one).join(' and ')).join('; or when ')}`
-    : runs ? 'Runs all the time' : 'Fires only by hand (⚡ Release)';
-  if (shape.stops.length) s += `, but ${runs ? 'stops' : 'never fires'} if ${shape.stops.map(one).join(' or ')}`;
-  const sp = runs && m.joint.speed;
-  if (sp) s += `. Beats faster as ${sensorTag(sp.sensor)} reads ${sp.down ? 'less' : 'more'}`;
-  return s + '.';
+  s += '.';
+  if (verb === 'rests') s += ' <span class="small">(upkeep and income at 40%, flagella stop)</span>';
+  return `<div class="line">${s}${add('go', go.length ? '+ and…' : '+ when…', 'A condition it needs')}${add('stop', '+ unless…', 'Something that stops it, whatever the rest says')}</div>`;
 }
+// the folded card: the same sentence, plain
+const ruleSummary = (targets) => sentence(targets, false);
 
 // ----- wiring: which sensors drive a part. A rule is a list of conditions (a sensor and a range of its reading, or
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
 const RANGE = { health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
-const SCALE = {   // what the 0-1 reading means
-  light: '0 = dark or facing away, 1 = facing up in full light',
-  touch: '0 = nothing, 1 = touching',
-  near: '0 = nothing in range, 1 = touching',
-  energy: '0 = out of energy (starving), 1 = full',
-  starch: '0 = its starch is used up, 1 = full',
-  oil: '0 = its oil is used up, 1 = full',
-  health: '0 = its plastids wrecked by too much light, 1 = unharmed',
-  statolith: 'the way it faces: 0 = straight down (−90°), 0.5 = level (0°), 1 = straight up (+90°)',
-  chem: '0 = poor water (near the surface), 1 = rich (deep)',
-};
-const ENDS = { health: ['wrecked', 'unharmed'], light: ['dark', 'bright'], touch: ['nothing', 'touching'], near: ['nothing near', 'touching'], energy: ['starving', 'full'], starch: ['used up', 'full'], oil: ['used up', 'full'],
-  statolith: ['−90° (down)', '+90° (up)'], chem: ['poor water', 'rich water'] };
 const ICON = { health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
@@ -589,46 +616,12 @@ function brainFits(targets, change) {
   const full = !nucleiOf(design).length ? 'this cell has no nucleus: add one (Inside the cell) to wire it' : brainProblem(trial);
   if (!full) return true;
   $('buildErr').textContent = full;
-  if (patchOpen) { drawPatch(); $('patchHint').textContent = `🧬 ${full}`; }
+  if (patchOpen) $('patchHint').textContent = `🧬 ${full}`;
   return false;
 }
 const freshRule = (id) => ({ sensor: id, min: RANGE[sensorKind(id)][0], max: RANGE[sensorKind(id)][1], not: false });
 
-// ----- a condition: a sensor, and how its reading must be: above / below / between / outside a value, or more / less
-// than another sensor's reading -----
-const MODES = { above: 'above', below: 'below', between: 'between', outside: 'outside', more: 'more than…', less: 'less than…' };
-function modeOf(c) {
-  if (c.vs !== undefined) return c.not ? 'less' : 'more';
-  if (c.not) return 'outside';
-  if (c.max >= 1 && c.min > 0) return 'above';
-  if (c.min <= 0 && c.max < 1) return 'below';
-  return c.min <= 0 && c.max >= 1 ? 'above' : 'between';
-}
-const r2 = (v) => Math.round(v * 100) / 100;
-function withMode(c, mode, sensors) {
-  if (c.also && c.also.length) {
-    if (mode === 'more' || mode === 'less') { const { also, all, ...rest } = c; return withMode(rest, mode, sensors); }   // a compare reads one sensor
-    const { also, all, ...one } = c, first = withMode(one, mode, sensors);
-    return { ...first, also: also.map((e) => { const x = withMode({ sensor: e.sensor, min: e.min, max: e.max, not: c.not }, mode, sensors); return { sensor: e.sensor, min: x.min, max: x.max }; }), all };
-  }
-  const { vs, ...base } = c, m = modeOf(c);
-  const lo = m === 'below' ? r2(c.max / 2) : c.min > 0 && c.min < 1 ? c.min : 0.5, hi = c.max > 0 && c.max < 1 ? c.max : 0.5;
-  if (mode === 'above') return { ...base, min: lo, max: 1, not: false };
-  if (mode === 'below') return { ...base, min: 0, max: hi, not: false };
-  if (mode === 'between' || mode === 'outside') {
-    const a = Math.min(lo, hi), b = Math.max(lo, hi) > a ? Math.max(lo, hi) : Math.min(1, a + 0.3);
-    return { ...base, min: a, max: b, not: mode === 'outside' };
-  }
-  const other = vs ?? (sensors.find((s) => s.id !== c.sensor) || sensors[0]).id;
-  return { ...base, vs: other, not: mode === 'less', min: 0, max: 1 };
-}
-// a condition in a few characters, for cable labels
-function condText(c) {
-  const m = modeOf(c), f = (v) => r2(v).toString();
-  if (m === 'more' || m === 'less') return `${m === 'more' ? '>' : '<'} ${ICON[sensorKind(c.vs)]} ${sensorInfo(c.vs).name}`;
-  const n = (c.also || []).length ? `${c.all ? 'all' : 'any'} of ${c.also.length + 1}: ` : '';
-  return n + (m === 'above' ? `> ${f(c.min)}` : m === 'below' ? `< ${f(c.max)}` : `${m === 'outside' ? 'not ' : ''}${f(c.min)}–${f(c.max)}`);
-}
+// ----- writing a rule: the card's sentence and its editor change the design (and the cells in the tank, no reset) -----
 // the extra sensors of a condition kept tidy: none twice, never the first one, and those of the first one's kind on its values
 function tidyAlso(c) {
   if (!c.also) return c;
@@ -637,169 +630,59 @@ function tidyAlso(c) {
   if (!also.length) { const { also: _, all, ...rest } = c; return rest; }
   return { ...c, also };
 }
-// One condition line: sensor, how, value(s); `live` = "part index:condition index" (for the green / red light)
-function condLine(c, sensors, live, onSet0, onRemove) {
-  const kind = sensorKind(c.sensor), mode = modeOf(c), onSet = (nc) => onSet0(tidyAlso(nc));
-  const line = document.createElement('div');
-  line.className = 'cond' + (c.stop ? ' stopcond' : '');
-  line.dataset.livecond = live;
-  const top = document.createElement('div'); top.className = 'condhead';
-  const sel = document.createElement('select');
-  for (const s of sensors) sel.add(new Option(`${ICON[s.kind]} ${s.name}`, s.id));
-  sel.value = c.sensor;
-  sel.onchange = () => onSet(mode === 'more' || mode === 'less' ? { ...c, sensor: sel.value } : { ...c, ...freshRule(sel.value), not: c.not && mode === 'outside' });
-  const how = document.createElement('select');
-  how.className = 'howsel';
-  // above / below / more / less: between is above AND below, outside below OR above (shown only on old conditions)
-  for (const [k, label] of Object.entries(MODES)) if ((sensors.length > 1 || (k !== 'more' && k !== 'less'))) how.add(new Option(label, k));
-  how.value = mode;
-  how.title = 'above / below a value, between or outside two, or more / less than another sensor';
-  how.onchange = () => onSet(withMode(c, how.value, sensors));
-  const del = document.createElement('button');
-  del.textContent = '✕'; del.title = 'Remove this condition';
-  del.onclick = onRemove;
-  top.append(sel, how, del);
-  line.appendChild(top);
-  if (mode === 'more' || mode === 'less') {
-    const vs = document.createElement('select');
-    for (const s of sensors) if (s.id !== c.sensor) vs.add(new Option(`than ${ICON[s.kind]} ${s.name}`, s.id));
-    vs.value = c.vs;
-    vs.onchange = () => onSet({ ...c, vs: vs.value });
-    const row = document.createElement('div'); row.className = 'condhead'; row.appendChild(vs);
-    const now = document.createElement('div'); now.className = 'rlabel';
-    now.innerHTML = `now <b data-live="${c.sensor}">–</b> vs <b data-live="${c.vs}">–</b>`;
-    line.append(row, now);
-  } else {
-    line.appendChild(valueBar(c, mode, kind, (lo, hi) => onSet({ ...c, min: lo, max: hi })));
-    // more sensors in the same condition (author, 2026-10-29): any one of them, or all of them, must read so
-    const also = c.also || [];
-    also.forEach((e, i) => {
-      const row = document.createElement('div'); row.className = 'condhead alsorow';
-      const lab = document.createElement('span'); lab.className = 'alsolab'; lab.textContent = c.all ? 'and' : 'or';
-      const es = document.createElement('select');
-      for (const s of sensors) if (s.id === e.sensor || (s.id !== c.sensor && !also.some((x) => x.sensor === s.id))) es.add(new Option(`${ICON[s.kind]} ${s.name}`, s.id));
-      es.value = e.sensor;
-      es.onchange = () => {
-        const a = also.map((x) => ({ ...x })), v = sensorKind(es.value) === kind ? c : withMode({ ...freshRule(es.value), not: c.not }, mode, sensors);
-        a[i] = { sensor: es.value, min: v.min, max: v.max };
-        onSet({ ...c, also: a });
-      };
-      const x = document.createElement('button'); x.textContent = '✕'; x.title = 'Take this sensor out of the condition';
-      x.onclick = () => onSet({ ...c, also: also.filter((_, j) => j !== i) });
-      row.append(lab, es, x); line.appendChild(row);
-      const ek = sensorKind(e.sensor);
-      if (ek !== kind) line.appendChild(valueBar({ ...e, not: c.not }, mode, ek, (lo, hi) => { const a = also.map((y) => ({ ...y })); a[i] = { ...a[i], min: lo, max: hi }; onSet({ ...c, also: a }); }));
-    });
-    const free = sensors.filter((s) => s.id !== c.sensor && !also.some((x) => x.sensor === s.id));
-    const row = document.createElement('div'); row.className = 'condhead';
-    if (free.length) {
-      const add = document.createElement('button'); add.className = 'addcond'; add.textContent = '＋ sensor';
-      add.title = 'Another sensor in this condition (say both eyespots): any of them, or all of them, must read so';
-      add.onclick = () => {   // one of the same kind first (it shares this value)
-        const pick = free.find((s) => s.kind === kind) || free[0];
-        const v = pick.kind === kind ? c : withMode({ ...freshRule(pick.id), not: c.not }, mode, sensors);
-        onSet({ ...c, also: [...also, { sensor: pick.id, min: v.min, max: v.max }] });
-      };
-      row.appendChild(add);
-    }
-    if (also.length) {
-      const t = document.createElement('button'); t.className = 'addcond anyall';
-      t.textContent = c.all ? 'ALL of them' : 'ANY of them';
-      t.title = c.all ? 'Every one of these sensors must read so (tap: any one will do)' : 'Any one of these sensors reading so is enough (tap: all must)';
-      t.onclick = () => onSet({ ...c, all: !c.all });
-      row.appendChild(t);
-    }
-    if (row.children.length) line.appendChild(row);
-  }
-  return line;
+// write the GO list (each `or` starting a group) and the STOP list back
+function writeRule(targets, go, st) {
+  return setRules(targets, [...go.map((c, i) => ({ ...c, stop: false, or: i > 0 && !!c.or })), ...st.map((c) => ({ ...c, or: false, stop: true }))]);
 }
-// The value(s) of a condition: one slider for above / below, two for between / outside; the ends of the scale named;
-// the orange tick is the reading now
-function valueBar(c, mode, kind, onSet) {
-  const one = mode === 'above' || mode === 'below';
-  const box = document.createElement('div');
-  box.className = 'range';
-  box.title = SCALE[kind];
-  const v0 = mode === 'below' ? c.max : c.min, v1 = c.max;
-  box.innerHTML = `<div class="rlabel"><b class="lohi"></b> <span class="mean"></span> · now <b data-live="${c.sensor}" data-mean="${kind}">–</b></div>
-    <div class="dual"><div class="track${mode === 'outside' ? ' out' : ''}"><div class="band"></div><div class="now" data-livebar="${c.sensor}"></div></div>
-      <input type="range" min="0" max="1" step="0.05" value="${v0}">${one ? '' : `<input type="range" min="0" max="1" step="0.05" value="${v1}">`}</div>
-    <div class="rends"><span>${ENDS[kind][0]}</span><span>${ENDS[kind][1]}</span></div>`;
-  const [a, b] = box.querySelectorAll('input');
-  const band = box.querySelector('.band'), lohi = box.querySelector('.lohi'), mean = box.querySelector('.mean');
-  const show = () => {
-    const x = Number(a.value), y = b ? Number(b.value) : 0;
-    const from = mode === 'above' ? x : mode === 'below' ? 0 : x, to = mode === 'above' ? 1 : mode === 'below' ? x : y;
-    band.style.left = `${from * 100}%`; band.style.width = `${(to - from) * 100}%`;
-    lohi.textContent = mode === 'above' ? `above ${x.toFixed(2)}` : mode === 'below' ? `below ${x.toFixed(2)}`
-      : `${mode === 'outside' ? 'outside' : 'between'} ${x.toFixed(2)} and ${y.toFixed(2)}`;
-    mean.textContent = `= ${condWords(c, mode, mode === 'below' ? 0 : x, mode === 'below' ? x : mode === 'above' ? 1 : y)}`;   // the same in words
-  };
-  a.oninput = () => { if (b && Number(a.value) > Number(b.value)) a.value = b.value; show(); };
-  if (b) b.oninput = () => { if (Number(b.value) < Number(a.value)) b.value = a.value; show(); };
-  const set = () => {
-    const x = Number(a.value);
-    if (mode === 'above') onSet(x, 1); else if (mode === 'below') onSet(0, x); else onSet(x, Number(b.value));
-  };
-  a.onchange = set; if (b) b.onchange = set;
-  show();
-  return box;
+const listsOf = (m) => { const R = canon(m); return { go: R.filter((c) => !c.stop), st: R.filter((c) => c.stop) }; };
+function writeTerm(targets, list, i, c) {
+  const L = listsOf(targets[0]);
+  (list === 'stop' ? L.st : L.go)[i] = tidyAlso(c);
+  return writeRule(targets, L.go, L.st);
 }
 
-// ----- the rule card: one per part, the same in the parts list and in the wiring view -----
-const HEADS = {
-  runs: ['GO when', 'OR GO when', 'STOP if', 'runs always (add a condition to control it)'],
-  fires: ['FIRE when', 'OR FIRE when', "DON'T FIRE if", 'fires by hand (Release), or add a condition'],
-  // a buoyancy chamber: its GO groups float it, its STOP conditions sink it (sinking wins); neither: neutral
-  floats: ['FLOAT when', 'OR FLOAT when', 'SINK if', 'neutral (add FLOAT when… or SINK if…)'],
-  // the nucleus: resting slows the whole metabolism
-  rests: ['REST when', 'OR REST when', "DON'T REST if", 'never rests (add REST when…)'],
-};
-function ruleCard(targets) {
-  const m = targets[0], verb = verbOf(m), H = HEADS[verb], k0 = design.parts.indexOf(m);
-  const sensors = sensorList();
-  const shape = toShape(rulesOf(m));
-  const write = (s) => setRules(targets, fromShape(s));
-  const copy = () => ({ groups: shape.groups.map((g) => g.map((c) => ({ ...c }))), stops: shape.stops.map((c) => ({ ...c })) });
+// ----- the rule card: the sentence, its editor under it while a word is open, copy / paste. The same card in the parts
+// list and in the Nucleus board; the editor opens only in the one tapped. -----
+let ruleEd = null;   // { key, list: 'go' | 'stop' | 'speed', i, ei (which of the condition's sensors), where: 'list' | 'board' }
+function ruleCard(targets, where = 'list') {
+  const m = targets[0], verb = verbOf(m), key = partKey(m);
   const card = document.createElement('div');
   card.className = 'wire rcard';
-  const head = (text, cls = '') => { const h = document.createElement('div'); h.className = `rhead ${cls}`; h.textContent = text; card.appendChild(h); };
-  const button = (text, title, onclick) => { const b = document.createElement('button'); b.className = 'addcond'; b.textContent = text; b.title = title; b.onclick = onclick; card.appendChild(b); };
-  if (!nucleiOf(design).length) {   // no brain: nothing to wire with
-    head(`${H[3].split(' (')[0]}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to wire it`, 'dim');
-    return card;
-  }
-  if (!shape.groups.length && !shape.stops.length) head(H[3], 'dim');
-  shape.groups.forEach((g, gi) => {
-    head(gi ? H[1] : H[0]);
-    g.forEach((c, ci) => card.appendChild(condLine(c, sensors, `${k0}:${c.k}`,
-      (nc) => { const s = copy(); s.groups[gi][ci] = nc; write(s); },
-      () => { const s = copy(); s.groups[gi].splice(ci, 1); if (!s.groups[gi].length) s.groups.splice(gi, 1); write(s); })));
-    button('＋ and…', 'Another condition in this group: all of them must hold', () => { const s = copy(); s.groups[gi].push(freshRule(sensors[0].id)); write(s); });
-  });
-  button(shape.groups.length ? `＋ ${H[1].toLowerCase()}…` : `＋ ${H[0].toLowerCase()}…`,
-    shape.groups.length ? 'Another group: it also goes when all of this one hold' : 'A condition that makes it go',
-    () => { const s = copy(); s.groups.push([freshRule(sensors[0].id)]); write(s); });
-  if (shape.stops.length) {
-    head(`${H[2]} (beats everything above)`, 'stop');
-    shape.stops.forEach((c, ci) => card.appendChild(condLine(c, sensors, `${k0}:${c.k}`,
-      (nc) => { const s = copy(); s.stops[ci] = nc; write(s); },
-      () => { const s = copy(); s.stops.splice(ci, 1); write(s); })));
-  }
-  button(`＋ ${H[2].toLowerCase()}…`, 'An override: whenever this holds, it stops, whatever the conditions above say',
-    () => { const s = copy(); s.stops.push(freshRule(sensors[0].id)); write(s); });
-  if (verb === 'runs') card.appendChild(speedRow(targets, sensors));
+  card.innerHTML = `<div class="say">${sentence(targets, true, where)}</div>`;
+  card.onclick = (e) => {
+    const t = e.target.closest('[data-ed], [data-join], [data-add]');
+    if (!t) return;
+    e.stopPropagation();
+    if (t.dataset.ed) {
+      const [list, i, ei] = t.dataset.ed.split(':');
+      const same = ruleEd && ruleEd.key === key && ruleEd.list === list && ruleEd.i === +i && ruleEd.where === where && ruleEd.ei === +ei;
+      ruleEd = same ? null : { key, list, i: +i, ei: +ei, where };
+      listParts();
+    } else if (t.dataset.join) {   // and <-> or: "or" starts a new group here
+      const L = listsOf(m), i = +t.dataset.join;
+      L.go[i] = { ...L.go[i], or: !L.go[i].or };
+      writeRule(targets, L.go, L.st);
+    } else if (t.dataset.add) {
+      const L = listsOf(m), used = new Set([...L.go, ...L.st].map((c) => c.sensor)), sensors = sensorList();
+      const pick = (sensors.find((s) => !used.has(s.id)) || sensors[0]).id;
+      const list = t.dataset.add, arr = list === 'stop' ? L.st : L.go;
+      arr.push(freshRule(pick));
+      if (writeRule(targets, L.go, L.st)) { ruleEd = { key, list, i: arr.length - 1, ei: 0, where }; listParts(); }
+    }
+  };
+  if (ruleEd && ruleEd.key === key && ruleEd.where === where) card.appendChild(ruleEditor(targets));
+  if (!nucleiOf(design).length) return card;
   // copy this rule, to paste into another part and adjust (author, 2026-10-28)
-  const key = partKey(m), here = ruleClip && ruleClip.key !== key && ruleClip.verb === verb;
+  const here = ruleClip && ruleClip.key !== key && ruleClip.verb === verb;
   const tools = document.createElement('div'); tools.className = 'rtools';
   const cp = document.createElement('button');
   cp.textContent = ruleClip && ruleClip.key === key ? '✓ Rule copied' : '⧉ Copy rule';
-  cp.title = 'Copy this rule (with its STOP conditions and beat speed), to paste into another part';
+  cp.title = 'Copy this rule (with its unless and beat speed), to paste into another part';
   cp.onclick = () => { ruleClip = { key, verb, name: partName(groupOfPart(m)), colour: colourOf(groupOfPart(m)), rules: rulesOf(m), speed: m.joint.speed ? { ...m.joint.speed } : null }; listParts(); };
   tools.appendChild(cp);
   if (here) {
     const ps = document.createElement('button');
-    ps.innerHTML = `📋 Paste rule from ${dot(ruleClip.colour)}${ruleClip.name}`;
+    ps.innerHTML = `📋 Paste rule from ${dot(ruleClip.colour)}${esc(ruleClip.name)}`;
     ps.title = 'Replace this rule with a copy of the copied one; then adjust it';
     ps.onclick = () => { if (setRules(targets, ruleClip.rules.map((c) => ({ ...c }))) && verb === 'runs') setSpeed(targets, ruleClip.speed); };
     tools.appendChild(ps);
@@ -810,25 +693,255 @@ function ruleCard(targets) {
 let ruleClip = null;   // the copied rule: { key, verb, name, colour, rules, speed }
 const partKey = (m) => (m.build && m.build.id) || m.id || `#${design.parts.indexOf(m)}`;
 const groupOfPart = (m) => partGroups(design.parts || []).find((g) => g.members.includes(m));
-// once a frame: each condition line green while it holds (red for a STOP line that is stopping the part), for the
-// selected cell if it is this design
+
+// ----- the editor: which sensor (or sensors: any / all of them), inside or outside a range, or more / less than
+// another sensor; the range on the sensor's own scale (drag its ends, or tap a zone's name), and the reading over the
+// last day lit where it counts -----
+const SVGW = 320;
+const xAt = (K, v) => 12 + posOf(K, v) * 296;
+const vAt = (K, px) => (px < 20 ? 0 : px > SVGW - 20 ? 1 : Math.round(unposOf(K, Math.max(0, Math.min(1, (px - 12) / 296))) * 100) / 100);
+const inside = (v, a, b) => (a <= 0 || v >= a) && (b >= 1 || v <= b);
+// the scale: zones (tap a name: that zone), the band where it counts, the two ends, and a needle for the reading now
+// (moved every frame, data-needle). `speed`: the band runs from stopped to full
+function scaleSVG(id, a, b, out, colour, speed) {
+  const K = kindOf(id), X = (v) => xAt(K, v);
+  let s = '';
+  K.zones.forEach((z, i) => {
+    const sel = !speed && !out && Math.abs(a - z[0]) < 1e-6 && Math.abs(b - z[1]) < 1e-6;
+    s += `<rect x="${X(z[0])}" y="18" width="${X(z[1]) - X(z[0])}" height="18" fill="${i % 2 ? '#14223a' : '#101b2c'}"/>`;
+    if (!speed) s += `<rect x="${X(z[0]) + 2}" y="43" width="${Math.max(0, X(z[1]) - X(z[0]) - 4)}" height="16" rx="8" fill="${sel ? colour : '#16243a'}" fill-opacity="${sel ? 0.25 : 1}" stroke="${sel ? colour : '#2a3d58'}"/>`;
+    s += `<text x="${(X(z[0]) + X(z[1])) / 2}" y="${speed ? 50 : 55}" text-anchor="middle" fill="${sel ? '#dce7ec' : '#8398aa'}" font-size="10.5">${z[2]}</text>`;
+  });
+  const bands = speed ? [[a, b]] : out ? [[0, a], [b, 1]] : [[a, b]];
+  if (speed) s += `<defs><linearGradient id="spg"><stop offset="0" stop-color="${colour}" stop-opacity="${speed === 'down' ? 0.9 : 0.1}"/><stop offset="1" stop-color="${colour}" stop-opacity="${speed === 'down' ? 0.1 : 0.9}"/></linearGradient></defs>`;
+  for (const [l, h] of bands) if (h > l) s += `<rect x="${X(l)}" y="22" width="${X(h) - X(l)}" height="10" rx="3" fill="${speed ? 'url(#spg)' : colour}" fill-opacity="${speed ? 1 : 0.75}"/>`;
+  s += `<g data-needle="${esc(id)}" style="display:none"><line x1="0" x2="0" y1="14" y2="40" stroke="#ff8a3c" stroke-width="2.5"/><text x="0" y="10" text-anchor="middle" fill="#ff8a3c" font-size="10"></text></g>`;
+  for (const v of [a, b]) { const end = v <= 0 || v >= 1; s += `<circle cx="${X(v)}" cy="27" r="${end ? 6 : 8}" fill="${end ? '#16243a' : '#dce7ec'}" stroke="${colour}" stroke-width="2.5"/>`; }
+  return s;
+}
+// the reading over a day: light at the cell's depth now (as it faces now), the stores and energy from the journal of the
+// last day; null when there is none (tilt and touch don't follow the clock)
+function dayTrace(id) {
+  const live = cell && cell.design === design ? cell : null, kind = sensorKind(id);
+  if (!live) return null;
+  const hourOf = (t) => { const h = 6 + 24 * (t / PARAMS.metab.day + PARAMS.metab.dawn); return h - 24 * Math.floor(h / 24); };
+  if (kind === 'light') {
+    if (!world.light) return null;
+    const depth = TH - live.q[1], here = lightAt(world, live.q[1]), sn = liveReading(live, id);
+    const f = here > 0.01 && sn ? Math.max(PARAMS.sensor.scatter, Math.min(1, sn.value / here)) : 1;   // facing away it still sees the scattered share
+    const pts = [];
+    for (let i = 0; i <= 96; i++) {
+      const h = i / 4, sun = world.day ? Math.sqrt(Math.max(0, Math.sin(2 * Math.PI * (h - 6) / 24))) : 1;
+      pts.push([h, PARAMS.light.strength * sun * Math.exp(-PARAMS.light.attenuation * depth) * f]);
+    }
+    return { pts, where: `a day at this depth (${Math.round(depth)} µm)${f < 0.97 ? ', facing as now' : ''}` };
+  }
+  const field = { energy: 'E', starch: 'starch', oil: 'oil', health: 'health', chem: 'depth' }[kind];
+  if (!field || !live.journal || live.journal.s.length < 2) return null;
+  const from = worldTime(world) - PARAMS.metab.day;
+  const pts = live.journal.s.filter((x) => x.t > from && x[field] !== null && x[field] !== undefined)
+    .map((x) => [hourOf(x.t), kind === 'chem' ? nutrientAt(TH - x.depth) : x[field]]);
+  return pts.length > 1 ? { pts, where: 'its last day', span: (live.journal.s[live.journal.s.length - 1].t - Math.max(from, live.journal.s[0].t)) / PARAMS.metab.day } : null;
+}
+function traceSVG(id, test, colour) {
+  const tr = dayTrace(id);
+  if (!tr) return { svg: '', note: sensorKind(id) === 'statolith' ? 'The way it points does not follow the clock: tilt the cell (⟲ ⟳) to see it count or not.'
+    : cell && cell.design === design ? 'No day to show for this reading yet.' : 'Select a cell of this design in the tank to see its day.' };
+  const K = kindOf(id), T = (h) => 8 + h / 24 * 304, Y = (v) => 70 - posOf(K, Math.max(0, Math.min(1, v))) * 60;
+  let s = `<rect x="8" y="10" width="304" height="60" fill="#0c1524" stroke="#22324a"/>`;
+  for (const h of [6, 12, 18]) s += `<line x1="${T(h)}" x2="${T(h)}" y1="10" y2="70" stroke="#22324a"/><text x="${T(h)}" y="82" text-anchor="middle" fill="#5a6f84" font-size="10">${String(h).padStart(2, '0')}:00</text>`;
+  let line = '', lit = '', on = 0;
+  tr.pts.forEach(([h, v], i) => {
+    const P = `${T(h).toFixed(1)},${Y(v).toFixed(1)}`, wrap = i && h < tr.pts[i - 1][0];
+    line += `${wrap || !i ? ' M' : ' L'}${P}`;
+    const ok = test(v), prev = i && !wrap && test(tr.pts[i - 1][1]);
+    if (ok) { lit += `${prev ? ' L' : ' M'}${P}`; on++; }
+  });
+  s += `<path d="${line}" fill="none" stroke="${colour}" stroke-width="1.5" opacity=".7"/><path d="${lit}" fill="none" stroke="${colour === '#ff8a7a' ? '#ff6f6f' : '#6fe0a0'}" stroke-width="3.5" stroke-linecap="round"/>`;
+  s += `<line x1="${T(clock(world))}" x2="${T(clock(world))}" y1="10" y2="70" stroke="#ff8a3c" stroke-dasharray="3 3"/>`;
+  const hrs = on / tr.pts.length * 24 * (tr.span || 1);
+  return { svg: s, note: `Over ${tr.where}: it would count for about ${hrs.toFixed(1)} h.` };
+}
+function ruleEditor(targets) {
+  const m = targets[0], ed = ruleEd, box = document.createElement('div');
+  box.className = 'red';
+  box.onclick = (e) => e.stopPropagation();
+  if (ed.list === 'speed') return speedEditor(targets, box);
+  const L = listsOf(m), src = (ed.list === 'stop' ? L.st : L.go)[ed.i];
+  if (!src) { ruleEd = null; return box; }
+  const c = JSON.parse(JSON.stringify(src)); delete c.k;
+  const sensors = sensorList(), cmp = c.vs !== undefined, also = c.also || [];
+  const ei = cmp ? 0 : Math.min(ed.ei || 0, also.length), sid = ei ? also[ei - 1].sensor : c.sensor;
+  const shared = ei > 0 && sensorKind(sid) === sensorKind(c.sensor);
+  const rng = () => (ei === 0 || shared ? c : c.also[ei - 1]);   // whose range the scale moves
+  const stop = ed.list === 'stop', colour = stop ? '#ff8a7a' : '#6fd3b5';
+  const commit = () => writeTerm(targets, ed.list, ed.i, c);
+  const head = stop ? (verbOf(m) === 'floats' ? 'Sinks when' : 'Stops it') : (verbOf(m) === 'floats' ? 'Floats when' : 'It needs');
+  const chip = (s, attr, on) => `<button class="sbtn${on ? ' on' : ''}" ${attr} style="--c:${s.colour || '#8197a8'}"><i></i>${esc(s.short)}</button>`;
+  const inCond = [c.sensor, ...also.map((e) => e.sensor)];
+  const free = sensors.filter((s) => !inCond.includes(s.id));
+  let h = `<div class="edq"><span class="edh ${stop ? 'st' : ''}">${head}</span> <span data-edq>${termWords(c)}</span></div>`;
+  if (!cmp && also.length) h += `<div class="lab">Sensors in this condition</div><div class="row">${inCond.map((id, i) => chip({ ...sensorInfo(id), short: sensorInfo(id).name }, `data-ei="${i}"`, i === ei)).join('')}
+    <button class="sbtn" data-anyall title="Any one of them reading so is enough, or all must">${c.all ? 'ALL of them' : 'ANY of them'}</button>${ei ? '<button class="sbtn" data-unei title="Take this sensor out of the condition">✕ out</button>' : ''}</div>`;
+  h += `<div class="lab">Listens to${also.length ? ' (the one picked above)' : ''}</div><div class="row">${sensors.map((s) => chip(s, `data-pick="${esc(s.id)}"`, s.id === sid)).join('')}</div>`;
+  if (!cmp && free.length) h += `<div class="row"><button class="add" data-plus title="Another sensor in this condition (say both eyespots): any of them, or all of them">+ another sensor</button></div>`;
+  h += `<div class="lab">Counts when the reading is</div><div class="seg"><button data-out="0" class="${!cmp && !c.not ? 'on' : ''}">inside the range</button><button data-out="1" class="${!cmp && c.not ? 'on' : ''}">outside it</button>${sensors.length > 1 ? `<button data-cmp class="${cmp ? 'on' : ''}" title="More or less than another sensor's reading (say the right eyespot more than the left)">than another sensor</button>` : ''}</div>`;
+  if (cmp) {
+    h += `<div class="seg"><button data-less="0" class="${!c.not ? 'on' : ''}">more than</button><button data-less="1" class="${c.not ? 'on' : ''}">less than</button></div>
+      <div class="row">${sensors.filter((s) => s.id !== c.sensor).map((s) => chip(s, `data-vs="${esc(s.id)}"`, s.id === c.vs)).join('')}</div>
+      <div class="note">Now: ${esc(sensorInfo(c.sensor).name)} <b data-live="${esc(c.sensor)}" data-mean="${sensorKind(c.sensor)}">–</b> · ${esc(sensorInfo(c.vs).name)} <b data-live="${esc(c.vs)}" data-mean="${sensorKind(c.vs)}">–</b></div>`;
+  } else {
+    h += `<div class="lab">Range · drag its ends, or tap a zone's name</div><svg class="scale" viewBox="0 0 ${SVGW} 64"></svg>
+      <div class="lab">Its day · lit where it counts</div><svg class="trace" viewBox="0 0 ${SVGW} 86"></svg><div class="note" data-tnote></div>`;
+  }
+  h += `<div class="edfoot"><button class="del" data-del>Remove</button><button class="done" data-done>Done</button></div>`;
+  box.innerHTML = h;
+  const redraw = () => {
+    box.querySelector('[data-edq]').innerHTML = termWords(c);
+    if (cmp) return;
+    const r = rng();
+    box.querySelector('.scale').innerHTML = scaleSVG(sid, r.min, r.max, c.not, colour);
+    const t = traceSVG(sid, (v) => inside(v, r.min, r.max) !== !!c.not, colour);
+    box.querySelector('.trace').innerHTML = t.svg; box.querySelector('.trace').style.display = t.svg ? '' : 'none';
+    box.querySelector('[data-tnote]').textContent = t.note;
+  };
+  redraw();
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    const d = b.dataset;
+    if (d.done !== undefined) { ruleEd = null; listParts(); return; }
+    if (d.del !== undefined) {
+      const L2 = listsOf(m); (stop ? L2.st : L2.go).splice(ed.i, 1);
+      if (!stop && L2.go[0]) L2.go[0].or = false;
+      ruleEd = null; writeRule(targets, L2.go, L2.st); return;
+    }
+    if (d.ei !== undefined) { ruleEd = { ...ed, ei: +d.ei }; listParts(); return; }
+    if (d.anyall !== undefined) c.all = !c.all;
+    else if (d.unei !== undefined) { c.also.splice(ei - 1, 1); ruleEd = { ...ed, ei: 0 }; }
+    else if (d.plus !== undefined) {
+      const pick = free.find((s) => s.kind === sensorKind(c.sensor)) || free[0], f = pick.kind === sensorKind(c.sensor) ? c : freshRule(pick.id);
+      c.also = [...also, { sensor: pick.id, min: f.min, max: f.max }];
+      ruleEd = { ...ed, ei: c.also.length };
+    } else if (d.pick) {
+      if (cmp) { c.sensor = d.pick; if (c.vs === d.pick) c.vs = (sensors.find((s) => s.id !== d.pick) || {}).id; }
+      else if (ei === 0) { if (sensorKind(d.pick) !== sensorKind(c.sensor)) { const f = freshRule(d.pick); c.min = f.min; c.max = f.max; } c.sensor = d.pick; }
+      else { const f = sensorKind(d.pick) === sensorKind(c.sensor) ? c : freshRule(d.pick); c.also[ei - 1] = { sensor: d.pick, min: f.min, max: f.max }; }
+    } else if (d.out !== undefined) {
+      if (cmp) { delete c.vs; const f = freshRule(c.sensor); c.min = f.min; c.max = f.max; }
+      c.not = d.out === '1';
+    } else if (d.cmp !== undefined) {
+      if (cmp) return;
+      c.vs = (sensors.find((s) => s.id !== c.sensor && s.kind === sensorKind(c.sensor)) || sensors.find((s) => s.id !== c.sensor)).id;
+      delete c.also; delete c.all; c.not = false;
+    } else if (d.less !== undefined) c.not = d.less === '1';
+    else if (d.vs) c.vs = d.vs;
+    else return;
+    commit();
+  });
+  if (!cmp) dragScale(box.querySelector('.scale'), sid, rng, () => { redraw(); }, commit, (z) => { const r = rng(); r.min = z[0]; r.max = z[1]; c.not = false; commit(); });
+  return box;
+}
+// dragging a scale's ends (the nearer one; they swap if crossed; past the last few px it snaps to the scale's end), or
+// tapping a zone's name (onZone)
+function dragScale(svg, id, rng, onMove, onDone, onZone, minGap = 0) {
+  let which = null;
+  const at = (e) => { const r = svg.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * SVGW, (e.clientY - r.top) / r.height * 64]; };
+  svg.addEventListener('pointerdown', (e) => {
+    const K = kindOf(id), [px, py] = at(e), r = rng();
+    if (py > 40 && onZone) { const z = K.zones.find((q) => px >= xAt(K, q[0]) && px <= xAt(K, q[1])); if (z) onZone(z); return; }
+    which = Math.abs(px - xAt(K, r.max)) < Math.abs(px - xAt(K, r.min)) || (r.min === r.max && px > xAt(K, r.min)) ? 'max' : 'min';
+    svg.setPointerCapture(e.pointerId); move(e);
+  });
+  const move = (e) => {
+    if (!which) return;
+    const r = rng(), v = vAt(kindOf(id), at(e)[0]);
+    r[which] = v;
+    if (r.min > r.max) { [r.min, r.max] = [r.max, r.min]; which = which === 'min' ? 'max' : 'min'; }
+    if (minGap && r.max - r.min < minGap) { if (which === 'max') r.max = Math.min(1, r.min + minGap); else r.min = Math.max(0, r.max - minGap); }
+    onMove();
+  };
+  svg.addEventListener('pointermove', move);
+  const up = () => { if (which) { which = null; onDone(); } };
+  svg.addEventListener('pointerup', up);
+  svg.addEventListener('pointercancel', up);
+}
+// the beat speed: always full, or following a reading (up: stopped at the low end of its range, full at the high end;
+// down: the other way round)
+function speedEditor(targets, box) {
+  const sp0 = targets[0].joint.speed, sp = sp0 ? { ...sp0 } : null, sensors = sensorList();
+  let h = `<div class="edq"><span class="edh">Beat speed</span></div><div class="row"><button class="sbtn${sp ? '' : ' on'}" data-sp="">always full</button>${sensors.map((s) => `<button class="sbtn${sp && sp.sensor === s.id ? ' on' : ''}" data-sp="${esc(s.id)}" style="--c:${s.colour || '#8197a8'}"><i></i>follows ${esc(s.short)}</button>`).join('')}</div>`;
+  if (sp) h += `<div class="seg"><button data-dir="up" class="${sp.down ? '' : 'on'}">faster as it reads more</button><button data-dir="down" class="${sp.down ? 'on' : ''}">faster as it reads less</button></div>
+    <div class="lab">${sp.down ? 'Full speed at the left end, stopped at the right' : 'Stopped at the left end, full speed at the right'} · drag the ends</div><svg class="scale" viewBox="0 0 ${SVGW} 64"></svg>
+    <div class="lab">Its day</div><svg class="trace" viewBox="0 0 ${SVGW} 86"></svg><div class="note" data-tnote></div>`;
+  h += `<div class="edfoot"><button class="done" data-done>Done</button></div>`;
+  box.innerHTML = h;
+  if (sp) {
+    const redraw = () => {
+      box.querySelector('.scale').innerHTML = scaleSVG(sp.sensor, sp.min, sp.max, false, '#ffd84a', sp.down ? 'down' : 'up');
+      const t = traceSVG(sp.sensor, (v) => (sp.down ? v < sp.max : v > sp.min), '#6fd3b5');
+      box.querySelector('.trace').innerHTML = t.svg; box.querySelector('.trace').style.display = t.svg ? '' : 'none';
+      box.querySelector('[data-tnote]').textContent = t.note.replace('it would count', 'it would beat');
+    };
+    redraw();
+    dragScale(box.querySelector('.scale'), sp.sensor, () => sp, redraw, () => setSpeed(targets, sp), null, 0.05);
+  }
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.done !== undefined) { ruleEd = null; listParts(); return; }
+    if (b.dataset.sp !== undefined) setSpeed(targets, b.dataset.sp ? { sensor: b.dataset.sp, min: 0, max: 1, ...(sp && sp.down ? { down: true } : {}) } : null);
+    else if (b.dataset.dir) setSpeed(targets, { ...sp, down: b.dataset.dir === 'down' });
+  });
+  return box;
+}
+
+// ----- live: each condition green while it holds (red for an "unless" that is stopping the part), the state pills, the
+// editors' needles; for the selected cell if it is this design -----
+// a living cell's conditions for design part k (a motor's, a chamber's, the nucleus's REST rule), and what it is doing
+function liveRule(live, k) {
+  const j = live.joints.find((x) => x.part === k);
+  if (j) {
+    let state, on;
+    if (j.burst) { on = j.burst.state === 'firing'; state = j.burst.state === 'firing' ? 'FIRING' : 'READY'; }
+    else if (j.type === 'motor') { on = j.on && !(world.metab && live.metab.starving); state = on ? 'RUNNING' : world.metab && live.metab.starving ? 'NO ENERGY' : 'STOPPED'; }
+    else { on = !j.latched; state = j.latched ? 'COCKED' : 'RELEASED'; }
+    return { ctls: j.controls || null, state, cls: on ? 'on' : '' };
+  }
+  const ch = live.pieces[0].inclusions.find((x) => x.part === k && x.material === 'chamber');
+  if (ch) {
+    const st = ch.target === PARAMS.chamber.light ? 'float' : ch.target === PARAMS.chamber.heavy ? 'sink' : '';
+    return { ctls: ch.controls || null, state: st ? st.toUpperCase() : 'NEUTRAL', cls: st };
+  }
+  if (design.parts[k] && design.parts[k].material === 'nucleus') return { ctls: live.rest.controls, state: live.resting ? 'RESTING' : 'AWAKE', cls: live.resting ? 'rest' : '' };
+  return null;
+}
 function ruleLive() {
   const live = cell && cell.design === design ? cell : null;
   for (const el of document.querySelectorAll('[data-livecond]')) {
     const [k, i] = el.dataset.livecond.split(':').map(Number);
-    let ctl = null;
-    if (live) {
-      const j = live.joints.find((x) => x.part === k);
-      ctl = (j && j.controls ? j.controls : [])[i] || null;
-    }
+    const r = live && liveRule(live, k), ctl = r && r.ctls ? r.ctls[i] : null;
     const ok = !!ctl && (ctl.ok !== undefined ? ctl.ok : ctl.holds !== null && ctl.holds !== ctl.not);
     el.classList.toggle('holds', ok && !ctl.stop);
     el.classList.toggle('stopping', ok && !!ctl.stop);
   }
+  for (const el of document.querySelectorAll('[data-pill]')) {
+    const r = live && liveRule(live, Number(el.dataset.pill));
+    el.textContent = r ? r.state : '';
+    el.className = `pill ${r ? r.cls : ''}`;
+  }
+  for (const g of document.querySelectorAll('[data-needle]')) {
+    const sn = live && liveReading(live, g.dataset.needle);
+    g.style.display = sn ? '' : 'none';
+    if (!sn) continue;
+    const K = kindOf(g.dataset.needle), x = xAt(K, Math.max(0, Math.min(1, sn.value)));
+    g.setAttribute('transform', `translate(${x.toFixed(1)},0)`);
+    const tx = g.querySelector('text');
+    tx.textContent = `now ${K.u(sn.value, g.dataset.needle)}`;
+    tx.setAttribute('text-anchor', x < 50 ? 'start' : x > SVGW - 50 ? 'end' : 'middle');
+    tx.setAttribute('x', x < 50 ? -4 : x > SVGW - 50 ? 4 : 0);
+  }
 }
 
-// ----- beat speed: always full, or following a reading (up: stopped at the low end, full at the high end; down: the
-// other way round) -----
+// ----- beat speed -----
 function setSpeed(targets, speed) {
   if (!brainFits(targets, (j) => { if (speed) j.speed = { ...speed }; else delete j.speed; })) { listParts(); return; }
   remember(design);
@@ -840,37 +953,6 @@ function setSpeed(targets, speed) {
   $('json').value = JSON.stringify(design, null, 2);
   listParts();
 }
-function speedRow(targets, sensors) {
-  const sp = targets[0].joint.speed;
-  const box = document.createElement('div');
-  box.className = 'cond';
-  const h = document.createElement('div'); h.className = 'rhead'; h.textContent = 'BEAT SPEED';
-  const top = document.createElement('div'); top.className = 'condhead';
-  const sel = document.createElement('select');
-  sel.add(new Option('always full', ''));
-  for (const s of sensors) sel.add(new Option(`follows ${ICON[s.kind]} ${s.name}`, s.id));
-  sel.value = sp ? sp.sensor : '';
-  sel.title = 'Gradual control: the beat slows and quickens with a reading, instead of only switching on and off';
-  sel.onchange = () => setSpeed(targets, sel.value ? { sensor: sel.value, min: 0, max: 1, ...(sp && sp.down ? { down: true } : {}) } : null);
-  top.appendChild(sel);
-  if (sp) {
-    const dir = document.createElement('select');
-    dir.add(new Option('faster as it reads more', 'up')); dir.add(new Option('faster as it reads less', 'down'));
-    dir.value = sp.down ? 'down' : 'up';
-    dir.onchange = () => setSpeed(targets, { ...sp, down: dir.value === 'down' });
-    top.appendChild(dir);
-  }
-  box.append(h, top);
-  if (sp) {
-    const kind = sensorKind(sp.sensor);
-    const bar = valueBar({ sensor: sp.sensor, min: sp.min, max: sp.max }, 'between', kind,
-      (lo, hi) => (lo < hi ? setSpeed(targets, { ...sp, min: lo, max: hi }) : listParts()));
-    bar.querySelector('.lohi').textContent = sp.down ? `full at ${sp.min.toFixed(2)}, stopped at ${sp.max.toFixed(2)}`
-      : `stopped at ${sp.min.toFixed(2)}, full at ${sp.max.toFixed(2)}`;
-    box.appendChild(bar);
-  }
-  return box;
-}
 
 // A living cell's reading of a sensor ('energy', 'starch', 'oil', 'health' or an id), as { value }; undefined if there is none
 function liveReading(c, id) {
@@ -881,247 +963,39 @@ function liveReading(c, id) {
 }
 
 // The list under a part: its rule card
-function wiring(g, targets) { return ruleCard(targets); }
+function wiring(g, targets) { return ruleCard(targets, 'list'); }
 
-// ----- the wiring view: the same rules as a modular synth. Sensors (live readings) on the left, parts on the right;
-// between them each part's GO boxes (all cables into a box must hold: AND; any box will do: OR) and its STOP box (red:
-// any cable into it stops the part). Tap a sensor, then a box (or a part: a new GO box); tap a part or a cable's label
-// to open the part's rule card underneath. -----
+// ----- the Nucleus board (author, 2026-11-01, replacing the cable view): the nucleus's slots, then every part's rule
+// card with what it is doing now. Docked in the Nucleus window on a computer, over the panel on a phone. -----
 let patchOpen = false;
 let desk = false;   // a wide screen: three windows, the patch view docked in the Nucleus one (the layout block near the end)
-let patchPick = null;   // the sensor id picked, waiting for where to patch it
-let patchEdit = null;   // { t: target index } whose rule card is open underneath
-let patchTargets = [];  // [{ name, members, verb, rules }] as drawn
-let patchRoom = null;   // { used, slots } of the nucleus as drawn
-const PATCH_HINT = 'tap a sensor, then a box (GO, or the red STOP) · tap a part or a cable to edit its rule';
-$('patchBtn').onclick = () => { patchOpen = true; $('patch').hidden = false; patchPick = null; patchEdit = null; drawPatch(); };
-$('patchClose').onclick = () => { patchOpen = false; $('patch').hidden = true; };
+$('patchBtn').onclick = () => { patchOpen = true; $('patch').hidden = false; drawPatch(); };
+$('patchClose').onclick = () => { patchOpen = false; $('patch').hidden = true; if (ruleEd && ruleEd.where === 'board') ruleEd = null; };
 function drawPatch() {
   if (!patchOpen) return;
-  const cols = $('patchCols'), tray = $('patchTray');
-  cols.innerHTML = ''; tray.innerHTML = '';
+  const area = $('board');
+  area.innerHTML = '';
+  $('patchHint').textContent = 'tap a coloured word to change it · + and / + unless to add';
   const nuc = nucleiOf(design)[0];
-  if (!nuc) {
-    $('patchHint').textContent = '';
-    cols.innerHTML = '<div class="pval nonuc">This cell has no nucleus, so no brain: every part runs all the time. Add a 🧬 Nucleus (Inside the cell) to wire it.</div>';
-    patchTargets = []; patchRoom = null; layoutWires(); showPatchEdit(); return;
-  }
-  // the box: the nucleus opened up, one slot a module (sensors, wired built-in readings, rule boxes); modules arrange
-  // themselves for now (dragging them in by hand comes later)
+  if (!nuc) { area.innerHTML = '<p class="bnote">This cell has no nucleus, so no brain: every part runs all the time. Add a 🧬 Nucleus (Inside the cell) to give its parts rules.</p>'; return; }
   const use = brainUse(design), slots = nucleusSlots(nuc);
-  patchRoom = { used: use.total, slots };
-  $('patchHint').textContent = patchPick ? `now tap a GO box, the red STOP box, or a part, to patch ${ICON[sensorKind(patchPick)]} into` : PATCH_HINT;
-  const inBrain = (s) => !BUILT_INS.includes(s.id) || use.builtins.includes(s.id);
-  const all = sensorList(), spare = all.filter((s) => !inBrain(s));
-  if (spare.length) {   // built-in readings not wired yet: outside the box until patched in
-    const lab = document.createElement('span'); lab.className = 'pval'; lab.textContent = 'available:';
-    tray.appendChild(lab);
-    for (const s of spare) {
-      const m = document.createElement('div');
-      m.className = 'pmod spare' + (patchPick === s.id ? ' picked' : ''); m.title = `${SCALE[s.kind]} (patched in, it takes a slot)`;
-      m.innerHTML = `<span class="pname">${ICON[s.kind]} ${s.short}</span>`;
-      m.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; drawPatch(); };
-      tray.appendChild(m);
-    }
+  const head = document.createElement('div'); head.className = 'bslots';
+  head.title = 'Each sensor, each wired built-in reading (energy, stores, plastid health) and each rule group takes a slot';
+  head.innerHTML = `<b>Slots</b><span class="slots${use.total >= slots ? ' full' : ''}">${Array.from({ length: slots }, (_, i) => `<i class="${i < use.total ? 'used' : ''}"></i>`).join('')}</span>
+    <span>${use.total} of ${slots} slots</span><span class="bnote">${use.sensors} sensor${use.sensors === 1 ? '' : 's'} · ${use.builtins.length} built-in · ${use.boxes} rule group${use.boxes === 1 ? '' : 's'}</span>`;
+  area.appendChild(head);
+  const all = partGroups(design.parts || []);
+  const groups = all.filter((g) => targetsOf(g).length);
+  if (!groups.length) { const p = document.createElement('p'); p.className = 'bnote'; p.textContent = 'No parts to give rules yet: add a flagellum, a spring or a buoyancy chamber.'; area.appendChild(p); return; }
+  for (const g of groups) {
+    const targets = targetsOf(g), colour = colourOf(g) || '#9fb3c8', k0 = design.parts.indexOf(targets[0]);
+    const card = document.createElement('div'); card.className = 'bcard'; card.style.setProperty('--c', colour);
+    card.innerHTML = `<div class="bhead"><i></i><b>${esc(partName(g, all))}</b><span class="pill" data-pill="${k0}"></span></div>`;
+    card.querySelector('.bhead').onclick = () => { glow = { parts: new Set(g.members.map((x) => design.parts.indexOf(x))), until: performance.now() + 1500 }; };
+    card.appendChild(ruleCard(targets, 'board'));
+    area.appendChild(card);
   }
-  const src = document.createElement('div'); src.className = 'pcol src';
-  for (const s of all.filter(inBrain)) {
-    const m = document.createElement('div');
-    m.className = 'pmod srcmod' + (patchPick === s.id ? ' picked' : ''); m.dataset.src = s.id;
-    m.title = SCALE[s.kind];
-    if (s.colour) m.style.borderLeft = `4px solid ${s.colour}`;
-    m.innerHTML = `<div class="pname">${ICON[s.kind]} ${s.short}</div>
-      <div class="pval">reads <b data-live="${s.id}">–</b></div><div class="pbar"><i data-patchbar="${s.id}"></i></div>`;
-    m.onclick = (e) => { e.stopPropagation(); patchPick = patchPick === s.id ? null : s.id; drawPatch(); };
-    src.appendChild(m);
-  }
-  const free = Math.max(0, slots - use.total);
-  for (let i = 0; i < Math.min(free, 6); i++) {
-    const f = document.createElement('div'); f.className = 'pfree';
-    f.textContent = i === 5 && free > 6 ? `+${free - 5} free slots` : 'free slot';
-    src.appendChild(f);
-  }
-  if (!free) { const f = document.createElement('div'); f.className = 'pfree full'; f.textContent = 'full: every slot used'; src.appendChild(f); }
-  const rules = document.createElement('div'); rules.className = 'prules';
-  patchTargets = partGroups(design.parts || []).map((g) => ({ g, members: targetsOf(g) })).filter((t) => t.members.length)
-    .map((t) => ({ name: partName(t.g), members: t.members, verb: verbOf(t.members[0]), rules: rulesOf(t.members[0]), icon: dot(colourOf(t.g)) }));
-  if (!patchTargets.length) rules.innerHTML = '<div class="pval">No parts to wire yet: add a flagellum or a spring.</div>';
-  patchTargets.forEach((t, ti) => {
-    const H = HEADS[t.verb], shape = toShape(t.rules);
-    const row = document.createElement('div'); row.className = 'prow';
-    const boxes = document.createElement('div'); boxes.className = 'pboxes';
-    const box = (key, text, cls, title) => {
-      const b = document.createElement('div');
-      b.className = `pmod box ${cls}`; b.dataset.box = `${ti}:${key}`; b.textContent = text; b.title = title;
-      b.onclick = (e) => { e.stopPropagation(); patchInto(ti, key); };
-      boxes.appendChild(b);
-    };
-    shape.groups.forEach((g, gi) => box(gi, gi ? H[1] : H[0], '', 'all cables into this box must hold (AND); any GO box will do (OR)'));
-    box('new', shape.groups.length ? '＋ or' : `＋ ${H[0].toLowerCase()}`, 'add', 'tap a sensor, then here: a new GO box');
-    box('stop', shape.stops.length ? H[2] : `＋ ${H[2].toLowerCase()}`, `stopbox${shape.stops.length ? '' : ' add'}`,
-      'any cable into the STOP box stops the part, whatever the GO boxes say');
-    const tg = document.createElement('div');
-    tg.className = 'pmod tgt' + (patchEdit && patchEdit.t === ti ? ' picked' : ''); tg.dataset.tgt = ti;
-    tg.innerHTML = `<span class="pstate" data-pstate="${ti}"></span><div class="pname">${t.icon} ${t.name}</div>
-      <div class="pval">${!t.rules.length ? H[3].split(' (')[0] : 'tap to edit its rule'}${speedText(t.members[0])}</div>`;
-    tg.onclick = (e) => { e.stopPropagation(); if (patchPick) patchInto(ti, 'new'); else { patchEdit = patchEdit && patchEdit.t === ti ? null : { t: ti }; drawPatch(); } };
-    row.append(boxes, tg);
-    rules.appendChild(row);
-  });
-  cols.append(src, rules);
-  layoutWires();
-  showPatchEdit();
 }
-// a target's speed rule, as a line
-function speedText(m) {
-  const sp = m.joint && m.joint.speed;
-  if (!sp) return '';
-  const s = sensorList().find((x) => x.id === sp.sensor);
-  return `<br>speed follows ${s ? `${ICON[s.kind]} ${s.short}` : sp.sensor} (${sp.down ? 'faster as it reads less' : 'faster as it reads more'})`;
-}
-// patch the picked sensor into target ti: a GO box (its index), a new GO box ('new') or the STOP box ('stop')
-function patchInto(ti, key) {
-  const t = patchTargets[ti];
-  if (!patchPick) {   // a box tapped on its own: open the rule card, say what the box is
-    patchEdit = { t: ti };
-    drawPatch();
-    $('patchHint').textContent = key === 'stop' ? 'the STOP box: any cable into it stops the part, whatever the GO boxes say. Tap a sensor, then this box, to add one.'
-      : key === 'new' ? 'tap a sensor first, then here: a new GO box (the part also goes when all of it holds: OR)'
-        : 'a GO box: the part goes when ALL its cables hold (AND). Tap a sensor, then this box, to add one.';
-    return;
-  }
-  const shape = toShape(t.rules), fresh = freshRule(patchPick);
-  if (key === 'stop') shape.stops.push(fresh);
-  else if (key === 'new' || key >= shape.groups.length) shape.groups.push([fresh]);
-  else shape.groups[key].push(fresh);
-  patchPick = null;
-  patchEdit = { t: ti };
-  setRules(t.members, fromShape(shape));
-}
-// the cables, their labels, and each box's line to its part, drawn over the laid-out modules
-function layoutWires() {
-  const area = $('patchArea'), svg = $('patchWires');
-  for (const el of area.querySelectorAll('.pchip')) el.remove();
-  svg.innerHTML = '';
-  const base = area.getBoundingClientRect();
-  const at = (el, side) => { const r = el.getBoundingClientRect(); return [(side ? r.right : r.left) - base.left, r.top + r.height / 2 - base.top]; };
-  const path = (a, b, key, cls = '') => {
-    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    const dx = Math.max(30, (b[0] - a[0]) / 2);
-    p.setAttribute('d', `M${a[0]},${a[1]} C${a[0] + dx},${a[1]} ${b[0] - dx},${b[1]} ${b[0]},${b[1]}`);
-    p.dataset.key = key; if (cls) p.setAttribute('class', cls);
-    svg.appendChild(p);
-  };
-  patchTargets.forEach((t, ti) => {
-    const tg = area.querySelector(`[data-tgt="${ti}"]`), shape = toShape(t.rules);
-    const cable = (c, box, stop) => {
-      const s = area.querySelector(`[data-src="${c.sensor}"]`);
-      if (!s) return;
-      const a = at(s, true), b = at(box, false);
-      path(a, b, `c${ti}:${c.k}`, stop ? 'stopc' : '');
-      const other = c.vs !== undefined && area.querySelector(`[data-src="${c.vs}"]`);
-      if (other) path(at(other, true), b, `v${ti}:${c.k}`, stop ? 'stopc' : '');   // the second sensor of a compare
-      for (const e of c.also || []) { const o = area.querySelector(`[data-src="${e.sensor}"]`); if (o) path(at(o, true), b, `v${ti}:${c.k}`, stop ? 'stopc' : ''); }
-      const chip = document.createElement('div');
-      chip.className = 'pchip' + (stop ? ' stopchip' : ''); chip.dataset.chip = `${ti}:${c.k}`;
-      chip.textContent = condText(c);
-      chip.style.left = `${a[0] + (b[0] - a[0]) * 0.55}px`; chip.dataset.y = a[1] + (b[1] - a[1]) * 0.55;
-      chip.onclick = (e) => { e.stopPropagation(); patchEdit = { t: ti }; patchPick = null; drawPatch(); };
-      area.appendChild(chip);
-    };
-    shape.groups.forEach((g, gi) => {
-      const box = area.querySelector(`[data-box="${ti}:${gi}"]`);
-      path(at(box, true), at(tg, false), `b${ti}:${gi}`);
-      for (const c of g) cable(c, box, false);
-    });
-    if (shape.stops.length) {
-      const box = area.querySelector(`[data-box="${ti}:stop"]`);
-      path(at(box, true), at(tg, false), `b${ti}:stop`, 'stopc');
-      for (const c of shape.stops) cable(c, box, true);
-    }
-  });
-  // labels meet where cables converge: keep them at least a label's height apart, in cable order
-  // the nucleus: a box round its modules and rule boxes (the parts it drives sit outside, in the cell)
-  const inner = [...area.querySelectorAll('.srcmod, .pfree, .pmod.box')].map((el) => el.getBoundingClientRect());
-  if (inner.length && patchRoom) {
-    const l = Math.min(...inner.map((r) => r.left)) - base.left - 8, t = Math.min(...inner.map((r) => r.top)) - base.top - 22;
-    const rr = Math.max(...inner.map((r) => r.right)) - base.left + 10, b = Math.max(...inner.map((r) => r.bottom)) - base.top + 8;
-    const box = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    Object.entries({ x: l, y: t, width: rr - l, height: b - t, rx: 10, class: 'nucbox' }).forEach(([k, v]) => box.setAttribute(k, v));
-    svg.prepend(box);
-    const lab = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    Object.entries({ x: l + 10, y: t + 15, class: 'nuclab' }).forEach(([k, v]) => lab.setAttribute(k, v));
-    lab.textContent = `🧬 NUCLEUS · ${patchRoom.used} of ${patchRoom.slots} slots`;
-    svg.appendChild(lab);
-  }
-  const chips = [...area.querySelectorAll('.pchip')].sort((p, q) => p.dataset.y - q.dataset.y);
-  let last = -Infinity;
-  for (const c of chips) { const y = Math.max(Number(c.dataset.y), last + 18); c.style.top = `${y}px`; last = y; }
-  svg.setAttribute('height', area.scrollHeight);
-}
-// under the patch: the open part's rule card
-function showPatchEdit() {
-  const box = $('patchEdit');
-  const t = patchEdit && patchTargets[patchEdit.t];
-  if (!t) { box.hidden = true; box.innerHTML = ''; return; }
-  box.hidden = false; box.innerHTML = '';
-  const head = document.createElement('div'); head.className = 'row';
-  const title = document.createElement('b'); title.textContent = `${t.icon} ${t.name}`;
-  const done = document.createElement('button'); done.textContent = 'Done';
-  done.onclick = () => { patchEdit = null; drawPatch(); };
-  head.append(title, done);
-  box.append(head, ruleCard(t.members));
-}
-$('patchBody').onclick = () => { if (patchPick || patchEdit) { patchPick = null; patchEdit = null; drawPatch(); } };
-window.addEventListener('resize', () => { if (patchOpen) layoutWires(); });
-// once a frame while open: cables, boxes and parts lit by what the selected cell (if it is this design) is doing
-function patchLive() {
-  if (!patchOpen) return;
-  const area = $('patchArea'), live = cell && cell.design === design ? cell : null;
-  for (const el of area.querySelectorAll('[data-patchbar]')) {
-    const sn = live && liveReading(live, el.dataset.patchbar);
-    el.style.width = sn ? `${Math.min(Math.max(sn.value, 0), 1) * 100}%` : '0';
-  }
-  patchTargets.forEach((t, ti) => {
-    const k0 = design.parts.indexOf(t.members[0]);
-    let ctls = null, state = '', on = false;
-    if (live) {
-      const j = live.joints.find((x) => x.part === k0);
-      if (!j && live.rest && live.rest.part === k0) { ctls = live.rest.controls; state = live.resting ? 'RESTING' : 'awake'; on = live.resting; }
-      const ch = !j && live.pieces[0].inclusions.find((x) => x.part === k0 && x.material === 'chamber');
-      if (ch) {
-        ctls = ch.controls || null;
-        state = ch.target === PARAMS.chamber.light ? 'FLOAT' : ch.target === PARAMS.chamber.heavy ? 'SINK' : 'neutral';
-        on = state !== 'neutral';
-      }
-      if (j) {
-        ctls = j.controls || null;
-        if (j.burst) { on = j.burst.state === 'firing'; state = j.burst.state; }
-        else if (j.type === 'motor') { on = j.on && !(world.metab && live.metab.starving); state = on ? 'ON' : 'OFF'; }
-        else { on = !j.latched; state = j.latched ? 'cocked' : 'released'; }
-      }
-    }
-    const st = area.querySelector(`[data-pstate="${ti}"]`); if (st) st.textContent = state;
-    const tg = area.querySelector(`[data-tgt="${ti}"]`); if (tg) tg.classList.toggle('lit', on);
-    const okAt = (k) => { const ctl = ctls && ctls[k]; return !!ctl && (ctl.ok !== undefined ? ctl.ok : ctl.holds !== null && ctl.holds !== ctl.not); };
-    const shape = toShape(t.rules);
-    const light = (k, ok) => {
-      for (const key of [`c${ti}:${k}`, `v${ti}:${k}`]) { const p = area.querySelector(`path[data-key="${key}"]`); if (p) p.classList.toggle('lit', ok); }
-      const ch = area.querySelector(`[data-chip="${ti}:${k}"]`); if (ch) ch.classList.toggle('lit', ok);
-    };
-    shape.groups.forEach((g, gi) => {
-      let all = !!ctls;
-      for (const c of g) { const ok = okAt(c.k); if (!ok) all = false; light(c.k, ok); }
-      const b = area.querySelector(`[data-box="${ti}:${gi}"]`); if (b) b.classList.toggle('lit', all);
-      const p = area.querySelector(`path[data-key="b${ti}:${gi}"]`); if (p) p.classList.toggle('lit', all);
-    });
-    let stopping = false;
-    for (const c of shape.stops) { const ok = okAt(c.k); if (ok) stopping = true; light(c.k, ok); }
-    const sb = area.querySelector(`[data-box="${ti}:stop"]`); if (sb) sb.classList.toggle('lit', stopping);
-    const sp = area.querySelector(`path[data-key="b${ti}:stop"]`); if (sp) sp.classList.toggle('lit', stopping);
-  });
-}
-
 
 // Unplug every cable from the sensors in `ids` (being removed): from the remaining parts' rules and speed settings, so
 // the design still builds
@@ -1194,12 +1068,12 @@ function listParts() {
       d.parts.splice(k + 1, 0, ...mirrorGroup(g.members, Number(m.dataset.axis), `p${Date.now() % 100000}_${++partCount}`));
       applyDesign(d);
     };
-    if (targets.length) {   // the rule in a sentence; the card itself only while open
+    if (targets.length && !open) {   // the rule in a sentence; tapped, it opens as the card
       const sum = document.createElement('div'); sum.className = 'psum'; sum.innerHTML = ruleSummary(targets);
       sum.onclick = () => row.querySelector('.pnm').click();
       row.appendChild(sum);
-      if (open) row.appendChild(wiring(g, targets));
     }
+    if (targets.length && open) row.appendChild(wiring(g, targets));
     row.querySelector('.remove').onclick = () => {
       if (b && b.id === editing) { editing = null; previewOn = false; $('addPart').textContent = '＋ Add to body'; $('cancelEdit').hidden = true; }
       const d = JSON.parse(JSON.stringify(design));
@@ -1401,7 +1275,7 @@ function frame(now) {
   }
   if (world) {
     if (canvas.clientWidth > 0) draw();   // a folded tank window draws nothing
-    if (!$('stats').hidden) stats(); liveReadings(); patchLive(); ruleLive(); syncButtons();
+    if (!$('stats').hidden) stats(); liveReadings(); ruleLive(); syncButtons();
     $('stats').style.top = desk ? '8px' : `${$('bar').offsetHeight + 14}px`;
     if (desk) topClock();
   }
@@ -2574,8 +2448,7 @@ function layoutCols() {
   try { localStorage.setItem(WIN_KEY, JSON.stringify({ widths: winWidths, min: WINS.map((_, i) => isMin(i)) })); } catch (e) { /* not remembered */ }
   // the patch view: docked and open while the Nucleus window is
   const open = !isMin(2);
-  if (open !== patchOpen) { patchOpen = open; $('patch').hidden = !open; if (open) { patchPick = null; patchEdit = null; drawPatch(); } }
-  if (patchOpen) requestAnimationFrame(layoutWires);
+  if (open !== patchOpen) { patchOpen = open; $('patch').hidden = !open; if (open) drawPatch(); }
 }
 function placeLayout() {
   const was = desk;
