@@ -311,6 +311,17 @@ always open while the window is (🧬 Open the nucleus or tapping the nucleus un
 before (panel on the right, the wiring view over the lower tank). The frames are wrappers (#top, #cols, .win, .split,
 #help) that are display: contents below 1100 px. Not yet (stage 2): the new wiring board, part buttons with pictures,
 the light theme.
+**Wiring still unclear (author, 2026-11-01: "doesn't feel intuitive… make it immediate and visually intuitive"; also
+"the mockup was much prettier").** Claude's diagnosis: a rule lives in three places (card, nucleus box, cables);
+numbers without seeing their effect; programmer's words (GO / STOP / ANY / ALL / slots); sensor and part never meet on
+the cell; no picture of the result. **Rules mock-up** to try (design/wiring-mockup.html, also
+https://claude.ai/artifact/BQdUxXRNU3cniipnTf32Ex, private, pretend readings): one sentence per moving part ("The tail
+beats when ● Eyespot sees more than 5% sun (dim), unless ● Energy is less than 25% (low), at full speed"), every
+coloured word tappable, "and / or" a tappable word, "unless" for STOP; an editor with the sensor's named zones (light
+scale stretched at the dim end), the reading now, and today's trace at this depth lit where it counts; a **map of when
+it runs** per card (time across, depth down, shaded where it runs, the cell's now as a dot); 🔗 Wire: tap a sensor on the
+cell, then a part; the focused card's links drawn on the cell; the nucleus as a row of slots. Waiting for the author's
+verdict (if it is clear, or if the problem is something else) before building anything in the sandbox.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith
