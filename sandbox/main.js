@@ -2040,7 +2040,12 @@ function drawScale(W, H, s) {
 }
 
 function drawMinimap(W, H) {
-  const mh = H - 40, mw = 28, mx = W - mw - 12, my = 20;   // depth to scale, width squeezed
+  // the whole tank at its true shape (1.6 × 2 mm), small in the top-right corner: at most a third of the view's width
+  const k = Math.min((H - 40) / TH, 0.33 * W / TW, 160 / TW);
+  const mw = TW * k, mh = TH * k, mx = W - mw - 12;
+  let my = 12;   // below the numbers box when that reaches across to it
+  const st = $('stats'), cr = canvas.getBoundingClientRect();
+  if (!st.hidden) { const r = st.getBoundingClientRect(); if (r.right - cr.left > mx - 6) my = Math.max(my, r.bottom - cr.top + 8); }
   ctx.fillStyle = 'rgba(6,10,18,.8)'; ctx.fillRect(mx - 1, my - 1, mw + 2, mh + 2);
   ctx.strokeStyle = COLOR.gridMajor; ctx.strokeRect(mx, my, mw, mh);
   ctx.fillStyle = COLOR.trail;
