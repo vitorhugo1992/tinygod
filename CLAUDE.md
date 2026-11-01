@@ -290,6 +290,16 @@ to a sentence (Fold all / Open all), the rules column ~390 px; cables: Pathway (
 right angles, arrow or bar) or Cables (synth plugs); Traces on / off; drag a sensor onto a rule or tap then a green spot;
 "nucleus full" refused; a day slider; dark and light themes (☀ / ☾). Phone: windows stack, no handles. **Next: build it
 into the sandbox** (desktop layout first, then the wiring board).
+**Phone layout, vertical (built 2026-11-01; author: "the mobile layout should have the tabs organized vertically to
+take advantage of the screen aspect ratio of phones"; Claude's recommendation, both):** (1) the tank's tools are a
+46 px column down its left edge, beside the canvas (nothing drawn under it): ▶, speed (one button stepping 0.1× → 20×),
+↺, ⚡, 📈, ↗, ⓘ, −, +, and **⋯ More** (a pop-out: Step, camera, Gravity, Light, Calm, Day, turn); it hides while
+arranging. (2) the panel is four **sections with vertical tabs** down its left edge, one shown at a time: **Body**
+(teal), **Add** (amber), **Parts** (coral: Delete all, Arrange, the nucleus, the parts list), **Tank** (blue: cells, Test
+a day, saved designs, Claude, Copy / Paste, JSON); Undo / Redo and the message line (#buildErr) are pinned above; the
+open tab is remembered; tapping a part in the tank opens Parts, picking or ✎ editing a part opens Add. On a computer the
+same sections stack in one column as before (headings in their hues). Code: sandbox/index.html (.sec, #tabs, #barMore),
+main.js showSection. The canvas follows its own size (ResizeObserver).
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

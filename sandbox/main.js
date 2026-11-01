@@ -260,7 +260,7 @@ function startEditing(b) {
   else if (b.content && b.tpl === 'Spine') $('partMaterial').value = b.content;
   else if (b.content && b.tpl === 'Pad') $('partSticks').value = b.content;
   else if (b.content) $('partContent').value = b.content;
-  $('partWhat').value = b.tpl; showControls();
+  $('partWhat').value = b.tpl; showControls(); showSection('add');
   $('partAngle').value = b.where; $('partTilt').value = b.tilt;
   $('partSize').value = Math.round(b.size * 100); $('partInside').value = Math.round(b.depth * 100);
   if (b.feels) $('partFeels').value = b.feels;
@@ -1506,6 +1506,7 @@ function resize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 window.addEventListener('resize', resize);
+if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);   // the tank's own size changes too (the phone's rail steps aside while arranging)
 
 function draw() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
@@ -2270,7 +2271,7 @@ function startArrange() {
   if (arrange || !cell || cell.design !== design) return;
   const W = canvas.clientWidth, H = canvas.clientHeight, b = design.body;
   arrange = { prev: { view: $('viewMode').value, zoom: $('zoom').value }, trial: JSON.parse(JSON.stringify(design)), cell: null, sel: null, drag: null, base: null, pinchF: null, problems: { over: new Set(), msg: '' } };
-  playing = false; $('play').textContent = '▶';
+  playing = false; $('play').textContent = '▶'; document.body.classList.add('arranging'); $('barMore').classList.remove('open');
   $('viewMode').value = 'follow';
   $('zoom').value = arrange.zoom0 = Math.min(20, 0.45 * Math.min(W, H * 0.55) / (b.radius + (b.length || 0) / 2));
   $('arrZoom').value = 1; $('arrangeTools').hidden = false; $('arrangeView').hidden = false; arrange.pan = [0, 0]; lookAt([0, 0]); showTurn();
@@ -2289,7 +2290,7 @@ function stopArrange(force) {
   }
   if (!force && JSON.stringify(arrange.trial) !== JSON.stringify(design)) applyDesign(JSON.parse(JSON.stringify(arrange.trial)));
   $('viewMode').value = arrange.prev.view; $('zoom').value = arrange.prev.zoom;
-  arrange = null;
+  arrange = null; document.body.classList.remove('arranging');
   $('arrangeTools').hidden = true; $('arrangeView').hidden = true;
   $('arrangeBtn').textContent = '✋ Arrange inside the cell';
   $('squishBtn').hidden = true;
@@ -2415,6 +2416,7 @@ function showPartAt(t, e) {
   const key = partKey(g.members[0]);
   if (targetsOf(g).length) openCards.add(key);
   glow = { parts: new Set(g.members.map((x) => design.parts.indexOf(x))), until: performance.now() + 1500 };
+  showSection('parts');
   listParts();
   const row = document.querySelector(`#partList .part[data-key="${CSS.escape(key)}"]`);
   if (row) { row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 1200); }
@@ -2457,11 +2459,27 @@ toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', '
 $('day').onchange = () => { if (world) world.day = $('day').checked; };
 if (window.matchMedia('(max-width: 760px)').matches) $('stats').hidden = true;   // phones: the tank first
 $('infoBtn').onclick = () => { $('stats').hidden = !$('stats').hidden; };
+// a phone: the speed is one button that steps through them, and the rarer tools wait behind ⋯ More
+$('speedBtn').onclick = () => { const sel = $('speed'); sel.selectedIndex = (sel.selectedIndex + 1) % sel.options.length; sel.dispatchEvent(new Event('change')); };
+$('moreBtn').onclick = () => $('barMore').classList.toggle('open');
+window.addEventListener('pointerdown', (e) => { if (!e.target.closest('#barMore, #moreBtn')) $('barMore').classList.remove('open'); });
 $('rotL').onclick = () => rotate(cell, 15);
 $('rotR').onclick = () => rotate(cell, -15);
 const zoomBy = (k) => { $('zoom').value = Math.min(20, Math.max(0.3, Number($('zoom').value) * k)); if ($('viewMode').value === 'fit') $('viewMode').value = 'free'; };
 $('zoomIn').onclick = () => zoomBy(1.4);
 $('zoomOut').onclick = () => zoomBy(1 / 1.4);
+
+// The panel's sections: on a phone one at a time, picked from the tabs down its left edge (a computer shows them all).
+// The game opens the one it sends you to: tapping a part in the tank opens Parts, picking or editing a part opens Add.
+const SECTION_KEY = 'tinygod.section';
+function showSection(name) {
+  if (!['body', 'add', 'parts', 'tank'].includes(name)) name = 'add';
+  for (const el of document.querySelectorAll('.sec')) el.classList.toggle('show', el.dataset.sec === name);
+  for (const b of $('tabs').querySelectorAll('button')) b.classList.toggle('on', b.dataset.sec === name);
+  try { localStorage.setItem(SECTION_KEY, name); } catch (e) { /* private mode: not remembered */ }
+}
+for (const b of $('tabs').querySelectorAll('button')) b.onclick = () => showSection(b.dataset.sec);
+showSection((() => { try { return localStorage.getItem(SECTION_KEY); } catch (e) { return null; } })() || 'add');
 
 // Part buttons by category (short names); tapping one picks it
 const SHORT = {
@@ -2483,7 +2501,7 @@ for (const [cat, names] of Object.entries(CATEGORIES)) {
     b.textContent = SHORT[name] || name; b.title = name; b.dataset.v = name;
     b.onclick = () => {   // picking a part shows its ghost; tapping the lit one again hides it
       if (!editing && previewOn && $('partWhat').value === name) { previewOn = false; updatePreview(); return; }
-      previewOn = true;
+      previewOn = true; showSection('add');
       $('partWhat').value = name; $('partWhat').dispatchEvent(new Event('change'));
     };
     chips.appendChild(b);
@@ -2504,6 +2522,8 @@ function syncButtons() {
   $('graphBtn').classList.toggle('on', graphOn);
   $('forcesBtn').classList.toggle('on', forcesOn);
   $('infoBtn').classList.toggle('on', !$('stats').hidden);
+  $('speedBtn').textContent = $('speed').selectedOptions[0].text;
+  $('moreBtn').classList.toggle('on', $('barMore').classList.contains('open'));
   $('flipBtn').classList.toggle('on', $('partFlip').checked);
   $('pullBtn').classList.toggle('on', $('partPull').checked);
   $('undo').disabled = !past.length; $('redo').disabled = !future.length;
