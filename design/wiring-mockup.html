@@ -142,7 +142,7 @@ h1, h2, h3 { text-wrap: balance; }
   <header class="top">
     <div class="brand">TinyGod<small>Rules</small></div>
     <span class="mock">MOCK-UP · pretend readings</span>
-    <span class="try">Tap any coloured word to change it. Drag the threshold and watch the map. Or tap 🔗 Wire, then a sensor, then a part.</span>
+    <span class="try">Tap any coloured word to change it. Drag a range and watch the map. Or tap 🔗 Wire, then a sensor, then a part.</span>
   </header>
 
   <section class="panel cellp" aria-label="The cell">
@@ -180,12 +180,12 @@ const hhmm = (t) => { const m = Math.round(t * 60) % 1440; return `${String(Math
 
 // ----- what each kind of reading means, in words -----
 const KINDS = {
-  light: { lo: 0, hi: 1, step: 0.01, sqrt: true, def: { op: 'more', a: 0.25, b: 0.6 }, unit: (v) => `${Math.round(v * 100)}% sun`,
-    zones: [[0, 0.05, 'dark'], [0.05, 0.25, 'dim'], [0.25, 0.6, 'bright'], [0.6, 1, 'full sun']], ops: { more: 'more than', less: 'less than', between: 'between' } },
-  tilt: { lo: -90, hi: 90, step: 1, def: { op: 'less', a: -20, b: 20 }, unit: (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v))}°`,
-    zones: [[-90, -30, 'head down'], [-30, 30, 'level'], [30, 90, 'head up']], ops: { more: 'above', less: 'below', between: 'between' } },
-  level: { lo: 0, hi: 1, step: 0.01, def: { op: 'less', a: 0.3, b: 0.7 }, unit: (v) => `${Math.round(v * 100)}%`,
-    zones: [[0, 0.15, 'empty'], [0.15, 0.4, 'low'], [0.4, 0.75, 'half'], [0.75, 1, 'full']], ops: { more: 'more than', less: 'less than', between: 'between' } },
+  light: { lo: 0, hi: 1, step: 0.01, sqrt: true, def: { a: 0.25, b: 1 }, unit: (v) => `${Math.round(v * 100)}% sun`,
+    zones: [[0, 0.05, 'dark'], [0.05, 0.25, 'dim'], [0.25, 0.6, 'bright'], [0.6, 1, 'full sun']], ops: { more: 'more than', less: 'less than' } },
+  tilt: { lo: -90, hi: 90, step: 1, def: { a: -90, b: -20 }, unit: (v) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v))}°`,
+    zones: [[-90, -30, 'head down'], [-30, 30, 'level'], [30, 90, 'head up']], ops: { more: 'above', less: 'below' } },
+  level: { lo: 0, hi: 1, step: 0.01, def: { a: 0, b: 0.3 }, unit: (v) => `${Math.round(v * 100)}%`,
+    zones: [[0, 0.15, 'empty'], [0.15, 0.4, 'low'], [0.4, 0.75, 'half'], [0.75, 1, 'full']], ops: { more: 'more than', less: 'less than' } },
 };
 const SENSORS = {
   eye: { name: 'Eyespot', c: '#ffb547', kind: 'light', verb: 'sees', at: [229, 62], read: (t, d) => lightAt(t, d) },
@@ -201,11 +201,11 @@ const unwarp = (K, u) => (K.sqrt ? u * u : K.lo + u * (K.hi - K.lo));
 // ----- the rules: one card per moving part; a sentence = when (all / any) and unless (any stops it) -----
 const PARTS = [
   { id: 'tail', name: 'Tail', kind: 'wave tail', c: '#f08a6c', at: [70, 105], speed: 'full',
-    lines: [{ verb: 'beats', when: [{ s: 'eye', op: 'more', a: 0.05, b: 0.6 }], join: 'and', unless: [{ s: 'energy', op: 'less', a: 0.25, b: 0.5 }] }] },
+    lines: [{ verb: 'beats', when: [{ s: 'eye', a: 0.05, b: 1 }], join: 'and', unless: [{ s: 'energy', a: 0, b: 0.25 }] }] },
   { id: 'leg', name: 'Leg', kind: 'flexible oar', c: '#c49bff', at: [150, 188], speed: 'full',
-    lines: [{ verb: 'rows', when: [{ s: 'stat', op: 'less', a: -20, b: 20 }], join: 'and', unless: [] }] },
+    lines: [{ verb: 'rows', when: [{ s: 'stat', a: -90, b: -20 }], join: 'and', unless: [] }] },
   { id: 'cham', name: 'Buoyancy chamber', kind: 'floats or sinks the cell', c: '#7cc8ff', at: [190, 80],
-    lines: [{ verb: 'floats', when: [], join: 'and', unless: [] }, { verb: 'sinks', when: [{ s: 'eye', op: 'more', a: 0.6, b: 0.9 }], join: 'and', unless: [] }] },
+    lines: [{ verb: 'floats', when: [], join: 'and', unless: [] }, { verb: 'sinks', when: [{ s: 'eye', a: 0.6, b: 1 }], join: 'and', unless: [] }] },
   { id: 'rest', name: 'The cell', kind: 'rests: slower upkeep, flagella stop', c: '#9fb3c8', at: [150, 130],
     lines: [{ verb: 'rests', when: [], join: 'and', unless: [] }] },
 ];
@@ -214,7 +214,8 @@ const needsWhen = (p) => p.id === 'cham' || p.id === 'rest';   // these do nothi
 
 function holds(term, t, d) {
   const v = SENSORS[term.s].read(t, d);
-  return term.op === 'more' ? v > term.a : term.op === 'less' ? v < term.a : v >= Math.min(term.a, term.b) && v <= Math.max(term.a, term.b);
+  const K = KINDS[SENSORS[term.s].kind], inside = (term.a <= K.lo || v >= term.a) && (term.b >= K.hi || v <= term.b);
+  return term.out ? !inside : inside;
 }
 function lineRuns(p, L, t, d) {
   if (!L.when.length && needsWhen(p)) return false;
@@ -242,8 +243,13 @@ let editing = null;            // { p, li, list, ti }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function valueText(x) {
   const K = KINDS[SENSORS[x.s].kind], u = K.unit;
-  if (x.op === 'between') return `${K.ops.between} ${u(Math.min(x.a, x.b))} and ${u(Math.max(x.a, x.b))}`;
-  return `${K.ops[x.op]} ${u(x.a)}<span class="z">(${zoneOf(SENSORS[x.s].kind, x.a)})</span>`;
+  const k = SENSORS[x.s].kind, z = (v) => `<span class="z">(${zoneOf(k, v)})</span>`;
+  const bare = (t) => t.replace(/% sun$/, '').replace(/%$/, '');
+  const atLo = x.a <= K.lo, atHi = x.b >= K.hi;
+  const more = (v) => `${K.ops.more} ${u(v)}${z(v)}`, less = (v) => `${K.ops.less} ${u(v)}${z(v - K.step)}`;
+  if (atLo && atHi) return x.out ? 'nothing (never)' : 'anything';
+  if (!x.out) return atLo ? less(x.b) : atHi ? more(x.a) : `between ${bare(u(x.a))} and ${u(x.b)}${zoneOf(k, x.a) === zoneOf(k, x.b - K.step) ? z(x.a) : ''}`;
+  return atLo ? more(x.b) : atHi ? less(x.a) : `not between ${bare(u(x.a))} and ${u(x.b)}`;
 }
 function termHTML(pid, li, list, ti, x) {
   const S = SENSORS[x.s];
@@ -398,7 +404,7 @@ function renderEditor() {
   const ed = $('ed'), x = curTerm();
   ed.classList.toggle('open', !!x);
   if (!x) {
-    ed.innerHTML = `<div class="ph"><h2>Edit</h2></div><div class="edb"><p class="empty">Tap a coloured word in a sentence to change it here.<br><br>The <b>sensor</b> word picks what the part listens to (or tap the sensor on the cell). The <b>threshold</b> word sets when it counts, on the sensor's own scale, with today's readings drawn behind it.</p></div>`;
+    ed.innerHTML = `<div class="ph"><h2>Edit</h2></div><div class="edb"><p class="empty">Tap a coloured word in a sentence to change it here.<br><br>The <b>sensor</b> word picks what the part listens to (or tap the sensor on the cell). The <b>range</b> word sets when it counts (inside or outside it), on the sensor's own scale, with today's readings drawn behind it.</p></div>`;
     return;
   }
   const p = partById(editing.p), S = SENSORS[x.s], K = KINDS[S.kind];
@@ -406,13 +412,13 @@ function renderEditor() {
   <div class="edb">
     <div class="edq" id="edq"></div>
     <div><div class="lab">Listens to (or tap a sensor on the cell)</div><div class="row" id="edS">${Object.entries(SENSORS).map(([id, s]) => `<button class="sbtn${id === x.s ? ' on' : ''}" style="--c:${s.c}" data-s="${id}"><i></i>${s.name}</button>`).join('')}</div></div>
-    <div><div class="lab">Counts when it reads</div><div class="seg" id="edOp">${['more', 'less', 'between'].map((o) => `<button data-op="${o}" class="${x.op === o ? 'on' : ''}">${K.ops[o]}</button>`).join('')}</div></div>
-    <div><div class="lab">Threshold · drag it</div><svg id="scale" viewBox="0 0 320 64"></svg></div>
+    <div><div class="lab">Counts when the reading is</div><div class="seg" id="edOp"><button data-out="0" class="${x.out ? '' : 'on'}">inside the range</button><button data-out="1" class="${x.out ? 'on' : ''}">outside it</button></div></div>
+    <div><div class="lab">Range · drag its ends, or tap a zone name</div><svg id="scale" viewBox="0 0 320 64" style="touch-action:none"></svg></div>
     <div><div class="lab">Today at this depth (<span style="text-transform:none">${W.d} µm</span>) · where it counts</div><svg id="trace" viewBox="0 0 320 86"></svg><div class="note" id="edNote"></div></div>
     <div class="edfoot"><button class="del" id="edDel">Remove</button><button class="done" id="edDone">Done</button></div>
   </div>`;
   $('edS').onclick = (e) => { const b = e.target.closest('[data-s]'); if (b) setSensor(b.dataset.s); };
-  $('edOp').onclick = (e) => { const b = e.target.closest('[data-op]'); if (!b) return; x.op = b.dataset.op; changed(); };
+  $('edOp').onclick = (e) => { const b = e.target.closest('[data-out]'); if (!b) return; x.out = b.dataset.out === '1'; changed(); };
   $('edDel').onclick = () => { partById(editing.p).lines[editing.li][editing.list].splice(editing.ti, 1); editing = null; changed(); };
   $('edDone').onclick = () => { editing = null; changed(); };
   scaleDrag($('scale'));
@@ -433,21 +439,21 @@ function liveEditor() {
   const S = SENSORS[x.s], K = KINDS[S.kind], stop = editing.list === 'unless', hc = stop ? '#ff6f6f' : '#6fe0a0';
   $('edq').innerHTML = `<span class="sd" style="--c:${S.c}"></span>${S.name} ${S.verb} ${valueText(x)}`;
   // the scale: named zones, the band where it counts, the handle(s), the reading now
-  const lo = x.op === 'more' ? x.a : x.op === 'less' ? K.lo : Math.min(x.a, x.b), hi = x.op === 'more' ? K.hi : x.op === 'less' ? x.a : Math.max(x.a, x.b);
+  const bands = x.out ? [[K.lo, x.a], [x.b, K.hi]] : [[x.a, x.b]];   // where it counts
   let s = '';
-  K.zones.forEach((z, i) => { s += `<rect x="${xOf(K, z[0])}" y="18" width="${xOf(K, z[1]) - xOf(K, z[0])}" height="18" fill="${i % 2 ? '#14223a' : '#101b2c'}"/><text x="${(xOf(K, z[0]) + xOf(K, z[1])) / 2}" y="54" text-anchor="middle" fill="#8398aa" font-size="10.5" font-family="Instrument Sans, sans-serif">${z[2]}</text>`; });
-  s += `<rect x="${xOf(K, lo)}" y="22" width="${Math.max(0, xOf(K, hi) - xOf(K, lo))}" height="10" rx="3" fill="${hc}" fill-opacity=".75"/>`;
+  K.zones.forEach((z, i) => { const sel = !x.out && Math.abs(x.a - z[0]) < 1e-9 && Math.abs(x.b - z[1]) < 1e-9; s += `<rect x="${xOf(K, z[0])}" y="18" width="${xOf(K, z[1]) - xOf(K, z[0])}" height="18" fill="${i % 2 ? '#14223a' : '#101b2c'}"/><rect x="${xOf(K, z[0]) + 2}" y="43" width="${xOf(K, z[1]) - xOf(K, z[0]) - 4}" height="16" rx="8" fill="${sel ? hc : '#16243a'}" fill-opacity="${sel ? 0.25 : 1}" stroke="${sel ? hc : '#2a3d58'}"/><text x="${(xOf(K, z[0]) + xOf(K, z[1])) / 2}" y="55" text-anchor="middle" fill="${sel ? '#dce7ec' : '#8398aa'}" font-size="10.5" font-family="Instrument Sans, sans-serif">${z[2]}</text>`; });
+  for (const [l, h] of bands) if (h > l) s += `<rect x="${xOf(K, l)}" y="22" width="${xOf(K, h) - xOf(K, l)}" height="10" rx="3" fill="${hc}" fill-opacity=".75"/>`;
   const now = S.read(W.t, W.d);
   s += `<line x1="${xOf(K, now)}" x2="${xOf(K, now)}" y1="14" y2="40" stroke="#ff8a3c" stroke-width="2.5"/><text x="${xOf(K, now)}" y="10" text-anchor="middle" fill="#ff8a3c" font-size="10" font-family="JetBrains Mono, monospace">now ${K.unit(now)}</text>`;
-  const hs = x.op === 'between' ? [x.a, x.b] : [x.a];
-  for (const v of hs) s += `<circle cx="${xOf(K, v)}" cy="27" r="8" fill="#dce7ec" stroke="${hc}" stroke-width="2.5"/>`;
+  const hs = [x.a, x.b];
+  for (const v of hs) { const end = v <= K.lo || v >= K.hi; s += `<circle cx="${xOf(K, v)}" cy="27" r="${end ? 6 : 8}" fill="${end ? '#16243a' : '#dce7ec'}" stroke="${hc}" stroke-width="2.5"/>`; }
   $('scale').innerHTML = s;
   // today's trace at this depth, green (or red) where it counts
   const T = (t) => 8 + t / 24 * 304, Y = (v) => 70 - warp(K, v) * 60;
   let tr = `<rect x="8" y="10" width="304" height="60" fill="#0c1524" stroke="#22324a"/>`;
   for (const h of [6, 12, 18]) tr += `<line x1="${T(h)}" x2="${T(h)}" y1="10" y2="70" stroke="#22324a"/><text x="${T(h)}" y="82" text-anchor="middle" fill="#5a6f84" font-size="10" font-family="JetBrains Mono, monospace">${String(h).padStart(2, '0')}:00</text>`;
-  tr += `<rect x="8" y="${Y(hi)}" width="304" height="${Math.max(0, Y(lo) - Y(hi))}" fill="${hc}" fill-opacity=".08"/>`;
-  for (const v of hs) tr += `<line x1="8" x2="312" y1="${Y(v)}" y2="${Y(v)}" stroke="${hc}" stroke-dasharray="4 3"/>`;
+  for (const [l, h] of bands) if (h > l) tr += `<rect x="8" y="${Y(h)}" width="304" height="${Y(l) - Y(h)}" fill="${hc}" fill-opacity=".08"/>`;
+  for (const v of hs.filter((v) => v > K.lo && v < K.hi)) tr += `<line x1="8" x2="312" y1="${Y(v)}" y2="${Y(v)}" stroke="${hc}" stroke-dasharray="4 3"/>`;
   let pts = '', on = '', onAt = 0;
   for (let i = 0; i <= 96; i++) {
     const t = i / 4, v = S.read(t, W.d), P = `${T(t).toFixed(1)},${Y(v).toFixed(1)}`;
@@ -468,12 +474,19 @@ function scaleDrag(svg) {
   svg.addEventListener('pointerdown', (e) => {
     const x = curTerm(); if (!x) return;
     const K = KINDS[SENSORS[x.s].kind], px = at(e);
-    which = x.op === 'between' && Math.abs(px - xOf(K, x.b)) < Math.abs(px - xOf(K, x.a)) ? 'b' : 'a';
+    const r = svg.getBoundingClientRect(), y = (e.clientY - r.top) / r.height * 64;
+    if (y > 40) {   // a zone name: the range becomes that zone
+      const z = K.zones.find((z) => px >= xOf(K, z[0]) && px <= xOf(K, z[1])); if (!z) return;
+      x.a = z[0]; x.b = z[1]; x.out = false; changed(); return;
+    }
+    which = Math.abs(px - xOf(K, x.b)) < Math.abs(px - xOf(K, x.a)) || (x.a === x.b && px > xOf(K, x.a)) ? 'b' : 'a';
     svg.setPointerCapture(e.pointerId); move(e);
   });
   const move = (e) => {
     if (!which) return; const x = curTerm(); if (!x) return;
-    x[which] = vOf(KINDS[SENSORS[x.s].kind], at(e));
+    const K = KINDS[SENSORS[x.s].kind], px = at(e);
+    x[which] = px < 20 ? K.lo : px > 300 ? K.hi : vOf(K, px);
+    if (x.a > x.b) { [x.a, x.b] = [x.b, x.a]; which = which === 'a' ? 'b' : 'a'; }
     const p = partById(editing.p); drawMap(p);
     const card = document.querySelector(`[data-card="${p.id}"]`);
     if (card) card.querySelector('.say').innerHTML = p.lines.map((_, li) => lineHTML(p, li)).join('');
@@ -509,7 +522,8 @@ $('cell').addEventListener('pointerdown', (e) => {   // on the press: the drawin
   if (wire && wire.s && pEl) {
     const p = partById(pEl.dataset.part), L = p.lines[p.id === 'cham' ? (lightOrDark(wire.s) ? 1 : 0) : 0];
     const K = KINDS[SENSORS[wire.s].kind], now = SENSORS[wire.s].read(W.t, W.d);
-    L.when.push({ s: wire.s, op: K.def.op, a: Math.round(now / K.step) * K.step, b: K.def.b });
+    const v = Math.round(now / K.step) * K.step;
+    L.when.push(K.def.b >= K.hi ? { s: wire.s, a: v, b: K.hi } : { s: wire.s, a: K.lo, b: v });
     if (slotsUsed() > SLOTS) { L.when.pop(); toast('Nucleus full: free a slot first (remove a condition)'); return; }
     flash = { s: wire.s, p: p.id, until: performance.now() + 1400 };
     focus = p.id; editing = { p: p.id, li: p.lines.indexOf(L), list: 'when', ti: L.when.length - 1 };

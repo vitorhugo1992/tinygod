@@ -322,6 +322,7 @@ scale stretched at the dim end), the reading now, and today's trace at this dept
 it runs** per card (time across, depth down, shaded where it runs, the cell's now as a dot); 🔗 Wire: tap a sensor on the
 cell, then a part; the focused card's links drawn on the cell; the nucleus as a row of slots. Waiting for the author's
 verdict (if it is clear, or if the problem is something else) before building anything in the sandbox.
+**One range, inside or outside (author, 2026-11-01: "feels like an improvement, i see the vision… isn't it redundant to have below, above and between"):** a condition is one range with two ends on the sensor's scale and an inside / outside switch; an end dragged to the scale's end makes it one-sided, and the sentence still reads "more than 5% sun" / "less than 25%" / "between 5 and 25% sun (dim)" / "not between…"; tapping a zone name (dark, dim…) takes that zone as the range. Comparing two sensors stays a separate choice; "unless" stays (stop if). Built in the rules mock-up; the game already stores min / max / not, so no simulation change.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith
