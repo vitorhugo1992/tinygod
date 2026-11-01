@@ -1573,6 +1573,8 @@ function draw() {
 const SAVE_KEY = 'tinygod.saved';
 function savedList() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || '[]'); } catch (e) { return []; } }
 function writeSaved(list) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(list)); return true; } catch (e) { return false; } }
+// Vesperella (Claude's first species) was retired (author, 2026-11-01: "delete vesperella"): drop it from saved designs
+{ const list = savedList(), keep = list.filter((x) => !/^Vesperella/.test(x.name || '')); if (keep.length !== list.length) writeSaved(keep); }
 // a saved design as its own species (copies of it are kin; other designs are strangers)
 function savedDesign(name) {
   const s = savedList().find((x) => x.name === name);
