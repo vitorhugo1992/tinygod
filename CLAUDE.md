@@ -289,7 +289,7 @@ traces with the threshold and the band where they hold, lit green while they hol
 to a sentence (Fold all / Open all), the rules column ~390 px; cables: Pathway (each sensor its own lane, branches at
 right angles, arrow or bar) or Cables (synth plugs); Traces on / off; drag a sensor onto a rule or tap then a green spot;
 "nucleus full" refused; a day slider; dark and light themes (☀ / ☾). Phone: windows stack, no handles. **Next: build it
-into the sandbox** (desktop layout first, then the wiring board).
+into the sandbox** (desktop layout first: done, stage 1 below; **next, stage 2: the wiring board**).
 **Phone layout, vertical (built 2026-11-01; author: "the mobile layout should have the tabs organized vertically to
 take advantage of the screen aspect ratio of phones"; Claude's recommendation, both):** (1) the tank's tools are a
 46 px column down its left edge, beside the canvas (nothing drawn under it): ▶, speed (one button stepping 0.1× → 20×),
@@ -300,6 +300,17 @@ a day, saved designs, Claude, Copy / Paste, JSON); Undo / Redo and the message l
 open tab is remembered; tapping a part in the tank opens Parts, picking or ✎ editing a part opens Add. On a computer the
 same sections stack in one column as before (headings in their hues). Code: sandbox/index.html (.sec, #tabs, #barMore),
 main.js showSection. The canvas follows its own size (ResizeObserver).
+**Desktop layout, stage 1 (built 2026-11-01; the agreed mock-up's windows; the wiring board is stage 2).** Over 1100 px:
+a header (TinyGod · the toolbar, moved there by JS · a clock: time, energy, depth), **three windows Tank · Cell ·
+Nucleus** with drag handles between them (smallest 220 / 300 / 540 px; dragged ~90 px past it a window folds to a 40 px
+strip with its name standing up, tap it to open; – folds too; double-click a handle: usual sizes 420 / 380 / rest;
+sizes and folds remembered, localStorage tinygod.windows), and a **help line** along the bottom (the tooltip of what is
+under the pointer). The Cell window holds the panel's sections, each with its hue's spine; at 640 px or wider (container
+query) they sit in two columns (Body + Add | Parts + Tank). The Nucleus window holds today's wiring view, docked and
+always open while the window is (🧬 Open the nucleus or tapping the nucleus unfolds it). 761-1100 px: the layout as
+before (panel on the right, the wiring view over the lower tank). The frames are wrappers (#top, #cols, .win, .split,
+#help) that are display: contents below 1100 px. Not yet (stage 2): the new wiring board, part buttons with pictures,
+the light theme.
 **Queue:** the author's priority is that building a cell and wiring it are intuitive (2026-10-28). Then, from the
 research notes: challenges with stars (Claude's top pick), share a design as a link, dragging modules into the nucleus. Not wanted now: memory switch, light-change sensor
 (both removed or declined). For step 1 and later: division (trigger to discuss), glass wall needing silica, coccolith

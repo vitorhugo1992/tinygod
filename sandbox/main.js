@@ -888,6 +888,7 @@ function wiring(g, targets) { return ruleCard(targets); }
 // any cable into it stops the part). Tap a sensor, then a box (or a part: a new GO box); tap a part or a cable's label
 // to open the part's rule card underneath. -----
 let patchOpen = false;
+let desk = false;   // a wide screen: three windows, the patch view docked in the Nucleus one (the layout block near the end)
 let patchPick = null;   // the sensor id picked, waiting for where to patch it
 let patchEdit = null;   // { t: target index } whose rule card is open underneath
 let patchTargets = [];  // [{ name, members, verb, rules }] as drawn
@@ -1398,7 +1399,12 @@ function frame(now) {
     acc -= want * DT;
     lagging = done < want;                     // the computer can't keep up with this speed
   }
-  if (world) { draw(); if (!$('stats').hidden) stats(); liveReadings(); patchLive(); ruleLive(); syncButtons(); $('stats').style.top = `${$('bar').offsetHeight + 14}px`; }
+  if (world) {
+    if (canvas.clientWidth > 0) draw();   // a folded tank window draws nothing
+    if (!$('stats').hidden) stats(); liveReadings(); patchLive(); ruleLive(); syncButtons();
+    $('stats').style.top = desk ? '8px' : `${$('bar').offsetHeight + 14}px`;
+    if (desk) topClock();
+  }
   requestAnimationFrame(frame);
 }
 
@@ -1516,7 +1522,7 @@ function draw() {
   else if (view === 'fit') fit(W, H);
   const s = Number($('zoom').value);                       // pixels per µm
   // on a computer the patch view covers the lower half of the tank: keep a followed cell in the upper part
-  if (view === 'follow' && patchOpen && innerWidth > 760) cam = { x: cam.x, y: cam.y - H * 0.25 / s };
+  if (view === 'follow' && patchOpen && !desk && innerWidth > 760) cam = { x: cam.x, y: cam.y - H * 0.25 / s };
   // the day graph covers the bottom of the tank: keep a followed cell in the middle of what is left above it
   if (view === 'follow' && graphOn) cam = { x: cam.x, y: cam.y - ((H < 500 ? 84 : 110) + 8) / 2 / s };
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
@@ -2532,6 +2538,98 @@ function syncButtons() {
   $('clearParts').disabled = !(design.parts || []).length;
 }
 
+// ----- a wide screen (over 1100 px): three windows, Tank · Cell · Nucleus (design/desk-mockup.html) -----
+// The toolbar moves into the header, the patch view is docked in the Nucleus window and stays open. The tank and the
+// cell have a width each (px), the nucleus takes the rest; a handle shares the room of its two neighbours; dragged well
+// past its smallest width a window folds to a strip (its – button too); double-click a handle: the usual sizes.
+const WIDE = window.matchMedia('(min-width: 1101px)');
+const WINS = [$('winTank'), $('winCell'), $('winNuc')], WIN_MIN = [220, 300, 540], WIN_USUAL = [420, 380], STRIP = 40, HANDLE = 14;
+const WIN_KEY = 'tinygod.windows';
+let winWidths = [...WIN_USUAL];
+const isMin = (i) => WINS[i].classList.contains('min');
+function setMin(i, m) {
+  WINS[i].classList.toggle('min', m); WINS[i].querySelector('.mini').textContent = m ? '+' : '–';
+}
+try {
+  const w = JSON.parse(localStorage.getItem(WIN_KEY) || 'null');
+  if (w && Array.isArray(w.widths) && w.widths.length === 2) winWidths = w.widths;
+  if (w && Array.isArray(w.min)) w.min.forEach((m, i) => setMin(i, !!m));
+} catch (e) { /* no saved sizes */ }
+function layoutCols() {
+  if (!desk) return;
+  const room = $('cols').clientWidth - 2 * HANDLE;
+  const keep = isMin(2) ? STRIP : WIN_MIN[2];   // never more than the screen: the nucleus keeps its smallest width
+  let a = isMin(0) ? STRIP : Math.max(WIN_MIN[0], winWidths[0]), b = isMin(1) ? STRIP : Math.max(WIN_MIN[1], winWidths[1]);
+  const over = a + b + keep - room;
+  if (over > 0) { if (!isMin(0)) a = Math.max(WIN_MIN[0], a - over); const left = a + b + keep - room; if (left > 0 && !isMin(1)) b = Math.max(WIN_MIN[1], b - left); }
+  // the nucleus folded: the cell window takes what is left over (or the tank, if the cell is folded too)
+  let first = `${a}px`, mid = `${b}px`;
+  if (isMin(2) && !isMin(1)) mid = 'minmax(0, 1fr)'; else if (isMin(2) && !isMin(0)) first = 'minmax(0, 1fr)';
+  $('cols').style.gridTemplateColumns = `${first} ${HANDLE}px ${mid} ${HANDLE}px ${isMin(2) ? `${STRIP}px` : 'minmax(0, 1fr)'}`;
+  try { localStorage.setItem(WIN_KEY, JSON.stringify({ widths: winWidths, min: WINS.map((_, i) => isMin(i)) })); } catch (e) { /* not remembered */ }
+  // the patch view: docked and open while the Nucleus window is
+  const open = !isMin(2);
+  if (open !== patchOpen) { patchOpen = open; $('patch').hidden = !open; if (open) { patchPick = null; patchEdit = null; drawPatch(); } }
+  if (patchOpen) requestAnimationFrame(layoutWires);
+}
+function placeLayout() {
+  const was = desk;
+  desk = WIDE.matches;
+  if (desk) $('topBar').appendChild($('bar')); else $('view').insertBefore($('bar'), $('stats'));
+  if (was && !desk) { patchOpen = false; $('patch').hidden = true; $('cols').style.gridTemplateColumns = ''; }   // an overlay again
+  layoutCols();
+}
+document.querySelectorAll('.split').forEach((h) => {
+  const i = Number(h.dataset.i);   // between window i and i + 1
+  h.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); window.getSelection()?.removeAllRanges();
+    h.setPointerCapture(e.pointerId); h.classList.add('drag'); document.body.classList.add('resizing');
+    const x0 = e.clientX, wl = isMin(i) ? 0 : WINS[i].getBoundingClientRect().width, wr = isMin(i + 1) ? 0 : WINS[i + 1].getBoundingClientRect().width;
+    const move = (ev) => {
+      const dx = ev.clientX - x0, L = wl + dx, R = wr - dx;
+      // fold one dragged well below its smallest width; open one dragged back out
+      if (L < WIN_MIN[i] - 90) setMin(i, true); else { setMin(i, false); if (i < 2) winWidths[i] = Math.max(WIN_MIN[i], L); }
+      if (R < WIN_MIN[i + 1] - 90) setMin(i + 1, true); else { setMin(i + 1, false); if (i + 1 < 2) winWidths[i + 1] = Math.max(WIN_MIN[i + 1], R); }
+      layoutCols();
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); h.classList.remove('drag'); document.body.classList.remove('resizing'); };
+    window.addEventListener('pointermove', move);   // on the window: the pointer may leave the narrow handle
+    window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  });
+  h.addEventListener('dblclick', () => { winWidths = [...WIN_USUAL]; [0, 1, 2].forEach((k) => setMin(k, false)); layoutCols(); });
+});
+WINS.forEach((win, i) => {
+  const toggle = () => { setMin(i, !isMin(i)); layoutCols(); };
+  win.querySelector('.mini').onclick = (e) => { e.stopPropagation(); toggle(); };
+  win.querySelector('.winhead').addEventListener('click', () => { if (isMin(i)) toggle(); });
+});
+// opening the nucleus (its button, or tapping it in the tank) opens a folded Nucleus window
+{
+  const open = $('patchBtn').onclick;
+  $('patchBtn').onclick = () => { if (!desk) { open(); return; } if (isMin(2)) { setMin(2, false); layoutCols(); } };
+}
+WIDE.addEventListener('change', placeLayout);
+window.addEventListener('resize', layoutCols);
+// the header's clock: the time, the selected cell's energy and depth
+let topText = '';
+function topClock() {
+  const h = clock(world), hh = Math.floor(h), mm = Math.floor((h - hh) * 60), sunny = world.day ? daylight(world) > 0 : true;
+  const t = `${sunny ? '☀' : '☾'} <b>${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}</b>`
+    + (world.metab ? ` &nbsp; ⚡ <b>${(100 * cell.metab.E / cell.metab.C).toFixed(0)}%</b>` : '')
+    + ` &nbsp; depth <b>${Math.round(TH - (cell.vis ? cell.vis.q : cell.q)[1])} µm</b>`;
+  if (t !== topText) $('topClock').innerHTML = topText = t;
+}
+// the help line along the bottom: what the thing under the pointer does (its tooltip, in full)
+document.addEventListener('pointerover', (e) => {
+  if (!desk) return;
+  const el = e.target.closest('[title]');
+  if (!el || !el.title) return;
+  let name = (el.classList.contains('split') ? 'Resize' : el.textContent || '').trim().replace(/\s+/g, ' ');
+  if (name.length > 32) name = name.slice(0, 30) + '…';
+  $('help').querySelector('b').textContent = name || 'Help';
+  $('help').querySelector('span').textContent = el.title;
+});
+
 // The phone address, when the server shares the sandbox on the Wi-Fi (shown on the computer, not on the phone)
 fetch('/lan').then((r) => r.json()).then((urls) => {
   if (!urls.length || urls.some((u) => u.startsWith(location.origin))) return;
@@ -2542,6 +2640,7 @@ fetch('/lan').then((r) => r.json()).then((urls) => {
 resize();
 const asked = new URLSearchParams(location.search).get('preset');   // ?preset=Wave%20tail opens that design
 load(preset(asked && PRESETS[asked] ? asked : 'Round cell'));   // an empty cell to build on (Claude's species is in the Add-cell menu)
+placeLayout();   // after the first design: the docked patch view draws it
 requestAnimationFrame(frame);
 
 // Offline on the website: a service worker keeps a copy of the sandbox (not on the home server's plain http)

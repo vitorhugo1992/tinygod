@@ -233,9 +233,77 @@
     /* sliders only answer a finger on their thumb row, so scrolling the panel doesn't move them */
     input[type=range] { touch-action: pan-y; }
   }
+  /* ----- a wide screen: a header, three windows (Tank · Cell · Nucleus) with handles between, a help line -----
+     (design/desk-mockup.html). Narrower, the frames step aside and the layout above shows. */
+  #top, .winhead, .split, #help { display: none; }
+  #cols, .win { display: contents; }
+  @media (min-width: 1101px) {
+    body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); height: 100vh;
+      overflow: hidden; padding: 8px; gap: 8px; }
+    #top { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .brand { font: 700 19px/1 system-ui, sans-serif; letter-spacing: .01em; white-space: nowrap; }
+    .brand small { font-size: 11px; font-weight: 500; color: var(--dim); letter-spacing: .14em; text-transform: uppercase; margin-left: 7px; }
+    #topBar { flex: 1; min-width: 0; }
+    #top #bar { position: static; right: auto; gap: 5px; }
+    #topClock { margin-left: auto; font: 600 12.5px ui-monospace, Consolas, monospace; color: var(--dim); white-space: nowrap; }
+    #topClock b { color: var(--text); font-weight: 600; }
+    #cols { display: grid; min-height: 0; grid-template-columns: 420px 14px 380px 14px minmax(0, 1fr); }
+    .win { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 12px; overflow: hidden; container-type: inline-size; }
+    .winhead { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--line); flex: none; }
+    .winhead h2 { margin: 0; font: 700 13px system-ui, sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--text); }
+    .winhead .sub { color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .winhead .mini { padding: 0 8px; line-height: 20px; color: var(--dim); }
+    /* a folded window: a strip with its name standing up; tap it to open */
+    .win.min > :not(.winhead) { display: none !important; }
+    .win.min .winhead { writing-mode: vertical-rl; height: 100%; padding: 10px 0; border-bottom: 0; cursor: pointer; }
+    .win.min .winhead .sub { display: none; }
+    .win.min .winhead .mini { writing-mode: horizontal-tb; }
+    .win.min:hover { border-color: #2d4260; }
+    .split { display: block; cursor: col-resize; position: relative; touch-action: none; }
+    .split::after { content: ''; position: absolute; left: 5px; top: 50%; width: 4px; height: 44px; margin-top: -22px; border-radius: 3px;
+      background: #2d4260; transition: background .15s, height .15s, margin-top .15s; }
+    .split:hover::after, .split.drag::after { background: #b98cff; height: 80px; margin-top: -40px; }
+    body.resizing { cursor: col-resize; user-select: none; }
+    #view { flex: 1; min-height: 0; background: var(--bg); }
+    /* the cell window: the panel's sections, each with its hue's spine */
+    #panel { width: auto; flex: 1; min-height: 0; border-left: 0; padding: 0; gap: 0; background: none; }
+    #panelTop { padding: 8px 14px; border-bottom: 1px solid var(--line); }
+    #panelTop h1 { display: none; }
+    #buildErr:empty { display: none; }
+    .sec { position: relative; padding: 10px 14px 14px 18px; border-bottom: 1px solid var(--line); }
+    .sec::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--hue); opacity: .85; }
+    .sec h2 { margin-top: 0; }
+    /* the nucleus window: the wiring view, docked and always open */
+    #patch { position: static; flex: 1; min-height: 0; border: 0; background: none; }
+    #patchHead > b, #patchClose { display: none; }
+    #help { display: flex; gap: 10px; align-items: baseline; padding: 6px 14px; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 10px; min-height: 32px; white-space: nowrap; overflow: hidden; }
+    #help b { color: #fff3b0; font-size: 12.5px; }
+    #help span { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+  }
+  /* a wide cell window: its sections in two columns (Body and Add on the left, Parts and Tank on the right) */
+  @container (min-width: 640px) {
+    #panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-content: start; }
+    #panelTop { grid-column: 1 / -1; }
+    .sec[data-sec=body] { grid-column: 1; grid-row: 2; }
+    .sec[data-sec=add] { grid-column: 1; grid-row: 3 / span 2; }
+    .sec[data-sec=parts] { grid-column: 2; grid-row: 2 / span 2; border-left: 1px solid var(--line); }
+    .sec[data-sec=tank] { grid-column: 2; grid-row: 4; border-left: 1px solid var(--line); }
+  }
 </style>
 </head>
 <body>
+<!-- a wide screen (over 1100 px): a header, three windows (Tank · Cell · Nucleus) with handles between them, a help line.
+     Narrower, the header, window frames and handles step aside (display: contents) and the old layout shows. -->
+<header id="top">
+  <div class="brand">TinyGod<small>Sandbox</small></div>
+  <div id="topBar"></div>   <!-- the tank's toolbar moves here on a wide screen -->
+  <div id="topClock"></div>
+</header>
+<div id="cols">
+<section class="win" id="winTank">
+<div class="winhead"><button class="mini" title="Fold this window to a thin strip; the others take its room">–</button><h2>Tank</h2><span class="sub">2 mm of still water, light from above</span></div>
 <div id="view">
   <canvas id="c"></canvas>
   <div id="arrangeView" hidden>   <!-- arranging: Y on the left, Zoom on the right, X along the bottom -->
@@ -273,6 +341,10 @@
   </div>
   <div id="stats"></div>
 </div>
+</section>
+<div class="split" data-i="0" title="Drag to share the room between the tank and the cell; past a window's smallest size it folds to a strip. Double-click: usual sizes"></div>
+<section class="win" id="winCell">
+<div class="winhead"><button class="mini" title="Fold this window to a thin strip; the others take its room">–</button><h2>Cell</h2><span class="sub">build it, then arrange it</span></div>
 <div id="panel">
   <div id="panelTop">
     <h1>TINYGOD · SANDBOX</h1>
@@ -367,12 +439,19 @@
   <input type="checkbox" id="day" checked hidden>
   <input type="range" id="zoom" min="0.3" max="20" step="any" value="5" hidden>
 </div>
+</section>
+<div class="split" data-i="1" title="Drag to share the room between the cell and the nucleus; past a window's smallest size it folds to a strip. Double-click: usual sizes"></div>
+<section class="win" id="winNuc">
+<div class="winhead"><button class="mini" title="Fold this window to a thin strip; the others take its room">–</button><h2>Nucleus</h2><span class="sub">the cell's brain: its sensors and rules</span></div>
 <!-- the patch view: sensors on the left, rules (AND boxes) in the middle, parts on the right; tap, tap to patch -->
 <div id="patch" hidden>
   <div id="patchHead"><b>🧬 Nucleus</b><span id="patchHint"></span><button id="patchClose" title="Close the wiring view">✕</button></div>
   <div id="patchBody"><div id="patchArea"><svg id="patchWires"></svg><div id="patchTray"></div><div id="patchCols"></div></div></div>
   <div id="patchEdit" hidden></div>
 </div>
+</section>
+</div>
+<footer id="help"><b>Help</b><span>Point at anything to see what it does.</span></footer>
 <script type="module" src="main.js"></script>
 </body>
 </html>
