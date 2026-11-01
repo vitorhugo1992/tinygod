@@ -18,7 +18,32 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    taken up through the cell's surface; the sap vacuole's planned job as a nitrogen store. Purpose: light is up, nitrogen
    is down, so depth and migration matter (today a still cell does as well anywhere between 100 and 1,500 µm).
 2. **Growth:** surplus energy + nitrogen fill a growth meter (the day's wasted surplus finds a use); the cell visibly swells a
-   little.
+   little. **Cost DECIDED (author 2026-11-01, Claude's recommendation):** a division costs energy and nitrogen in proportion
+   to the cell's volume (~300 pJ per µm³: ~1.2 million pJ for an r 10 cell, about the surplus a good design wastes today);
+   no fixed rate: once a day, twice, once in two days comes out of how the cell is built ("if it has all it needs to divide
+   it's cool"). The author expects **smaller cells to divide faster**: energy alone is scale-free (plastid share of volume),
+   so that has to come from nitrogen taken up through the surface (surface/volume falls with size). Priced per part by
+   material: later. **Swelling DECIDED (author 2026-11-01, Claude's recommendation): drawn only**, up to ~8% wider as the
+   meter fills; the physics keeps the designed size; real growth (the design as the newborn, growing to 1.26× its volume)
+   kept for later.
+   **Trigger DECIDED (author 2026-11-01: "automatic and rule"):** divides by itself when the meter is full, unless the
+   nucleus carries an optional DIVIDE when… rule (like REST), in which case a full cell waits until the rule holds; while
+   it waits, its surplus goes to the stores as today.
+   **Nitrogen DECIDED (author 2026-11-01, Claude's recommendation): the meter has two bars, energy and nitrogen; it divides
+   when both are full.** Uptake through the surface (in proportion to surface area and to the water's nitrogen there,
+   levelling off when rich); a division needs nitrogen in proportion to volume, so half as wide fills in half the time.
+   Round numbers to tune from: an r 10 cell fills its N bar in ~half a day in the rich deep, ~5 days at the surface
+   (surface ~1/10 of the deep). The N bar is the store (a migrator fills it deep at night, energy near the light by day);
+   no separate N pool; a nitrogen store part (the sap vacuole's old job) later.
+   **Cap DECIDED (author 2026-11-01): 24 cells in the sandbox** (lower if the phone is too slow); at the cap a full cell
+   waits ("tank full"), surplus to its stores; nothing is removed to make room. The fast mode (1b) lifts it.
+   **Death DECIDED (author 2026-11-01, Claude's recommendation):** dies after its energy pool has been empty 60 s in a row
+   (a tenth of a day; resting doesn't pause it); turns grey, parts still, sinks; removed at the floor or after 30 s; the
+   trouble log says why and where; **its nitrogen (body share + its bar) goes back into the water where it is removed.**
+   **All step 1a questions settled (2026-11-01). Build order:** (a) the nitrogen field (replaces sim/nutrient.js's fixed
+   layer; used up locally, mixed back from below) and uptake into the N bar; (b) the energy bar and drawn swelling;
+   (c) division (automatic, the DIVIDE rule, the cap); (d) death and nitrogen returned; (e) the lineage shown (count,
+   graph, generations, births and deaths). Check each in Node (Claude's species must still live) and in the page.
 3. **Division:** the meter full, the cell splits: the daughter an exact copy (kin), beside it, stores shared. Later: a rule
    for when to divide; chains at division with kin pads.
 4. **Death:** starving too long, it dies, sinks, is removed; the trouble log says why ("starved at 03:20, 1.9 mm deep").
