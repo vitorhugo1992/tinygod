@@ -4,21 +4,36 @@ Players **design their own phytoplankton species** from parts and try to make it
 The author is a **phytoplankton researcher**: the biology carries weight, and their corrections on biology are
 authoritative.
 
-## Start here (handoff, 2026-10-24)
+## Start here (handoff, 2026-11-01)
 
-**Latest handoff (2026-11-01): implement the agreed mock-up.** The author: "mockup is great, I need to start a fresh chat
-to implement it". Open design/desk-mockup.html (the reference; read its CSS tokens, the windows / handles code and the
-nucleus board code) and the paragraph "Desktop layout and the new wiring board" near the end of the log below. Plan
-agreed with the author, two stages, show each in the real page and check with the author between them:
-(1) **the desktop layout** in sandbox/index.html + main.js: Tank · Cell · Nucleus windows with fold (–) and drag handles
-(remembered per browser), the Cell window's coloured sections (Body, Add a part with small pictures, On this body,
-Arrange), the help line along the bottom, dark and light themes; the phone layout stays as it is (windows stack, no
-handles). (2) **the new nucleus wiring board**, replacing today's 🎛 wiring view: sensor cards with day traces, one
-foldable rule card per acting part with a state pill and a "today" strip, conditions with traces / threshold / band and
-green while holding, Pathway lanes or Cables, Traces on / off, drag (or tap) a sensor onto a rule, "nucleus full"
-refused. The traces in the game come from the cell's journal (sandbox/journal.js), not from pretend curves. Keep every
-rule feature the game already has (ANY / ALL several sensors, between / outside, more / less than, beat speed,
-copy / paste rule). Ask before anything not in the mock-up.
+**Latest handoff (2026-11-01, end of a long chat): STEP 1 STARTS, the living tank.** The sandbox is done for now
+(author: "if u think it's good enough lets go to the next step, with reproduction, division, nutrients"). Rules are
+sentences with ranges, maps and links (all built, see the log's 2026-11-01 entries); the budget line and its warnings show
+whether a design survives; Claude designed three species that survive day and night from the floor (Bathyscapha,
+Noctilla, Caecella; designs/, in From Claude) and reported on balance (the log: "Balance, from building four species" is
+in the chat; its points are in the entries for each species). **The plan for step 1a, agreed in outline (author said yes to
+the first decision; the rest still to settle ONE QUESTION AT A TIME, with a recommendation, before building):**
+1. **Nitrogen, a second currency (DECIDED, author 2026-11-01: growth needs BOTH energy and nitrogen).** Rich deep, poor at
+   the surface (replace sim/nutrient.js's fixed layer with a field cells use up locally, mixed back from below slowly);
+   taken up through the cell's surface; the sap vacuole's planned job as a nitrogen store. Purpose: light is up, nitrogen
+   is down, so depth and migration matter (today a still cell does as well anywhere between 100 and 1,500 µm).
+2. **Growth:** surplus energy + nitrogen fill a growth meter (the day's wasted surplus finds a use); the cell visibly swells a
+   little.
+3. **Division:** the meter full, the cell splits: the daughter an exact copy (kin), beside it, stores shared. Later: a rule
+   for when to divide; chains at division with kin pads.
+4. **Death:** starving too long, it dies, sinks, is removed; the trouble log says why ("starved at 03:20, 1.9 mm deep").
+5. **The lineage shown:** population count and graph, generations, births and deaths.
+Step 1b after: grazers (the surface costly at night: the author worried Bathyscapha "stays on the surface exposed to
+predators"), then a fast mode for big populations and matches (full physics carries ~10-30 cells at playable speed).
+**Open questions to ask first (one at a time):** what the growth meter costs (energy and N per division, in round numbers);
+the division trigger (automatic when full, recommended for now); whether size grows before division; how nitrogen is
+taken up (by surface area, saturating) and whether the cell needs a nitrogen store to migrate; the population cap; what
+death leaves (nothing, or nutrients back to the water). Keep the sandbox playable at phone speed. Check every change in
+the real page (headless Edge, phone size) and run tools/check.mjs after any sim/ change; Claude's species must still live
+(scratchpad scripts are gone with the chat: re-measure in Node with sim/world.js, a cell from the floor, 3 days).
+**Practical lessons from the last chat:** editing main.js through inline `node -e` with template literals in Bash breaks
+(the shell expands backticks): write scripts to files or use the Edit tool; a `git checkout` turns files to CRLF, after
+which multi-line string matches fail (strip \r first). Kill headless Edge processes after testing (they slow the server).
 
 **Where we are:** step 0, the physics sandbox, is built and being played with by the author; step 1 (the ecology) is
 next once they are happy with it. Two long chats so far (2026-10-21 to 23: design and sandbox; 2026-10-23 to 24:
