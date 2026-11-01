@@ -492,7 +492,7 @@ function termWords(c, ref) {
   if (c.vs !== undefined) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(c.not ? 'less than' : 'more than', r(0))} ${sensorWord(c.vs, r(0))}`;
   const also = c.also || [], all = [c, ...also];
   if (!also.length) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
-  const join = c.all ? ' and ' : ' or ';
+  const jw = c.all ? 'and' : 'or', join = ref ? ` <span class="j" data-alsojoin="${ref}" title="Tap: or / and / but not when">${jw}</span> ` : ` ${jw} `;
   if (also.every((e) => sensorKind(e.sensor) === sensorKind(c.sensor))) return `${all.map((e, i) => sensorWord(e.sensor, r(i))).join(join)} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
   return `(${all.map((e, i) => `${sensorWord(e.sensor, r(i))} <span class="verb">${kindOf(e.sensor).verb}</span> ${valueWord(rangeWords(e.sensor, e.min, e.max, c.not), r(i))}`).join(join)})`;
 }
@@ -508,7 +508,11 @@ function sentence(targets, tappable, where) {
   const m = targets[0], verb = verbOf(m), R = canon(m), go = R.filter((c) => !c.stop), st = R.filter((c) => c.stop);
   const k0 = design.parts.indexOf(m), key = partKey(m), ed = tappable && ruleEd && ruleEd.key === key && ruleEd.where === where ? ruleEd : null;
   const term = (c, list, i) => `<span class="term${ed && ed.list === list && ed.i === i ? ' editing' : ''}${c.stop ? ' st' : ''}" data-livecond="${k0}:${c.k}">${termWords(c, tappable ? `${list}:${i}` : null)}</span>`;
-  const goWords = () => go.map((c, i) => (i ? (tappable ? ` <span class="j" data-join="${i}" title="Tap: and / or">${c.or ? 'or' : 'and'}</span> ` : ` ${c.or ? 'or' : 'and'} `) : '') + term(c, 'go', i)).join('');
+  const goWords = () => go.map((c, i) => {
+    if (!i) return term(c, 'go', i);
+    const neg = !c.or && c.not, w = c.or ? 'or' : neg ? 'but not when' : 'and';   // "A and not B": B turned inside out
+    return (tappable ? ` <span class="j" data-join="${i}" title="Tap: or / and / but not when">${w}</span> ` : ` ${w} `) + term(neg ? { ...c, not: false } : c, 'go', i);
+  }).join('');
   const stWords = () => st.map((c, i) => (i ? ' or ' : '') + term(c, 'stop', i)).join('');
   const add = (list, label, title) => (tappable ? ` <button class="add" data-add="${list}" title="${title}">${label}</button>` : '');
   const never = (t) => `<span class="never">${t}</span>`;
@@ -651,7 +655,7 @@ function ruleCard(targets, where = 'list') {
   card.className = 'wire rcard';
   card.innerHTML = `<div class="say">${sentence(targets, true, where)}</div>`;
   card.onclick = (e) => {
-    const t = e.target.closest('[data-ed], [data-join], [data-add]');
+    const t = e.target.closest('[data-ed], [data-join], [data-add], [data-alsojoin]');
     if (!t) return;
     e.stopPropagation();
     if (t.dataset.ed) {
@@ -659,9 +663,20 @@ function ruleCard(targets, where = 'list') {
       const same = ruleEd && ruleEd.key === key && ruleEd.list === list && ruleEd.i === +i && ruleEd.where === where && ruleEd.ei === +ei;
       ruleEd = same ? null : { key, list, i: +i, ei: +ei, where };
       listParts();
-    } else if (t.dataset.join) {   // and <-> or: "or" starts a new group here
-      const L = listsOf(m), i = +t.dataset.join;
-      L.go[i] = { ...L.go[i], or: !L.go[i].or };
+    } else if (t.dataset.join) {   // and -> or (a new group starts here) -> and not (this condition turned inside out) -> and
+      const L = listsOf(m), i = +t.dataset.join, c = L.go[i];
+      L.go[i] = !c.or && !c.not ? { ...c, or: true } : c.or ? { ...c, or: false, not: !c.not } : { ...c, not: false };
+      writeRule(targets, L.go, L.st);
+    } else if (t.dataset.alsojoin) {   // inside one condition: or -> and -> and not (the last sensor becomes its own condition, inside out)
+      const [list, i] = t.dataset.alsojoin.split(':'), L = listsOf(m), arr = list === 'stop' ? L.st : L.go, c = { ...arr[+i] };
+      if (!c.all) c.all = true;
+      else if (list === 'stop') c.all = false;   // an unless can't hold an "and not"
+      else {
+        const e = c.also[c.also.length - 1], same = sensorKind(e.sensor) === sensorKind(c.sensor);
+        c.also = c.also.slice(0, -1); c.all = false;
+        arr.splice(+i + 1, 0, { sensor: e.sensor, min: same ? c.min : e.min, max: same ? c.max : e.max, not: !c.not, or: false });
+      }
+      arr[+i] = tidyAlso(c);
       writeRule(targets, L.go, L.st);
     } else if (t.dataset.add) {
       const L = listsOf(m), used = new Set([...L.go, ...L.st].map((c) => c.sensor)), sensors = sensorList();
