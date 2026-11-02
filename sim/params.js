@@ -127,7 +127,8 @@ export const PARAMS = {
     // bank up to a doubling's worth), up to `max` times it; organelles gain `organelles` of the cell's volume gain
     step: 0.1,
     max: 8,                 // twice its newborn width: there it stops growing (surplus to its stores)
-    organelles: 0.5,        // grown to 2× the cell, its organelles are 1.5×: it earns less per µm³ (steal or divide)
+    organelles: 0.5,        // beyond 2× organelles gain half the cell's growth (8×: organelles 5×): big cells earn less per
+                            // µm³ (steal or divide); up to 2× they keep pace (author 2026-11-02)
     uptake: 0.0222,         // N units per µm² of surface per s at the most (r 10: its bar in ~300 s in the rich deep)...
     half: 1,                // ...half of that at this richness (so ~1/10 as fast at the surface)
     cap: 12,                // cells the sandbox tank holds (author 2026-11-02: lowered from 24, full physics is costly); at

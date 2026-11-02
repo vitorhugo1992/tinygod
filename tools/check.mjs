@@ -14,7 +14,7 @@ import { volumeOf } from '../sim/shape.js';
 import { moveTo, dragSpot, toOutline, ownPoints, relax } from '../sandbox/mould.js';
 import { DEG } from '../sim/dmath.js';
 import { feedingLevel, sizeLevel } from '../sim/sense.js';
-import { regrow } from '../sim/grow.js';
+import { regrow, organelleGrowth } from '../sim/grow.js';
 
 const DT = PARAMS.time.dt;
 // A cocked spring (a latched springy joint), for the no-coasting and one-flick laws; not a part in the Build panel
@@ -906,7 +906,7 @@ const runDay = (design, y, seconds, opts = {}) => {
 }
 
 // 28x. Growing (author, 2026-11-02): with a growth step's energy and nitrogen banked, a cell grows a tenth of its newborn
-// volume: the body and its rim parts by its width, organelles by half its volume gain; its stores keep their energy
+// volume: the body and its rim parts by its width, organelles with it (beyond 2×: half its gain); its stores keep their energy
 // (emptier); it reads its Size; held back from dividing, it stops at PARAMS.grow.max
 {
   const design = { body: { radius: 10 }, parts: [
@@ -924,8 +924,8 @@ const runDay = (design, y, seconds, opts = {}) => {
   c.grow.E = c.grow.Eneed; c.grow.N = c.grow.Nneed;
   for (let i = 0; i < 3 * PARAMS.grow.every; i++) stepWorld(w);
   const w1 = Math.cbrt(1.1);
-  check('growing: a step of 10%: the body and its spine by its width, organelles by half its gain; store energy kept; it stops at its largest',
-    Math.abs(one.size - 1.1) < 1e-9 && Math.abs(one.r - w1) < 1e-6 && Math.abs(one.sp - w1) < 1e-6 && Math.abs(one.pl - 1.05) < 1e-3
+  check('growing: a step of 10%: the body and its spine by its width, organelles with it (half its gain beyond 2×); store energy kept; it stops at its largest',
+    Math.abs(one.size - 1.1) < 1e-9 && Math.abs(one.r - w1) < 1e-6 && Math.abs(one.sp - w1) < 1e-6 && Math.abs(one.pl - 1.1) < 1e-3 && Math.abs(organelleGrowth(4) - 3) < 1e-9
       && Math.abs(one.S - S0) < 1e-6 * S0 && one.fill < f0 && one.left < 1e-6 && c.size === PARAMS.grow.max && w.cells.length === 1
       && Math.abs(sizeLevel(c) - 1) < 1e-9,
     `after one step: ${fmt(one.size, 2)}×, body radius ×${fmt(one.r, 3)}, spine ×${fmt(one.sp, 3)}, plastid volume ×${fmt(one.pl, 3)}; ` +

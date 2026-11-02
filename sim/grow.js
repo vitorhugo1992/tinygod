@@ -1,8 +1,9 @@
 // Growing (step 1, author 2026-11-02): the design is the newborn. Surplus energy and nitrogen (the growth meter's two
 // bars) build the cell bigger, PARAMS.grow.step of its newborn volume at a time, up to PARAMS.grow.max times it. The body
-// and everything on its rim grow with it (positions and lengths by its width); organelles inside gain only
-// PARAMS.grow.organelles of its volume gain (author: "so it has incentive to steal plastids and energy from prey"), so
-// a grown cell earns less per µm³ and has more free room; the nucleus keeps the slots it was built with. A cell that
+// and everything on its rim grow with it (positions and lengths by its width); organelles inside keep pace up to twice its
+// newborn volume (an ordinary life: every design that lives can divide) and beyond that gain only PARAMS.grow.organelles
+// of its gain (author: "so it has incentive to steal plastids and energy from prey"; first at every size, but swimmers
+// stalled below 2× and never divided), so a cell grown big earns less per µm³ and has more free room; the nucleus keeps the slots it was built with. A cell that
 // has at least doubled may divide (divide.js): each daughter gets half its volume.
 // Growing rebuilds the cell in place (the same object: its journal, lineage and links stay), carrying its pose, energy,
 // stores (their energy, not their fill: a bigger store is emptier), plastid damage, chambers, motors and latches.
@@ -15,7 +16,7 @@ const G = PARAMS.grow, WG = PARAMS.gravity * 1e-6, CYTO = PARAMS.cell.cytoplasm;
 const cbrt = (x) => Math.cbrt(x);
 
 // How much an organelle's volume has grown when the cell has grown `g` times its newborn volume
-export const organelleGrowth = (g) => 1 + G.organelles * (g - 1);
+export const organelleGrowth = (g) => (g <= 2 ? g : 2 + G.organelles * (g - 2));
 
 // The design at `g` times its newborn volume
 export function scaledDesign(design, g) {
