@@ -28,8 +28,8 @@ the author, revisit if it bothers); the energy bar needs + 300 pJ per µm³ of p
 f.cost × (1 + 2 × thickness) (link.price), can't latch without it (A.cantPierce; card pill TOO DEAR; trouble log "can't
 afford to pierce a plated X"). Body section: Wall Plain / Plates, Thickness, a note ("pierced at ×3 · +30% energy per
 division · sinks 1.6× as fast", from the design built with and without). Drawn as a tan band inside the outline with
-seams. Check 28v (51 checks). Measured r 10: 1 µm sinks 7.8 → 12.5 µm/s, division 1.26 → 1.63 million pJ; (3) (replaces glass; design it
-with the author first, one question at a time); then, from the queue: chains at division (kin defence), stealing
+seams. Check 28v (51 checks). Measured r 10: 1 µm sinks 7.8 → 12.5 µm/s, division 1.26 → 1.63 million pJ.
+**Next, from the queue:** chains at division (kin defence), stealing
 plastids (the peduncle's next stage), engulfing, toxins, a contest with a hunter. Scratchpad tools are gone with the
 chat: for headless page tests write a CDP script (headless Edge, --remote-debugging-port, Network.setCacheDisabled or
 the profile caches main.js) and kill the Edge processes after; contests run in Node with PARAMS.grow.cap raised.
