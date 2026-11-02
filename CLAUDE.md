@@ -29,8 +29,10 @@ f.cost × (1 + 2 × thickness) (link.price), can't latch without it (A.cantPierc
 afford to pierce a plated X"). Body section: Wall Plain / Plates, Thickness, a note ("pierced at ×3 · +30% energy per
 division · sinks 1.6× as fast", from the design built with and without). Drawn as a tan band inside the outline with
 seams. Check 28v (51 checks). Measured r 10: 1 µm sinks 7.8 → 12.5 µm/s, division 1.26 → 1.63 million pJ.
-**Next, from the queue:** chains at division (kin defence), stealing
-plastids (the peduncle's next stage), engulfing, toxins, a contest with a hunter. Scratchpad tools are gone with the
+**Next, the author's order (2026-11-02):** (1) **a contest with a hunter**; (2) **stealing plastids** (the
+peduncle's next stage); (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
+already make them; "at division" is only one way, a daughter starting stuck); (4) **engulfing, if possible** (only a
+considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). Scratchpad tools are gone with the
 chat: for headless page tests write a CDP script (headless Edge, --remote-debugging-port, Network.setCacheDisabled or
 the profile caches main.js) and kill the Edge processes after; contests run in Node with PARAMS.grow.cap raised.
 
