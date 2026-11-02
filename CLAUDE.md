@@ -78,6 +78,14 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    ("divide only after dawn"). Speed: 1 Saltella ~15 ms per sim s, 2 touching ~43, 4 ~90-120. **Not yet:** the DIVIDE
    when… rule (the nucleus carries one rule, REST, as its joint; a second rule on one part needs plumbing in build.js
    and the rule cards); chains at division. The phone's clock line overflows (it did before; to tidy).
+   **The first contest (author asked, 2026-11-02): Claude's five species, one each from the floor, 10 days, headless
+   (cap raised to 200 for the run; no predators then).** Day 10: **Bathyscapha 8, Noctilla 8, Saltella 8 (1 death),
+   Trochilla 4, Caecella 0** (both its cells died on day 3.8). Why Caecella died: it divided at 16:24; each daughter got
+   half its oil (50%), and its rest rule needs oil above 85%, so neither rested; both swam all night, oil released too
+   slowly, both starved at 01:24 with a third of their oil left. **Lesson: rules tuned to full stores break after a
+   division** (a reason for the DIVIDE rule, e.g. divide only in the morning so the stores refill by night). The
+   nitrogen at 1 mm fell from 0.52 to ~0.39 as the population grew (depleting begins at ~30 cells). Run time ~50 min.
+   No density limit yet except nitrogen: the contest measures growth rate.
    **The DIVIDE rule BUILT (2026-11-02; Claude's pick of what next, author: "do what you feel is best").** A design part
    { type: 'rule', id: 'divide', label: 'Division', joint: { type: 'divide', controls } } that nothing in the tank
    draws; the sandbox adds one to every design (withoutTimers), its card under "Life cycle" (no Remove, no mirrors):
