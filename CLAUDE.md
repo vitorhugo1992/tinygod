@@ -110,6 +110,9 @@ Saltella 10, Noctilla 4, Trochilla 1; Caecella starved day 4.8 (was 1.8); Raptil
 on Saltellas, which now jump free when drained: none died of it; each latch cost 40k: the thief starved out; it ate one
 Bathyscapha, divided, both starved on the floor). Scalella beat its parent Bathyscapha: chains (sharing, shielding) and
 small cells take nitrogen faster per volume. The floor killed a Noctilla, a Saltella and both Raptillas.
+**Same contest with the new oil:** day 10: Scalella 20 (chains 6, 6, 3, 2, 2), Bathyscapha 17, Saltella 11, Raptilla 2
+2 (38 of its 43 latches on Saltellas, which jump free), Trochilla 1, Noctilla 0 (one starved on the floor day 6.4, one
+at 620 µm day 7.6), Caecella 0 (day 4.9). Faster oil didn't rescue the oil users; drifters still lead.
 **The floor trap (author: "needs to be solved cleverly, not with an SOS button"; chose a sense of depth):** the
 Nutrient sensor is back in the Build panel (Sensors; tip: poor upper half, rich below the nutricline ~1 mm, less
 where cells used it up). Measured: Noctilla now sinks to the floor at night (1,988 µm); with "rests … unless the
