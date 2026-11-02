@@ -129,6 +129,7 @@ export const PARAMS = {
     half: 600,              // s: a stolen plastid's output halves every sandbox day
     gone: 0.05,             // below this share of its output it is gone (its room freed)
     grid: 0.5,              // µm between the spots tried when placing one
+    squeeze: 0.6,           // soft: it squeezes into a gap down to this share of its radius (keeping its volume and output)
   },
   // Growth and division (step 1, author 2026-11-01): a meter of two bars, energy and nitrogen; full, the cell divides.
   // Both cost in proportion to the cell's volume; nitrogen comes in through its surface, so smaller cells fill faster.

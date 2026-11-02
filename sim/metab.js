@@ -100,7 +100,7 @@ function feed(world, cell, l) {
   if (prey.dead && !prey.robbed) {
     prey.robbed = true;
     cell.toSteal = { prey: prey.species, plastids: prey.pieces[0].inclusions.filter((i) => i.material === 'plastid')
-      .map((i) => ({ v: i.v, pigment: i.pigment, damage: i.damage || 0, fade: i.stolen ? i.stolen.fade : 1 })) };
+      .map((i) => ({ v: (i.stolen && i.stolen.v) || i.v, pigment: i.pigment, damage: i.damage || 0, fade: i.stolen ? i.stolen.fade : 1 })) };
   }
   cell.metab.E += e * F.keep;
   return e * F.keep;
@@ -125,7 +125,8 @@ export function metabolize(world, cell) {
     const L = lightAt(world, y), shade = inc.pigment === 'shade';
     const st = inc.stolen;   // a stolen plastid fades, and isn't repaired
     if (st) st.fade *= FADE;
-    income += slow * (1 - inc.damage) * (st ? st.fade : 1) * (shade ? M.shade.max * inc.v * L / (L + M.shade.half) : M.plastidMax * inc.v * L / (L + M.plastidHalf));
+    // (a squeezed stolen plastid earns for its whole volume)
+    income += slow * (1 - inc.damage) * (st ? st.fade * (st.v ? st.v / inc.v : 1) : 1) * (shade ? M.shade.max * inc.v * L / (L + M.shade.half) : M.plastidMax * inc.v * L / (L + M.plastidHalf));
     const over = L - (shade ? M.shade.safe : M.photo.safe);
     if (over > 0) inc.damage += M.photo.damage * (shade ? M.shade.damage : 1) * over * (1 - inc.damage) * DT;
     if (st) { st.damage = inc.damage; continue; }

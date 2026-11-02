@@ -1014,7 +1014,7 @@ const runDay = (design, y, seconds, opts = {}) => {
 }
 
 // 28y. Stealing plastids (author, 2026-11-02): a prey drained to death gives up its plastids; the predator keeps those
-// that fit in its free room (a newborn fewer than a big cell); they fade by half a day; at division they are shared out;
+// that fit in its free room (soft: squeezed into a gap down to 60% of their radius, keeping their volume); they fade by half a day; at division they are shared out;
 // from a living prey one goes through the tube every PARAMS.steal.every s latched, and the prey rebuilds it later
 {
   const hunter = (hold) => {
@@ -1035,6 +1035,8 @@ const runDay = (design, y, seconds, opts = {}) => {
     return { w, S, got: S.lastSteal ? S.lastSteal.got : 0, lost: S.lastSteal ? S.lastSteal.lost : 0, n: S.pieces[0].inclusions.filter((x) => x.stolen).length };
   };
   const small = hunt(1), big = hunt(4);
+  // soft: in the newborn's gaps one squeezes (smaller radius, its whole volume kept)
+  const squeezed = small.S.stolen.some((s) => s.r < Math.cbrt(3 * s.v / (4 * Math.PI)) - 1e-6 && s.r >= PARAMS.steal.squeeze * Math.cbrt(3 * s.v / (4 * Math.PI)) - 1e-6);
   const f0 = big.S.stolen[0].fade;
   for (let i = 0; i < 30000; i++) stepWorld(big.w);
   const fade = big.S.stolen[0].fade / f0, want = 2 ** (-30 / PARAMS.steal.half);
@@ -1054,9 +1056,9 @@ const runDay = (design, y, seconds, opts = {}) => {
   L.grow.E = L.grow.Eneed; L.grow.N = L.grow.Nneed; L.metab.E = L.metab.C; L.metab.starving = false;   // fed again (a starving cell builds nothing)
   for (let i = 0; i < 2 * PARAMS.grow.every; i++) stepWorld(w3);
   check('stealing plastids: a kill gives up what fits (a big cell keeps more); stolen plastids fade by half a day; division shares them out; a living prey loses one per 30 s latched and rebuilds it',
-    live.thief === 1 && live.lost === 1 && live.alive && (L.lost || []).length === 0 && L.rebuilt === 1 && small.n === 1 && small.lost >= 1 && big.n === 2 && Math.abs(fade - want) < 1e-3 * want
+    live.thief === 1 && live.lost === 1 && live.alive && (L.lost || []).length === 0 && L.rebuilt === 1 && small.n === 2 && squeezed && big.n === 2 && Math.abs(fade - want) < 1e-3 * want
       && each.length >= 2 && each.reduce((x, y) => x + y, 0) === 2 && each.every((k) => k <= 1),
-    `newborn hunter: holds ${small.n} (the kill: ${small.lost} digested); at 4×: holds ${big.n}; after 30 s ${fmt(fade, 4)} of its output (should be ${fmt(want, 4)}); ` +
+    `newborn hunter: holds ${small.n} (${squeezed ? 'one squeezed' : 'none squeezed'}); at 4×: holds ${big.n}; after 30 s ${fmt(fade, 4)} of its output (should be ${fmt(want, 4)}); ` +
     `divided: ${each.join(' + ')} stolen plastids; from a living prey after 35 s: the thief has ${live.thief}, the prey lost ${live.lost} (${live.alive ? 'alive' : 'dead'}), then rebuilt ${L.rebuilt || 0}`);
 }
 

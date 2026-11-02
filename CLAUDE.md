@@ -98,12 +98,30 @@ is simply gone. A kill still gives up what is left that fits. Page: "robbed" lin
 plastid from a living X", "a X took one of its plastids through its tube", "rebuilt a plastid a thief had taken".
 Raptilla 2 (scratch: grows to 3× before dividing, feeds only in light) under the kill-only rule: grew to 2.8×, kept
 no plastid (none fitted at its two kills), divided on day ~7.5, both starved deep on day 9.
+Same with mid-meal stealing: still none fitted. **Why: free room comes in thin gaps** (Raptilla 2's organelles fill
+15-20% of it, but its biggest round gap is r 1.9 µm newborn, 3.0 at 2.8×; a Saltella plastid is 3.5). **Stolen
+plastids squeeze (author):** into the roomiest gap down to PARAMS.steal.squeeze 0.6 of their radius, keeping their
+volume and output (stolen.v; income × v / drawn v). **Contest with squeezing (Raptilla 2): day 10: Bathyscapha 17,
+Noctilla 4, Raptilla 2 SIX (thieves carrying stolen plastids: one at 2.7× with 4), Trochilla 1; Saltella extinct (day
+9.4), Caecella dead (day 1.8).** 26 latches but only 3 kills: **hunters farm their prey** (latch in light, take a
+plastid every 30 s; the prey lives and rebuilds), mostly on Bathyscapha. First contest where a hunter makes a living.
 (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
 already make them; "at division" is only one way, a daughter starting stuck; **what chains should offer (author,
 2026-11-02): protection from predators, more buoyancy, cells in a chain trading nutrients between themselves, more
 resting, etc.**; **the chain's form comes from where the pads sit and the cell's geometry** (author; already true in
 the physics: front-back pads a line, angled pads an arc or ring, three a star; rods end to end a thread, side pads a
-ladder); design one question at a time); (4) **engulfing, if possible** (only a
+ladder). **CHAIN PLAN, decided with the author (2026-11-02), not built yet:** (a) **forming at division by the pads:**
+a cell with kin pads places its daughter pad to pad (turned so the pads face), joined; meeting kin still sticks;
+no pads, they separate; (b) **breaking:** links snap under force, a dead cell lets go, and each kin pad may carry an
+optional rule **"Holds while…"** (none: always holds); (c) **sharing:** joined kin slowly even out their energy pools
+and their growth meters' nitrogen (automatic); (d) **defence:** a built-in **"Drained" reading** (on while a peduncle
+drains this cell; with sharing a predator drains the whole chain through one cell), wired by the player, e.g. a pad
+"Holds while not drained" cuts the victim loose; (e) **resting** comes from sharing (no new rule); (f) **floating:**
+chains don't float better (author agreed: a chain sinks like its cells in this physics); chains help **swimmers swim
+faster** and mostly **defend**: **drag shielding (author: yes, simple):** a cell joined to kin feels less drag (~15%
+less with one neighbour, ~25% with two; to tune), so chains of swimmers outpace singles and passive chains sink a bit
+faster. **Later, with moving water:** chains in currents take layouts that maximise photosynthesis (author); needs
+moving water and self-shading (light today depends on depth only)); (4) **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). Scratchpad tools are gone with the
 chat: for headless page tests write a CDP script (headless Edge, --remote-debugging-port, Network.setCacheDisabled or
 the profile caches main.js) and kill the Edge processes after; contests run in Node with PARAMS.grow.cap raised.

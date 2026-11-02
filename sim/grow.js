@@ -147,22 +147,35 @@ export function growCells(world) {
   }
 }
 
-// A free spot for a round plastid of radius r inside the cell's body (its own frame), nearest the middle first, clear
-// of the outlines `taken` and of the circles `extra` ([x, y, r])
+// A free spot for a round plastid of radius r inside the cell's body (its own frame), clear of the outlines `taken` and
+// of the circles `extra` ([x, y, r]): full size nearest the middle if it can; else squeezed (soft: author 2026-11-02)
+// into the roomiest gap, down to PARAMS.steal.squeeze of its radius. Returns [x, y, radius there] or null
 function spotFor(body, r, taken, extra = []) {
-  const h = body.L / 2, room = body.a - PARAMS.cell.wallThickness - r;
-  if (room <= 0) return null;
-  const spots = [];
-  for (let x = -h - room; x <= h + room + 1e-9; x += S.grid) for (let y = -room; y <= room + 1e-9; y += S.grid) {
-    const dx = Math.max(Math.abs(x) - h, 0);
-    if (dx * dx + y * y <= room * room) spots.push([x, y, x * x + y * y]);
+  const h = body.L / 2, least = S.squeeze * r, room = body.a - PARAMS.cell.wallThickness;
+  if (room - least <= 0) return null;
+  const spots = [], reach = room - least;
+  for (let x = -h - reach; x <= h + reach + 1e-9; x += S.grid) for (let y = -reach; y <= reach + 1e-9; y += S.grid) {
+    const dx = Math.max(Math.abs(x) - h, 0), d = Math.sqrt(dx * dx + y * y);
+    if (d <= reach) spots.push([x, y, x * x + y * y, room - d]);
   }
   spots.sort((p, q) => p[2] - q[2]);
-  for (const [x, y] of spots) if (clear(x, y, r, taken, extra)) return [x, y];
-  return null;
+  let best = null;
+  for (const [x, y, , wall] of spots) {
+    const c = clearance(x, y, wall, taken, extra);
+    if (c >= r) return [x, y, r];
+    if (c >= least && (!best || c > best[2])) best = [x, y, c];
+  }
+  return best;
 }
-const clear = (x, y, r, taken, extra) => !taken.some((o) => insidePoly(o, x, y) || polyDist(o, x, y) < r)
-  && !extra.some(([ex, ey, er]) => Math.hypot(ex - x, ey - y) < er + r);
+// how big a circle fits at (x, y): the wall's distance, the outlines', the circles'
+function clearance(x, y, wall, taken, extra) {
+  let c = wall;
+  for (const o of taken) { if (insidePoly(o, x, y)) return 0; c = Math.min(c, polyDist(o, x, y)); }
+  for (const [ex, ey, er] of extra) c = Math.min(c, Math.hypot(ex - x, ey - y) - er);
+  return c;
+}
+const radiusOf = (v) => cbrt(3 * v / (4 * Math.PI));
+const trueVolume = (inc) => (inc.stolen && inc.stolen.v) || inc.v;   // a squeezed one keeps its volume
 
 // A prey it killed gave up its plastids (metab.js: cell.toSteal): keep those that fit, biggest first
 function steal(world, cell) {
@@ -171,10 +184,10 @@ function steal(world, cell) {
   const body = cell.pieces[0], w = cbrt(cell.size || 1), got = [], placed = [];
   const taken = body.inclusions.map((i) => i.outline);
   for (const p of plastids.sort((x, y) => y.v - x.v)) {
-    const r = cbrt(3 * p.v / (4 * Math.PI)), at = spotFor(body, r, taken, placed);
+    const at = spotFor(body, radiusOf(p.v), taken, placed);
     if (!at) continue;
-    placed.push([at[0], at[1], r]);
-    got.push({ at: [at[0] / w, at[1] / w], r, pigment: p.pigment, damage: p.damage, fade: p.fade });
+    placed.push(at);
+    got.push({ at: [at[0] / w, at[1] / w], r: at[2], v: p.v, pigment: p.pigment, damage: p.damage, fade: p.fade });
   }
   cell.lastSteal = { prey, got: got.length, lost: plastids.length - got.length, step: world.steps };
   if (!got.length) return;
@@ -191,11 +204,11 @@ export function refit(world, cell) {
   let changed = false;
   for (const s of cell.stolen) {
     const inc = body.inclusions.find((i) => i.stolen === s);
-    const inside = inc && Math.hypot(Math.max(Math.abs(inc.x) - body.L / 2, 0), inc.y) <= room - s.r + 1e-9;
-    if (inside && clear(inc.x, inc.y, s.r, taken, kept)) { kept.push([inc.x, inc.y, s.r]); keep.push(s); continue; }
+    const wall = inc ? room - Math.hypot(Math.max(Math.abs(inc.x) - body.L / 2, 0), inc.y) : 0;
+    if (inc && clearance(inc.x, inc.y, wall, taken, kept) >= s.r - 1e-9) { kept.push([inc.x, inc.y, s.r]); keep.push(s); continue; }
     changed = true;
-    const at = spotFor(body, s.r, taken, kept);
-    if (at) { s.at = [at[0] / w, at[1] / w]; kept.push([at[0], at[1], s.r]); keep.push(s); } else cell.digested = (cell.digested || 0) + 1;
+    const at = spotFor(body, radiusOf(s.v || 4 / 3 * Math.PI * s.r ** 3), taken, kept);
+    if (at) { s.at = [at[0] / w, at[1] / w]; s.r = at[2]; kept.push(at); keep.push(s); } else cell.digested = (cell.digested || 0) + 1;
   }
   if (!changed) return;
   cell.stolen = keep;
@@ -210,13 +223,13 @@ function take(world, cell) {
   if (!world.cells.includes(prey) || prey.dead) return;
   const body = cell.pieces[0], w = cbrt(cell.size || 1), taken = body.inclusions.map((i) => i.outline);
   for (const inc of prey.pieces[0].inclusions.filter((i) => i.material === 'plastid').sort((a, b) => b.v - a.v)) {
-    const r = cbrt(3 * inc.v / (4 * Math.PI)), at = spotFor(body, r, taken);
+    const v = trueVolume(inc), at = spotFor(body, radiusOf(v), taken);
     if (!at) continue;
     const fade = inc.stolen ? inc.stolen.fade : 1;
     if (inc.stolen) prey.stolen = prey.stolen.filter((s) => s !== inc.stolen);
     else prey.lost = [...(prey.lost || []), inc.part];
     regrow(world, prey, prey.size || 1);
-    cell.stolen = [...(cell.stolen || []), { at: [at[0] / w, at[1] / w], r, pigment: inc.pigment, damage: inc.damage || 0, fade }];
+    cell.stolen = [...(cell.stolen || []), { at: [at[0] / w, at[1] / w], r: at[2], v, pigment: inc.pigment, damage: inc.damage || 0, fade }];
     regrow(world, cell, cell.size || 1);
     cell.lastTake = { prey: prey.species, step: world.steps };
     prey.lastRobbed = { by: cell.species, step: world.steps };
