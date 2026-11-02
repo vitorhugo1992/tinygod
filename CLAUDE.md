@@ -151,7 +151,10 @@ less with one neighbour, ~25% with two; to tune), so chains of swimmers outpace 
 faster. **Later, with moving water:** chains in currents take layouts that maximise photosynthesis (author); needs
 moving water and self-shading (light today depends on depth only)); (4) **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). **PRIORITY (author, 2026-11-02: "important"): pads that sense and attract, the Neighbours
-reading, and a nitrogen store ("seems good").** **Pads and Neighbours BUILT (2026-11-02; author chose both, and kin pads only, short and
+reading, and a nitrogen store ("seems good").** **Nitrogen store DROPPED for now (author, 2026-11-02, after weighing depth vs
+confusion):** the growth meter's N bar already banks a doubling's worth (migration works through it); a store only
+matters beyond that, and would add a second place nitrogen lives and a third Content under "Energy store". Revisit with
+seasons or long dark spells. **Pads and Neighbours BUILT (2026-11-02; author chose both, and kin pads only, short and
 weak):** a rule can read any pad by its id (0 free, 0.5 joined to kin, 1 stuck to a stranger; build.js PAD_READ -100 -
 its index, sense.js padLevel; a module only once wired) and the built-in **Neighbours** (-8: kin joined, 0..4+;
 interact.js cell.neighbours; offered when the design has kin pads); free kin pads pull free kin pads of their species
