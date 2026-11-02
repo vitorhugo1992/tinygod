@@ -105,6 +105,11 @@ volume and output (stolen.v; income × v / drawn v). **Contest with squeezing (R
 Noctilla 4, Raptilla 2 SIX (thieves carrying stolen plastids: one at 2.7× with 4), Trochilla 1; Saltella extinct (day
 9.4), Caecella dead (day 1.8).** 26 latches but only 3 kills: **hunters farm their prey** (latch in light, take a
 plastid every 30 s; the prey lives and rebuilds), mostly on Bathyscapha. First contest where a hunter makes a living.
+**Seven-species contest (2026-11-02; old oil numbers): day 10: Scalella 22 (chains of 6, 6, 5, 2), Bathyscapha 13,
+Saltella 10, Noctilla 4, Trochilla 1; Caecella starved day 4.8 (was 1.8); Raptilla 2 extinct** (15 of its 19 latches
+on Saltellas, which now jump free when drained: none died of it; each latch cost 40k: the thief starved out; it ate one
+Bathyscapha, divided, both starved on the floor). Scalella beat its parent Bathyscapha: chains (sharing, shielding) and
+small cells take nitrogen faster per volume. The floor killed a Noctilla, a Saltella and both Raptillas.
 **Oil retuned (author, 2026-11-02: "is oil still a good tool?"):** it lost to starch every night: a night is 300 s and
 oil released a full store in 600 s, so an awake night needed an oil store 1/15 of the upkeep rate vs starch 1/20, and
 it filled only halfway in a day. Now PARAMS.metab.oil fill 1/400, burn 1/300 (one night): oil carries a night in less
