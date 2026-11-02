@@ -260,11 +260,13 @@ export const CATEGORIES = {
   'Inside the cell': ['Nucleus (the brain)', 'Plastid (makes energy)', 'Energy store', 'Buoyancy chamber'],
   'Pads': ['Pad'],
   'Hunting': ['Peduncle (feeds on others)'],
+  'Life cycle': [],   // the Division card (a rule, nothing to build: every design has one)
   'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Feeler'],
 };
 
 // The category of a part already on the body, from what it is
 export function categoryOf(p) {
+  if (p.type === 'rule') return 'Life cycle';
   if (p.type === 'inclusion') return p.material === 'statolith' ? 'Sensors' : 'Inside the cell';
   if (p.type === 'pad') return 'Pads';
   if (p.type === 'sensor') return 'Sensors';
@@ -289,7 +291,7 @@ export function partGroups(parts) {
     }
     const [x, y] = p.at || [0, 0];
     const name = p.label || (p.type === 'segment' ? `${p.material || 'protein'} segment${p.joint ? ` (${p.joint.type})` : ''}`
-      : p.type === 'inclusion' ? `${p.material} inclusion` : p.type === 'sensor' ? `${p.kind || 'light'} sensor` : `${p.kind || 'kin'} pad`);
+      : p.type === 'rule' ? 'Division' : p.type === 'inclusion' ? `${p.material} inclusion` : p.type === 'sensor' ? `${p.kind || 'light'} sensor` : `${p.kind || 'kin'} pad`);
     groups.push({ name, members, category: categoryOf(p), more: members.length - 1, deg: Math.round(Math.atan2(y, x) * 180 / Math.PI + 360) % 360 });
   }
   return groups;

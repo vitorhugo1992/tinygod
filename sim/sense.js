@@ -144,6 +144,8 @@ export function sense(world, cell) {
   }
   // peduncles: FEEDS when… (no rule: always)
   for (const f of cell.feeders) f.go = f.controls ? holdsAll(world, cell, f.controls) : true;
+  // division: DIVIDES when… (no rule: whenever its meter is full)
+  if (cell.divideRule) { const r = cell.divideRule.controls ? ruleState(world, cell, cell.divideRule.controls) : null; cell.divideOk = !r || (r.go && !r.stop); }
   // resting: the nucleus's rule (REST when… / DON'T REST if…)
   if (cell.rest) { const r = cell.rest.controls ? ruleState(world, cell, cell.rest.controls) : null; cell.resting = !!r && r.go && !r.stop; }
   // buoyancy chambers: SINK if wins, then FLOAT when; neither: neutral

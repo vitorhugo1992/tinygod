@@ -78,6 +78,14 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    ("divide only after dawn"). Speed: 1 Saltella ~15 ms per sim s, 2 touching ~43, 4 ~90-120. **Not yet:** the DIVIDE
    when… rule (the nucleus carries one rule, REST, as its joint; a second rule on one part needs plumbing in build.js
    and the rule cards); chains at division. The phone's clock line overflows (it did before; to tidy).
+   **The DIVIDE rule BUILT (2026-11-02; Claude's pick of what next, author: "do what you feel is best").** A design part
+   { type: 'rule', id: 'divide', label: 'Division', joint: { type: 'divide', controls } } that nothing in the tank
+   draws; the sandbox adds one to every design (withoutTimers), its card under "Life cycle" (no Remove, no mirrors):
+   "Divides when its growth meter is full [and …] [, unless …]."; pill n% GROWN / WAITING / DIVIDING; map "WHEN IT WOULD
+   DIVIDE". build.js cell.divideRule { part, controls }, sense.js cell.divideOk, divide.js: a full cell whose rule
+   doesn't hold waits ('its DIVIDE rule says not yet'). Its conditions take nucleus slots like any rule. Check in 28s
+   (50 checks). Test-browser lesson: the headless Edge profile cached main.js; tools in the scratchpad now disable the
+   cache (Network.setCacheDisabled).
    **Predation and defence (author, 2026-11-02: "strategies for cells to kill other enemy cells, opportunistic
    behaviours, taking rides, stealing energy or plastids, or killing through other forms; and strategies for resistance,
    chain forming etc."). A menu offered to the author, order to settle one question at a time:**

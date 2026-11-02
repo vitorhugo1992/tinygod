@@ -889,6 +889,17 @@ const runDay = (design, y, seconds, opts = {}) => {
       && halfE && halfS && c.grow.E < 0.01 * c.grow.Eneed && d.grow.N < 0.01 * d.grow.Nneed && full.w.cells.length === 1 && full.c.waiting === 'tank full',
     `cells ${w.cells.length}; bodies ${d ? fmt(gap, 2) : '–'} µm apart; pool ${fmt(E0, 0)} -> ${d ? `${fmt(c.metab.E, 0)} + ${fmt(d.metab.E, 0)}` : '–'}; ` +
     `starch ${fmt(fill0)} -> ${d ? `${fmt(c.pieces[0].inclusions[0].fill)} each` : '–'}; with a cap of 1: ${full.w.cells.length} cell, waits: ${full.c.waiting}`);
+  // the DIVIDE rule: a full cell waits while it doesn't hold (here: "when its starch is more than 90% full"), divides once it does
+  const ruled = { ...design, parts: [...design.parts, { type: 'rule', id: 'divide', joint: { type: 'divide', controls: [{ sensor: 'starch', min: 0.9, max: 1 }] } }] };
+  const w2 = makeWorld(1, { gravity: false, metab: true, grow: true });
+  const r = addCell(w2, ruled, 800, 1000, 90);
+  r.grow.E = r.grow.Eneed; r.grow.N = r.grow.Nneed;
+  for (let i = 0; i < 2 * PARAMS.grow.every; i++) stepWorld(w2);
+  const waited = w2.cells.length === 1 && /DIVIDE rule/.test(r.waiting || '');
+  r.pieces[0].inclusions[0].fill = 1;
+  for (let i = 0; i < 2 * PARAMS.grow.every; i++) stepWorld(w2);
+  check('a DIVIDE rule holds a full cell back until it holds (none: it divides at once)',
+    waited && w2.cells.length === 2, `starch 80%, rule "starch more than 90%": ${waited ? 'waits' : 'did not wait'}; starch full: ${w2.cells.length} cells`);
 }
 
 // 28u. The peduncle (step 1): its tip latches on another species' body (paying to pierce), never on kin; it drains the

@@ -2,7 +2,7 @@
 // exactly its design, the same size: the daughter appears touching it, turned the same way, and each keeps half of
 // the pool and half of every store (a store's fill halves); plastid damage and a chamber's state are shared; both
 // meters start again from zero. It waits while the tank holds PARAMS.grow.cap cells, while it starves, or while there
-// is no room beside it (a wall, another cell). Nothing else decides: no chain rule, no growth rule.
+// is no room beside it (a wall, another cell), or while its DIVIDE rule doesn't hold (a 'rule' part; none: at once).
 import { PARAMS } from './params.js';
 import { DEG } from './dmath.js';
 import { addCell } from './world.js';
@@ -70,6 +70,7 @@ function spotFor(world, cell) {
 export function ready(world, cell) {
   const g = cell.grow;
   if (!g || g.E < g.Eneed || g.N < g.Nneed || cell.dead || cell.metab.starving) return false;
+  if (cell.divideOk === false) { cell.waiting = 'its DIVIDE rule says not yet'; return false; }
   return true;
 }
 

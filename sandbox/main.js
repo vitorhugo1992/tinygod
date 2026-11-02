@@ -50,6 +50,7 @@ function withoutTimers(d) {
   if (!nucleiOf(d).length) for (const p of d.parts || []) if (p.joint) { delete p.joint.controls; delete p.joint.control; delete p.joint.speed; }
   for (const p of d.parts || []) if (p.type === 'inclusion' && p.material === 'nucleus' && !p.joint) p.joint = { type: 'rest' };   // its REST rule
   for (const p of d.parts || []) if (p.type === 'inclusion' && p.material === 'chamber' && !p.joint) p.joint = { type: 'chamber' };   // its FLOAT / SINK rule
+  if (!(d.parts || []).some((p) => p.type === 'rule' && p.joint && p.joint.type === 'divide')) (d.parts ||= []).push({ type: 'rule', id: 'divide', label: 'Division', joint: { type: 'divide' } });   // its DIVIDE rule
   tagParts(d);
   const gone = new Set((d.parts || []).filter((p) => p.type === 'sensor' && p.kind === 'timer').map((p) => p.id));
   if (!gone.size) return d;
@@ -131,7 +132,7 @@ function reshape() {
   const old = d.body, body = { ...old, radius: Number($('bodyRadius').value), length: Number($('bodyLength').value), wall: $('bodyWall').value };
   const k = body.radius / old.radius;
   for (const p of d.parts || []) {
-    if (p.parent && p.parent !== 'body') continue;
+    if ((p.parent && p.parent !== 'body') || p.type === 'rule') continue;
     const [x, y] = p.at || [0, 0];
     if (p.type === 'inclusion') { p.at = [x * k, y * k]; p.radius = Math.round(p.radius * k * 100) / 100; }
     else p.at = surfacePoint(body, Math.atan2(y, x) * 180 / Math.PI).map((v) => Math.round(v * 100) / 100);
@@ -399,6 +400,7 @@ function partName(g, all = partGroups(design.parts || [])) {
   const own = (x) => {
     const r = x.members[0], b = r.build;
     if (r.name) return r.name;
+    if (r.type === 'rule') return r.label || 'Division';
     const kind = (b && KIND_NAME[b.tpl]) || r.label || x.name;
     const [px, py] = r.at || [0, 0];
     if (r.material === 'statolith') return `${kind} ${Math.round(r.angle || 0)}°`;   // by the way it faces (author)
@@ -528,10 +530,15 @@ function sentence(targets, tappable, where) {
   const stWords = () => st.map((c, i) => (i ? ' or ' : '') + term(c, 'stop', i)).join('');
   const add = (list, label, title) => (tappable ? ` <button class="add" data-add="${list}" title="${title}">${label}</button>` : '');
   const never = (t) => `<span class="never">${t}</span>`;
-  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
+  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'divides' ? 'Divides as soon as its growth meter is full' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
   if (verb === 'floats') return `<div class="line">Floats ${go.length ? `when ${goWords()}` : never('never')}.${add('go', go.length ? '+ and…' : '+ when…', 'A condition that floats it')}</div>
     <div class="line">Sinks ${st.length ? `when ${stWords()}` : never('never')}.${add('stop', st.length ? '+ or…' : '+ when…', 'A condition that sinks it (sinking wins)')}</div>
     <div class="line small">Sinking wins; neither: neutral, no cost.</div>`;
+  if (verb === 'divides') {   // the meter is always the first condition
+    let s = `Divides when its growth meter is full${go.length ? ` and ${goWords()}` : ''}`;
+    if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
+    return `<div class="line">${s}.${add('go', '+ and…', 'Wait to divide until this holds too (e.g. after dawn)')}${add('stop', '+ unless…', 'Never divide while this holds')}</div>`;
+  }
   const V = { runs: 'Runs', fires: 'Fires', rests: 'Rests', feeds: 'Feeds' }[verb];
   const none = verb === 'runs' ? never('all the time') : verb === 'feeds' ? never('whenever it touches another species') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
   let s = `${V} ${go.length ? `when ${goWords()}` : none}`;
@@ -576,9 +583,9 @@ function sensorList(except) {
     list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
   return list;
 }
-const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.latched));
+const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.type === 'divide' || m.joint.latched));
 // how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part)
-const verbOf = (m) => (m.joint.type === 'feed' ? 'feeds' : m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+const verbOf = (m) => (m.joint.type === 'divide' ? 'divides' : m.joint.type === 'feed' ? 'feeds' : m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
 // A part's rule as the card shows it: GO groups (all of a group must hold: AND; any group will do: OR) and STOP
 // conditions (any one stops the part, whatever the GO groups say: the override). Stored as one list: GO conditions in
 // their groups (or: true starts a group), then STOP ones (stop: true).
@@ -1013,14 +1020,14 @@ function drawRunMap(cv, m, R) {
   ctx2.putImageData(img, 0, 0);
   const n = MAP_W * MAP_H, pc2 = (v) => `<b>${Math.round(v / n * 100)}%</b>`;
   const what = verb === 'floats' ? `Floats in ${pc2(fl)}, sinks in ${pc2(sk)} of the map; neutral elsewhere`
-    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : verb === 'feeds' ? 'Would feed' : 'Fires'} in ${pc2(on)} of the map`;
+    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : verb === 'feeds' ? 'Would feed' : verb === 'divides' ? 'Would divide (meter full)' : 'Fires'} in ${pc2(on)} of the map`;
   return `${what}${live ? '' : ' (select a cell of this design for its eyespots\' facing and its day)'}.`;
 }
 // the map under a card's sentence: a canvas, the axes, a dot for the selected cell now (moved every frame)
 function runMapEl(targets, R) {
   const m = targets[0], k0 = design.parts.indexOf(m);
   const box = document.createElement('div'); box.className = 'rmap';
-  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : verbOf(m) === 'feeds' ? 'IT WOULD FEED' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
+  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : verbOf(m) === 'feeds' ? 'WOULD FEED' : verbOf(m) === 'divides' ? 'WOULD DIVIDE' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
     <div class="mbox"><canvas width="${MAP_W}" height="${MAP_H}"></canvas><span class="ml t">surface</span><span class="ml b">2 mm</span>
     <span class="mx" style="left:25%">06</span><span class="mx" style="left:50%">12</span><span class="mx" style="left:75%">18</span><i class="mdot" data-mapdot="${k0}"></i></div><div class="cap"></div>`;
   box.redraw = () => { box.querySelector('.cap').innerHTML = drawRunMap(box.querySelector('canvas'), m, R || canon(m)); };
@@ -1082,6 +1089,10 @@ function liveRule(live, k) {
     else if (j.type === 'motor') { on = j.on && !(world.metab && live.metab.starving); state = on ? 'RUNNING' : world.metab && live.metab.starving ? 'NO ENERGY' : 'STOPPED'; }
     else { on = !j.latched; state = j.latched ? 'COCKED' : 'RELEASED'; }
     return { ctls: j.controls || null, state, cls: on ? 'on' : '' };
+  }
+  if (live.divideRule && live.divideRule.part === k) {   // the DIVIDE rule: how full the meter is, or what it waits for
+    const g = live.grow, full = g && g.E >= g.Eneed && g.N >= g.Nneed;
+    return { ctls: live.divideRule.controls, state: !world.grow || !g ? '' : full ? (live.waiting ? 'WAITING' : 'DIVIDING') : `${Math.round(100 * Math.min(g.E / g.Eneed, g.N / g.Nneed))}% GROWN`, cls: full && !live.waiting ? 'on' : '' };
   }
   const fd = live.feeders && live.feeders.find((x) => x.part === k);
   if (fd) return { ctls: fd.controls || null, state: fd.link ? 'FEEDING' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
@@ -1228,6 +1239,7 @@ function listParts() {
         <button class="mirror" data-axis="0" title="Add a mirror copy on the other side: top ↔ bottom">⇅</button>
         <button class="remove">Remove</button></span>`;
     if (g.members[0].material === 'nucleus') for (const m of row.querySelectorAll('.mirror')) m.remove();   // one nucleus a cell
+    if (g.members[0].type === 'rule') for (const m of row.querySelectorAll('.mirror, .remove')) m.style.display = 'none';   // a rule every cell has
     // tapping the name folds or opens the card, and lights the part up in the tank
     row.querySelector('.pnm').onclick = (e) => {
       if (e.target.classList.contains('ren')) return;
@@ -2392,7 +2404,7 @@ function arrangeHit(e) {
   let inc = null, incD = tol, rim = null, rimD = tol;
   d.parts.forEach((p, k) => {
     if (isInc(p)) { const g = polyDist(bodyPoints(p), P[0], P[1]); if (g < incD) { incD = g; inc = k; } }
-    else if (!p.parent || p.parent === 'body') { const g = Math.hypot(p.at[0] - P[0], p.at[1] - P[1]) - 2; if (g < rimD) { rimD = g; rim = k; } }
+    else if ((!p.parent || p.parent === 'body') && p.at) { const g = Math.hypot(p.at[0] - P[0], p.at[1] - P[1]) - 2; if (g < rimD) { rimD = g; rim = k; } }
   });
   if (incD < 0) return { kind: 'pan', tapK: inc };   // inside an organelle
   if (rim !== null && rimD < incD) return { k: rim, kind: 'rim' };
@@ -2737,7 +2749,7 @@ const SHORT = {
 const SHOWN = {};
 for (const [cat, names] of Object.entries(CATEGORIES)) {
   const row = ['Spines & appendages', 'Escapes', 'Pads', 'Hunting'].includes(cat) ? 'On the outside' : cat;
-  (SHOWN[row] = SHOWN[row] || []).push(...names);
+  if (names.length) (SHOWN[row] = SHOWN[row] || []).push(...names);
 }
 for (const [cat, names] of Object.entries(SHOWN)) {
   const head = document.createElement('div'); head.className = 'cat'; head.textContent = cat;

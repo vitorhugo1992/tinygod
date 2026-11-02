@@ -10,6 +10,8 @@
 //     { type: 'pad', parent = 'body', at: [x, y], radius = 1, kind = 'kin' | 'mucus' },
 //     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' | 'touch' | 'near', range?, cone?,
 //       feels = 'strangers' | 'anything' },
+//     { type: 'rule', id: 'divide', joint: { type: 'divide', controls } },   // the DIVIDE rule: nothing in the tank;
+//       with world.grow a cell whose meter is full divides only while it holds (none: at once; sim/divide.js)
 //   ]
 // }
 // `at` is a point in the parent's own frame (x along its axis, from its centre). A segment grows from that point
@@ -157,6 +159,10 @@ export function rewire(cell, partIndex, controls) {
     cell.rest.controls = controls.length ? controls.map((c) => resolveControl(cell.sensors, c)) : null;
     if (!controls.length) cell.resting = false;
   }
+  if (cell.divideRule && cell.divideRule.part === partIndex) {   // the DIVIDE rule
+    cell.divideRule.controls = controls.length ? controls.map((c) => resolveControl(cell.sensors, c)) : null;
+    if (!controls.length) cell.divideOk = true;
+  }
   for (const f of cell.feeders) if (f.part === partIndex) {
     if (controls.length) f.controls = controls.map((c) => resolveControl(cell.sensors, c)); else { delete f.controls; f.go = true; }
   }
@@ -194,6 +200,7 @@ export function buildCell(design, opts = {}) {
   const sensors = [];
   const controls = [];   // [joint, control] pairs, resolved once every sensor is known
   const rest = { controls: null };   // the nucleus's REST rule (joint: { type: 'rest', controls } on the nucleus)
+  const divideRule = { controls: null };   // the DIVIDE rule (a 'rule' part: joint { type: 'divide', controls })
   const speeds = [];     // [motor, speed] pairs, the same
   const ids = new Map();
   const C = PARAMS.cell;
@@ -301,6 +308,11 @@ export function buildCell(design, opts = {}) {
       const s = { id: part.id, piece: parent, x, y, facing, kind, range, cone, feels: part.feels || 'strangers', value: 0,
         part: design.parts.indexOf(part) };
       sensors.push(s);
+    } else if (part.type === 'rule') {
+      if (part.joint && part.joint.type === 'divide') {
+        divideRule.part = design.parts.indexOf(part);
+        if (controlsOf(part.joint).length) controls.push([divideRule, controlsOf(part.joint)]);
+      }
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
       if (kind !== 'kin' && kind !== 'mucus') throw new Error(`unknown pad kind: ${kind}`);
@@ -340,7 +352,7 @@ export function buildCell(design, opts = {}) {
 
   const np = pieces.length;
   return {
-    design, pieces, joints, pads, feeders, sensors, n, colTurn, reach, rest, resting: false,
+    design, pieces, joints, pads, feeders, sensors, n, colTurn, reach, rest, resting: false, divideRule, divideOk: true,
     species: design.species || design.name || 'A',
     ext: [],                 // this step's contacts and pad pulls from other cells (interact.js)
     jointPiece: Int32Array.from(joints.map((j) => j.piece)),
