@@ -6,7 +6,20 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
-**Latest handoff (2026-11-01, end of a long chat): STEP 1 STARTS, the living tank.** The sandbox is done for now
+**Newest handoff (2026-11-02, end of the day; the author went to sleep): step 1a is nearly done, predation has begun.**
+Built and pushed today (details in the numbered entries below): the nitrogen field and the two-bar growth meter;
+division (two identical cells, cap 12); death (60 s starving; nitrogen returned); collisions between species tested;
+the first contest (Claude's five species, 10 days: Bathyscapha, Noctilla, Saltella 8, Trochilla 4, Caecella extinct);
+**no grazers** and **the glass wall goes** (author); the **peduncle** (drains energy and nitrogen, keeps half; length
+10-80 µm, 2,000 pJ per µm to pierce); the **DIVIDE rule** (Division card). 50 checks pass. **Next, agreed order:**
+(1) **the population graph** (counts per species over time in the sandbox, so contests can be watched; Claude's
+recommendation, the author said "do it if quick, else tomorrow"); (2) **the armoured wall** (replaces glass; design it
+with the author first, one question at a time); then, from the queue: chains at division (kin defence), stealing
+plastids (the peduncle's next stage), engulfing, toxins, a contest with a hunter. Scratchpad tools are gone with the
+chat: for headless page tests write a CDP script (headless Edge, --remote-debugging-port, Network.setCacheDisabled or
+the profile caches main.js) and kill the Edge processes after; contests run in Node with PARAMS.grow.cap raised.
+
+**Previous handoff (2026-11-01, end of a long chat): STEP 1 STARTS, the living tank.** The sandbox is done for now
 (author: "if u think it's good enough lets go to the next step, with reproduction, division, nutrients"). Rules are
 sentences with ranges, maps and links (all built, see the log's 2026-11-01 entries); the budget line and its warnings show
 whether a design survives; Claude designed three species that survive day and night from the floor (Bathyscapha,
