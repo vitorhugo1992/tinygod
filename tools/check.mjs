@@ -865,6 +865,32 @@ const runDay = (design, y, seconds, opts = {}) => {
     `Wave tail (${tailL} µm) beating ${fmt(run1, 0)} pJ/s, resting ${fmt(rest, 0)}`);
 }
 
+// 28s. Growth and division (step 1): a full meter splits a cell into two of its design, the same size, touching, not
+// overlapping; each keeps half the pool and half of each store; both meters start again; the tank's cap stops it
+{
+  const design = { body: { radius: 10 }, parts: [{ type: 'inclusion', id: 'st', material: 'starch', at: [0, -4], radius: 4, fill: 0.8 }] };
+  const split = (cap) => {
+    const w = makeWorld(1, { gravity: false, metab: true, grow: true });
+    const c = addCell(w, design, 800, 1000, 90);
+    c.grow.E = c.grow.Eneed; c.grow.N = c.grow.Nneed;
+    const E0 = c.metab.E, fill0 = c.pieces[0].inclusions[0].fill;
+    const was = PARAMS.grow.cap; PARAMS.grow.cap = cap;
+    for (let i = 0; i < PARAMS.grow.every; i++) stepWorld(w);
+    PARAMS.grow.cap = was;
+    return { w, c, E0, fill0 };
+  };
+  const { w, c, E0, fill0 } = split(12), full = split(1);
+  const d = w.cells[1];
+  const gap = d && Math.hypot(d.q[0] - c.q[0], d.q[1] - c.q[1]) - 20;
+  const halfE = d && Math.abs(c.metab.E + d.metab.E - E0) < 0.05 * E0 && Math.abs(c.metab.E - d.metab.E) < 0.05 * E0;
+  const halfS = d && Math.abs(c.pieces[0].inclusions[0].fill - fill0 / 2) < 0.01 && Math.abs(d.pieces[0].inclusions[0].fill - fill0 / 2) < 0.01;
+  check('a full growth meter divides a cell into two of the same design and size, touching; pool and stores halved; the cap stops it',
+    w.cells.length === 2 && d.design === c.design && d.pieces[0].volume === c.pieces[0].volume && gap > -0.1 && gap < 3
+      && halfE && halfS && c.grow.E < 0.01 * c.grow.Eneed && d.grow.N < 0.01 * d.grow.Nneed && full.w.cells.length === 1 && full.c.waiting === 'tank full',
+    `cells ${w.cells.length}; bodies ${d ? fmt(gap, 2) : '–'} µm apart; pool ${fmt(E0, 0)} -> ${d ? `${fmt(c.metab.E, 0)} + ${fmt(d.metab.E, 0)}` : '–'}; ` +
+    `starch ${fmt(fill0)} -> ${d ? `${fmt(c.pieces[0].inclusions[0].fill)} each` : '–'}; with a cap of 1: ${full.w.cells.length} cell, waits: ${full.c.waiting}`);
+}
+
 // 28r. Several sensors in one condition: ANY of them reading so is enough, ALL must; the first and the extra ones each
 // tested on their own values
 {

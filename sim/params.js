@@ -102,6 +102,9 @@ export const PARAMS = {
     uptake: 0.0222,         // N units per µm² of surface per s at the most (r 10: its bar in ~300 s in the rich deep)...
     half: 1,                // ...half of that at this richness (so ~1/10 as fast at the surface)
     swell: 0.08,            // the cell is drawn this much wider when ready to divide (drawing only)
+    cap: 12,                // cells the sandbox tank holds (author 2026-11-02: lowered from 24, full physics is costly); at
+                            // the cap a ready cell waits
+    every: 100,             // steps between looks for cells ready to divide
   },
   // The nucleus, the brain box (sim/brain.js): each brain module takes a slot of its cross-section
   brain: {

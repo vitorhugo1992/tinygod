@@ -62,9 +62,12 @@ export function note(world, c) {
   // too much light: said once as its plastids fall below 3/4 healthy, again once they have mended
   if (health !== null && health < 0.75 && !w.hurt) { w.hurt = true; say(`bright light damaged its plastids (${(100 * health).toFixed(0)}% healthy)`, true); }
   if (health !== null && health > 0.95 && w.hurt) { w.hurt = false; say('its plastids have mended'); }
+  if ((c.gen || 0) > (w.gen ?? (c.born !== undefined ? c.gen : 0))) say(`divided: two cells now (generation ${c.gen})`);
+  if (c.born !== undefined && w.gen === undefined) say(`born by division (generation ${c.gen})`);
+  if (c.waiting && c.waiting !== w.waiting) say(`ready to divide, but waits: ${c.waiting}`);
   if (gE === 1 && w.gE < 1) say(gN === 1 ? 'has the energy for a division: ready to divide' : 'has the energy for a division (nitrogen still short)');
   if (gN === 1 && w.gN < 1) say(gE === 1 ? 'has the nitrogen for a division: ready to divide' : 'has the nitrogen for a division (energy still short)');
-  Object.assign(w, { starving, floor, top, sun, starch, oil, gE, gN });
+  Object.assign(w, { starving, floor, top, sun, starch, oil, gE, gN, gen: c.gen || 0, waiting: c.waiting });
 }
 
 // How many nights the cell's energy would last: the pool and its stores against its upkeep over a night

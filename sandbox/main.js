@@ -1296,8 +1296,10 @@ function reset(pose, carry) {
         if (!from.grow || !to.grow) return;
         to.grow.E = Math.min(1, from.grow.E / from.grow.Eneed) * to.grow.Eneed;
         to.grow.N = Math.min(1, from.grow.N / from.grow.Nneed) * to.grow.Nneed;
+        for (const k of ['uid', 'gen', 'mother', 'born']) if (from[k] !== undefined) to[k] = from[k];   // the same cell, its lineage
       };
       if (carry.world.nitro) w.nitro = carry.world.nitro;   // the water keeps what cells used
+      w.births = carry.world.births; w.nextUid = carry.world.nextUid;
       keep(carry.cell, next); keepGrow(carry.cell, next);
       next.metab.E = share(carry.cell) * next.metab.C;
       next.journal = carry.cell.journal;   // the day graph goes on
@@ -1644,7 +1646,8 @@ function budget(lines) {
   for (const inc of cell.pieces[0].inclusions) if (inc.store) lines.push(`store     ${inc.store} ${(100 * inc.fill).toFixed(0)}% full`);
   if (world.grow) {
     const g = cell.grow, n = nitrogenAt(world, cell.q[1]);
-    lines.push(`growth    energy ${(100 * g.E / g.Eneed).toFixed(0)}% · nitrogen ${(100 * g.N / g.Nneed).toFixed(0)}% of a division`);
+    lines.push(`growth    energy ${(100 * g.E / g.Eneed).toFixed(0)}% · nitrogen ${(100 * g.N / g.Nneed).toFixed(0)}% of a division${cell.waiting ? ` (ready; waits: ${cell.waiting})` : ''}`);
+    lines.push(`lineage   generation ${cell.gen || 0} · ${world.cells.length} of ${PARAMS.grow.cap} cells in the tank · ${world.births || 0} births`);
     lines.push(`nitrogen  water here ${(100 * n).toFixed(0)}% of the deep's${g.N >= g.Nneed ? ' (its bar is full)' : ` · +${(100 * g.uptake / g.Nneed * PARAMS.metab.day).toFixed(0)}% of a division a day`}`);
   }
 }
@@ -1958,11 +1961,14 @@ function drawHud(W, H) {
   const m = cell.metab, h = clock(world), hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
   const sunny = world.day ? daylight(world) > 0 : true;
   let text = `${sunny ? '☀' : '☾'} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  if (world.grow && world.births) text += `  👥 ${world.cells.length}${world.cells.length >= PARAMS.grow.cap ? ' full' : ''}`;   // the population
   if (world.metab) {
     const n = nightsLeft(cell);
     text += `   ⚡ ${(100 * m.E / m.C).toFixed(0)}%${n !== null ? ` · ${n < 10 ? n.toFixed(1) : '10+'} nights` : ''}`;
     for (const inc of cell.pieces[0].inclusions) if (inc.store) text += `   ${inc.store} ${(100 * inc.fill).toFixed(0)}%`;
-    if (world.grow) { const g = cell.grow; text += `   🌱 ⚡${(100 * g.E / g.Eneed).toFixed(0)}% N ${(100 * g.N / g.Nneed).toFixed(0)}%`; }
+    if (world.grow) {
+      const g = cell.grow; text += `   🌱 ⚡${(100 * g.E / g.Eneed).toFixed(0)}% N ${(100 * g.N / g.Nneed).toFixed(0)}%`;
+    }
   }
   ctx.font = '12px system-ui';
   const tw = ctx.measureText(text).width + (m.starving ? 90 : 0);

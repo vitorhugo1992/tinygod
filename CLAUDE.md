@@ -64,6 +64,33 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    driven into another species slides round it (worst overlap 0.7 µm); a clump of 16 cells of four species sorts itself
    out on the floor and in mid-water, nothing lost. Check 16b keeps it tested (46 checks). Division must place the
    daughter touching, not overlapping, to avoid the push.
+   **(c) Division BUILT, automatic part (2026-11-02; author: "divide should form two identical cells, same size").**
+   sim/divide.js (divideCells, every PARAMS.grow.every steps, in stepWorld with world.grow): both bars full, not
+   starving, fewer than PARAMS.grow.cap (12) cells → a daughter of exactly the design, turned the same way, every joint
+   as the parent's, placed touching (0.5 µm) beside it across its axis, else ahead / behind, the nearest spot where all
+   its pieces clear every cell and the tank's edges (else it waits: cell.waiting 'tank full' / 'no room beside it');
+   pool and each store's fill halved between the two; plastid damage and chamber state copied; both meters to zero;
+   cell.uid (addCell), gen (both +1), mother, born; world.births. Shown: 👥 n on the clock line, "lineage" and "(ready;
+   waits: …)" in the numbers, "divided: two cells now (generation n)" / "born by division" / "ready to divide, but
+   waits" in the trouble log; rebuilds keep uid, gen, births. Check 28s (47 checks). **Measured:** a Saltella from the
+   floor: 2 cells at 1.5 d, 4 at 4.5 d; the second division took 3 days because it **divided at dusk**: half its starch
+   ran out in the night and the next day's surplus went to refilling the stores first. A reason for the DIVIDE rule
+   ("divide only after dawn"). Speed: 1 Saltella ~15 ms per sim s, 2 touching ~43, 4 ~90-120. **Not yet:** the DIVIDE
+   when… rule (the nucleus carries one rule, REST, as its joint; a second rule on one part needs plumbing in build.js
+   and the rule cards); chains at division. The phone's clock line overflows (it did before; to tidy).
+   **Predation and defence (author, 2026-11-02: "strategies for cells to kill other enemy cells, opportunistic
+   behaviours, taking rides, stealing energy or plastids, or killing through other forms; and strategies for resistance,
+   chain forming etc."). A menu offered to the author, order to settle one question at a time:**
+   attack: (1) **peduncle** (myzocytosis, *Dinophysis*): latches on touch and drains energy and nitrogen; (2)
+   **kleptoplasty** (*Mesodinium*, *Dinophysis*): the drained prey's plastids move in, keep working, fade; (3)
+   **engulfing** (phagotrophy, *Noctiluca*, many dinoflagellates): swallow a smaller cell whole, gape limited by size;
+   (4) **toxins** (*Karenia*, *Prymnesium*, *Alexandrium*): a cloud in a field like nitrogen that harms other species,
+   kin immune, costs nitrogen; (5) **harpoons** (nematocysts, *Polykrikos*): fire on touch, wound; (6) opportunism that
+   already half exists: mucus pads (riding a swimmer), out-taking nitrogen. Defence: size (too big to swallow), spines
+   (bigger to a mouth, keep a peduncle off), glass / chalk walls (resist piercing), **chains** by kin pads (too long to
+   swallow; chains at division), the spring escape on touch (built), feelers to flee, toxins as deterrent, mucus,
+   depth (hiding). Plus a **non-player grazer** (step 1b plan: a ciliate or copepod-like hunter that grazes whatever is
+   common: kill-the-winner keeps monopolies hard, and gives every defence a reason even in a one-species tank).
 3. **Division:** the meter full, the cell splits: the daughter an exact copy (kin), beside it, stores shared. Later: a rule
    for when to divide; chains at division with kin pads.
 4. **Death:** starving too long, it dies, sinks, is removed; the trouble log says why ("starved at 03:20, 1.9 mm deep").
