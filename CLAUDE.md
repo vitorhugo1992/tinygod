@@ -35,7 +35,9 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    Round numbers to tune from: an r 10 cell fills its N bar in ~half a day in the rich deep, ~5 days at the surface
    (surface ~1/10 of the deep). The N bar is the store (a migrator fills it deep at night, energy near the light by day);
    no separate N pool; a nitrogen store part (the sap vacuole's old job) later.
-   **Cap DECIDED (author 2026-11-01): 24 cells in the sandbox** (lower if the phone is too slow); at the cap a full cell
+   **Cap DECIDED (author 2026-11-01): 24 cells in the sandbox**, **lowered to 12 (author 2026-11-02: "make it a lower cap,
+   fewer cells")** after measuring: 16 cells in a clump cost ~0.5 s of computing per simulated second (~200 ms spread
+   out), so 24 would run a sandbox day in ~5 minutes at best; at the cap a full cell
    waits ("tank full"), surplus to its stores; nothing is removed to make room. The fast mode (1b) lifts it.
    **Death DECIDED (author 2026-11-01, Claude's recommendation):** dies after its energy pool has been empty 60 s in a row
    (a tenth of a day; resting doesn't pause it); turns grey, parts still, sinks; removed at the floor or after 30 s; the
@@ -56,7 +58,12 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    nitrogen: Saltella (nights at ~1.6 mm) 1.25 d, Trochilla (deep nights) 1.06 d, Noctilla 1.6 d, Bathyscapha (surface
    nights, big rod) 2.2 d, Caecella (lives ~300 µm) ~3.4 d. Trochilla is energy-limited (four oars rowing: 85% after 3
    days). So nitrogen paces most designs and depth decides it; costly swimming paces others: different limits per
-   strategy, as hoped. Resting slows uptake to 40% (a trade-off for deep resters; tell the author).
+   strategy, as hoped. Resting slows uptake to 40% (a trade-off for deep resters; told the author).
+   **Collisions between species tested (author asked, 2026-11-02):** contact (sim/interact.js) is species-blind, only pads
+   care. Overlapped pairs of any species part within 0.5 s (a brief fast push, moving each only by the overlap); a swimmer
+   driven into another species slides round it (worst overlap 0.7 µm); a clump of 16 cells of four species sorts itself
+   out on the floor and in mid-water, nothing lost. Check 16b keeps it tested (46 checks). Division must place the
+   daughter touching, not overlapping, to avoid the push.
 3. **Division:** the meter full, the cell splits: the daughter an exact copy (kin), beside it, stores shared. Later: a rule
    for when to divide; chains at division with kin pads.
 4. **Death:** starving too long, it dies, sinks, is removed; the trouble log says why ("starved at 03:20, 1.9 mm deep").
