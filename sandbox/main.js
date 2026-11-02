@@ -34,6 +34,8 @@ let design, world, cell, playing = false, acc = 0, lagging = false;   // cell: t
 let trail = [], samples = [], released = null;   // released: where and when latches were let go
 let ghosts = [];                                  // outlines of cells as they were at Release
 let cam = { x: TW / 2, y: TH / 2 };
+// For headless page tests (CDP scripts): read the live world and the selected cell; nothing in the page uses it
+window.__tg = { get world() { return world; }, get cell() { return cell; } };
 
 // ----- loading and resetting -----
 const addSelect = $('addWhat');
@@ -1353,7 +1355,8 @@ function reset(pose, carry) {
       if (carry.world.nitro) w.nitro = carry.world.nitro;   // the water keeps what cells used
       w.births = carry.world.births; w.deaths = carry.world.deaths; w.nextUid = carry.world.nextUid;
       w.census = carry.world.census;   // the population graph goes on
-      if (carry.cell.size > 1) regrow(w, next, carry.cell.size);   // as grown as it was
+      next.stolen = carry.cell.stolen || [];   // its stolen plastids stay
+      if (carry.cell.size > 1 || next.stolen.length) regrow(w, next, carry.cell.size);   // as grown as it was
       keep(carry.cell, next); keepGrow(carry.cell, next);
       next.metab.E = share(carry.cell) * next.metab.C;
       next.journal = carry.cell.journal;   // the day graph goes on
@@ -1362,7 +1365,8 @@ function reset(pose, carry) {
         if (c.design === carry.design && c.dead) continue;   // the dead stay dead (not rebuilt)
         if (c.design === carry.design) {
           const k = addCell(w, design, c.q[0], c.q[1], c.q[2] * 180 / Math.PI);
-          if (c.size > 1) regrow(w, k, c.size);
+          k.stolen = c.stolen || [];
+          if (c.size > 1 || k.stolen.length) regrow(w, k, c.size);
           k.metab.E = share(c) * k.metab.C; k.journal = c.journal; keep(c, k); keepGrow(c, k);
         } else { for (const p of c.pads) p.link = null; w.cells.push(c); }
       }
@@ -1700,6 +1704,12 @@ function budget(lines) {
     for (const mm of g.members) v += m.byPart.get(cell.design.parts.indexOf(mm)) || 0;
     if (v > 0) lines.push(`          ${g.name} upkeep ${show(v)}`);
   }
+  const stolen = cell.pieces[0].inclusions.filter((x) => x.stolen);
+  if (stolen.length) {
+    let v = 0;
+    for (const x of stolen) v += m.byPart.get(x.part) || 0;
+    lines.push(`          stolen plastids upkeep ${show(v)}`);
+  }
   if (m.motors > 0) lines.push(`          flagella beating ${show(m.motors)}`);
   if (m.pumps > 0) lines.push(`          pumping ${show(m.pumps)}`);
   if (cell.resting) lines.push('resting   upkeep and income at 40%, flagella stopped');
@@ -1713,6 +1723,8 @@ function budget(lines) {
   for (const inc of cell.pieces[0].inclusions) if (inc.store) lines.push(`store     ${inc.store} ${(100 * inc.fill).toFixed(0)}% full`);
   if (world.grow) {
     const g = cell.grow, n = nitrogenAt(world, cell.q[1]);
+    const stolen = cell.pieces[0].inclusions.filter((x) => x.stolen);
+    if (stolen.length) lines.push(`stolen    ${stolen.length} plastid${stolen.length > 1 ? 's' : ''} at ${stolen.map((x) => `${Math.round(100 * x.stolen.fade)}%`).join(', ')} of their output (fading by half a day; light damage is never mended)`);
     lines.push(`size      ${(cell.size || 1).toFixed(1)}× its newborn volume${(cell.size || 1) >= PARAMS.grow.max - 1e-9 ? ' (its largest: no more growing)' : ''}${cell.waiting ? ` (waits: ${cell.waiting})` : ''}`);
     lines.push(`growth    banked: energy ${(100 * g.E / g.Eneed).toFixed(0)}% · nitrogen ${(100 * g.N / g.Nneed).toFixed(0)}% of a doubling (it grows a tenth at a time)`);
     lines.push(`lineage   generation ${cell.gen || 0} · ${world.cells.length} of ${PARAMS.grow.cap} cells in the tank · ${world.births || 0} births · ${world.deaths || 0} deaths`);
@@ -1974,7 +1986,8 @@ $('testDay').onclick = () => {
   graphOn = true;
   const from = { steps: world.steps, x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI,
     share: cell.metab ? cell.metab.E / cell.metab.C : undefined,
-    damage: cell.pieces[0].inclusions.filter((i) => i.material === 'plastid').map((i) => i.damage || 0),
+    damage: cell.pieces[0].inclusions.filter((i) => i.material === 'plastid' && !i.stolen).map((i) => i.damage || 0),
+    stolen: (cell.stolen || []).map((x) => ({ ...x })),
     grow: cell.grow && { E: cell.grow.E / cell.grow.Eneed, N: cell.grow.N / cell.grow.Nneed }, size: cell.size || 1,
     nitro: world.nitro && Float64Array.from(world.nitro.c) };
   const settings = { gravity: world.gravity, light: world.light, day: world.day, metab: world.metab, grow: world.grow };
@@ -2189,7 +2202,12 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
       if (inc.store) { drawLevel(inc, xf); continue; }   // a container, filled as far as it is full
       if (inc.material === 'nucleus') { drawNucleus(inc, xf, s, a); continue; }
       ctx.fillStyle = inc.pumpable ? sapColor(inc) : inc.material === 'plastid' ? plastidColor(inc) : COLOR[inc.material];
+      if (inc.stolen) ctx.globalAlpha = 0.25 + 0.75 * inc.stolen.fade;   // a stolen plastid pales as it fades
       if (r > 0.02) { incPath(inc, xf); ctx.fill(); }
+      if (inc.stolen) {
+        ctx.globalAlpha = 1; ctx.setLineDash([2, 2]); ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1;
+        incPath(inc, xf); ctx.stroke(); ctx.setLineDash([]);
+      }
       if (inc.material === 'statolith') {   // the grain lies on the chamber's lower wall (in the middle with gravity off)
         const g = 0.4 * inc.r, drop = world.gravity ? inc.r - g : 0;
         ctx.fillStyle = COLOR.grain;

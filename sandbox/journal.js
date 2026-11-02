@@ -92,6 +92,16 @@ export function note(world, c) {
   const sz = c.size || 1;
   for (const k of [2, 4, PARAMS.grow.max]) if (sz >= k - 1e-9 && (w.size || 1) < k - 1e-9) say(k >= PARAMS.grow.max ? `grown to ${k}× its newborn volume: its largest, it grows no more` : `grown to ${k}× its newborn volume${k === 2 ? ': it can divide' : ''}`);
   w.size = sz;
+  // stolen plastids: taken from a kill, faded away, digested at a division
+  if (c.lastSteal && c.lastSteal !== w.steal) {
+    const { prey, got, lost } = c.lastSteal;
+    say(got ? `stole ${got} plastid${got > 1 ? 's' : ''} from the ${prey} it killed${lost ? ` (${lost} didn't fit: digested)` : ''}`
+      : `its ${prey} prey's plastids didn't fit inside: digested`);
+  }
+  w.steal = c.lastSteal;
+  if ((c.faded || 0) > (w.faded ?? (c.faded || 0))) say('a stolen plastid faded away');
+  if ((c.digested || 0) > (w.digested ?? (c.digested || 0))) say("a stolen plastid didn't fit after dividing: digested");
+  w.faded = c.faded || 0; w.digested = c.digested || 0;
   Object.assign(w, { starving, floor, top, sun, starch, oil, gE, gN, gen: c.gen || 0, waiting: c.waiting });
 }
 
@@ -160,11 +170,12 @@ export function forecast(design, from, settings, onProgress, onDone) {
   w.steps = from.steps;
   const c = addCell(w, design, from.x, from.y, from.angle);
   if (c.metab && from.share !== undefined) c.metab.E = from.share * c.metab.C;
-  if (from.size > 1) regrow(w, c, from.size);   // as grown as the cell is
+  c.stolen = from.stolen || [];
+  if (from.size > 1 || c.stolen.length) regrow(w, c, from.size || 1);   // as grown as the cell is, with its stolen plastids
   if (c.metab && from.share !== undefined) c.metab.E = from.share * c.metab.C;
   if (from.grow && c.grow) { c.grow.E = from.grow.E * c.grow.Eneed; c.grow.N = from.grow.N * c.grow.Nneed; }
   if (from.nitro && w.nitro) w.nitro.c.set(from.nitro);
-  if (from.damage) c.pieces[0].inclusions.filter((i) => i.material === 'plastid').forEach((i, k) => { i.damage = from.damage[k] || 0; });
+  if (from.damage) c.pieces[0].inclusions.filter((i) => i.material === 'plastid' && !i.stolen).forEach((i, k) => { i.damage = from.damage[k] || 0; });
   const end = w.steps + Math.round(M.day / DT);
   let cancelled = false;
   const slice = () => {

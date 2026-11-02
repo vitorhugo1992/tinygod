@@ -294,7 +294,7 @@ export function buildCell(design, opts = {}) {
       // v: its full volume (the room it takes); a store holds v × fill of its stuff, the rest is cytoplasm
       host.inclusions.push({ x: wx, y: wy, at: [x, y], r, v, wpt, L, ang, ux, uy, h, outline, mid, bend: k, pigment: part.pigment === 'shade' ? 'shade' : 'sun', material: part.material, density: rho, target: rho,
         pumpable: mat.min !== undefined, min: mat.min, max: mat.max, store: mat.store, fill,
-        part: design.parts.indexOf(part) });
+        part: design.parts.indexOf(part), stolen: part.stolen || null });
       // a buoyancy chamber's rule (FLOAT when: its GO conditions; SINK if: its STOP ones), kept like a part's joint's
       if (part.material === 'chamber' && part.joint && controlsOf(part.joint).length) controls.push([host.inclusions[host.inclusions.length - 1], controlsOf(part.joint)]);
       if (part.material === 'nucleus' && part.joint && controlsOf(part.joint).length) { controls.push([rest, controlsOf(part.joint)]); rest.part = design.parts.indexOf(part); }

@@ -23,10 +23,12 @@
 import { PARAMS } from './params.js';
 import { lightAt } from './light.js';
 import { nitrogenAt, takeNitrogen } from './nutrient.js';
+import { dexp } from './dmath.js';
 
 const M = PARAMS.metab, P = PARAMS, DT = PARAMS.time.dt, CYTO = PARAMS.cell.cytoplasm;
 const G = PARAMS.gravity * 1e-6;
-const REAL = 1e-6 * M.speedup;   // aJ of real motor or pump work -> pJ of sandbox energy
+const REAL = 1e-6 * M.speedup;
+const FADE = dexp(-0.6931471805599453 * PARAMS.time.dt / PARAMS.steal.half);   // a stolen plastid's output, step by step   // aJ of real motor or pump work -> pJ of sandbox energy
 
 // Once per cell: its upkeep (total and by design part, for the budget), its pool size, a starting pool
 export function initMetab(cell) {
@@ -92,6 +94,12 @@ function feed(world, cell, l) {
   if (cell.grow) cell.grow.N = Math.min(cell.grow.Nneed, cell.grow.N + n * F.keep);
   prey.drainedBy = { species: cell.species, step: world.steps };
   if (prey.dead && e === 0 && n === 0) { l.done = true; prey.emptied = true; }   // nothing left (no one pierces it again)
+  // a prey dead of it gives up its plastids (grow.js places those that fit); a second predator gets none
+  if (prey.dead && !prey.robbed) {
+    prey.robbed = true;
+    cell.toSteal = { prey: prey.species, plastids: prey.pieces[0].inclusions.filter((i) => i.material === 'plastid')
+      .map((i) => ({ v: i.v, pigment: i.pigment, damage: i.damage || 0, fade: i.stolen ? i.stolen.fade : 1 })) };
+  }
   cell.metab.E += e * F.keep;
   return e * F.keep;
 }
@@ -113,9 +121,12 @@ export function metabolize(world, cell) {
     if (inc.material !== 'plastid') continue;
     const y = cell.cy[0] + cell.sn[0] * inc.x + cell.cs[0] * inc.y;
     const L = lightAt(world, y), shade = inc.pigment === 'shade';
-    income += slow * (1 - inc.damage) * (shade ? M.shade.max * inc.v * L / (L + M.shade.half) : M.plastidMax * inc.v * L / (L + M.plastidHalf));
+    const st = inc.stolen;   // a stolen plastid fades, and isn't repaired
+    if (st) st.fade *= FADE;
+    income += slow * (1 - inc.damage) * (st ? st.fade : 1) * (shade ? M.shade.max * inc.v * L / (L + M.shade.half) : M.plastidMax * inc.v * L / (L + M.plastidHalf));
     const over = L - (shade ? M.shade.safe : M.photo.safe);
     if (over > 0) inc.damage += M.photo.damage * (shade ? M.shade.damage : 1) * over * (1 - inc.damage) * DT;
+    if (st) { st.damage = inc.damage; continue; }
     if (!m.starving && !cell.resting && inc.damage > 0) {
       const fixed = M.photo.repair * inc.damage * DT;
       inc.damage -= fixed; repair += fixed * inc.v * M.photo.cost;

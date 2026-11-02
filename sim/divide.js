@@ -6,7 +6,7 @@
 import { PARAMS } from './params.js';
 import { DEG } from './dmath.js';
 import { updatePose } from './physics.js';
-import { makeCell, regrow } from './grow.js';
+import { makeCell, regrow, refit } from './grow.js';
 
 const G = PARAMS.grow, TW = PARAMS.tank.w, TH = PARAMS.tank.h, WG = PARAMS.gravity * 1e-6, CYTO = PARAMS.cell.cytoplasm;
 
@@ -86,23 +86,28 @@ export function divideCells(world) {
     const spot = spotFor(world, p);
     if (!spot) { p.waiting = 'no room beside it'; continue; }
     // the spot was found for the cell as big as it is; it shrinks to half, then its daughter appears there
-    const half = p.size / 2, E = p.metab.E, stores = p.pieces[0].inclusions.map((x) => (x.store ? x.fill * x.v : 0));
+    const half = p.size / 2, E = p.metab.E, stores = p.pieces[0].inclusions.filter((x) => !x.stolen).map((x) => (x.store ? x.fill * x.v : 0));
+    // stolen plastids are shared out, one each in turn (the mother keeps the first)
+    const theirs = (p.stolen || []).filter((s, i) => i % 2 === 1);
+    p.stolen = (p.stolen || []).filter((s, i) => i % 2 === 0);
     if (!regrow(world, p, half)) { p.waiting = 'no room to divide'; continue; }
     // half the pool, half of each store's energy, half the meter; the daughter carries the same
     p.metab.E = Math.min(E / 2, p.metab.C);
     p.pieces[0].inclusions.forEach((x, i) => { if (x.store) { x.fill = Math.min(1, stores[i] / 2 / x.v); x.wpt.w = (x.density - CYTO) * x.v * x.fill * WG; } });
     p.grow.E /= 2; p.grow.N /= 2;
-    const d = makeCell(p.design, half);
+    const d = makeCell(p.design, half, theirs);
     d.q.set(p.q); d.q[0] = p.q[0] + spot[0]; d.q[1] = p.q[1] + spot[1];
     d.metab.E = p.metab.E; d.grow.E = p.grow.E; d.grow.N = p.grow.N;
     const pi = p.pieces[0].inclusions, di = d.pieces[0].inclusions;
     for (let i = 0; i < pi.length; i++) {
       const a = pi[i], b = di[i];
+      if (!b) continue;
       if (a.store) { b.fill = a.fill; b.wpt.w = a.wpt.w; }
-      if (a.material === 'plastid') b.damage = a.damage;
+      if (a.material === 'plastid' && !a.stolen && !b.stolen) b.damage = a.damage;   // stolen ones keep their own
       if (a.material === 'chamber') { b.density = a.density; b.target = a.target; b.wpt.w = a.wpt.w; }
     }
     updatePose(d);
+    refit(world, p); refit(world, d);   // in the smaller body: those that no longer fit move, or are digested
     d.uid = world.nextUid = (world.nextUid || 0) + 1;
     world.cells.push(d);
     p.gen = (p.gen || 0) + 1; d.gen = p.gen;

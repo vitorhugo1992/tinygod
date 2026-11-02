@@ -76,8 +76,20 @@ flagella; income lagged). **Fixed (author): organelles keep pace up to 2×, half
 Saltella eaten out by day 5.2; both Raptillas starved ON THE FLOOR (day 5.6-5.7) after draining Saltellas deep (the
 tail stops while feeding: a heavy prey drags both down; the drained prey dies on the floor and the hunter is stuck
 there); Caecella died day 1.8 (its oil clock). 3 days from the floor: Noctilla divides by day 3, Saltella 1.9×.
-(2) **stealing plastids** (the
-peduncle's next stage); (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
+(2) ~~stealing plastids~~ **BUILT (2026-11-02; decided with the author):** a working copy that fades; taken when
+the prey dies of draining, biggest first, as many as fit (round, its own size, the nearest free spot from the
+middle; the rest digested); shared out at division (alternating; a daughter keeps what fits her smaller body, else
+digested). Defaults Claude set: output halves every sandbox day (PARAMS.steal.half 600 s; gone below 5%), bright
+light damages them and they are never repaired. They live on the cell (cell.stolen [{ at (newborn frame), r,
+pigment, damage, fade }], never in the design): grow.js withStolen adds them as inclusions (inc.stolen) at every
+build; metab.js fades them and skips their repair; prey.robbed (one thief). Page: drawn paler as they fade with a
+dashed outline; numbers "stolen 1 plastid at 45% of their output" and their upkeep; log "stole 2 plastids from the
+Saltella it killed (1 didn't fit: digested)", "a stolen plastid faded away"; rebuilds and Test a day carry them.
+**window.__tg** (sandbox/main.js: the live world and selected cell) for headless page tests. Check 28y (54 checks).
+Measured: a newborn Wave-tail hunter (r 8) kept 1 of a prey's 2 plastids, grown to 4× it kept both. Found on the
+way: **a drained prey in light never starves** (its own plastids refill its pool every step: the hunter only taps its
+income) and an oil prey only trickles: kills happen in the dark or on store-less prey.
+(3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
 already make them; "at division" is only one way, a daughter starting stuck); (4) **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). Scratchpad tools are gone with the
 chat: for headless page tests write a CDP script (headless Edge, --remote-debugging-port, Network.setCacheDisabled or

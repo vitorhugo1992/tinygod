@@ -11,8 +11,9 @@ import { PARAMS } from './params.js';
 import { buildCell } from './build.js';
 import { planSubsteps, updatePose } from './physics.js';
 import { initMetab } from './metab.js';
+import { polyDist, insidePoly } from './shape.js';
 
-const G = PARAMS.grow, WG = PARAMS.gravity * 1e-6, CYTO = PARAMS.cell.cytoplasm;
+const G = PARAMS.grow, S = PARAMS.steal, WG = PARAMS.gravity * 1e-6, CYTO = PARAMS.cell.cytoplasm;
 const cbrt = (x) => Math.cbrt(x);
 
 // How much an organelle's volume has grown when the cell has grown `g` times its newborn volume
@@ -67,10 +68,21 @@ function carry(from, to) {
   from.feeders.forEach((f, i) => { if (to.feeders[i]) to.feeders[i].go = f.go; });
 }
 
-// A cell of `design` at `g` times its newborn volume, not yet in the tank
-export function makeCell(design, g = 1) {
-  const c = buildCell(scaledDesign(design, g), { loose: true });
-  c.design = design; c.size = g;
+// The design at `g`, with the cell's stolen plastids added (each stored as { at: its spot in the newborn's frame, r,
+// pigment, damage, fade }; they don't grow, their spots move out with the body)
+function withStolen(design, g, stolen) {
+  const d = scaledDesign(design, g);
+  if (!stolen || !stolen.length) return d;
+  const w = cbrt(g), out = d === design ? { ...design, parts: [...(design.parts || [])] } : d;
+  for (const s of stolen) out.parts.push({ type: 'inclusion', material: 'plastid', pigment: s.pigment, radius: s.r, at: [s.at[0] * w, s.at[1] * w], stolen: s });
+  return out;
+}
+
+// A cell of `design` at `g` times its newborn volume (with its stolen plastids, if any), not yet in the tank
+export function makeCell(design, g = 1, stolen = []) {
+  const c = buildCell(withStolen(design, g, stolen), { loose: true });
+  c.design = design; c.size = g; c.stolen = stolen;
+  for (const inc of c.pieces[0].inclusions) if (inc.stolen) inc.damage = inc.stolen.damage;
   planSubsteps(c);
   initMetab(c);
   return c;
@@ -79,9 +91,10 @@ export function makeCell(design, g = 1) {
 // Rebuild a living cell at `g` times its newborn volume, in place; false if it can't be built
 export function regrow(world, cell, g) {
   let n;
-  try { n = makeCell(cell.design, g); } catch (e) { return false; }
+  try { n = makeCell(cell.design, g, cell.stolen || []); } catch (e) { return false; }
   const old = { ...cell }, ratio = cbrt(g / (cell.size || 1));
   carry(old, n);
+  for (const inc of n.pieces[0].inclusions) if (inc.stolen) inc.damage = inc.stolen.damage;   // not by place: stolen ones come and go
   n.size = g;
   // its latches and pad links: the same pads and feeders, rebuilt; where it is held by another (a pad, a tube), the
   // spot on its body moves out with it
@@ -103,6 +116,12 @@ export function regrow(world, cell, g) {
 export function growCells(world) {
   if (world.steps % G.every) return;
   for (const c of world.cells) {
+    if (c.toSteal && !c.dead) steal(world, c);
+    if ((c.stolen || []).some((s) => s.fade < S.gone)) {   // faded away: its room freed
+      const left = c.stolen.filter((s) => s.fade >= S.gone);
+      c.faded = (c.faded || 0) + c.stolen.length - left.length;
+      c.stolen = left; regrow(world, c, c.size || 1);
+    }
     const g = c.grow;
     if (!g || c.dead || c.metab.starving || (c.size || 1) >= G.max - 1e-9) continue;
     if (g.E < g.stepE || g.N < g.stepN) continue;
@@ -110,4 +129,59 @@ export function growCells(world) {
     if (!regrow(world, c, Math.min(G.max, (c.size || 1) + G.step))) { c.waiting = 'no room to grow'; continue; }
     c.grow.E = E - g.stepE; c.grow.N = N - g.stepN;
   }
+}
+
+// A free spot for a round plastid of radius r inside the cell's body (its own frame), nearest the middle first, clear
+// of the outlines `taken` and of the circles `extra` ([x, y, r])
+function spotFor(body, r, taken, extra = []) {
+  const h = body.L / 2, room = body.a - PARAMS.cell.wallThickness - r;
+  if (room <= 0) return null;
+  const spots = [];
+  for (let x = -h - room; x <= h + room + 1e-9; x += S.grid) for (let y = -room; y <= room + 1e-9; y += S.grid) {
+    const dx = Math.max(Math.abs(x) - h, 0);
+    if (dx * dx + y * y <= room * room) spots.push([x, y, x * x + y * y]);
+  }
+  spots.sort((p, q) => p[2] - q[2]);
+  for (const [x, y] of spots) if (clear(x, y, r, taken, extra)) return [x, y];
+  return null;
+}
+const clear = (x, y, r, taken, extra) => !taken.some((o) => insidePoly(o, x, y) || polyDist(o, x, y) < r)
+  && !extra.some(([ex, ey, er]) => Math.hypot(ex - x, ey - y) < er + r);
+
+// A prey it killed gave up its plastids (metab.js: cell.toSteal): keep those that fit, biggest first
+function steal(world, cell) {
+  const { prey, plastids } = cell.toSteal;
+  cell.toSteal = null;
+  const body = cell.pieces[0], w = cbrt(cell.size || 1), got = [], placed = [];
+  const taken = body.inclusions.map((i) => i.outline);
+  for (const p of plastids.sort((x, y) => y.v - x.v)) {
+    const r = cbrt(3 * p.v / (4 * Math.PI)), at = spotFor(body, r, taken, placed);
+    if (!at) continue;
+    placed.push([at[0], at[1], r]);
+    got.push({ at: [at[0] / w, at[1] / w], r, pigment: p.pigment, damage: p.damage, fade: p.fade });
+  }
+  cell.lastSteal = { prey, got: got.length, lost: plastids.length - got.length, step: world.steps };
+  if (!got.length) return;
+  cell.stolen = [...(cell.stolen || []), ...got];
+  regrow(world, cell, cell.size || 1);
+}
+
+// After a division (a smaller body): each stolen plastid stays where it is if it still fits, else moves to a free spot,
+// else is digested
+export function refit(world, cell) {
+  if (!cell.stolen || !cell.stolen.length) return;
+  const body = cell.pieces[0], w = cbrt(cell.size || 1), room = body.a - PARAMS.cell.wallThickness;
+  const taken = body.inclusions.filter((i) => !i.stolen).map((i) => i.outline), kept = [], keep = [];
+  let changed = false;
+  for (const s of cell.stolen) {
+    const inc = body.inclusions.find((i) => i.stolen === s);
+    const inside = inc && Math.hypot(Math.max(Math.abs(inc.x) - body.L / 2, 0), inc.y) <= room - s.r + 1e-9;
+    if (inside && clear(inc.x, inc.y, s.r, taken, kept)) { kept.push([inc.x, inc.y, s.r]); keep.push(s); continue; }
+    changed = true;
+    const at = spotFor(body, s.r, taken, kept);
+    if (at) { s.at = [at[0] / w, at[1] / w]; kept.push([at[0], at[1], s.r]); keep.push(s); } else cell.digested = (cell.digested || 0) + 1;
+  }
+  if (!changed) return;
+  cell.stolen = keep;
+  regrow(world, cell, cell.size || 1);
 }

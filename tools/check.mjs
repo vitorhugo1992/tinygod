@@ -1013,6 +1013,42 @@ const runDay = (design, y, seconds, opts = {}) => {
     `${fmt(100 * feeding / Math.max(latched, 1), 0)}% of it, tail stopped ${fmt(100 * stopped / Math.max(latched, 1), 0)}%; the prey ${B.dead ? B.diedWhy : 'alive'}; ${latches} latch(es)`);
 }
 
+// 28y. Stealing plastids (author, 2026-11-02): a prey drained to death gives up its plastids; the predator keeps those
+// that fit in its free room (a newborn fewer than a big cell); they fade by half a day; at division they are shared out
+{
+  const hunter = (hold) => {
+    const sw = copy('Wave tail'); sw.species = 'hunter';
+    for (const p of sw.parts) if (p.joint && p.joint.type === 'motor') p.joint.controls = [{ sensor: 'feeding', min: 0.5, max: 1, stop: true }];
+    sw.parts.push({ type: 'segment', at: [sw.body.radius, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed' } });
+    if (hold) sw.parts.push({ type: 'rule', id: 'divide', joint: { type: 'divide', controls: [{ sensor: 'energy', min: 2, max: 3 }] } });   // never
+    return sw;
+  };
+  const prey = { species: 'prey', body: { radius: 10 }, parts: [{ type: 'inclusion', material: 'plastid', at: [0, 5], radius: 3.5 }, { type: 'inclusion', material: 'plastid', at: [0, -5.5], radius: 3 }] };
+  const hunt = (size) => {
+    const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+    const S = addCell(w, hunter(true), 800, 1000, 0);
+    if (size > 1) regrow(w, S, size);
+    S.metab.C = S.metab.E = 1e7;
+    addCell(w, prey, 800 + S.reach + 12, 972, 0);
+    for (let i = 0; i < 200000 && !S.lastSteal; i++) stepWorld(w);
+    return { w, S, got: S.lastSteal ? S.lastSteal.got : 0, lost: S.lastSteal ? S.lastSteal.lost : 0, n: S.pieces[0].inclusions.filter((x) => x.stolen).length };
+  };
+  const small = hunt(1), big = hunt(4);
+  const f0 = big.S.stolen[0].fade;
+  for (let i = 0; i < 30000; i++) stepWorld(big.w);
+  const fade = big.S.stolen[0].fade / f0, want = 2 ** (-30 / PARAMS.steal.half);
+  // division: without its rule the big one divides at once (twice: 4× -> 2× -> 1×); the two are shared out, one each
+  big.S.design = hunter(false); regrow(big.w, big.S, big.S.size);
+  big.S.metab.E = big.S.metab.C; big.S.metab.starving = false;   // fed (it starves in the dark)
+  for (let i = 0; i < 2 * PARAMS.grow.every; i++) stepWorld(big.w);
+  const each = big.w.cells.filter((c) => c.species === 'hunter').map((c) => (c.stolen || []).length);
+  check('stealing plastids: a kill gives up what fits (a big cell keeps more); stolen plastids fade by half a day; division shares them out',
+    small.got === 1 && small.lost === 1 && small.n === 1 && big.got === 2 && big.n === 2 && Math.abs(fade - want) < 1e-3 * want
+      && each.length >= 2 && each.reduce((x, y) => x + y, 0) === 2 && each.every((k) => k <= 1),
+    `newborn hunter: kept ${small.got}, digested ${small.lost}; at 4×: kept ${big.got}; after 30 s ${fmt(fade, 4)} of its output (should be ${fmt(want, 4)}); ` +
+    `divided: ${each.join(' + ')} stolen plastids`);
+}
+
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's
 // share and its meter's) goes back to the water
 {

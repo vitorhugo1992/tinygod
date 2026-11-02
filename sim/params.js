@@ -118,6 +118,15 @@ export const PARAMS = {
     pierce: 2,              // the piercing price × (1 + 2 × thickness): ×3 at 1 µm, ×5 at 2 µm
     energy: 300,            // pJ per µm³ of plate each division needs (as PARAMS.grow.energy)
   },
+  // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): a prey drained to death gives up its
+  // plastids; the predator keeps those that fit in its free room (biggest first, round, at their own size). They earn
+  // and cost like its own but fade (no genes to keep them) and bright light damages them for good (never repaired);
+  // at division they are shared out
+  steal: {
+    half: 600,              // s: a stolen plastid's output halves every sandbox day
+    gone: 0.05,             // below this share of its output it is gone (its room freed)
+    grid: 0.5,              // µm between the spots tried when placing one
+  },
   // Growth and division (step 1, author 2026-11-01): a meter of two bars, energy and nitrogen; full, the cell divides.
   // Both cost in proportion to the cell's volume; nitrogen comes in through its surface, so smaller cells fill faster.
   grow: {
