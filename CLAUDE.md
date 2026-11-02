@@ -105,6 +105,12 @@ volume and output (stolen.v; income × v / drawn v). **Contest with squeezing (R
 Noctilla 4, Raptilla 2 SIX (thieves carrying stolen plastids: one at 2.7× with 4), Trochilla 1; Saltella extinct (day
 9.4), Caecella dead (day 1.8).** 26 latches but only 3 kills: **hunters farm their prey** (latch in light, take a
 plastid every 30 s; the prey lives and rebuilds), mostly on Bathyscapha. First contest where a hunter makes a living.
+**Oil retuned (author, 2026-11-02: "is oil still a good tool?"):** it lost to starch every night: a night is 300 s and
+oil released a full store in 600 s, so an awake night needed an oil store 1/15 of the upkeep rate vs starch 1/20, and
+it filled only halfway in a day. Now PARAMS.metab.oil fill 1/400, burn 1/300 (one night): oil carries a night in less
+room (1.5× denser) but fills slower and floats; starch fills and bursts faster and is ballast. Budget tip now says
+"starch (2× quicker)". Measured 3 days from the floor (4 starts): Noctilla, Caecella, Raptilla 2 never starve;
+Noctilla 1.9× by day 3 (divided before: more of the surplus goes into the store and is burned at night).
 (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
 already make them; "at division" is only one way, a daughter starting stuck; **what chains should offer (author,
 2026-11-02): protection from predators, more buoyancy, cells in a chain trading nutrients between themselves, more

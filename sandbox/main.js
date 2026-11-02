@@ -1627,9 +1627,9 @@ function showBudget() {
   const still = rests ? b.upkeep * PARAMS.metab.rest : b.upkeep;   // what a night costs a second, resting if it has a rest rule
   // each warning short, its explanation in its tooltip
   if (b.supply > 0 && b.supply < still) warn.push([`stores too slow to feed it at night${rests ? ', even resting' : ''} (${k(b.supply)} of ${k(still)} pJ/s)`,
-    `At night its stores can give only ${k(b.supply)} pJ/s, less than it spends ${rests ? 'even resting' : 'sitting still'} (${k(still)}): it starves with store left. A bigger store, or starch (4× quicker), helps.`]);
+    `At night its stores can give only ${k(b.supply)} pJ/s, less than it spends ${rests ? 'even resting' : 'sitting still'} (${k(still)}): it starves with store left. A bigger store, or starch (2× quicker), helps.`]);
   else if (b.supply > 0 && b.beat > 0 && b.supply < b.upkeep + b.beat) warn.push([`stores too slow for swimming at night (${k(b.supply)} of ${k(b.upkeep + b.beat)} pJ/s)`,
-    `Swimming at night it spends ${k(b.upkeep + b.beat)} pJ/s, more than its stores can give (${k(b.supply)}): it would starve with store left${rests ? `; resting it spends ${k(still)}` : ''}. A bigger store, or starch (4× quicker), helps.`]);
+    `Swimming at night it spends ${k(b.upkeep + b.beat)} pJ/s, more than its stores can give (${k(b.supply)}): it would starve with store left${rests ? `; resting it spends ${k(still)}` : ''}. A bigger store, or starch (2× quicker), helps.`]);
   if (rests && b.earn > 0 && b.deepest < TH - 50) warn.push(b.deepest < 0 ? ['resting, it may never wake: it earns less than its upkeep even at the surface', 'Even at the surface at noon its plastids earn less than its upkeep.']
     : [`resting below ~${b.deepest} µm, it can't wake`, `Below ~${b.deepest} µm its plastids earn less than its upkeep even at noon (they work while it rests, at 40%, as does upkeep): resting there, its energy can't rise to wake it.`]);
   if (warn.length) el.innerHTML += warn.map(([w, why]) => `<span class="warn" title="${esc(why)}">⚠ ${w}</span>`).join('');

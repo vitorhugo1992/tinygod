@@ -61,7 +61,8 @@ export const PARAMS = {
     fillAbove: 0.8,         // stores fill while the pool is above this share...
     burnBelow: 0.3,         // ...and are burned while it is below this
     starch: { energy: 6000, fill: 1 / 200, burn: 1 / 150 },   // pJ per µm³; share of a full store per s
-    oil: { energy: 9000, fill: 1 / 600, burn: 1 / 600 },      // denser energy, light, but slow both ways
+    oil: { energy: 9000, fill: 1 / 400, burn: 1 / 300 },      // denser energy, light, slower both ways (author 2026-11-02:
+                                                              // was 1/600 each; then oil lost to starch every night)
   },
   sensor: {
     threshold: 0.5,         // 'light' / 'dark' wiring splits here
