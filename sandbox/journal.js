@@ -25,7 +25,9 @@ export function note(world, c) {
   const sun = world.light ? (world.day ? daylight(world) : 1) : 0;
   const up = Math.sin(c.q[2]);   // 1: its front points straight up
   const health = inc.some((i) => i.material === 'plastid') ? plastidHealth(world, c) : null;
-  j.s.push({ t, depth, E, starch, oil, gas, health, sun, up });
+  const g = world.grow ? c.grow : null;
+  const gE = g ? Math.min(1, g.E / g.Eneed) : null, gN = g ? Math.min(1, g.N / g.Nneed) : null;
+  j.s.push({ t, depth, E, starch, oil, gas, health, sun, up, gE, gN });
   if (j.s.length > KEEP) j.s.shift();
   // how squarely each eyespot has faced the light lately (its reading against the light there; ~1 min memory), for the
   // rule maps
@@ -60,7 +62,9 @@ export function note(world, c) {
   // too much light: said once as its plastids fall below 3/4 healthy, again once they have mended
   if (health !== null && health < 0.75 && !w.hurt) { w.hurt = true; say(`bright light damaged its plastids (${(100 * health).toFixed(0)}% healthy)`, true); }
   if (health !== null && health > 0.95 && w.hurt) { w.hurt = false; say('its plastids have mended'); }
-  Object.assign(w, { starving, floor, top, sun, starch, oil });
+  if (gE === 1 && w.gE < 1) say(gN === 1 ? 'has the energy for a division: ready to divide' : 'has the energy for a division (nitrogen still short)');
+  if (gN === 1 && w.gN < 1) say(gE === 1 ? 'has the nitrogen for a division: ready to divide' : 'has the nitrogen for a division (energy still short)');
+  Object.assign(w, { starving, floor, top, sun, starch, oil, gE, gN });
 }
 
 // How many nights the cell's energy would last: the pool and its stores against its upkeep over a night
@@ -78,7 +82,7 @@ export const eventText = (e) => `${fmtH(e.h)} ${e.text}`;
 // at the top), energy (yellow), starch (cream), oil (gold), the float (blue) and plastid health (green); serious
 // moments as red ticks
 const LINES = [['depth', '#e8f0f4', 'depth'], ['E', '#ffd84a', 'energy'], ['starch', '#ece3c4', 'starch'], ['oil', '#f2a93c', 'oil'],
-  ['gas', '#8fd0ff', 'float'], ['health', '#a6e36a', 'plastids']];
+  ['gas', '#8fd0ff', 'float'], ['health', '#a6e36a', 'plastids'], ['gE', '#ff8fd2', 'growth ⚡'], ['gN', '#d9b46a', 'growth N']];
 export function drawJournal(ctx, j, x, y, w, h, title) {
   ctx.fillStyle = 'rgba(6,10,18,.88)'; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = '#23324a'; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
@@ -128,6 +132,8 @@ export function forecast(design, from, settings, onProgress, onDone) {
   w.steps = from.steps;
   const c = addCell(w, design, from.x, from.y, from.angle);
   if (c.metab && from.share !== undefined) c.metab.E = from.share * c.metab.C;
+  if (from.grow && c.grow) { c.grow.E = from.grow.E * c.grow.Eneed; c.grow.N = from.grow.N * c.grow.Nneed; }
+  if (from.nitro && w.nitro) w.nitro.c.set(from.nitro);
   if (from.damage) c.pieces[0].inclusions.filter((i) => i.material === 'plastid').forEach((i, k) => { i.damage = from.damage[k] || 0; });
   const end = w.steps + Math.round(M.day / DT);
   let cancelled = false;

@@ -6,7 +6,7 @@
 // - near: how close the nearest thing it feels is, 1 touching, 0 at the sensor's range.
 //   Touch and proximity feel cells of another species ('strangers', the default) or anything: any other cell, the
 //   tank's walls, floor and surface ('anything').
-// - chem: the nutrients where it is (nutrient.js: poor at the surface, rich deep).
+// - chem: the nitrogen where it is (nutrient.js: poor at the surface, rich deep; with world.grow, what cells left).
 // - statolith: a loose grain in a chamber rolls to the lower wall; it reads how far the chamber's direction points up
 //   (1 straight up, 0 down, 0.5 sideways or with gravity off).
 // Every cell also has its energy level built in (no part): how full its energy pool is, 0 empty, 1 full (1 with
@@ -22,7 +22,7 @@ import { PARAMS } from './params.js';
 import { dcos, dsin } from './dmath.js';
 import { fire } from './physics.js';
 import { lightAt } from './light.js';
-import { nutrientAt } from './nutrient.js';
+import { nitrogenAt } from './nutrient.js';
 
 const S = PARAMS.sensor, CH = PARAMS.chamber;
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -109,7 +109,7 @@ export function sense(world, cell) {
     const i = s.piece, c = cell.cs[i], n = cell.sn[i];
     const x = cell.cx[i] + c * s.x - n * s.y, y = cell.cy[i] + n * s.x + c * s.y;
     if (s.kind === 'hunger') { s.value = energyLevel(world, cell); continue; }   // old designs: same as the built-in
-    if (s.kind === 'chem') { s.value = nutrientAt(y); continue; }
+    if (s.kind === 'chem') { s.value = nitrogenAt(world, y); continue; }
     if (s.kind === 'statolith') {   // the grain lies on the lower wall: how far its direction points up (no weight: 0.5)
       s.value = world.gravity ? (1 + dsin(cell.phi[i] + s.facing)) / 2 : 0.5;
       continue;

@@ -8,7 +8,7 @@ import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
 import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax } from './mould.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
-import { nutrientAt } from '../sim/nutrient.js';
+import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast } from './journal.js';
@@ -774,7 +774,7 @@ function dayTrace(id) {
   if (!field || !live.journal || live.journal.s.length < 2) return null;
   const from = worldTime(world) - PARAMS.metab.day;
   const pts = live.journal.s.filter((x) => x.t > from && x[field] !== null && x[field] !== undefined)
-    .map((x) => [hourOf(x.t), kind === 'chem' ? nutrientAt(TH - x.depth) : x[field]]);
+    .map((x) => [hourOf(x.t), kind === 'chem' ? nitrogenAt(world, TH - x.depth) : x[field]]);
   return pts.length > 1 ? { pts, where: 'its last day', span: (live.journal.s[live.journal.s.length - 1].t - Math.max(from, live.journal.s[0].t)) / PARAMS.metab.day } : null;
 }
 function traceSVG(id, test, colour) {
@@ -960,7 +960,7 @@ function mapReader(live) {
       const sun = world.day ? Math.sqrt(Math.max(0, Math.sin(2 * Math.PI * (h - 6) / 24))) : 1;
       return L.strength * sun * Math.exp(-L.attenuation * dz) * (facing[id] ?? 1);
     }
-    if (kind === 'chem') return nutrientAt(TH - dz);
+    if (kind === 'chem') return nitrogenAt(world, TH - dz);
     const b = byHour[id] && byHour[id][Math.floor(h) % 24];
     if (b && b[1]) return b[0] / b[1];
     const r = live && liveReading(live, id);
@@ -1275,7 +1275,7 @@ function listParts() {
 function reset(pose, carry) {
   $('err').textContent = '';
   const s = (pose && pose.x !== undefined ? pose : null) || design.start || {};
-  const w = makeWorld(1, { gravity: $('gravity').checked, light: $('light').checked, day: $('day').checked, metab: true });
+  const w = makeWorld(1, { gravity: $('gravity').checked, light: $('light').checked, day: $('day').checked, metab: true, grow: true });
   try {
     const next = addCell(w, design, s.x ?? TW / 2, s.y ?? TH * 0.6, s.angle ?? 0);
     if (carry) {
@@ -1292,14 +1292,20 @@ function reset(pose, carry) {
           i.wpt.w = (i.density - PARAMS.cell.cytoplasm) * i.v * i.fill * PARAMS.gravity * 1e-6;
         }
       };
-      keep(carry.cell, next);
+      const keepGrow = (from, to) => {
+        if (!from.grow || !to.grow) return;
+        to.grow.E = Math.min(1, from.grow.E / from.grow.Eneed) * to.grow.Eneed;
+        to.grow.N = Math.min(1, from.grow.N / from.grow.Nneed) * to.grow.Nneed;
+      };
+      if (carry.world.nitro) w.nitro = carry.world.nitro;   // the water keeps what cells used
+      keep(carry.cell, next); keepGrow(carry.cell, next);
       next.metab.E = share(carry.cell) * next.metab.C;
       next.journal = carry.cell.journal;   // the day graph goes on
       for (const c of carry.world.cells) {
         if (c === carry.cell) continue;
         if (c.design === carry.design) {
           const k = addCell(w, design, c.q[0], c.q[1], c.q[2] * 180 / Math.PI);
-          k.metab.E = share(c) * k.metab.C; k.journal = c.journal; keep(c, k);
+          k.metab.E = share(c) * k.metab.C; k.journal = c.journal; keep(c, k); keepGrow(c, k);
         } else { for (const p of c.pads) p.link = null; w.cells.push(c); }
       }
     }
@@ -1636,6 +1642,11 @@ function budget(lines) {
   const net = m.income - m.upkeep * (cell.resting ? PARAMS.metab.rest : 1) - m.motors - m.pumps - m.chamber - m.repair;
   lines.push(`net       ${net >= 0 ? "+" : ""}${net.toFixed(0)} pJ/s: ${net >= 0 ? "gaining energy" : "losing energy"}`);
   for (const inc of cell.pieces[0].inclusions) if (inc.store) lines.push(`store     ${inc.store} ${(100 * inc.fill).toFixed(0)}% full`);
+  if (world.grow) {
+    const g = cell.grow, n = nitrogenAt(world, cell.q[1]);
+    lines.push(`growth    energy ${(100 * g.E / g.Eneed).toFixed(0)}% · nitrogen ${(100 * g.N / g.Nneed).toFixed(0)}% of a division`);
+    lines.push(`nitrogen  water here ${(100 * n).toFixed(0)}% of the deep's${g.N >= g.Nneed ? ' (its bar is full)' : ` · +${(100 * g.uptake / g.Nneed * PARAMS.metab.day).toFixed(0)}% of a division a day`}`);
+  }
 }
 
 // Live sensor readings beside the wiring, for the selected cell if it is this design (always, numbers shown or not).
@@ -1708,9 +1719,9 @@ function draw() {
     if (top > 0) { ctx.fillStyle = COLOR.light + (0.8 * sun).toFixed(2) + ')'; ctx.fillRect(X(0), top - 2, TW * s, 3); }
   }
   if (sun < 1) { ctx.fillStyle = `rgba(2,4,10,${(0.45 * (1 - sun)).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }   // night
-  {   // the nutrients: a faint tan haze below the nutricline
+  {   // nitrogen: a faint tan haze, rich deep, thinner where cells have used it up
     const g = ctx.createLinearGradient(0, Y(TH), 0, Y(0));
-    for (let k = 0; k <= 8; k++) g.addColorStop(k / 8, `rgba(200,178,106,${(0.07 * nutrientAt(TH * (1 - k / 8))).toFixed(3)})`);
+    for (let k = 0; k <= 40; k++) g.addColorStop(k / 40, `rgba(200,178,106,${(0.09 * nitrogenAt(world, TH * (1 - k / 40))).toFixed(3)})`);
     ctx.fillStyle = g; ctx.fillRect(X(0), Y(TH), TW * s, TH * s);
   }
   // trail
@@ -1885,8 +1896,10 @@ $('testDay').onclick = () => {
   graphOn = true;
   const from = { steps: world.steps, x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI,
     share: cell.metab ? cell.metab.E / cell.metab.C : undefined,
-    damage: cell.pieces[0].inclusions.filter((i) => i.material === 'plastid').map((i) => i.damage || 0) };
-  const settings = { gravity: world.gravity, light: world.light, day: world.day, metab: world.metab };
+    damage: cell.pieces[0].inclusions.filter((i) => i.material === 'plastid').map((i) => i.damage || 0),
+    grow: cell.grow && { E: cell.grow.E / cell.grow.Eneed, N: cell.grow.N / cell.grow.Nneed },
+    nitro: world.nitro && Float64Array.from(world.nitro.c) };
+  const settings = { gravity: world.gravity, light: world.light, day: world.day, metab: world.metab, grow: world.grow };
   stopForecast = forecast(cell.design, from, settings, (p) => { $('testDay').textContent = `⏩ ${Math.round(100 * p)}%`; },
     (j) => { stopForecast = null; forecastJ = j; $('testDay').textContent = '✕ Close forecast'; });
 };
@@ -1949,6 +1962,7 @@ function drawHud(W, H) {
     const n = nightsLeft(cell);
     text += `   ⚡ ${(100 * m.E / m.C).toFixed(0)}%${n !== null ? ` · ${n < 10 ? n.toFixed(1) : '10+'} nights` : ''}`;
     for (const inc of cell.pieces[0].inclusions) if (inc.store) text += `   ${inc.store} ${(100 * inc.fill).toFixed(0)}%`;
+    if (world.grow) { const g = cell.grow; text += `   🌱 ⚡${(100 * g.E / g.Eneed).toFixed(0)}% N ${(100 * g.N / g.Nneed).toFixed(0)}%`; }
   }
   ctx.font = '12px system-ui';
   const tw = ctx.measureText(text).width + (m.starving ? 90 : 0);
@@ -2056,7 +2070,8 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     const ax = c.cx[i] - c.cs[i] * h, ay = c.cy[i] - c.sn[i] * h, bx = c.cx[i] + c.cs[i] * h, by = c.cy[i] + c.sn[i] * h;
     const tag = partColours(c.design).get(p.part);   // a part with its own colour (flagella, springs)
     const fill = p.kind === 'body' ? COLOR.body[p.material] : tag || COLOR[p.material];
-    const w = Math.max(2 * p.a * s, 1.5);
+    const swell = p.kind === 'body' && real.grow && world.grow ? 1 + PARAMS.grow.swell * Math.min(real.grow.E / real.grow.Eneed, real.grow.N / real.grow.Nneed, 1) : 1;
+    const w = Math.max(2 * p.a * s * swell, 1.5);
     if (p.kind === 'body') {   // outline (red while starving)
       ctx.strokeStyle = world.metab && c.metab.starving ? COLOR.starving : real.resting ? COLOR.resting : COLOR.outline; ctx.lineWidth = w + 2;
       ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();

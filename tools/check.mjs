@@ -631,7 +631,7 @@ const runDay = (design, y, seconds, opts = {}) => {
   const n = [chem(PARAMS.tank.h - 50), chem(PARAMS.tank.h / 2), chem(50)];
   check('a statolith reads which way is up; a nutrient sensor reads poor water above the nutricline, rich below',
     Math.abs(r[0] - 1) < 1e-6 && Math.abs(r[1] - 0.5) < 1e-6 && Math.abs(r[2]) < 1e-6 && Math.abs(r[3]) < 1e-6 && r[4] === 0.5
-      && n[0] < 0.01 && Math.abs(n[1] - 0.5) < 0.02 && n[2] > 0.99,
+      && Math.abs(n[0] - PARAMS.nutrient.surface) < 0.01 && Math.abs(n[1] - (1 + PARAMS.nutrient.surface) / 2) < 0.02 && n[2] > 0.99,
     `statolith facing the front: front up ${fmt(r[0])}, level ${fmt(r[1])}, down ${fmt(r[2])}; facing back, front up ` +
     `${fmt(r[3])}; no gravity ${fmt(r[4])}. Nutrients near the surface ${fmt(n[0])}, mid-tank ${fmt(n[1])}, near the floor ${fmt(n[2])}`);
 }

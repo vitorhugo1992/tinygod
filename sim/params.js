@@ -83,10 +83,25 @@ export const PARAMS = {
     holdLight: 0.5,         // pJ/s per µm³ held fully light (r 5.5: ~350 pJ/s, ~5% of income), in proportion on the way
     holdHeavy: 0.3,         // pJ/s per µm³ held fully heavy, the same
   },
-  // Nutrients (a fixed layer until step 1's ecology): poor at the surface, rich deep, a nutricline between
+  // Nitrogen (sim/nutrient.js): poor at the surface, rich deep, a nutricline between; with world.grow a field cells use up
   nutrient: {
     cline: 0.5,             // depth of the nutricline (share of the tank)
     width: 0.08,            // how sharp it is (share of the tank)
+    surface: 0.06,          // the surface water's richness against the deep's (1)
+    layers: 40,             // horizontal layers of the field (50 µm each)
+    water: 600,             // N units the water holds per µm of the tank's height at richness 1 (a layer: 30,000)
+    resupply: 600,          // s: a used-up layer eases back toward the usual profile on this time (a day)
+    spread: 0.002,          // share per s a layer evens out with each neighbour
+    every: 100,             // steps between mixings
+  },
+  // Growth and division (step 1, author 2026-11-01): a meter of two bars, energy and nitrogen; full, the cell divides.
+  // Both cost in proportion to the cell's volume; nitrogen comes in through its surface, so smaller cells fill faster.
+  grow: {
+    energy: 300,            // pJ per µm³ of cell a division needs (r 10: ~1.26 million, about a good design's wasted surplus)
+    nitrogen: 1,            // N units per µm³ of cell
+    uptake: 0.0222,         // N units per µm² of surface per s at the most (r 10: its bar in ~300 s in the rich deep)...
+    half: 1,                // ...half of that at this richness (so ~1/10 as fast at the surface)
+    swell: 0.08,            // the cell is drawn this much wider when ready to divide (drawing only)
   },
   // The nucleus, the brain box (sim/brain.js): each brain module takes a slot of its cross-section
   brain: {

@@ -12,9 +12,14 @@
 // - A buoyancy chamber costs nothing while neutral (seawater's density) and, held light or heavy, energy every second in
 //   proportion to its size and how far it is from neutral (PARAMS.chamber.holdLight / holdHeavy); a starving cell can't hold it: neutral.
 // - Starving: an empty pool stops the motors (and pumps) until energy comes back.
+// - Growth (world.grow, step 1): a meter of two bars. Nitrogen comes in through the cell's surface by the water's
+//   nitrogen where it is (saturating; slowed while resting, none while starving) and is taken from the water; energy is
+//   what is left above fillAbove once the stores have taken their share (the surplus that was wasted). Both bars cost
+//   in proportion to the cell's volume (PARAMS.grow); full, the cell is ready to divide.
 // Numbers are round and tuned for play (CLAUDE.md), not measured.
 import { PARAMS } from './params.js';
 import { lightAt } from './light.js';
+import { nitrogenAt, takeNitrogen } from './nutrient.js';
 
 const M = PARAMS.metab, P = PARAMS, DT = PARAMS.time.dt, CYTO = PARAMS.cell.cytoplasm;
 const G = PARAMS.gravity * 1e-6;
@@ -55,6 +60,8 @@ export function initMetab(cell) {
     lastMotor: cell.energy.motor, lastPump: cell.energy.pump,
     starving: false,
   };
+  // the growth meter (used with world.grow): what a division needs, and what the cell has gathered toward it
+  cell.grow = { E: 0, N: 0, Eneed: body.volume * P.grow.energy, Nneed: body.volume * P.grow.nitrogen, uptake: 0 };
 }
 
 // A store's full energy
@@ -107,6 +114,21 @@ export function metabolize(world, cell) {
     }
     if (inc.fill < 0) inc.fill = 0; else if (inc.fill > 1) inc.fill = 1;   // rounding
     inc.wpt.w = (inc.density - CYTO) * inc.v * inc.fill * G;   // weight follows what it holds
+  }
+  // growth: nitrogen through the surface, and the surplus the stores didn't take
+  if (world.grow) {
+    const g = cell.grow, R = P.grow;
+    g.uptake = 0;
+    if (!m.starving && g.N < g.Nneed) {
+      const n = nitrogenAt(world, cell.q[1]);
+      const want = Math.min(slow * R.uptake * body.area * n / (n + R.half) * DT, g.Nneed - g.N);
+      const got = takeNitrogen(world, cell.q[1], want);
+      g.N += got; g.uptake = got / DT;
+    }
+    if (m.E > M.fillAbove * m.C && g.E < g.Eneed) {
+      const move = Math.min(m.E - M.fillAbove * m.C, g.Eneed - g.E);
+      m.E -= move; g.E += move;
+    }
   }
   if (m.E > m.C) m.E = m.C;                 // a full pool wastes the rest (no store has room)
   m.starving = m.E <= 0;

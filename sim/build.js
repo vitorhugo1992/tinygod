@@ -200,7 +200,7 @@ export function buildCell(design, opts = {}) {
   const wallMat = b.wall || 'protein';
   pieces.push({
     kind: 'body', parent: -1, ax: 0, ay: 0, mount: 0, offset: 0, joint: -1,
-    L: bL, a: bA, material: wallMat, volume: vol,
+    L: bL, a: bA, material: wallMat, volume: vol, area: capsuleArea(bL, bA),
     ...capsuleDrag(bL, bA),
     wpts: [{ x: 0, y: 0, w: weight(C.cytoplasm, vol - wallVol) + weight(material(wallMat).density, wallVol) }],
     inclusions: [],

@@ -44,6 +44,19 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    layer; used up locally, mixed back from below) and uptake into the N bar; (b) the energy bar and drawn swelling;
    (c) division (automatic, the DIVIDE rule, the cap); (d) death and nitrogen returned; (e) the lineage shown (count,
    graph, generations, births and deaths). Check each in Node (Claude's species must still live) and in the page.
+   **(a) and (b) BUILT (2026-11-02), shown to the author before division.** makeWorld(…, { grow: true }) (the sandbox
+   and Test a day use it; checks don't): sim/nutrient.js is now a field of 40 layers (world.nitro; nitrogenAt(world, y),
+   takeNitrogen, mixNitrogen: each layer eases back to the usual profile over a day, PARAMS.nutrient.resupply, and evens
+   with its neighbours); the profile now has a surface floor (PARAMS.nutrient.surface 0.06). cell.grow { E, N, Eneed,
+   Nneed, uptake } (sim/metab.js, PARAMS.grow): N by body.area (build.js now stores it) × n/(n + 1), ×0.4 resting, none
+   starving; E = the pool above fillAbove after the stores. Shown: 🌱 ⚡E% N% on the clock line, "growth" and "nitrogen"
+   in the numbers, two lines in the day graph, trouble log "has the energy / nitrogen for a division", the body drawn up
+   to 8% wider (min of the bars), the tan haze from the live field. Rebuilds and Test a day keep the bars and the water.
+   **Measured (3 days from the floor, none starving):** energy bar ~1.3 d for every r 10 species from an empty start;
+   nitrogen: Saltella (nights at ~1.6 mm) 1.25 d, Trochilla (deep nights) 1.06 d, Noctilla 1.6 d, Bathyscapha (surface
+   nights, big rod) 2.2 d, Caecella (lives ~300 µm) ~3.4 d. Trochilla is energy-limited (four oars rowing: 85% after 3
+   days). So nitrogen paces most designs and depth decides it; costly swimming paces others: different limits per
+   strategy, as hoped. Resting slows uptake to 40% (a trade-off for deep resters; tell the author).
 3. **Division:** the meter full, the cell splits: the daughter an exact copy (kin), beside it, stores shared. Later: a rule
    for when to divide; chains at division with kin pads.
 4. **Death:** starving too long, it dies, sinks, is removed; the trouble log says why ("starved at 03:20, 1.9 mm deep").
