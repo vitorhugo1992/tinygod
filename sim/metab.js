@@ -87,7 +87,7 @@ function feed(world, cell, l) {
   l.took += e; l.tookN += n;
   if (cell.grow) cell.grow.N = Math.min(cell.grow.Nneed, cell.grow.N + n * F.keep);
   prey.drainedBy = { species: cell.species, step: world.steps };
-  if (prey.dead && e === 0 && n === 0) l.done = true;   // nothing left
+  if (prey.dead && e === 0 && n === 0) { l.done = true; prey.emptied = true; }   // nothing left (no one pierces it again)
   cell.metab.E += e * F.keep;
   return e * F.keep;
 }

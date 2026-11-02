@@ -29,7 +29,17 @@ f.cost × (1 + 2 × thickness) (link.price), can't latch without it (A.cantPierc
 afford to pierce a plated X"). Body section: Wall Plain / Plates, Thickness, a note ("pierced at ×3 · +30% energy per
 division · sinks 1.6× as fast", from the design built with and without). Drawn as a tan band inside the outline with
 seams. Check 28v (51 checks). Measured r 10: 1 µm sinks 7.8 → 12.5 µm/s, division 1.26 → 1.63 million pJ.
-**Next, the author's order (2026-11-02):** (1) **a contest with a hunter**; (2) **stealing plastids** (the
+**The hunter (2026-11-02, Claude designs it, author's choice): Raptilla** (designs/raptilla.json): Noctilla + a 20 µm
+peduncle at 40°, angled 20° forward; its tail stops while feeding. **What designing it taught:** (1) a PUSHER hunter
+(tail behind, tube in front) sank front-down every night (the tail's drag; only a ~60 µm front tube would balance it,
+120k a latch): kept the proven puller; (2) **a swimming hunter tore its own latch off** in 0.2-0.3 s (27 latches on
+Saltella in 2 min, 40k each, ~2k kept; Saltella never jumped): **the Feeding reading built** (author chose it over a
+stronger tube): a built-in reading, 1 while a peduncle is latched (sim/sense.js feedingLevel, BUILT_IN -5, BUILT_INS,
+offered when the design has a peduncle; sentence "unless it is feeding"); with "tail stops while feeding" one latch
+held 218 s, drained 1.8 million pJ, killed the Saltella; (3) a feeler stopping the tail stopped it before it touched;
+(4) a hunter re-pierced an empty corpse: prey.emptied, never pierced again; (5) **meetings are rare**: in 2 days it met
+only Saltella (cells move up and down in a 1.6 mm wide tank). Check 28w (52 checks).
+**Next, the author's order (2026-11-02):** (1) **a contest with a hunter** (running); (2) **stealing plastids** (the
 peduncle's next stage); (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
 already make them; "at division" is only one way, a daughter starting stuck); (4) **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). Scratchpad tools are gone with the

@@ -13,6 +13,7 @@ import { buildCell as build } from '../sim/build.js';
 import { volumeOf } from '../sim/shape.js';
 import { moveTo, dragSpot, toOutline, ownPoints, relax } from '../sandbox/mould.js';
 import { DEG } from '../sim/dmath.js';
+import { feedingLevel } from '../sim/sense.js';
 
 const DT = PARAMS.time.dt;
 // A cocked spring (a latched springy joint), for the no-coasting and one-flick laws; not a part in the Build panel
@@ -956,6 +957,30 @@ const runDay = (design, y, seconds, opts = {}) => {
       && !poor.latched && poor.cant && poor.cant.price === 5 * PARAMS.feed.pierce * 20 && Math.abs(sinking(oldGlass) - v0) < 1e-9,
     `sinks ${fmt(v0)} → ${fmt(v1)} µm/s with 1 µm plates; energy per division ${fmt(g0.Eneed / 1e6)} → ${fmt(g1.Eneed / 1e6)} million pJ; ` +
     `pierce ${fmt(p0.paid / 1000, 0)}k → ${fmt(p1.paid / 1000, 0)}k; 2 µm plates with 150k in the pool: ${poor.latched ? 'latched' : 'no latch'}; old glass wall: as protein`);
+}
+
+// 28w. The feeding reading (author, 2026-11-02): 1 while a peduncle of the cell is latched, else 0; a tail wired to stop
+// while feeding stops; a dead prey drained of everything is never pierced again
+{
+  const sw = copy('Wave tail'); sw.species = 'hunter';
+  for (const p of sw.parts) if (p.joint && p.joint.type === 'motor') p.joint.controls = [{ sensor: 'feeding', min: 0.5, max: 1, stop: true }];
+  sw.parts.push({ type: 'segment', at: [sw.body.radius, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed' } });
+  const w = makeWorld(1, { gravity: false, metab: true, grow: true });
+  const S = addCell(w, sw, 800, 1000, 0), B = addCell(w, { species: 'prey', body: { radius: 10 }, parts: [] }, 800 + S.reach + 12, 972, 0);
+  S.metab.C = S.metab.E = 1e7;
+  let before = null, latched = 0, stopped = 0, feeding = 0, latches = 0, was = false;
+  for (let i = 0; i < 120000 && w.cells.includes(B); i++) {
+    stepWorld(w);
+    const on = !!S.feeders[0].link;
+    if (on && !was) latches++;
+    if (!on && before === null && i === 100) before = { feeding: feedingLevel(S), tail: S.joints.some((j) => j.on) };
+    if (on && was) { latched++; if (!S.joints.some((j) => j.on)) stopped++; if (feedingLevel(S) === 1) feeding++; }
+    was = on;
+  }
+  check('the feeding reading is 1 only while latched; a tail wired "stops while feeding" stops; an emptied corpse is not pierced again',
+    before && before.feeding === 0 && before.tail && latched > 1000 && feeding === latched && stopped > 0.99 * latched && B.dead && latches === 1,
+    `before: feeding ${before && before.feeding}, tail ${before && before.tail ? 'running' : 'stopped'}; latched ${fmt(latched / 1000, 1)} s: feeding ` +
+    `${fmt(100 * feeding / Math.max(latched, 1), 0)}% of it, tail stopped ${fmt(100 * stopped / Math.max(latched, 1), 0)}%; the prey ${B.dead ? B.diedWhy : 'alive'}; ${latches} latch(es)`);
 }
 
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's

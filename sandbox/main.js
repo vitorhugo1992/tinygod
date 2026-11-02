@@ -7,7 +7,7 @@ import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
 import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
 import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax } from './mould.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
-import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
+import { energyLevel, storeLevel, plastidHealth, feedingLevel } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
@@ -434,7 +434,7 @@ function partName(g, all = partGroups(design.parts || [])) {
   const same = all.filter((x) => own(x) === name);
   return same.length > 1 ? `${name} ${same.indexOf(all.find((x) => x.members[0] === g.members[0])) + 1}` : name;
 }
-const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health' };
+const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health', feeding: 'Feeding' };
 // a sensor (or built-in reading) by id: its name and colour (built-ins have none)
 function sensorInfo(id) {
   if (BUILT_NAME[id]) return { name: BUILT_NAME[id], colour: null };
@@ -453,6 +453,7 @@ function meaning(kind, v, id) {
   }
   if (kind === 'energy' || kind === 'starch' || kind === 'oil') return `${pc} full`;
   if (kind === 'health') return `${pc} healthy`;
+  if (kind === 'feeding') return v >= 0.5 ? 'feeding' : 'not feeding';
   if (kind === 'touch') return v >= 0.5 ? 'touching' : 'not touching';
   if (kind === 'near') return v <= 0 ? 'nothing near' : v >= 1 ? 'touching' : `something ${Math.round((1 - v) * nearRange(id))} µm away`;
   if (kind === 'chem') return v < 0.5 ? `poor water (${pc})` : `rich water (${pc})`;
@@ -479,6 +480,7 @@ const KINDS = {
   oil: { verb: 'is', zones: LEVEL_ZONES, u: pc },
   health: { verb: 'is', zones: [[0, 0.3, 'wrecked'], [0.3, 0.7, 'hurt'], [0.7, 1, 'healthy']], u: (v) => `${pc(v)} healthy` },
   touch: { verb: 'is', zones: [[0, 0.5, 'not touching'], [0.5, 1, 'touching']], u: (v) => (v >= 0.5 ? 'touching' : 'not touching') },
+  feeding: { verb: 'is', zones: [[0, 0.5, 'not feeding'], [0.5, 1, 'feeding']], u: (v) => (v >= 0.5 ? 'feeding' : 'not feeding') },
   near: { verb: 'feels', zones: [[0, 0.05, 'nothing'], [0.05, 0.5, 'far'], [0.5, 0.95, 'close'], [0.95, 1, 'touching']],
     u: (v, id) => `${Math.round((1 - v) * nearRange(id))} µm` },
   chem: { verb: 'tastes', zones: [[0, 0.5, 'poor water'], [0.5, 1, 'rich water']], u: pc },
@@ -494,6 +496,7 @@ function rangeWords(id, a, b, out) {
   const bare = (v) => u(v).replace(/ (sun|healthy)$/, '');
   if (lo && hi) return out ? 'never' : 'anything';
   if (kind === 'touch') return hi !== out ? 'touching' : 'not touching';
+  if (kind === 'feeding') return hi !== out ? 'feeding' : 'not feeding';
   if (kind === 'near') {
     if (hi !== out && (hi || lo)) return `something within ${u(hi ? a : b)}`;
     if (lo || hi) return `nothing within ${u(lo ? b : a)}`;
@@ -519,6 +522,8 @@ function termWords(c, ref) {
   const r = (i) => (ref ? `${ref}:${i}` : null), K = kindOf(c.sensor), verb = `<span class="verb">${K.verb}</span>`;
   if (c.vs !== undefined) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(c.not ? 'less than' : 'more than', r(0))} ${sensorWord(c.vs, r(0))}`;
   const also = c.also || [], all = [c, ...also];
+  // its own state (feeding): "it is feeding"
+  if (!also.length && sensorKind(c.sensor) === 'feeding') return `it ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
   if (!also.length) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
   const jw = c.all ? 'and' : 'or', join = ref ? ` <span class="j" data-alsojoin="${ref}" title="Tap: or / and / but not when">${jw}</span> ` : ` ${jw} `;
   // every sensor of one kind on the cell: "any eyespot" / "every eyespot" (author, 2026-11-01: name the group, shorter);
@@ -583,11 +588,11 @@ const ruleSummary = (targets) => sentence(targets, false);
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
-const ICON = { health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
+const RANGE = { feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
+const ICON = { feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
-  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health') return id;
+  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding') return id;
   const p = (design.parts || []).find((x) => x.id === id) || {};
   return p.material === 'statolith' ? 'statolith' : p.kind || 'light';
 }
@@ -604,6 +609,8 @@ function sensorList(except) {
     list.push({ id: k, name: `its ${k} level (how full its ${k} is)`, short: `${k[0].toUpperCase() + k.slice(1)} level`, kind: k });
   if ((design.parts || []).some((p) => p.type === 'inclusion' && p.material === 'plastid'))
     list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
+  if ((design.parts || []).some((p) => p.joint && p.joint.type === 'feed'))
+    list.push({ id: 'feeding', name: 'feeding (its peduncle latched on prey)', short: 'Feeding', kind: 'feeding' });
   return list;
 }
 const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.type === 'divide' || m.joint.latched));
@@ -1176,6 +1183,7 @@ function liveReading(c, id) {
   if (id === 'energy') return { value: energyLevel(world, c) };
   if (id === 'starch' || id === 'oil') return { value: storeLevel(c, id) };
   if (id === 'health') return { value: plastidHealth(world, c) };
+  if (id === 'feeding') return { value: feedingLevel(c) };
   return c.sensors.find((x) => x.id === id);
 }
 

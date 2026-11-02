@@ -154,7 +154,7 @@ export function interact(world) {
       A.cantPierce = null;
       const [x, y] = padWorld(A, f);
       for (const B of cells) {
-        if (B === A || B.species === A.species) continue;
+        if (B === A || B.species === A.species || B.emptied) continue;
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
         if (dx * dx + dy * dy > r * r) continue;
         const hit = surfaceNear(B, x, y, f.r, 0);   // the body only: spines and flagella keep it off
