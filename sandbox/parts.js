@@ -219,7 +219,7 @@ export const CONTROLS = {
   'Buoyancy chamber': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 50, ...ROD,
     tip: () => 'Pumped light, it lifts the cell; heavy, it sinks it; neutral, nothing (and free). Its rule: FLOAT when… / SINK if…. Bigger pushes harder, takes room, costs more to hold' },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
-  'Nutrient sensor': {},
+  'Nutrient sensor': { tip: () => 'Reads the nitrogen in the water where it is: poor in the upper half, rich below the nutricline (~1 mm down), less where cells have used it up. A sense of depth (keep a resting cell off the floor) and of where the food for growth is.' },
   'Wave tail (swims)': { tilt: true, flip: true, pull: true, length: { min: 16, max: 96, step: 8, def: 48 } },
   'Flexible oar (swims)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
   'Stiff flap (goes nowhere)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
@@ -253,7 +253,8 @@ export const CONTENT_TIPS = {
 
 // How the Build panel sorts parts (parts made with older templates, such as 'Oil droplet', still edit)
 export const CATEGORIES = {
-  // the stiff flap (a lesson, not a part) and the nutrient sensor (no use until step 1) are hidden; old designs still edit
+  // the stiff flap (a lesson, not a part) is hidden; old designs still edit. The nutrient sensor is back (author
+  // 2026-11-02: a sense of depth against the floor trap; nitrogen is rich below the nutricline)
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)'],
   'Spines & appendages': ['Spine'],
   'Escapes': ['Burst organ (escape)'],   // the spring (template name kept so old designs edit); the ejectisome was removed
@@ -261,7 +262,7 @@ export const CATEGORIES = {
   'Pads': ['Pad'],
   'Hunting': ['Peduncle (feeds on others)'],
   'Life cycle': [],   // the Division card (a rule, nothing to build: every design has one)
-  'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Feeler'],
+  'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Feeler', 'Nutrient sensor'],
 };
 
 // The category of a part already on the body, from what it is

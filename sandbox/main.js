@@ -2810,6 +2810,7 @@ const PART_ICONS = {
   'Light sensor (eyespot)': ['#ff8a3c', 'C17 12 5*|M7 6 L11 9|M17 2 L17 5|M27 6 L23 9'],
   'Statolith (which way is up)': ['#e8eef5', 'C17 12 8|C17 17.5 2.6*'],
   'Feeler': ['#5fd0ff', 'C5 20 3*|M8 18 Q14 5 30 6|M27 3 l3 3 -3 3'],
+  'Nutrient sensor': ['#d9b46a', 'C17 15 9|C14 17 1.6*|C20 13 1.6*|C19 19 1.2*'],
 };
 function partIcon(name) {
   const [col, spec] = PART_ICONS[name] || ['#8197a8', 'C17 12 7'];
