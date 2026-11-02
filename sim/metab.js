@@ -93,6 +93,8 @@ function feed(world, cell, l) {
   l.took += e; l.tookN += n;
   if (cell.grow) cell.grow.N = Math.min(cell.grow.Nneed, cell.grow.N + n * F.keep);
   prey.drainedBy = { species: cell.species, step: world.steps };
+  // every PARAMS.steal.every s latched: one plastid through the tube (grow.js takes it, if one fits)
+  if (!prey.dead) { l.stealT = (l.stealT || 0) + DT; if (l.stealT >= P.steal.every) { l.stealT -= P.steal.every; cell.toTake = prey; } }
   if (prey.dead && e === 0 && n === 0) { l.done = true; prey.emptied = true; }   // nothing left (no one pierces it again)
   // a prey dead of it gives up its plastids (grow.js places those that fit); a second predator gets none
   if (prey.dead && !prey.robbed) {

@@ -1355,8 +1355,8 @@ function reset(pose, carry) {
       if (carry.world.nitro) w.nitro = carry.world.nitro;   // the water keeps what cells used
       w.births = carry.world.births; w.deaths = carry.world.deaths; w.nextUid = carry.world.nextUid;
       w.census = carry.world.census;   // the population graph goes on
-      next.stolen = carry.cell.stolen || [];   // its stolen plastids stay
-      if (carry.cell.size > 1 || next.stolen.length) regrow(w, next, carry.cell.size);   // as grown as it was
+      next.stolen = carry.cell.stolen || []; next.lost = carry.cell.lost || [];   // its stolen plastids stay; those a thief took stay missing
+      if (carry.cell.size > 1 || next.stolen.length || next.lost.length) regrow(w, next, carry.cell.size);   // as grown as it was
       keep(carry.cell, next); keepGrow(carry.cell, next);
       next.metab.E = share(carry.cell) * next.metab.C;
       next.journal = carry.cell.journal;   // the day graph goes on
@@ -1365,8 +1365,8 @@ function reset(pose, carry) {
         if (c.design === carry.design && c.dead) continue;   // the dead stay dead (not rebuilt)
         if (c.design === carry.design) {
           const k = addCell(w, design, c.q[0], c.q[1], c.q[2] * 180 / Math.PI);
-          k.stolen = c.stolen || [];
-          if (c.size > 1 || k.stolen.length) regrow(w, k, c.size);
+          k.stolen = c.stolen || []; k.lost = c.lost || [];
+          if (c.size > 1 || k.stolen.length || k.lost.length) regrow(w, k, c.size);
           k.metab.E = share(c) * k.metab.C; k.journal = c.journal; keep(c, k); keepGrow(c, k);
         } else { for (const p of c.pads) p.link = null; w.cells.push(c); }
       }
@@ -1724,6 +1724,7 @@ function budget(lines) {
   if (world.grow) {
     const g = cell.grow, n = nitrogenAt(world, cell.q[1]);
     const stolen = cell.pieces[0].inclusions.filter((x) => x.stolen);
+    if (cell.lost && cell.lost.length) lines.push(`robbed    ${cell.lost.length} of its plastids taken by a thief: it rebuilds them from its growth meter before growing`);
     if (stolen.length) lines.push(`stolen    ${stolen.length} plastid${stolen.length > 1 ? 's' : ''} at ${stolen.map((x) => `${Math.round(100 * x.stolen.fade)}%`).join(', ')} of their output (fading by half a day; light damage is never mended)`);
     lines.push(`size      ${(cell.size || 1).toFixed(1)}× its newborn volume${(cell.size || 1) >= PARAMS.grow.max - 1e-9 ? ' (its largest: no more growing)' : ''}${cell.waiting ? ` (waits: ${cell.waiting})` : ''}`);
     lines.push(`growth    banked: energy ${(100 * g.E / g.Eneed).toFixed(0)}% · nitrogen ${(100 * g.N / g.Nneed).toFixed(0)}% of a doubling (it grows a tenth at a time)`);
@@ -1987,7 +1988,7 @@ $('testDay').onclick = () => {
   const from = { steps: world.steps, x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI,
     share: cell.metab ? cell.metab.E / cell.metab.C : undefined,
     damage: cell.pieces[0].inclusions.filter((i) => i.material === 'plastid' && !i.stolen).map((i) => i.damage || 0),
-    stolen: (cell.stolen || []).map((x) => ({ ...x })),
+    stolen: (cell.stolen || []).map((x) => ({ ...x })), lost: [...(cell.lost || [])],
     grow: cell.grow && { E: cell.grow.E / cell.grow.Eneed, N: cell.grow.N / cell.grow.Nneed }, size: cell.size || 1,
     nitro: world.nitro && Float64Array.from(world.nitro.c) };
   const settings = { gravity: world.gravity, light: world.light, day: world.day, metab: world.metab, grow: world.grow };

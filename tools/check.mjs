@@ -1014,7 +1014,8 @@ const runDay = (design, y, seconds, opts = {}) => {
 }
 
 // 28y. Stealing plastids (author, 2026-11-02): a prey drained to death gives up its plastids; the predator keeps those
-// that fit in its free room (a newborn fewer than a big cell); they fade by half a day; at division they are shared out
+// that fit in its free room (a newborn fewer than a big cell); they fade by half a day; at division they are shared out;
+// from a living prey one goes through the tube every PARAMS.steal.every s latched, and the prey rebuilds it later
 {
   const hunter = (hold) => {
     const sw = copy('Wave tail'); sw.species = 'hunter';
@@ -1042,11 +1043,21 @@ const runDay = (design, y, seconds, opts = {}) => {
   big.S.metab.E = big.S.metab.C; big.S.metab.starving = false;   // fed (it starves in the dark)
   for (let i = 0; i < 2 * PARAMS.grow.every; i++) stepWorld(big.w);
   const each = big.w.cells.filter((c) => c.species === 'hunter').map((c) => (c.stolen || []).length);
-  check('stealing plastids: a kill gives up what fits (a big cell keeps more); stolen plastids fade by half a day; division shares them out',
-    small.got === 1 && small.lost === 1 && small.n === 1 && big.got === 2 && big.n === 2 && Math.abs(fade - want) < 1e-3 * want
+  // a living prey (in light it lives on while drained): a plastid every 30 s latched
+  const w3 = makeWorld(1, { gravity: false, light: true, metab: true, grow: true });
+  const T = addCell(w3, hunter(true), 800, 1500, 0); regrow(w3, T, 4);
+  const L = addCell(w3, { ...prey, parts: [...prey.parts, { type: 'rule', id: 'divide', joint: { type: 'divide', controls: [{ sensor: 'energy', min: 2, max: 3 }] } }] }, 800 + T.reach + 12, 1472, 0);
+  for (let i = 0; i < (PARAMS.steal.every + 5) * 1000; i++) stepWorld(w3);
+  const live = { thief: (T.stolen || []).length, lost: (L.lost || []).length, alive: !L.dead };
+  // rebuilt from its growth meter, away from the thief
+  w3.links = []; T.feeders[0].link = null; T.q[1] = 200;
+  L.grow.E = L.grow.Eneed; L.grow.N = L.grow.Nneed; L.metab.E = L.metab.C; L.metab.starving = false;   // fed again (a starving cell builds nothing)
+  for (let i = 0; i < 2 * PARAMS.grow.every; i++) stepWorld(w3);
+  check('stealing plastids: a kill gives up what fits (a big cell keeps more); stolen plastids fade by half a day; division shares them out; a living prey loses one per 30 s latched and rebuilds it',
+    live.thief === 1 && live.lost === 1 && live.alive && (L.lost || []).length === 0 && L.rebuilt === 1 && small.n === 1 && small.lost >= 1 && big.n === 2 && Math.abs(fade - want) < 1e-3 * want
       && each.length >= 2 && each.reduce((x, y) => x + y, 0) === 2 && each.every((k) => k <= 1),
-    `newborn hunter: kept ${small.got}, digested ${small.lost}; at 4×: kept ${big.got}; after 30 s ${fmt(fade, 4)} of its output (should be ${fmt(want, 4)}); ` +
-    `divided: ${each.join(' + ')} stolen plastids`);
+    `newborn hunter: holds ${small.n} (the kill: ${small.lost} digested); at 4×: holds ${big.n}; after 30 s ${fmt(fade, 4)} of its output (should be ${fmt(want, 4)}); ` +
+    `divided: ${each.join(' + ')} stolen plastids; from a living prey after 35 s: the thief has ${live.thief}, the prey lost ${live.lost} (${live.alive ? 'alive' : 'dead'}), then rebuilt ${L.rebuilt || 0}`);
 }
 
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's

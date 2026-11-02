@@ -118,11 +118,14 @@ export const PARAMS = {
     pierce: 2,              // the piercing price × (1 + 2 × thickness): ×3 at 1 µm, ×5 at 2 µm
     energy: 300,            // pJ per µm³ of plate each division needs (as PARAMS.grow.energy)
   },
-  // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): a prey drained to death gives up its
-  // plastids; the predator keeps those that fit in its free room (biggest first, round, at their own size). They earn
+  // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): every `every` s a peduncle stays latched,
+  // the prey's biggest plastid that fits in the thief moves through the tube (the prey lives on without it, and rebuilds
+  // it from its growth meter before growing further); a prey drained to death gives up the rest that fit (round, at
+  // their own size). They earn
   // and cost like its own but fade (no genes to keep them) and bright light damages them for good (never repaired);
   // at division they are shared out
   steal: {
+    every: 30,              // s latched for each plastid taken from a living prey
     half: 600,              // s: a stolen plastid's output halves every sandbox day
     gone: 0.05,             // below this share of its output it is gone (its room freed)
     grid: 0.5,              // µm between the spots tried when placing one

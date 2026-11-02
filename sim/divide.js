@@ -95,7 +95,7 @@ export function divideCells(world) {
     p.metab.E = Math.min(E / 2, p.metab.C);
     p.pieces[0].inclusions.forEach((x, i) => { if (x.store) { x.fill = Math.min(1, stores[i] / 2 / x.v); x.wpt.w = (x.density - CYTO) * x.v * x.fill * WG; } });
     p.grow.E /= 2; p.grow.N /= 2;
-    const d = makeCell(p.design, half, theirs);
+    const d = makeCell(p.design, half, theirs, [...(p.lost || [])]);   // plastids a thief took: missing in both, both rebuild
     d.q.set(p.q); d.q[0] = p.q[0] + spot[0]; d.q[1] = p.q[1] + spot[1];
     d.metab.E = p.metab.E; d.grow.E = p.grow.E; d.grow.N = p.grow.N;
     const pi = p.pieces[0].inclusions, di = d.pieces[0].inclusions;

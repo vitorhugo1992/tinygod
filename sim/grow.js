@@ -11,7 +11,7 @@ import { PARAMS } from './params.js';
 import { buildCell } from './build.js';
 import { planSubsteps, updatePose } from './physics.js';
 import { initMetab } from './metab.js';
-import { polyDist, insidePoly } from './shape.js';
+import { polyDist, insidePoly, volumeOf } from './shape.js';
 
 const G = PARAMS.grow, S = PARAMS.steal, WG = PARAMS.gravity * 1e-6, CYTO = PARAMS.cell.cytoplasm;
 const cbrt = (x) => Math.cbrt(x);
@@ -70,18 +70,21 @@ function carry(from, to) {
 
 // The design at `g`, with the cell's stolen plastids added (each stored as { at: its spot in the newborn's frame, r,
 // pigment, damage, fade }; they don't grow, their spots move out with the body)
-function withStolen(design, g, stolen) {
+// Plastids of its own a thief took (`lost`: their places in the design) are left out (a rule part with no rule
+// stands in, so every other part keeps its place) until it rebuilds them
+function withStolen(design, g, stolen, lost) {
   const d = scaledDesign(design, g);
-  if (!stolen || !stolen.length) return d;
+  if ((!stolen || !stolen.length) && (!lost || !lost.length)) return d;
   const w = cbrt(g), out = d === design ? { ...design, parts: [...(design.parts || [])] } : d;
-  for (const s of stolen) out.parts.push({ type: 'inclusion', material: 'plastid', pigment: s.pigment, radius: s.r, at: [s.at[0] * w, s.at[1] * w], stolen: s });
+  for (const k of lost || []) out.parts[k] = { type: 'rule', id: `lost${k}` };
+  for (const s of stolen || []) out.parts.push({ type: 'inclusion', material: 'plastid', pigment: s.pigment, radius: s.r, at: [s.at[0] * w, s.at[1] * w], stolen: s });
   return out;
 }
 
 // A cell of `design` at `g` times its newborn volume (with its stolen plastids, if any), not yet in the tank
-export function makeCell(design, g = 1, stolen = []) {
-  const c = buildCell(withStolen(design, g, stolen), { loose: true });
-  c.design = design; c.size = g; c.stolen = stolen;
+export function makeCell(design, g = 1, stolen = [], lost = []) {
+  const c = buildCell(withStolen(design, g, stolen, lost), { loose: true });
+  c.design = design; c.size = g; c.stolen = stolen; c.lost = lost;
   for (const inc of c.pieces[0].inclusions) if (inc.stolen) inc.damage = inc.stolen.damage;
   planSubsteps(c);
   initMetab(c);
@@ -91,7 +94,7 @@ export function makeCell(design, g = 1, stolen = []) {
 // Rebuild a living cell at `g` times its newborn volume, in place; false if it can't be built
 export function regrow(world, cell, g) {
   let n;
-  try { n = makeCell(cell.design, g, cell.stolen || []); } catch (e) { return false; }
+  try { n = makeCell(cell.design, g, cell.stolen || [], cell.lost || []); } catch (e) { return false; }
   const old = { ...cell }, ratio = cbrt(g / (cell.size || 1));
   carry(old, n);
   for (const inc of n.pieces[0].inclusions) if (inc.stolen) inc.damage = inc.stolen.damage;   // not by place: stolen ones come and go
@@ -116,6 +119,7 @@ export function regrow(world, cell, g) {
 export function growCells(world) {
   if (world.steps % G.every) return;
   for (const c of world.cells) {
+    if (c.toTake && !c.dead) take(world, c);
     if (c.toSteal && !c.dead) steal(world, c);
     if ((c.stolen || []).some((s) => s.fade < S.gone)) {   // faded away: its room freed
       const left = c.stolen.filter((s) => s.fade >= S.gone);
@@ -123,7 +127,19 @@ export function growCells(world) {
       c.stolen = left; regrow(world, c, c.size || 1);
     }
     const g = c.grow;
-    if (!g || c.dead || c.metab.starving || (c.size || 1) >= G.max - 1e-9) continue;
+    if (!g || c.dead || c.metab.starving) continue;
+    // a plastid a thief took is rebuilt first, at growth prices for its volume
+    if (c.lost && c.lost.length) {
+      const k = c.lost[0], p = c.design.parts[k], v = volumeOf(p) * organelleGrowth(c.size || 1);
+      const E = v * G.energy, N = v * G.nitrogen;
+      if (g.E >= E && g.N >= N) {
+        const keep = { E: g.E - E, N: g.N - N };
+        c.lost = c.lost.slice(1); c.rebuilt = (c.rebuilt || 0) + 1;
+        if (regrow(world, c, c.size || 1)) { c.grow.E = keep.E; c.grow.N = keep.N; refit(world, c); }
+      }
+      continue;
+    }
+    if ((c.size || 1) >= G.max - 1e-9) continue;
     if (g.E < g.stepE || g.N < g.stepN) continue;
     const E = g.E, N = g.N;
     if (!regrow(world, c, Math.min(G.max, (c.size || 1) + G.step))) { c.waiting = 'no room to grow'; continue; }
@@ -184,4 +200,26 @@ export function refit(world, cell) {
   if (!changed) return;
   cell.stolen = keep;
   regrow(world, cell, cell.size || 1);
+}
+
+// A living prey's biggest plastid that fits in the thief moves through the tube (metab.js: cell.toTake); the prey lives
+// on without it (its own: rebuilt later; one it had stolen: gone)
+function take(world, cell) {
+  const prey = cell.toTake;
+  cell.toTake = null;
+  if (!world.cells.includes(prey) || prey.dead) return;
+  const body = cell.pieces[0], w = cbrt(cell.size || 1), taken = body.inclusions.map((i) => i.outline);
+  for (const inc of prey.pieces[0].inclusions.filter((i) => i.material === 'plastid').sort((a, b) => b.v - a.v)) {
+    const r = cbrt(3 * inc.v / (4 * Math.PI)), at = spotFor(body, r, taken);
+    if (!at) continue;
+    const fade = inc.stolen ? inc.stolen.fade : 1;
+    if (inc.stolen) prey.stolen = prey.stolen.filter((s) => s !== inc.stolen);
+    else prey.lost = [...(prey.lost || []), inc.part];
+    regrow(world, prey, prey.size || 1);
+    cell.stolen = [...(cell.stolen || []), { at: [at[0] / w, at[1] / w], r, pigment: inc.pigment, damage: inc.damage || 0, fade }];
+    regrow(world, cell, cell.size || 1);
+    cell.lastTake = { prey: prey.species, step: world.steps };
+    prey.lastRobbed = { by: cell.species, step: world.steps };
+    return;
+  }
 }

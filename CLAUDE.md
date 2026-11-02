@@ -89,6 +89,15 @@ Saltella it killed (1 didn't fit: digested)", "a stolen plastid faded away"; reb
 Measured: a newborn Wave-tail hunter (r 8) kept 1 of a prey's 2 plastids, grown to 4× it kept both. Found on the
 way: **a drained prey in light never starves** (its own plastids refill its pool every step: the hunter only taps its
 income) and an oil prey only trickles: kills happen in the dark or on store-less prey.
+**Stealing from a LIVING prey (author, 2026-11-02: "stealing plastids doesn't mean the prey dies"):** every
+PARAMS.steal.every (30) s a peduncle stays latched, the prey's biggest plastid that fits in the thief moves through
+(metab.js l.stealT -> cell.toTake; grow.js take()); the prey lives on without it: its own are marked cell.lost (the
+design part stands in as an empty rule part, so indices stay) and **rebuilt from its growth meter at growth prices for
+their volume before it grows further** (author's choice); daughters inherit the gap and rebuild too; one it had stolen
+is simply gone. A kill still gives up what is left that fits. Page: "robbed" line in the numbers; log "took a
+plastid from a living X", "a X took one of its plastids through its tube", "rebuilt a plastid a thief had taken".
+Raptilla 2 (scratch: grows to 3× before dividing, feeds only in light) under the kill-only rule: grew to 2.8×, kept
+no plastid (none fitted at its two kills), divided on day ~7.5, both starved deep on day 9.
 (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
 already make them; "at division" is only one way, a daughter starting stuck; **what chains should offer (author,
 2026-11-02): protection from predators, more buoyancy, cells in a chain trading nutrients between themselves, more

@@ -102,6 +102,12 @@ export function note(world, c) {
   if ((c.faded || 0) > (w.faded ?? (c.faded || 0))) say('a stolen plastid faded away');
   if ((c.digested || 0) > (w.digested ?? (c.digested || 0))) say("a stolen plastid didn't fit after dividing: digested");
   w.faded = c.faded || 0; w.digested = c.digested || 0;
+  if (c.lastTake && c.lastTake !== w.take) say(`took a plastid from a living ${c.lastTake.prey}`);
+  w.take = c.lastTake;
+  if (c.lastRobbed && c.lastRobbed !== w.robbed) say(`a ${c.lastRobbed.by} took one of its plastids through its tube`, true);
+  w.robbed = c.lastRobbed;
+  if ((c.rebuilt || 0) > (w.rebuilt ?? (c.rebuilt || 0))) say('rebuilt a plastid a thief had taken');
+  w.rebuilt = c.rebuilt || 0;
   Object.assign(w, { starving, floor, top, sun, starch, oil, gE, gN, gen: c.gen || 0, waiting: c.waiting });
 }
 
@@ -170,8 +176,8 @@ export function forecast(design, from, settings, onProgress, onDone) {
   w.steps = from.steps;
   const c = addCell(w, design, from.x, from.y, from.angle);
   if (c.metab && from.share !== undefined) c.metab.E = from.share * c.metab.C;
-  c.stolen = from.stolen || [];
-  if (from.size > 1 || c.stolen.length) regrow(w, c, from.size || 1);   // as grown as the cell is, with its stolen plastids
+  c.stolen = from.stolen || []; c.lost = from.lost || [];
+  if (from.size > 1 || c.stolen.length || c.lost.length) regrow(w, c, from.size || 1);   // as grown as the cell is, with its stolen plastids
   if (c.metab && from.share !== undefined) c.metab.E = from.share * c.metab.C;
   if (from.grow && c.grow) { c.grow.E = from.grow.E * c.grow.Eneed; c.grow.N = from.grow.N * c.grow.Nneed; }
   if (from.nitro && w.nitro) w.nitro.c.set(from.nitro);
