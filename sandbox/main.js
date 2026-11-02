@@ -4,10 +4,11 @@ import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
 import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
+import { regrow } from '../sim/grow.js';
 import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
 import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax } from './mould.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
-import { energyLevel, storeLevel, plastidHealth, feedingLevel } from '../sim/sense.js';
+import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
@@ -434,7 +435,7 @@ function partName(g, all = partGroups(design.parts || [])) {
   const same = all.filter((x) => own(x) === name);
   return same.length > 1 ? `${name} ${same.indexOf(all.find((x) => x.members[0] === g.members[0])) + 1}` : name;
 }
-const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health', feeding: 'Feeding' };
+const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health', feeding: 'Feeding', size: 'Size' };
 // a sensor (or built-in reading) by id: its name and colour (built-ins have none)
 function sensorInfo(id) {
   if (BUILT_NAME[id]) return { name: BUILT_NAME[id], colour: null };
@@ -454,6 +455,7 @@ function meaning(kind, v, id) {
   if (kind === 'energy' || kind === 'starch' || kind === 'oil') return `${pc} full`;
   if (kind === 'health') return `${pc} healthy`;
   if (kind === 'feeding') return v >= 0.5 ? 'feeding' : 'not feeding';
+  if (kind === 'size') return `${sizeX(v)} its newborn volume`;
   if (kind === 'touch') return v >= 0.5 ? 'touching' : 'not touching';
   if (kind === 'near') return v <= 0 ? 'nothing near' : v >= 1 ? 'touching' : `something ${Math.round((1 - v) * nearRange(id))} µm away`;
   if (kind === 'chem') return v < 0.5 ? `poor water (${pc})` : `rich water (${pc})`;
@@ -468,6 +470,7 @@ const nearRange = (id) => { const p = (design.parts || []).find((x) => x.id === 
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const degOf = (v) => Math.asin(Math.min(1, Math.max(-1, 2 * v - 1))) * 180 / Math.PI;
 const pc = (v) => `${Math.round(v * 100)}%`;
+const sizeX = (v) => `${(1 + v * (PARAMS.grow.max - 1)).toFixed(1)}×`;
 const LEVEL_ZONES = [[0, 0.15, 'empty'], [0.15, 0.4, 'low'], [0.4, 0.75, 'half'], [0.75, 1, 'full']];
 const KINDS = {
   light: { verb: 'sees', zones: [[0, 0.05, 'dark'], [0.05, 0.25, 'dim'], [0.25, 0.6, 'bright'], [0.6, 1, 'full sun']], u: (v) => `${pc(v)} sun`,
@@ -480,6 +483,7 @@ const KINDS = {
   oil: { verb: 'is', zones: LEVEL_ZONES, u: pc },
   health: { verb: 'is', zones: [[0, 0.3, 'wrecked'], [0.3, 0.7, 'hurt'], [0.7, 1, 'healthy']], u: (v) => `${pc(v)} healthy` },
   touch: { verb: 'is', zones: [[0, 0.5, 'not touching'], [0.5, 1, 'touching']], u: (v) => (v >= 0.5 ? 'touching' : 'not touching') },
+  size: { verb: 'is', zones: [[0, 1 / 7, 'newborn'], [1 / 7, 3 / 7, 'grown'], [3 / 7, 1, 'big']], u: (v) => sizeX(v) },
   feeding: { verb: 'is', zones: [[0, 0.5, 'not feeding'], [0.5, 1, 'feeding']], u: (v) => (v >= 0.5 ? 'feeding' : 'not feeding') },
   near: { verb: 'feels', zones: [[0, 0.05, 'nothing'], [0.05, 0.5, 'far'], [0.5, 0.95, 'close'], [0.95, 1, 'touching']],
     u: (v, id) => `${Math.round((1 - v) * nearRange(id))} µm` },
@@ -558,12 +562,12 @@ function sentence(targets, tappable, where) {
   const stWords = () => st.map((c, i) => (i ? ' or ' : '') + term(c, 'stop', i)).join('');
   const add = (list, label, title) => (tappable ? ` <button class="add" data-add="${list}" title="${title}">${label}</button>` : '');
   const never = (t) => `<span class="never">${t}</span>`;
-  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'divides' ? 'Divides as soon as its growth meter is full' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
+  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'divides' ? 'Divides as soon as it has doubled' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
   if (verb === 'floats') return `<div class="line">Floats ${go.length ? `when ${goWords()}` : never('never')}.${add('go', go.length ? '+ and…' : '+ when…', 'A condition that floats it')}</div>
     <div class="line">Sinks ${st.length ? `when ${stWords()}` : never('never')}.${add('stop', st.length ? '+ or…' : '+ when…', 'A condition that sinks it (sinking wins)')}</div>
     <div class="line small">Sinking wins; neither: neutral, no cost.</div>`;
   if (verb === 'divides') {   // the meter is always the first condition
-    let s = `Divides when its growth meter is full${go.length ? ` and ${goWords()}` : ''}`;
+    let s = `Divides once it has doubled${go.length ? ` and ${goWords()}` : ''}`;
     if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
     return `<div class="line">${s}.${add('go', '+ and…', 'Wait to divide until this holds too (e.g. after dawn)')}${add('stop', '+ unless…', 'Never divide while this holds')}</div>`;
   }
@@ -588,11 +592,11 @@ const ruleSummary = (targets) => sentence(targets, false);
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
-const ICON = { feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
+const RANGE = { size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
+const ICON = { size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
-  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding') return id;
+  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding' || id === 'size') return id;
   const p = (design.parts || []).find((x) => x.id === id) || {};
   return p.material === 'statolith' ? 'statolith' : p.kind || 'light';
 }
@@ -609,6 +613,7 @@ function sensorList(except) {
     list.push({ id: k, name: `its ${k} level (how full its ${k} is)`, short: `${k[0].toUpperCase() + k.slice(1)} level`, kind: k });
   if ((design.parts || []).some((p) => p.type === 'inclusion' && p.material === 'plastid'))
     list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
+  list.push({ id: 'size', name: 'its size (how grown it is: 1× newborn, 2× ready to divide)', short: 'Size', kind: 'size' });
   if ((design.parts || []).some((p) => p.joint && p.joint.type === 'feed'))
     list.push({ id: 'feeding', name: 'feeding (its peduncle latched on prey)', short: 'Feeding', kind: 'feeding' });
   return list;
@@ -1121,8 +1126,8 @@ function liveRule(live, k) {
     return { ctls: j.controls || null, state, cls: on ? 'on' : '' };
   }
   if (live.divideRule && live.divideRule.part === k) {   // the DIVIDE rule: how full the meter is, or what it waits for
-    const g = live.grow, full = g && g.E >= g.Eneed && g.N >= g.Nneed;
-    return { ctls: live.divideRule.controls, state: !world.grow || !g ? '' : full ? (live.waiting ? 'WAITING' : 'DIVIDING') : `${Math.round(100 * Math.min(g.E / g.Eneed, g.N / g.Nneed))}% GROWN`, cls: full && !live.waiting ? 'on' : '' };
+    const g = live.grow, size = live.size || 1, full = size >= 2 - 1e-9;
+    return { ctls: live.divideRule.controls, state: !world.grow || !g ? '' : full ? (live.waiting ? `${size.toFixed(1)}× WAITING` : 'DIVIDING') : `${size.toFixed(1)}× GROWING`, cls: full && !live.waiting ? 'on' : '' };
   }
   const fd = live.feeders && live.feeders.find((x) => x.part === k);
   if (fd) return { ctls: fd.controls || null, state: fd.link ? 'FEEDING' : fd.go && live.cantPierce ? 'TOO DEAR' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
@@ -1184,6 +1189,7 @@ function liveReading(c, id) {
   if (id === 'starch' || id === 'oil') return { value: storeLevel(c, id) };
   if (id === 'health') return { value: plastidHealth(world, c) };
   if (id === 'feeding') return { value: feedingLevel(c) };
+  if (id === 'size') return { value: sizeLevel(c) };
   return c.sensors.find((x) => x.id === id);
 }
 
@@ -1347,6 +1353,7 @@ function reset(pose, carry) {
       if (carry.world.nitro) w.nitro = carry.world.nitro;   // the water keeps what cells used
       w.births = carry.world.births; w.deaths = carry.world.deaths; w.nextUid = carry.world.nextUid;
       w.census = carry.world.census;   // the population graph goes on
+      if (carry.cell.size > 1) regrow(w, next, carry.cell.size);   // as grown as it was
       keep(carry.cell, next); keepGrow(carry.cell, next);
       next.metab.E = share(carry.cell) * next.metab.C;
       next.journal = carry.cell.journal;   // the day graph goes on
@@ -1355,6 +1362,7 @@ function reset(pose, carry) {
         if (c.design === carry.design && c.dead) continue;   // the dead stay dead (not rebuilt)
         if (c.design === carry.design) {
           const k = addCell(w, design, c.q[0], c.q[1], c.q[2] * 180 / Math.PI);
+          if (c.size > 1) regrow(w, k, c.size);
           k.metab.E = share(c) * k.metab.C; k.journal = c.journal; keep(c, k); keepGrow(c, k);
         } else { for (const p of c.pads) p.link = null; w.cells.push(c); }
       }
@@ -1705,9 +1713,10 @@ function budget(lines) {
   for (const inc of cell.pieces[0].inclusions) if (inc.store) lines.push(`store     ${inc.store} ${(100 * inc.fill).toFixed(0)}% full`);
   if (world.grow) {
     const g = cell.grow, n = nitrogenAt(world, cell.q[1]);
-    lines.push(`growth    energy ${(100 * g.E / g.Eneed).toFixed(0)}% · nitrogen ${(100 * g.N / g.Nneed).toFixed(0)}% of a division${cell.waiting ? ` (ready; waits: ${cell.waiting})` : ''}`);
+    lines.push(`size      ${(cell.size || 1).toFixed(1)}× its newborn volume${(cell.size || 1) >= PARAMS.grow.max - 1e-9 ? ' (its largest: no more growing)' : ''}${cell.waiting ? ` (waits: ${cell.waiting})` : ''}`);
+    lines.push(`growth    banked: energy ${(100 * g.E / g.Eneed).toFixed(0)}% · nitrogen ${(100 * g.N / g.Nneed).toFixed(0)}% of a doubling (it grows a tenth at a time)`);
     lines.push(`lineage   generation ${cell.gen || 0} · ${world.cells.length} of ${PARAMS.grow.cap} cells in the tank · ${world.births || 0} births · ${world.deaths || 0} deaths`);
-    lines.push(`nitrogen  water here ${(100 * n).toFixed(0)}% of the deep's${g.N >= g.Nneed ? ' (its bar is full)' : ` · +${(100 * g.uptake / g.Nneed * PARAMS.metab.day).toFixed(0)}% of a division a day`}`);
+    lines.push(`nitrogen  water here ${(100 * n).toFixed(0)}% of the deep's${g.N >= g.Nneed ? ' (its bar is full)' : ` · +${(100 * g.uptake / g.Nneed * PARAMS.metab.day).toFixed(0)}% of a doubling a day`}`);
   }
 }
 
@@ -1966,7 +1975,7 @@ $('testDay').onclick = () => {
   const from = { steps: world.steps, x: cell.q[0], y: cell.q[1], angle: cell.q[2] * 180 / Math.PI,
     share: cell.metab ? cell.metab.E / cell.metab.C : undefined,
     damage: cell.pieces[0].inclusions.filter((i) => i.material === 'plastid').map((i) => i.damage || 0),
-    grow: cell.grow && { E: cell.grow.E / cell.grow.Eneed, N: cell.grow.N / cell.grow.Nneed },
+    grow: cell.grow && { E: cell.grow.E / cell.grow.Eneed, N: cell.grow.N / cell.grow.Nneed }, size: cell.size || 1,
     nitro: world.nitro && Float64Array.from(world.nitro.c) };
   const settings = { gravity: world.gravity, light: world.light, day: world.day, metab: world.metab, grow: world.grow };
   stopForecast = forecast(cell.design, from, settings, (p) => { $('testDay').textContent = `⏩ ${Math.round(100 * p)}%`; },
@@ -2033,7 +2042,7 @@ function drawHud(W, H) {
     text += `   ⚡ ${(100 * m.E / m.C).toFixed(0)}%${n !== null ? ` · ${n < 10 ? n.toFixed(1) : '10+'} nights` : ''}`;
     for (const inc of cell.pieces[0].inclusions) if (inc.store) text += `   ${inc.store} ${(100 * inc.fill).toFixed(0)}%`;
     if (world.grow) {
-      const g = cell.grow; text += `   🌱 ⚡${(100 * g.E / g.Eneed).toFixed(0)}% N ${(100 * g.N / g.Nneed).toFixed(0)}%`;
+      const g = cell.grow; text += `   🌱 ${(cell.size || 1).toFixed(1)}× ⚡${(100 * g.E / g.Eneed).toFixed(0)}% N ${(100 * g.N / g.Nneed).toFixed(0)}%`;
     }
   }
   ctx.font = '12px system-ui';
@@ -2142,8 +2151,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     const ax = c.cx[i] - c.cs[i] * h, ay = c.cy[i] - c.sn[i] * h, bx = c.cx[i] + c.cs[i] * h, by = c.cy[i] + c.sn[i] * h;
     const tag = partColours(c.design).get(p.part);   // a part with its own colour (flagella, springs)
     const fill = p.kind === 'body' ? COLOR.body[p.material] : tag || COLOR[p.material];
-    const swell = p.kind === 'body' && real.grow && world.grow ? 1 + PARAMS.grow.swell * Math.min(real.grow.E / real.grow.Eneed, real.grow.N / real.grow.Nneed, 1) : 1;
-    const w = Math.max(2 * p.a * s * swell, 1.5);
+    const w = Math.max(2 * p.a * s, 1.5);
     if (p.kind === 'body') {   // outline (red while starving)
       ctx.strokeStyle = real.dead ? '#8a8f98' : world.metab && c.metab.starving ? COLOR.starving : real.resting ? COLOR.resting : COLOR.outline; ctx.lineWidth = w + 2;
       ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();

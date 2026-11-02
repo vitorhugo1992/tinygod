@@ -63,9 +63,13 @@ export function initMetab(cell) {
     lastMotor: cell.energy.motor, lastPump: cell.energy.pump,
     starving: false,
   };
-  // the growth meter (used with world.grow): what a division needs, and what the cell has gathered toward it
-  // (plates: the daughter's are built too, energy by their volume, no nitrogen)
-  cell.grow = { E: 0, N: 0, Eneed: body.volume * P.grow.energy + (body.plateVol || 0) * P.plates.energy, Nneed: body.volume * P.grow.nitrogen, uptake: 0 };
+  // the growth meter (used with world.grow): two bars banking up to what doubling its newborn volume costs (Eneed,
+  // Nneed); each growth step takes PARAMS.grow.step of that (grow.js). Plates are built as it grows (energy by their
+  // volume, no nitrogen). Nbody: the nitrogen its body holds now (back to the water when it dies)
+  const size = cell.size || 1, V0 = body.volume / size, plates0 = (body.plateVol || 0) / Math.cbrt(size * size);
+  const Eneed = V0 * P.grow.energy + plates0 * P.plates.energy, Nneed = V0 * P.grow.nitrogen;
+  cell.grow = { E: 0, N: 0, Eneed, Nneed, stepE: P.grow.step * Eneed, stepN: P.grow.step * Nneed,
+    Nbody: body.volume * P.grow.nitrogen, uptake: 0 };
 }
 
 // A store's full energy

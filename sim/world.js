@@ -9,6 +9,7 @@ import { sense } from './sense.js';
 import { initMetab, metabolize } from './metab.js';
 import { initNitrogen, mixNitrogen } from './nutrient.js';
 import { divideCells } from './divide.js';
+import { growCells } from './grow.js';
 import { removeDead } from './death.js';
 
 // gravity: false switches weight and buoyancy off, to watch swimming alone; light: false turns the light off;
@@ -23,6 +24,7 @@ export function makeWorld(seed = 1, { gravity = true, light = true, day = false,
 // Drop a design into the tank at (x, y) µm (y up from the floor), turned by `angle` degrees
 export function addCell(world, design, x, y, angle = 0) {
   const cell = buildCell(design);
+  cell.size = 1;   // newborn (grow.js)
   cell.q[0] = x; cell.q[1] = y; cell.q[2] = angle * DEG;
   cell.joints.forEach((j, i) => {
     if (j.type === 'motor') cell.q[3 + i] = motorAngle(j, 0);
@@ -41,7 +43,7 @@ export function stepWorld(world) {
   for (const cell of world.cells) updatePose(cell);
   for (const cell of world.cells) sense(world, cell);   // after every pose is current: sensors look at others
   if (world.metab) for (const cell of world.cells) metabolize(world, cell);   // after sensing: starving overrides wiring
-  if (world.grow) { mixNitrogen(world); divideCells(world); removeDead(world); }
+  if (world.grow) { mixNitrogen(world); growCells(world); divideCells(world); removeDead(world); }
   if (world.cells.length > 1) interact(world);
   for (const cell of world.cells) stepCell(cell, t, world.gravity);
   world.steps++;

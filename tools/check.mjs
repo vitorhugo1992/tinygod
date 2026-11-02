@@ -13,7 +13,8 @@ import { buildCell as build } from '../sim/build.js';
 import { volumeOf } from '../sim/shape.js';
 import { moveTo, dragSpot, toOutline, ownPoints, relax } from '../sandbox/mould.js';
 import { DEG } from '../sim/dmath.js';
-import { feedingLevel } from '../sim/sense.js';
+import { feedingLevel, sizeLevel } from '../sim/sense.js';
+import { regrow } from '../sim/grow.js';
 
 const DT = PARAMS.time.dt;
 // A cocked spring (a latched springy joint), for the no-coasting and one-flick laws; not a part in the Build panel
@@ -865,41 +866,70 @@ const runDay = (design, y, seconds, opts = {}) => {
     `Wave tail (${tailL} µm) beating ${fmt(run1, 0)} pJ/s, resting ${fmt(rest, 0)}`);
 }
 
-// 28s. Growth and division (step 1): a full meter splits a cell into two of its design, the same size, touching, not
-// overlapping; each keeps half the pool and half of each store; both meters start again; the tank's cap stops it
+// 28s. Division (step 1): a cell grown to twice its newborn volume splits into two newborns of its design, beside each
+// other, not overlapping; each keeps half the pool and half of each store's energy; the tank's cap stops it
 {
   const design = { body: { radius: 10 }, parts: [{ type: 'inclusion', id: 'st', material: 'starch', at: [0, -4], radius: 4, fill: 0.8 }] };
+  const storeE = (c) => c.pieces[0].inclusions[0].fill * c.pieces[0].inclusions[0].v;
   const split = (cap) => {
     const w = makeWorld(1, { gravity: false, metab: true, grow: true });
     const c = addCell(w, design, 800, 1000, 90);
-    c.grow.E = c.grow.Eneed; c.grow.N = c.grow.Nneed;
-    const E0 = c.metab.E, fill0 = c.pieces[0].inclusions[0].fill;
+    regrow(w, c, 2);
+    const E0 = c.metab.E, S0 = storeE(c);
     const was = PARAMS.grow.cap; PARAMS.grow.cap = cap;
     for (let i = 0; i < PARAMS.grow.every; i++) stepWorld(w);
     PARAMS.grow.cap = was;
-    return { w, c, E0, fill0 };
+    return { w, c, E0, S0 };
   };
-  const { w, c, E0, fill0 } = split(12), full = split(1);
-  const d = w.cells[1];
+  const { w, c, E0, S0 } = split(12), full = split(1);
+  const d = w.cells[1], newborn = addCell(makeWorld(1), design, 0, 0, 0);
   const gap = d && Math.hypot(d.q[0] - c.q[0], d.q[1] - c.q[1]) - 20;
   const halfE = d && Math.abs(c.metab.E + d.metab.E - E0) < 0.05 * E0 && Math.abs(c.metab.E - d.metab.E) < 0.05 * E0;
-  const halfS = d && Math.abs(c.pieces[0].inclusions[0].fill - fill0 / 2) < 0.01 && Math.abs(d.pieces[0].inclusions[0].fill - fill0 / 2) < 0.01;
-  check('a full growth meter divides a cell into two of the same design and size, touching; pool and stores halved; the cap stops it',
-    w.cells.length === 2 && d.design === c.design && d.pieces[0].volume === c.pieces[0].volume && gap > -0.1 && gap < 3
-      && halfE && halfS && c.grow.E < 0.01 * c.grow.Eneed && d.grow.N < 0.01 * d.grow.Nneed && full.w.cells.length === 1 && full.c.waiting === 'tank full',
-    `cells ${w.cells.length}; bodies ${d ? fmt(gap, 2) : '–'} µm apart; pool ${fmt(E0, 0)} -> ${d ? `${fmt(c.metab.E, 0)} + ${fmt(d.metab.E, 0)}` : '–'}; ` +
-    `starch ${fmt(fill0)} -> ${d ? `${fmt(c.pieces[0].inclusions[0].fill)} each` : '–'}; with a cap of 1: ${full.w.cells.length} cell, waits: ${full.c.waiting}`);
-  // the DIVIDE rule: a full cell waits while it doesn't hold (here: "when its starch is more than 90% full"), divides once it does
+  const halfS = d && Math.abs(storeE(c) - S0 / 2) < 0.01 * S0 && Math.abs(storeE(d) - S0 / 2) < 0.01 * S0;
+  check('a cell grown to 2× divides into two newborns of its design, side by side; pool and store energy halved; the cap stops it',
+    w.cells.length === 2 && d.design === c.design && c.size === 1 && d.size === 1 && Math.abs(d.pieces[0].volume - newborn.pieces[0].volume) < 1e-6
+      && Math.abs(c.pieces[0].volume - newborn.pieces[0].volume) < 1e-6 && gap > -0.1 && gap < 8 && halfE && halfS
+      && full.w.cells.length === 1 && full.c.waiting === 'tank full',
+    `cells ${w.cells.length}, sizes ${c.size}× and ${d ? d.size : '–'}×; bodies ${d ? fmt(gap, 2) : '–'} µm apart; pool ${fmt(E0, 0)} -> ${d ? `${fmt(c.metab.E, 0)} + ${fmt(d.metab.E, 0)}` : '–'}; ` +
+    `starch energy ${fmt(S0, 0)} -> ${d ? `${fmt(storeE(c), 0)} + ${fmt(storeE(d), 0)}` : '–'} µm³ full; with a cap of 1: ${full.w.cells.length} cell, waits: ${full.c.waiting}`);
+  // the DIVIDE rule: a grown cell waits while it doesn't hold (here: "when its starch is more than 90% full"), divides once it does
   const ruled = { ...design, parts: [...design.parts, { type: 'rule', id: 'divide', joint: { type: 'divide', controls: [{ sensor: 'starch', min: 0.9, max: 1 }] } }] };
   const w2 = makeWorld(1, { gravity: false, metab: true, grow: true });
   const r = addCell(w2, ruled, 800, 1000, 90);
-  r.grow.E = r.grow.Eneed; r.grow.N = r.grow.Nneed;
+  regrow(w2, r, 2);
   for (let i = 0; i < 2 * PARAMS.grow.every; i++) stepWorld(w2);
   const waited = w2.cells.length === 1 && /DIVIDE rule/.test(r.waiting || '');
   r.pieces[0].inclusions[0].fill = 1;
   for (let i = 0; i < 2 * PARAMS.grow.every; i++) stepWorld(w2);
-  check('a DIVIDE rule holds a full cell back until it holds (none: it divides at once)',
-    waited && w2.cells.length === 2, `starch 80%, rule "starch more than 90%": ${waited ? 'waits' : 'did not wait'}; starch full: ${w2.cells.length} cells`);
+  check('a DIVIDE rule holds a grown cell back until it holds (none: it divides at 2×)',
+    waited && w2.cells.length === 2, `starch 80% of a grown store, rule "starch more than 90%": ${waited ? 'waits' : 'did not wait'}; starch full: ${w2.cells.length} cells`);
+}
+
+// 28x. Growing (author, 2026-11-02): with a growth step's energy and nitrogen banked, a cell grows a tenth of its newborn
+// volume: the body and its rim parts by its width, organelles by half its volume gain; its stores keep their energy
+// (emptier); it reads its Size; held back from dividing, it stops at PARAMS.grow.max
+{
+  const design = { body: { radius: 10 }, parts: [
+    { type: 'inclusion', id: 'st', material: 'starch', at: [0, -4], radius: 4, fill: 0.8 },
+    { type: 'inclusion', id: 'pl', material: 'plastid', at: [0, 5], radius: 3 },
+    { type: 'segment', id: 'sp', at: [10, 0], angle: 0, length: 30, radius: 0.5 },
+    { type: 'rule', id: 'divide', joint: { type: 'divide', controls: [{ sensor: 'feeding', min: 0.5, max: 1 }] } }] };   // never divides
+  const w = makeWorld(1, { gravity: false, metab: true, grow: true });
+  const c = addCell(w, design, 800, 1000, 90);
+  const r0 = c.pieces[0].a, sp0 = c.pieces[1].L, pl0 = c.pieces[0].inclusions[1].v, st = () => c.pieces[0].inclusions[0], S0 = st().fill * st().v, f0 = st().fill;
+  c.grow.E = c.grow.stepE; c.grow.N = c.grow.stepN;
+  for (let i = 0; i < PARAMS.grow.every; i++) stepWorld(w);
+  const one = { size: c.size, r: c.pieces[0].a / r0, sp: c.pieces[1].L / sp0, pl: c.pieces[0].inclusions[1].v / pl0, S: st().fill * st().v, fill: st().fill, left: c.grow.E };
+  regrow(w, c, PARAMS.grow.max - 0.05);
+  c.grow.E = c.grow.Eneed; c.grow.N = c.grow.Nneed;
+  for (let i = 0; i < 3 * PARAMS.grow.every; i++) stepWorld(w);
+  const w1 = Math.cbrt(1.1);
+  check('growing: a step of 10%: the body and its spine by its width, organelles by half its gain; store energy kept; it stops at its largest',
+    Math.abs(one.size - 1.1) < 1e-9 && Math.abs(one.r - w1) < 1e-6 && Math.abs(one.sp - w1) < 1e-6 && Math.abs(one.pl - 1.05) < 1e-3
+      && Math.abs(one.S - S0) < 1e-6 * S0 && one.fill < f0 && one.left < 1e-6 && c.size === PARAMS.grow.max && w.cells.length === 1
+      && Math.abs(sizeLevel(c) - 1) < 1e-9,
+    `after one step: ${fmt(one.size, 2)}×, body radius ×${fmt(one.r, 3)}, spine ×${fmt(one.sp, 3)}, plastid volume ×${fmt(one.pl, 3)}; ` +
+    `starch ${fmt(f0)} -> ${fmt(one.fill)} full (the same energy); bars full near the top: ${c.size}× (its largest), ${w.cells.length} cell`);
 }
 
 // 28u. The peduncle (step 1): its tip latches on another species' body (paying to pierce), never on kin; it drains the
@@ -1000,9 +1030,9 @@ const runDay = (design, y, seconds, opts = {}) => {
   const back = sum() - ref.nitro.c.reduce((a, b) => a + b, 0) * ref.nitro.held;   // its meter's N was set by hand, not taken from this water
   check('a cell starving 60 s in a row dies, sinks, is removed, and gives its nitrogen back to the water',
     starve !== null && dead !== null && Math.abs(dead - starve - PARAMS.grow.die) < 0.5 && w.cells.length === 0 && w.deaths === 1
-      && c.q[1] < lowest && Math.abs(back - (c.grow.Nneed + 2000)) < 0.05 * (c.grow.Nneed + 2000),
+      && c.q[1] < lowest && Math.abs(back - (c.grow.Nbody + 2000)) < 0.05 * (c.grow.Nbody + 2000),
     `starving at ${fmt(starve ?? 0, 1)} s, dead at ${fmt(dead ?? 0, 1)} s, removed by ${fmt(t, 1)} s, ${fmt(lowest - c.q[1], 0)} µm lower; ` +
-    `water +${fmt(back, 0)} N (body ${fmt(c.grow.Nneed, 0)} + meter 2000)`);
+    `water +${fmt(back, 0)} N (body ${fmt(c.grow.Nbody, 0)} + meter 2000)`);
 }
 
 // 28r. Several sensors in one condition: ANY of them reading so is enough, ALL must; the first and the extra ones each

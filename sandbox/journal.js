@@ -4,7 +4,8 @@
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { daylight, lightAt, clock } from '../sim/light.js';
-import { plastidHealth } from '../sim/sense.js';
+import { plastidHealth, sizeLevel } from '../sim/sense.js';
+import { regrow } from '../sim/grow.js';
 
 const TH = PARAMS.tank.h, M = PARAMS.metab, DT = PARAMS.time.dt;
 const EVERY = 1000;          // steps between samples (1 s)
@@ -27,7 +28,8 @@ export function note(world, c) {
   const health = inc.some((i) => i.material === 'plastid') ? plastidHealth(world, c) : null;
   const g = world.grow ? c.grow : null;
   const gE = g ? Math.min(1, g.E / g.Eneed) : null, gN = g ? Math.min(1, g.N / g.Nneed) : null;
-  j.s.push({ t, depth, E, starch, oil, gas, health, sun, up, gE, gN });
+  const size = g ? sizeLevel(c) : null;
+  j.s.push({ t, depth, E, starch, oil, gas, health, sun, up, gE, gN, size });
   if (j.s.length > KEEP) j.s.shift();
   // how squarely each eyespot has faced the light lately (its reading against the light there; ~1 min memory), for the
   // rule maps
@@ -85,8 +87,11 @@ export function note(world, c) {
   if (!eaten && w.eaten) say('the predator let go');
   w.eaten = !!eaten;
   if (c.waiting && c.waiting !== w.waiting) say(`ready to divide, but waits: ${c.waiting}`);
-  if (gE === 1 && w.gE < 1) say(gN === 1 ? 'has the energy for a division: ready to divide' : 'has the energy for a division (nitrogen still short)');
-  if (gN === 1 && w.gN < 1) say(gE === 1 ? 'has the nitrogen for a division: ready to divide' : 'has the nitrogen for a division (energy still short)');
+  if (gE === 1 && w.gE < 1 && gN < 1) say('its energy bar is full: nitrogen is what limits its growth');
+  if (gN === 1 && w.gN < 1 && gE < 1) say('its nitrogen bar is full: energy is what limits its growth');
+  const sz = c.size || 1;
+  for (const k of [2, 4, PARAMS.grow.max]) if (sz >= k - 1e-9 && (w.size || 1) < k - 1e-9) say(k >= PARAMS.grow.max ? `grown to ${k}× its newborn volume: its largest, it grows no more` : `grown to ${k}× its newborn volume${k === 2 ? ': it can divide' : ''}`);
+  w.size = sz;
   Object.assign(w, { starving, floor, top, sun, starch, oil, gE, gN, gen: c.gen || 0, waiting: c.waiting });
 }
 
@@ -105,7 +110,7 @@ export const eventText = (e) => `${fmtH(e.h)} ${e.text}`;
 // at the top), energy (yellow), starch (cream), oil (gold), the float (blue) and plastid health (green); serious
 // moments as red ticks
 const LINES = [['depth', '#e8f0f4', 'depth'], ['E', '#ffd84a', 'energy'], ['starch', '#ece3c4', 'starch'], ['oil', '#f2a93c', 'oil'],
-  ['gas', '#8fd0ff', 'float'], ['health', '#a6e36a', 'plastids'], ['gE', '#ff8fd2', 'growth ⚡'], ['gN', '#d9b46a', 'growth N']];
+  ['gas', '#8fd0ff', 'float'], ['health', '#a6e36a', 'plastids'], ['gE', '#ff8fd2', 'growth ⚡'], ['gN', '#d9b46a', 'growth N'], ['size', '#c9a2ff', 'size']];
 export function drawJournal(ctx, j, x, y, w, h, title) {
   ctx.fillStyle = 'rgba(6,10,18,.88)'; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = '#23324a'; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
@@ -154,6 +159,8 @@ export function forecast(design, from, settings, onProgress, onDone) {
   const w = makeWorld(1, settings);
   w.steps = from.steps;
   const c = addCell(w, design, from.x, from.y, from.angle);
+  if (c.metab && from.share !== undefined) c.metab.E = from.share * c.metab.C;
+  if (from.size > 1) regrow(w, c, from.size);   // as grown as the cell is
   if (c.metab && from.share !== undefined) c.metab.E = from.share * c.metab.C;
   if (from.grow && c.grow) { c.grow.E = from.grow.E * c.grow.Eneed; c.grow.N = from.grow.N * c.grow.Nneed; }
   if (from.nitro && w.nitro) w.nitro.c.set(from.nitro);

@@ -121,11 +121,15 @@ export const PARAMS = {
   // Growth and division (step 1, author 2026-11-01): a meter of two bars, energy and nitrogen; full, the cell divides.
   // Both cost in proportion to the cell's volume; nitrogen comes in through its surface, so smaller cells fill faster.
   grow: {
-    energy: 300,            // pJ per µm³ of cell a division needs (r 10: ~1.26 million, about a good design's wasted surplus)
+    energy: 300,            // pJ per µm³ of cell grown (doubling an r 10 cell: ~1.26 million, about a good design's wasted surplus)
     nitrogen: 1,            // N units per µm³ of cell
+    // growing (author 2026-11-02): the design is the newborn; it grows `step` of its newborn volume at a time (the bars
+    // bank up to a doubling's worth), up to `max` times it; organelles gain `organelles` of the cell's volume gain
+    step: 0.1,
+    max: 8,                 // twice its newborn width: there it stops growing (surplus to its stores)
+    organelles: 0.5,        // grown to 2× the cell, its organelles are 1.5×: it earns less per µm³ (steal or divide)
     uptake: 0.0222,         // N units per µm² of surface per s at the most (r 10: its bar in ~300 s in the rich deep)...
     half: 1,                // ...half of that at this richness (so ~1/10 as fast at the surface)
-    swell: 0.08,            // the cell is drawn this much wider when ready to divide (drawing only)
     cap: 12,                // cells the sandbox tank holds (author 2026-11-02: lowered from 24, full physics is costly); at
                             // the cap a ready cell waits
     every: 100,             // steps between looks for cells ready to divide (and dead ones to remove)

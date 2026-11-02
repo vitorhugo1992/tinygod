@@ -48,7 +48,28 @@ density). **Trochilla was never latched: its four 40 µm oars keep the tube off 
 spines idea working). Balance worries for the author: (a) **a kill pays far more than a division** (half of a rich
 prey's stores: 3.8 million kept from one Bathyscapha, ~3 divisions; real food chains pass on ~10-30%); (b) **plates
 wouldn't have helped**: the price (×3 = 120k) is nothing against a 7.6 million meal or a fed hunter's pool; (c) 8 latches
-on Noctilla took 0 (torn at once or nothing to give), 40k each. (2) **stealing plastids** (the
+on Noctilla took 0 (torn at once or nothing to give), 40k each. **Hunter keeps 20% (author, 2026-11-02; was 50%).** Rerun (same start, code before growing): **day 10: Bathyscapha 4,
+Trochilla 4, Raptilla 1**; Saltella eaten day 1.6 again (its only cell), Noctilla eaten out by day 6.5 (it shares the
+hunter's depth), Caecella died on its own; then the hunters starved on the floor: a predator-prey crash, three species
+left (was two).
+**GROWING CELLS BUILT (2026-11-02; author: "as the cell prospers it grows; the player decides to keep growing or
+divide"; decided one question at a time):** the design is the newborn; sim/grow.js: surplus energy + nitrogen (the
+bars bank up to a doubling's worth, as before) grow it PARAMS.grow.step (10%) of its newborn volume at a time, up to
+PARAMS.grow.max 8× (twice its width; there it stops, surplus to stores); **the body and rim parts grow by its width
+(author: outside parts too); organelles gain half its volume gain** (PARAMS.grow.organelles 0.5; author: "so it has
+incentive to steal plastids and energy from prey"; first plan was organelles fixed, the author: "the cell will
+die"); the nucleus keeps its slots; stores keep their energy (emptier when grown). regrow() rebuilds the cell in place
+(same object: journal, lineage, pad and feed links remapped). **Division** at ≥ 2× when the DIVIDE rule holds (none:
+at 2×), each daughter half the volume (2×: two newborns), half the pool, of each store's energy and of the bars.
+**Size reading** (built-in, -6: "1.5× its newborn volume", zones newborn / grown / big). Death returns grow.Nbody.
+Page: real size drawn (the 8% swell gone), 🌱 1.6× on the clock line, size in the numbers, a violet size line in
+the day graph, "grown to 2× its newborn volume: it can divide" in the log, pill "1.4× GROWING", card "Divides once
+it has doubled", Test a day starts at the cell's size. Checks 28s (rewritten), 28x (53 checks). **Measured, 3 days
+from the floor (no starving except Caecella):** Bathyscapha divided at ~2.4 d (was ~1.3-2.2), Noctilla 1.7×,
+Saltella 1.6×, Raptilla 1.3×, Trochilla 1.3× (deep nights, ~1.8 mm), none divided; **Caecella died on day 1** (its
+rest rule needs oil above 85%; a grown oil store is emptier: the division lesson again). Grown cells are
+energy-limited (Noctilla 1.4×: upkeep +25%, income +15%; bigger stores to refill): doubling ~2× slower than before.
+(2) **stealing plastids** (the
 peduncle's next stage); (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
 already make them; "at division" is only one way, a daughter starting stuck); (4) **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). Scratchpad tools are gone with the

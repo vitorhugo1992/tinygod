@@ -64,9 +64,11 @@ export function plastidHealth(world, cell) {
 // Feeding: 1 while any of its peduncles is latched on prey, else 0 (author, 2026-11-02: a hunter must be able to stop
 // swimming while it feeds, or its own pull tears the tube off)
 export const feedingLevel = (cell) => ((cell.feeders || []).some((f) => f.link) ? 1 : 0);
+// Size: how grown the cell is, 0 newborn to 1 at PARAMS.grow.max times its newborn volume (in words: 1× ... 8×)
+export const sizeLevel = (cell) => ((cell.size || 1) - 1) / (PARAMS.grow.max - 1);
 // A reading by index: a sensor part, or one built in (-1 energy, -2 starch, -3 oil, -4 plastid health, -5 feeding)
 const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ? energyLevel(world, cell)
-  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
+  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
 
 // One condition: is the reading inside its range? (with a little hysteresis)
 function holds(ctl, v) {

@@ -1,12 +1,12 @@
-// Division (step 1, author 2026-11-01/02): when a cell's growth meter is full (both bars), it splits into two cells of
-// exactly its design, the same size: the daughter appears touching it, turned the same way, and each keeps half of
-// the pool and half of every store (a store's fill halves); plastid damage and a chamber's state are shared; both
-// meters start again from zero. It waits while the tank holds PARAMS.grow.cap cells, while it starves, or while there
+// Division (step 1, author 2026-11-01/02): a cell grown to at least twice its newborn volume (grow.js) splits into two
+// cells of its design, each half its volume (divided at 2×: two newborns; at 4×: two of 2×): the daughter appears
+// beside it, turned the same way, and each keeps half of the pool, of every store's energy and of the growth meter;
+// plastid damage and a chamber's state are shared. It waits while the tank holds PARAMS.grow.cap cells, while it starves, or while there
 // is no room beside it (a wall, another cell), or while its DIVIDE rule doesn't hold (a 'rule' part; none: at once).
 import { PARAMS } from './params.js';
 import { DEG } from './dmath.js';
-import { addCell } from './world.js';
 import { updatePose } from './physics.js';
+import { makeCell, regrow } from './grow.js';
 
 const G = PARAMS.grow, TW = PARAMS.tank.w, TH = PARAMS.tank.h, WG = PARAMS.gravity * 1e-6, CYTO = PARAMS.cell.cytoplasm;
 
@@ -69,7 +69,7 @@ function spotFor(world, cell) {
 // Is this cell ready, and allowed, to divide now?
 export function ready(world, cell) {
   const g = cell.grow;
-  if (!g || g.E < g.Eneed || g.N < g.Nneed || cell.dead || cell.metab.starving) return false;
+  if (!g || (cell.size || 1) < 2 - 1e-9 || cell.dead || cell.metab.starving) return false;
   if (cell.divideOk === false) { cell.waiting = 'its DIVIDE rule says not yet'; return false; }
   return true;
 }
@@ -85,20 +85,26 @@ export function divideCells(world) {
     if (world.cells.length >= G.cap) { p.waiting = 'tank full'; continue; }
     const spot = spotFor(world, p);
     if (!spot) { p.waiting = 'no room beside it'; continue; }
-    const d = addCell(world, p.design, p.q[0] + spot[0], p.q[1] + spot[1], p.q[2] / DEG);
-    // the same shape now: every joint as the parent's
-    for (let j = 3; j < p.q.length; j++) d.q[j] = p.q[j];
-    updatePose(d);
-    // half the pool, half of each store; plastid damage and chambers as the parent's
-    p.metab.E /= 2; d.metab.E = p.metab.E;
+    // the spot was found for the cell as big as it is; it shrinks to half, then its daughter appears there
+    const half = p.size / 2, E = p.metab.E, stores = p.pieces[0].inclusions.map((x) => (x.store ? x.fill * x.v : 0));
+    if (!regrow(world, p, half)) { p.waiting = 'no room to divide'; continue; }
+    // half the pool, half of each store's energy, half the meter; the daughter carries the same
+    p.metab.E = Math.min(E / 2, p.metab.C);
+    p.pieces[0].inclusions.forEach((x, i) => { if (x.store) { x.fill = Math.min(1, stores[i] / 2 / x.v); x.wpt.w = (x.density - CYTO) * x.v * x.fill * WG; } });
+    p.grow.E /= 2; p.grow.N /= 2;
+    const d = makeCell(p.design, half);
+    d.q.set(p.q); d.q[0] = p.q[0] + spot[0]; d.q[1] = p.q[1] + spot[1];
+    d.metab.E = p.metab.E; d.grow.E = p.grow.E; d.grow.N = p.grow.N;
     const pi = p.pieces[0].inclusions, di = d.pieces[0].inclusions;
     for (let i = 0; i < pi.length; i++) {
       const a = pi[i], b = di[i];
-      if (a.store) { a.fill /= 2; b.fill = a.fill; for (const x of [a, b]) x.wpt.w = (x.density - CYTO) * x.v * x.fill * WG; }
+      if (a.store) { b.fill = a.fill; b.wpt.w = a.wpt.w; }
       if (a.material === 'plastid') b.damage = a.damage;
       if (a.material === 'chamber') { b.density = a.density; b.target = a.target; b.wpt.w = a.wpt.w; }
     }
-    p.grow.E = p.grow.N = 0;
+    updatePose(d);
+    d.uid = world.nextUid = (world.nextUid || 0) + 1;
+    world.cells.push(d);
     p.gen = (p.gen || 0) + 1; d.gen = p.gen;
     d.mother = p.uid; d.born = world.steps;
     world.births = (world.births || 0) + 1;
