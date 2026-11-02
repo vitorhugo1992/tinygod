@@ -10,11 +10,13 @@ const G = PARAMS.grow, DT = PARAMS.time.dt;
 export function removeDead(world) {
   if (world.steps % G.every) return;
   const old = world.cells;
-  if (!old.some((c) => c.dead && ((world.steps - c.diedAt) * DT >= G.gone || c.q[1] < c.reach + 1))) return;
+  // the dead go after G.gone s or on the floor; one eaten whole at once (it is inside its predator)
+  const goes = (c) => c.dead && (c.eatenBy || (world.steps - c.diedAt) * DT >= G.gone || c.q[1] < c.reach + 1);
+  if (!old.some(goes)) return;
   const keep = [];
   for (const c of old) {
-    if (c.dead && ((world.steps - c.diedAt) * DT >= G.gone || c.q[1] < c.reach + 1)) {
-      if (world.nitro) takeNitrogen(world, c.q[1], -(c.grow.Nbody + c.grow.N));   // rotting: its nitrogen back to the water
+    if (goes(c)) {
+      if (world.nitro && !c.eatenBy) takeNitrogen(world, c.q[1], -(c.grow.Nbody + c.grow.N));   // rotting: its nitrogen back to the water
       for (const p of c.pads) p.link = null;
       world.deaths = (world.deaths || 0) + 1;
       (world.gone ||= []).push(c);   // for the viewer; it empties the list

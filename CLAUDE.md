@@ -152,7 +152,18 @@ chains don't float better (author agreed: a chain sinks like its cells in this p
 faster** and mostly **defend**: **drag shielding (author: yes, simple):** a cell joined to kin feels less drag (~15%
 less with one neighbour, ~25% with two; to tune), so chains of swimmers outpace singles and passive chains sink a bit
 faster. **Later, with moving water:** chains in currents take layouts that maximise photosynthesis (author); needs
-moving water and self-shading (light today depends on depth only)); (4) **engulfing, if possible** (only a
+moving water and self-shading (light today depends on depth only)); (4) ~~engulfing~~ **ENGULFING BUILT (2026-11-02; decided with the author: a mouth, gape-limited;
+digested over time with NO physical food vacuole (lowest bug risk; author: "wont engulf cause lots of bugs?"), but
+drawn shrinking inside (author: "make it disappear slowly from the inside"); and the predator needs ROOM (author:
+"won't the predator need a lot of space to swallow"): the prey's volume must fit its free cytoplasm):** a 'mouth' part
+on the rim (Hunting: "Mouth"; joint { type: 'engulf' }, rule "Engulfs when…"); interact.js swallows another species'
+cell touching it (PARAMS.engulf.reach 2 µm) if prey radius ≤ gape 0.5 × its own and prey volume ≤ its free cytoplasm,
+not while digesting; the prey is marked eatenBy and dead, death.js removes it at once (its nitrogen goes to the
+predator, not the water; links cleaned as for any removal); metab.js digest(): over PARAMS.engulf.time 60 s the
+predator keeps keep 20% of its energy (pool + stores) and keepN 50% of its nitrogen. Drawn: the mouth a dark gap with
+a pale lip, the meal a brown body shrinking and fading inside; pill DIGESTING / READY / OFF; log "swallowed a X
+whole", "digested a X: kept Nk pJ". Found: a mouth adds no reach (the near test needed + reach). Check 28ae (59
+checks). Seen in the page. Was: **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). **PRIORITY (author, 2026-11-02: "important"): pads that sense and attract, the Neighbours
 reading, and a nitrogen store ("seems good").** **Nitrogen store DROPPED for now (author, 2026-11-02, after weighing depth vs
 confusion):** the growth meter's N bar already banks a doubling's worth (migration works through it); a store only

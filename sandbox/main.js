@@ -574,7 +574,7 @@ function sentence(targets, tappable, where) {
   const stWords = () => st.map((c, i) => (i ? ' or ' : '') + term(c, 'stop', i)).join('');
   const add = (list, label, title) => (tappable ? ` <button class="add" data-add="${list}" title="${title}">${label}</button>` : '');
   const never = (t) => `<span class="never">${t}</span>`;
-  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'holds' ? 'Always holds' : verb === 'bursts' ? 'Never bursts' : verb === 'divides' ? 'Divides as soon as it has doubled' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
+  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'holds' ? 'Always holds' : verb === 'bursts' ? 'Never bursts' : verb === 'engulfs' ? 'Engulfs whenever it touches a small enough cell' : verb === 'divides' ? 'Divides as soon as it has doubled' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
   if (verb === 'floats') return `<div class="line">Floats ${go.length ? `when ${goWords()}` : never('never')}.${add('go', go.length ? '+ and…' : '+ when…', 'A condition that floats it')}</div>
     <div class="line">Sinks ${st.length ? `when ${stWords()}` : never('never')}.${add('stop', st.length ? '+ or…' : '+ when…', 'A condition that sinks it (sinking wins)')}</div>
     <div class="line small">Sinking wins; neither: neutral, no cost.</div>`;
@@ -583,8 +583,8 @@ function sentence(targets, tappable, where) {
     if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
     return `<div class="line">${s}.${add('go', '+ and…', 'Wait to divide until this holds too (e.g. after dawn)')}${add('stop', '+ unless…', 'Never divide while this holds')}</div>`;
   }
-  const V = { runs: 'Runs', fires: 'Fires', rests: 'Rests', feeds: 'Feeds', holds: 'Holds', bursts: 'Bursts' }[verb];
-  const none = verb === 'runs' ? never('all the time') : verb === 'holds' ? never('always') : verb === 'bursts' ? never('never') : verb === 'feeds' ? never('whenever it touches another species') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
+  const V = { runs: 'Runs', fires: 'Fires', rests: 'Rests', feeds: 'Feeds', holds: 'Holds', bursts: 'Bursts', engulfs: 'Engulfs' }[verb];
+  const none = verb === 'runs' ? never('all the time') : verb === 'holds' ? never('always') : verb === 'bursts' ? never('never') : verb === 'engulfs' ? never('whenever it touches a small enough cell') : verb === 'feeds' ? never('whenever it touches another species') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
   let s = `${V} ${go.length ? `${verb === 'holds' ? 'while' : 'when'} ${goWords()}` : none}`;
   if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
   if (verb === 'runs') {
@@ -594,6 +594,7 @@ function sentence(targets, tappable, where) {
   }
   s += '.';
   if (verb === 'rests') s += ' <span class="small">(upkeep and income at 40%, flagella stop)</span>';
+  if (verb === 'engulfs') s += ` <span class="small">(swallows another species' cell touching its mouth whole, if it is at most half as wide as this one and fits in its free room; digests it over a minute)</span>`;
   if (verb === 'bursts') s += ` <span class="small">(dies, poisoning other species within ${PARAMS.toxin.range} µm: kin are immune)</span>`;
   if (verb === 'holds') s += ` <span class="small">(${m.kind === 'mucus' ? 'sticks to anything it touches, weakly' : 'joins a kin pad it touches, and its daughter at division: chains'}; while this fails it lets go and won't stick)</span>`;
   if (verb === 'feeds') s += ` <span class="small">(latches on another species' body it touches: ${PARAMS.feed.pierce * m.length / 1000}k pJ to pierce; lets go when this stops holding)</span>`;
@@ -639,9 +640,9 @@ function sensorList(except) {
     list.push({ id: 'feeding', name: 'feeding (its peduncle latched on prey)', short: 'Feeding', kind: 'feeding' });
   return list;
 }
-const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.type === 'divide' || m.joint.type === 'hold' || m.joint.type === 'lyse' || m.joint.latched));
+const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.type === 'divide' || m.joint.type === 'hold' || m.joint.type === 'lyse' || m.joint.type === 'engulf' || m.joint.latched));
 // how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part)
-const verbOf = (m) => (m.joint.type === 'divide' ? 'divides' : m.joint.type === 'lyse' ? 'bursts' : m.joint.type === 'hold' ? 'holds' : m.joint.type === 'feed' ? 'feeds' : m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+const verbOf = (m) => (m.joint.type === 'divide' ? 'divides' : m.joint.type === 'engulf' ? 'engulfs' : m.joint.type === 'lyse' ? 'bursts' : m.joint.type === 'hold' ? 'holds' : m.joint.type === 'feed' ? 'feeds' : m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
 // A part's rule as the card shows it: GO groups (all of a group must hold: AND; any group will do: OR) and STOP
 // conditions (any one stops the part, whatever the GO groups say: the override). Stored as one list: GO conditions in
 // their groups (or: true starts a group), then STOP ones (stop: true).
@@ -1076,14 +1077,14 @@ function drawRunMap(cv, m, R) {
   ctx2.putImageData(img, 0, 0);
   const n = MAP_W * MAP_H, pc2 = (v) => `<b>${Math.round(v / n * 100)}%</b>`;
   const what = verb === 'floats' ? `Floats in ${pc2(fl)}, sinks in ${pc2(sk)} of the map; neutral elsewhere`
-    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : verb === 'feeds' ? 'Would feed' : verb === 'holds' ? 'Holds' : verb === 'bursts' ? 'Would burst' : verb === 'divides' ? 'Would divide (meter full)' : 'Fires'} in ${pc2(on)} of the map`;
+    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : verb === 'feeds' ? 'Would feed' : verb === 'holds' ? 'Holds' : verb === 'bursts' ? 'Would burst' : verb === 'engulfs' ? 'Would engulf' : verb === 'divides' ? 'Would divide (meter full)' : 'Fires'} in ${pc2(on)} of the map`;
   return `${what}${live ? '' : ' (select a cell of this design for its eyespots\' facing and its day)'}.`;
 }
 // the map under a card's sentence: a canvas, the axes, a dot for the selected cell now (moved every frame)
 function runMapEl(targets, R) {
   const m = targets[0], k0 = design.parts.indexOf(m);
   const box = document.createElement('div'); box.className = 'rmap';
-  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : verbOf(m) === 'feeds' ? 'WOULD FEED' : verbOf(m) === 'holds' ? 'HOLDS' : verbOf(m) === 'bursts' ? 'WOULD BURST' : verbOf(m) === 'divides' ? 'WOULD DIVIDE' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
+  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : verbOf(m) === 'feeds' ? 'WOULD FEED' : verbOf(m) === 'holds' ? 'HOLDS' : verbOf(m) === 'bursts' ? 'WOULD BURST' : verbOf(m) === 'engulfs' ? 'WOULD ENGULF' : verbOf(m) === 'divides' ? 'WOULD DIVIDE' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
     <div class="mbox"><canvas width="${MAP_W}" height="${MAP_H}"></canvas><span class="ml t">surface</span><span class="ml b">2 mm</span>
     <span class="mx" style="left:25%">06</span><span class="mx" style="left:50%">12</span><span class="mx" style="left:75%">18</span><i class="mdot" data-mapdot="${k0}"></i></div><div class="cap"></div>`;
   box.redraw = () => { box.querySelector('.cap').innerHTML = drawRunMap(box.querySelector('canvas'), m, R || canon(m)); };
@@ -1154,6 +1155,8 @@ function liveRule(live, k) {
   const pd = live.pads && live.pads.find((x) => x.part === k);   // a pad: joined, free, or letting go (its rule fails)
   if (pd) return { ctls: pd.controls || null, state: pd.link ? 'JOINED' : pd.go ? 'FREE' : 'LETS GO', cls: pd.link ? 'on' : '' };
   if (fd) return { ctls: fd.controls || null, state: fd.link ? 'FEEDING' : fd.go && live.cantPierce ? 'TOO DEAR' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
+  const mo = live.mouths && live.mouths.find((x) => x.part === k);   // a mouth: digesting, ready, or off
+  if (mo) return { ctls: mo.controls || null, state: live.meal ? 'DIGESTING' : mo.go ? 'READY' : 'OFF', cls: live.meal ? 'on' : '' };
   const tx = live.pieces[0].inclusions.find((x) => x.part === k && x.toxin);   // a toxin sac: armed, or burst
   if (tx) return { ctls: tx.controls || null, state: live.dead && live.burst ? 'BURST' : tx.controls ? 'ARMED' : 'SAFE', cls: live.burst ? 'on' : '' };
   const ch = live.pieces[0].inclusions.find((x) => x.part === k && x.material === 'chamber');
@@ -2295,6 +2298,17 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     ctx.fillStyle = lit ? on : off;
     ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2); ctx.fill();
   }
+  for (const mo of c.mouths || []) {   // a mouth: a dark gap in the wall with a pale lip
+    const [px, py] = padWorld(c, mo), r = Math.max(1.6 * s, 3);
+    ctx.fillStyle = '#1a0d14'; ctx.strokeStyle = '#e8b3c8'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(X(px), Y(py), r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+  if (real.meal) {   // a swallowed cell, shrinking and fading as it is digested
+    const left = 1 - real.meal.t / PARAMS.engulf.time, rr = real.meal.r * Math.sqrt(Math.max(left, 0));
+    ctx.globalAlpha = 0.25 + 0.55 * left; ctx.fillStyle = '#8a6a3c'; ctx.strokeStyle = '#d8c39a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(X(c.cx[0]), Y(c.cy[0]), Math.max(rr * s, 1), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   for (const pad of c.pads) {
     const [px, py] = padWorld(c, pad);
     ctx.strokeStyle = COLOR[pad.kind]; ctx.lineWidth = 1.5;
@@ -2824,6 +2838,7 @@ const PART_ICONS = {
   'Energy store': ['#ece3c4', 'C17 12 7|M11 14.5 Q17 13 23 14.5 L23 16 Q17 21 11 16 Z*'],
   'Buoyancy chamber': ['#7cb0ff', 'C17 12 8*|M13 8 l2 0|M19 9 l1 0|M15 14 l1 0'],
   'Toxin sac': ['#d0508a', 'C17 12 8*|M13 9 l8 6|M21 9 l-8 6'],
+  'Mouth (engulfs)': ['#e8b3c8', 'M6 12 Q17 0 28 12 Q17 24 6 12|C17 12 3*'],
   'Pad': ['#e070ff', 'M5 18 Q17 4 29 18|M8 20 L26 20'],
   'Peduncle (feeds on others)': ['#ff6b8a', 'C5 12 3*|M8 12 L27 12|M27 8 L31 12 L27 16'],
   'Light sensor (eyespot)': ['#ff8a3c', 'C17 12 5*|M7 6 L11 9|M17 2 L17 5|M27 6 L23 9'],
@@ -2852,7 +2867,7 @@ const SHORT = {
   'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity',
   'Energy store': 'Energy store', 'Buoyancy chamber': 'Buoyancy chamber', 'Statolith (which way is up)': 'Statolith',
-  'Nutrient sensor': 'Nutrients', 'Vacuole (store or float)': 'Vacuole', 'Toxin sac': 'Toxin sac',
+  'Nutrient sensor': 'Nutrients', 'Vacuole (store or float)': 'Vacuole', 'Toxin sac': 'Toxin sac', 'Mouth (engulfs)': 'Mouth',
 };
 // shown in four rows: the small categories outside the body share one
 const SHOWN = {};

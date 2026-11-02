@@ -193,6 +193,31 @@ export function interact(world) {
     }
   }
 
+  // mouths: swallow another species' cell touching one whole, if it fits the gape (metab.js digests it; death.js removes it)
+  const E = PARAMS.engulf;
+  for (const A of cells) {
+    if (A.dead || A.meal || !A.mouths || !A.mouths.length) continue;
+    // room for the meal (author: "won't the predator need a lot of space to swallow"): its free cytoplasm
+    const free = A.pieces[0].volume - A.pieces[0].inclusions.reduce((t, x) => t + x.v, 0);
+    for (const mo of A.mouths) {
+      if (!mo.go || A.meal) continue;
+      const [mx, my] = padWorld(A, mo);
+      for (const B of cells) {
+        if (B === A || B.eatenBy || B.species === A.species || B.pieces[0].a > E.gape * A.pieces[0].a || B.pieces[0].volume > free) continue;
+        const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach + E.reach;   // (a mouth is no piece: it adds no reach)
+        if (dx * dx + dy * dy > r * r || !surfaceNear(B, mx, my, E.reach, 0)) continue;
+        let energy = B.metab ? B.metab.E : 0;
+        for (const s of B.pieces[0].inclusions) if (s.store) energy += s.fill * s.v * PARAMS.metab[s.store].energy;
+        const N = B.grow ? B.grow.Nbody + B.grow.N : 0;
+        A.meal = { prey: B.species, energy, N, t: 0, r: B.pieces[0].a, L: B.pieces[0].L };
+        A.lastSwallow = { prey: B.species, step: world.steps };
+        B.eatenBy = A.species; B.dead = true; B.diedAt = world.steps; B.diedWhy = `eaten whole by a ${A.species}`;
+        for (const l of world.links) if (cells[l.a] === B || cells[l.b] === B) l.grace = 0;
+        break;
+      }
+    }
+  }
+
   // free kin pads gently pull free kin pads of their species within PARAMS.pads.attract (kin find each other)
   for (let a = 0; a < cells.length; a++) {
     const A = cells[a];

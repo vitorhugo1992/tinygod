@@ -1189,6 +1189,41 @@ const runDay = (design, y, seconds, opts = {}) => {
     `nitrogen for a doubling ${fmt(plain.grow.Nneed, 0)} -> ${fmt(sacked.grow.Nneed, 0)} with the sac`);
 }
 
+// 28ae. Engulfing (author, 2026-11-02): a mouth swallows another species' cell touching it whole if it is at most half
+// as wide and fits in the predator's free room; the prey leaves the tank (out of its chain cleanly) and is digested over
+// PARAMS.engulf.time, the predator keeping its share; too wide, a packed predator, or kin: no
+{
+  const pred = (packed) => ({ species: 'eater', body: { radius: 20 }, parts: [{ type: 'mouth', id: 'm', at: [20, 0], joint: { type: 'engulf' } },
+    ...(packed ? [{ type: 'inclusion', material: 'starch', at: [0, 0], radius: 19.3, fill: 1 }] : [])] });
+  const prey = (species, r, pads) => ({ species, body: { radius: r }, parts: pads ? [{ type: 'pad', id: 'pf', at: [r, 0], kind: 'kin', joint: { type: 'hold' } }, { type: 'pad', id: 'pb', at: [-r, 0], kind: 'kin', joint: { type: 'hold' } }] : [] });
+  const meet = (p, q, opts = {}) => {
+    const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+    const A = addCell(w, p, 800, 1000, 0);
+    A.metab.C = 1e7; A.metab.E = 0.5e7;
+    const B = addCell(w, q, 800 + 20 + q.body.radius + 1, 1000, 0);
+    B.metab.C = B.metab.E = 1e6;
+    let mate = null;
+    if (opts.chain) {   // a kin joined behind it
+      mate = addCell(w, q, B.q[0] + 2 * q.body.radius + 0.5, 1000, 0);
+      const L = { a: 1, b: 2, padA: B.pads[0], padB: mate.pads[1], holds: PARAMS.pads.kinBreak }; B.pads[0].link = L; mate.pads[1].link = L; w.links.push(L);
+    }
+    const E0 = A.metab.E;
+    for (let i = 0; i < 300; i++) stepWorld(w);
+    const swallowed = !w.cells.includes(B), digesting = !!A.meal;
+    for (let i = 0; i < (PARAMS.engulf.time + 1) * 1000; i++) stepWorld(w);
+    return { w, A, swallowed, digesting, gained: A.metab.E - E0, done: !A.meal, links: w.links.length, mateAlive: mate ? w.cells.includes(mate) && !mate.dead : null };
+  };
+  const control = meet(pred(false), prey('p', 8)), idle = (() => { const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true }); const A = addCell(w, pred(false), 800, 1000, 0); A.metab.C = 1e7; A.metab.E = 0.5e7; const E0 = A.metab.E; for (let i = 0; i < (PARAMS.engulf.time + 1) * 1000 + 300; i++) stepWorld(w); return A.metab.E - E0; })();
+  const small = control, wide = meet(pred(false), prey('p', 12)), full = meet(pred(false), prey('p', 8)), packed = meet(pred(true), prey('p', 9.5)), roomy = meet(pred(false), prey('p', 9.5)), kin = meet(pred(false), { ...prey('eater', 8) });
+  const chain = meet(pred(false), prey('p', 8, true), { chain: true });
+  const want = PARAMS.engulf.keep * 1e6;   // the prey's pool (no stores)
+  check('engulfing: a small enough prey touching the mouth is swallowed and digested (its share kept); too wide, a packed predator, or kin: no; out of a chain cleanly',
+    small.swallowed && small.digesting && small.done && Math.abs(small.gained - idle - want) < 0.3 * want && !wide.swallowed && !packed.swallowed && roomy.swallowed && !kin.swallowed
+      && chain.swallowed && chain.links === 0 && chain.mateAlive,
+    `r 8 prey: ${small.swallowed ? 'swallowed' : 'not'}, kept ${fmt((small.gained - idle) / 1000, 0)}k pJ over ${PARAMS.engulf.time} s (expected ~${fmt(want / 1000, 0)}k); r 12: ${wide.swallowed ? 'swallowed' : 'too wide'}; ` +
+    `r 9.5 prey: an empty predator ${roomy.swallowed ? 'swallows it' : 'no'}, a packed one ${packed.swallowed ? 'swallows it' : 'has no room'}; kin: ${kin.swallowed ? 'swallowed' : 'spared'}; from a chain: ${chain.swallowed ? 'swallowed' : 'not'}, links left ${chain.links}, its mate ${chain.mateAlive ? 'fine' : 'gone'}`);
+}
+
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's
 // share and its meter's) goes back to the water
 {

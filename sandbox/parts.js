@@ -135,6 +135,8 @@ export const PART_TEMPLATES = {
   'Peduncle (feeds on others)': (body, deg, id, size, tilt, depth, feels, len = PARAMS.feed.length) => [
     { type: 'segment', id, label: 'Peduncle', at: surfacePoint(body, deg), angle: deg + tilt, length: len,
       radius: PARAMS.feed.radius, material: 'protein', joint: { type: 'feed' } }],
+  // a mouth (author, 2026-11-02, engulfing): swallows another species' cell touching it whole, if it fits the gape
+  'Mouth (engulfs)': (body, deg, id) => [{ type: 'mouth', id, label: 'Mouth', at: surfacePoint(body, deg), joint: { type: 'engulf' } }],
   // one pad: sticks to its own kind only (kin), or to anything (mucus)
   'Pad': (body, deg, id, size, tilt, depth, feels, len, strength, kind = 'kin') =>
     [{ type: 'pad', id, label: kind === 'mucus' ? 'Mucus pad' : 'Kin pad', at: surfacePoint(body, deg), kind, joint: { type: 'hold' } }],   // its rule: HOLDS while… (chains)
@@ -236,6 +238,7 @@ export const CONTROLS = {
   'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), sizeLabel: 'Sensitivity', feels: true, sizeDefault: 10 },
   'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },
   'Pad': { sticks: true },
+  'Mouth (engulfs)': { tip: () => `Swallows another species' cell touching it whole, if that cell is at most half as wide as this one and fits in its free room (a packed cell can't eat; spines, chains, plates and size protect prey). It digests it over a minute, keeping ${Math.round(100 * PARAMS.engulf.keep)}% of its energy and half its nitrogen; it can't swallow again meanwhile. Its rule: ENGULFS when…` },
   'Peduncle (feeds on others)': { tilt: true, length: { min: 10, max: 80, step: 5, def: PARAMS.feed.length },
     tip: () => `Latches on another species' body it touches and drains its energy and nitrogen, keeping ${Math.round(100 * PARAMS.feed.keep)}% of it. Each latch costs ${PARAMS.feed.pierce / 1000}k pJ per µm of tube (longer reaches past spines, costs more); the link snaps if pulled hard (a spring jump). Its rule: FEEDS when…` },
   'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, pigment: true, sizeDefault: 50, ...ROD },   // ~11% of the cell: enough for a day
@@ -265,7 +268,7 @@ export const CATEGORIES = {
   'Escapes': ['Burst organ (escape)'],   // the spring (template name kept so old designs edit); the ejectisome was removed
   'Inside the cell': ['Nucleus (the brain)', 'Plastid (makes energy)', 'Energy store', 'Buoyancy chamber', 'Toxin sac'],
   'Pads': ['Pad'],
-  'Hunting': ['Peduncle (feeds on others)'],
+  'Hunting': ['Peduncle (feeds on others)', 'Mouth (engulfs)'],
   'Life cycle': [],   // the Division card (a rule, nothing to build: every design has one)
   'Sensors': ['Light sensor (eyespot)', 'Statolith (which way is up)', 'Feeler', 'Nutrient sensor'],
 };
@@ -275,6 +278,7 @@ export function categoryOf(p) {
   if (p.type === 'rule') return 'Life cycle';
   if (p.type === 'inclusion') return p.material === 'statolith' ? 'Sensors' : 'Inside the cell';
   if (p.type === 'pad') return 'Pads';
+  if (p.type === 'mouth') return 'Hunting';
   if (p.type === 'sensor') return 'Sensors';
   const j = p.joint && p.joint.type;
   if (j === 'motor') return p.joint.burst ? 'Escapes' : 'Flagella';

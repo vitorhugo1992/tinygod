@@ -133,8 +133,18 @@ function burst(world, cell) {
   }
 }
 
+// Digesting a swallowed cell: its energy and nitrogen paid out over PARAMS.engulf.time, the predator keeping its share
+function digest(cell) {
+  const meal = cell.meal, E = P.engulf, f = DT / E.time;
+  cell.metab.E += meal.energy * f * E.keep;
+  if (cell.grow) cell.grow.N = Math.min(cell.grow.Nneed, cell.grow.N + meal.N * f * E.keepN);
+  meal.t += DT;
+  if (meal.t >= E.time) { cell.lastMeal2 = { prey: meal.prey, energy: meal.energy * E.keep }; cell.meal = null; }
+}
+
 export function metabolize(world, cell) {
   const m = cell.metab, body = cell.pieces[0];
+  if (cell.meal && !cell.dead) digest(cell);
   if (!cell.dead && body.inclusions.some((i) => i.toxin && i.go)) burst(world, cell);
   if (cell.dead) {   // nothing earned or spent; still, and its chambers drift neutral (sim/death.js removes it)
     m.E = 0; m.starving = true; m.income = m.motors = m.pumps = m.repair = m.chamber = 0; cell.resting = false;

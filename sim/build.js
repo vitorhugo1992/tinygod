@@ -206,7 +206,8 @@ export function buildCell(design, opts = {}) {
   const pieces = [];
   const joints = [];
   const pads = [];
-  const feeders = [];    // peduncles: { piece, x (its tip), y, r (mouth), part, controls, go, link }
+  const feeders = [];
+  const mouths = [];     // engulfing: { piece, x, y, part, controls, go }    // peduncles: { piece, x (its tip), y, r (mouth), part, controls, go, link }
   const sensors = [];
   const controls = [];   // [joint, control] pairs, resolved once every sensor is known
   const rest = { controls: null };   // the nucleus's REST rule (joint: { type: 'rest', controls } on the nucleus)
@@ -325,6 +326,10 @@ export function buildCell(design, opts = {}) {
         divideRule.part = design.parts.indexOf(part);
         if (controlsOf(part.joint).length) controls.push([divideRule, controlsOf(part.joint)]);
       }
+    } else if (part.type === 'mouth') {   // a mouth (engulfing): ENGULFS when… (no rule: whenever it touches a small enough cell)
+      const mo = { piece: parent, x, y, part: design.parts.indexOf(part), go: true };
+      mouths.push(mo);
+      if (part.joint && controlsOf(part.joint).length) controls.push([mo, controlsOf(part.joint)]);
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
       if (kind !== 'kin' && kind !== 'mucus') throw new Error(`unknown pad kind: ${kind}`);
@@ -368,7 +373,7 @@ export function buildCell(design, opts = {}) {
 
   const np = pieces.length;
   return {
-    design, pieces, joints, pads, feeders, sensors, n, colTurn, reach, rest, resting: false, divideRule, divideOk: true,
+    design, pieces, joints, pads, feeders, mouths, sensors, n, colTurn, reach, rest, resting: false, divideRule, divideOk: true,
     species: design.species || design.name || 'A',
     ext: [],                 // this step's contacts and pad pulls from other cells (interact.js)
     jointPiece: Int32Array.from(joints.map((j) => j.piece)),

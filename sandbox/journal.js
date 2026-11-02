@@ -69,6 +69,10 @@ export function note(world, c) {
   if (c.dead && !w.dead) say(c.burst ? `burst itself: its toxin poisoned ${c.burst.hit} cell${c.burst.hit === 1 ? '' : 's'} of other species close by` : `died: ${c.diedWhy || 'starved'} (${Math.round(depth)} µm deep, ${Math.round(PARAMS.grow.die)} s without energy)`, true);
   if (c.poisoned && c.poisoned !== w.poisoned) say(`poisoned by a ${c.poisoned.by} bursting close by: lost ${Math.round(c.poisoned.lost / 1000)}k pJ, its plastids damaged`, true);
   w.poisoned = c.poisoned;
+  if (c.lastSwallow && c.lastSwallow !== w.swallow) say(`swallowed a ${c.lastSwallow.prey} whole: digesting it`);
+  w.swallow = c.lastSwallow;
+  if (c.lastMeal2 && c.lastMeal2 !== w.meal2) say(`digested a ${c.lastMeal2.prey}: kept ${Math.round(c.lastMeal2.energy / 1000)}k pJ`);
+  w.meal2 = c.lastMeal2;
   w.dead = !!c.dead;
   // the peduncle: latching, letting go, being fed on
   const feeding = (c.feeders || []).find((f) => f.link);

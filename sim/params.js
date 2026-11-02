@@ -135,6 +135,17 @@ export const PARAMS = {
     damage: 10,             // ... and half the plastid health of a same-size victim
     nitrogen: 2,
   },
+  // Engulfing (author 2026-11-02): a Mouth on the rim swallows another species' cell touching it whole, if the prey's body
+  // is at most `gape` of the predator's width and its volume fits in the predator's free cytoplasm (room for the meal);
+  // the prey leaves the tank and is digested over `time` s (drawn shrinking
+  // inside), the predator keeping `keep` of its energy and `keepN` of its nitrogen; it can't swallow while digesting
+  engulf: {
+    gape: 0.5,              // prey radius at most this share of the predator's
+    reach: 2,               // µm from the mouth to the prey's body
+    time: 60,               // s to digest a meal
+    keep: 0.2,              // share of the prey's energy kept (as the peduncle's)
+    keepN: 0.5,             // share of its nitrogen kept
+  },
   // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): every `every` s a peduncle stays latched,
   // the prey's biggest plastid that fits in the thief moves through the tube (the prey lives on without it, and rebuilds
   // it from its growth meter before growing further); a prey drained to death gives up the rest that fit (round, at

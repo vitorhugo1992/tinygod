@@ -163,6 +163,8 @@ export function sense(world, cell) {
   }
   // peduncles: FEEDS when… (no rule: always)
   for (const f of cell.feeders) f.go = f.controls ? holdsAll(world, cell, f.controls) : true;
+  // mouths: ENGULFS when… (no rule: always)
+  for (const mo of cell.mouths || []) mo.go = mo.controls ? holdsAll(world, cell, mo.controls) : true;
   // pads: HOLDS while… (no rule: always)
   for (const p of cell.pads) p.go = p.controls ? holdsAll(world, cell, p.controls) : true;
   // division: DIVIDES when… (no rule: whenever its meter is full)
