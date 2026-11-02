@@ -12,8 +12,11 @@ division (two identical cells, cap 12); death (60 s starving; nitrogen returned)
 the first contest (Claude's five species, 10 days: Bathyscapha, Noctilla, Saltella 8, Trochilla 4, Caecella extinct);
 **no grazers** and **the glass wall goes** (author); the **peduncle** (drains energy and nitrogen, keeps half; length
 10-80 µm, 2,000 pJ per µm to pierce); the **DIVIDE rule** (Division card). 50 checks pass. **Next, agreed order:**
-(1) **the population graph** (counts per species over time in the sandbox, so contests can be watched; Claude's
-recommendation, the author said "do it if quick, else tomorrow"); (2) **the armoured wall** (replaces glass; design it
+(1) ~~the population graph~~ **BUILT (2026-11-02, next chat):** sandbox/journal.js census(world) counts living cells per
+species every 5 s (world.census { s, colors }, ten days kept, carried through rebuilds like births); drawCensus draws
+it in the graph strip (a stepped line per species in its own colour, a little apart so equal counts show, nights
+shaded, days along the bottom, counts now in the legend, births · deaths); **tap the strip to switch** "the last
+day ⇄" / "population ⇄" (main.js graphPop, graphBox); seen in the page at phone size; (2) **the armoured wall** (replaces glass; design it
 with the author first, one question at a time); then, from the queue: chains at division (kin defence), stealing
 plastids (the peduncle's next stage), engulfing, toxins, a contest with a hunter. Scratchpad tools are gone with the
 chat: for headless page tests write a CDP script (headless Edge, --remote-debugging-port, Network.setCacheDisabled or
