@@ -90,7 +90,9 @@ Measured: a newborn Wave-tail hunter (r 8) kept 1 of a prey's 2 plastids, grown 
 way: **a drained prey in light never starves** (its own plastids refill its pool every step: the hunter only taps its
 income) and an oil prey only trickles: kills happen in the dark or on store-less prey.
 (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
-already make them; "at division" is only one way, a daughter starting stuck); (4) **engulfing, if possible** (only a
+already make them; "at division" is only one way, a daughter starting stuck; **what chains should offer (author,
+2026-11-02): protection from predators, more buoyancy, cells in a chain trading nutrients between themselves, more
+resting, etc.**; design one question at a time); (4) **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). Scratchpad tools are gone with the
 chat: for headless page tests write a CDP script (headless Edge, --remote-debugging-port, Network.setCacheDisabled or
 the profile caches main.js) and kill the Edge processes after; contests run in Node with PARAMS.grow.cap raised.
