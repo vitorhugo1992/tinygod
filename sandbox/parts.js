@@ -232,7 +232,7 @@ export const CONTROLS = {
   'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },
   'Pad': { sticks: true },
   'Peduncle (feeds on others)': { tilt: true, length: { min: 10, max: 80, step: 5, def: PARAMS.feed.length },
-    tip: () => `Latches on another species' body it touches and drains its energy and nitrogen, keeping half. Each latch costs ${PARAMS.feed.pierce / 1000}k pJ per µm of tube (longer reaches past spines, costs more); the link snaps if pulled hard (a spring jump). Its rule: FEEDS when…` },
+    tip: () => `Latches on another species' body it touches and drains its energy and nitrogen, keeping ${Math.round(100 * PARAMS.feed.keep)}% of it. Each latch costs ${PARAMS.feed.pierce / 1000}k pJ per µm of tube (longer reaches past spines, costs more); the link snaps if pulled hard (a spring jump). Its rule: FEEDS when…` },
   'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, pigment: true, sizeDefault: 50, ...ROD },   // ~11% of the cell: enough for a day
   'Starch granule (quick store, heavy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor': { feels: true },

@@ -77,7 +77,7 @@ export function note(world, c) {
   if (c.cantPierce) w.cantPierce = c.cantPierce.prey; else if (feeding) w.cantPierce = null;
   if (!feeding && w.feeding && c.lastMeal) {
     const why = { drained: 'nothing left', died: 'it died', rule: 'its rule let go', torn: 'torn off' }[c.lastMeal.why];
-    say(`let go of a ${c.lastMeal.prey} (${why}): took ${Math.round(c.lastMeal.took / 1000)}k pJ, kept half`);
+    say(`let go of a ${c.lastMeal.prey} (${why}): took ${Math.round(c.lastMeal.took / 1000)}k pJ, kept ${Math.round(100 * PARAMS.feed.keep)}%`);
   }
   w.feeding = !!feeding;
   const eaten = (world.links || []).find((l) => l.feed && world.cells[l.b] === c);

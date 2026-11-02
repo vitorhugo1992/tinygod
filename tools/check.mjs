@@ -903,7 +903,7 @@ const runDay = (design, y, seconds, opts = {}) => {
 }
 
 // 28u. The peduncle (step 1): its tip latches on another species' body (paying to pierce), never on kin; it drains the
-// prey's energy and nitrogen, keeping half, until the prey dies of it; a swimmer that latches stays on (its own strokes'
+// prey's energy and nitrogen, keeping PARAMS.feed.keep, until the prey dies of it; a swimmer that latches stays on (its own strokes'
 // jerks don't tear it off)
 {
   const ped = (species) => ({ species, body: { radius: 10 }, parts: [{ type: 'segment', at: [10, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed' } }] });
@@ -927,9 +927,9 @@ const runDay = (design, y, seconds, opts = {}) => {
   const S = addCell(w, sw, 800, 1000, 0); addCell(w, plain('prey'), 800 + S.reach + 12, 972, 0);
   let held = 0;
   for (let i = 0; i < 9000; i++) { stepWorld(w); if (S.feeders[0].link) held++; }
-  check('a peduncle latches on another species (not kin), pays to pierce, drains it to death keeping half; a swimmer stays latched',
+  check('a peduncle latches on another species (not kin), pays to pierce, drains it to death keeping its share; a swimmer stays latched',
     hunt.latched && !kin.latched && Math.abs(hunt.paid - PARAMS.feed.pierce * 20) < 0.2 * PARAMS.feed.pierce * 20 && hunt.B.dead
-      && /drained by a hunter/.test(hunt.B.diedWhy) && hunt.A.grow.N > 0.4 * hunt.B.grow.Nneed && held > 5000,
+      && /drained by a hunter/.test(hunt.B.diedWhy) && hunt.A.grow.N > 0.8 * PARAMS.feed.keep * hunt.B.grow.Nneed && held > 5000,
     `on a stranger: paid ${fmt(hunt.paid / 1000, 0)}k to pierce, kept ${fmt(hunt.kept / 1000, 0)}k pJ and ${fmt(hunt.A.grow.N, 0)} N, ` +
     `the prey ${hunt.B.diedWhy || 'alive'}; on kin: ${kin.latched ? 'latched' : 'no latch'}; a swimming hunter held its prey ${fmt(held / 1000, 1)} of 9 s`);
 }
