@@ -166,7 +166,16 @@ rewire() knows pads. Check 28aa (56 checks). Seen in the page: the rule editor l
 built-in reading (-9): kin within PARAMS.alarm.range 60 µm (surface to surface) of a cell being drained read 1
 touching to 0 at the range, fading over PARAMS.alarm.fade 3 s once the attack stops (interact.js cell.alarm); not
 the victim itself (it has Drained), not strangers; how near, not which way. Log "alarm: a kin nearby is being drained".
-Check 28ac (57 checks). **KAMIKAZE decided, not built:** a TOXIN SAC part (room, upkeep, double nitrogen for its
+Check 28ac (57 checks). **KAMIKAZE BUILT (2026-11-02; author: no size rule, "let the economics decide": a burst costs the whole cell, cheap
+when small; small sacs add up around one predator):** material 'toxin' (sim/materials.js), PARAMS.toxin (range 30,
+energy 5000 pJ and damage 10 per µm³ of sac at contact, nitrogen 2 per µm³ at each doubling); build.js inc.toxin and
+its controls (joint { type: 'lyse' }); sense.js inc.go; metab.js burst() at the start of metabolize: the cell dies
+("burst itself (its toxin sac)"), other-species cells within range lose pool then store energy and plastid health,
+o.poisoned. Page: Build panel "Toxin sac" (Inside the cell; tip), card "Bursts when… (dies, poisoning other species
+within 30 µm: kin are immune)", pill SAFE / ARMED / BURST, drawn magenta, log "burst itself: its toxin poisoned N
+cells" / "poisoned by a X bursting close by". Measured: a prey with a r 4 sac, "bursts when it is being drained":
+the hunter lost 1.08 million pJ and fell to 63% plastid health; kin 35 µm away and a stranger 80 µm away spared; the
+sac raised a doubling's nitrogen 4,189 -> 4,725. Check 28ad (58 checks). As decided: a TOXIN SAC part (room, upkeep, double nitrogen for its
 volume at each doubling), rule "Bursts when…" (none: never); bursting kills the cell and POISONS other-species cells
 within 30 µm (energy lost and plastid damage, by sac volume and nearness); kin immune. **(6) Swarm / kamikaze defence (author, 2026-11-02):** one cell attacked, kin nearby
 respond: surround the predator, release a toxin, damage it, or make it sink. Pieces: Drained exists (the victim knows);

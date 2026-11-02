@@ -6,6 +6,7 @@ export const MATERIALS = {
   plates:  { density: 1150, label: 'plates',  note: 'armour: cellulose thecal plates (armoured dinoflagellates); dearer to pierce, heavy, built at each division' },
   chamber: { density: 1025, min: 500, max: 1100, label: 'buoyancy chamber', note: 'an ion vacuole pumped lighter or heavier than seawater (Pyrocystis, Ethmodiscus)' },
   oil:     { density: 920,  label: 'oil',     note: 'light: lipid droplets; an energy store, compact and slow', store: 'oil' },
+  toxin:   { density: 1060, label: 'toxin sac', note: 'a sac of toxin (Alexandrium, Karenia): burst, it poisons other species close by', toxin: true },
   starch:  { density: 1500, label: 'starch',  note: 'heavy: starch or chrysolaminarin; an energy store, quick', store: 'starch' },
   plastid: { density: 1100, label: 'plastid', note: 'a chloroplast: makes energy from light' },
   statolith: { density: 1400, label: 'statolith', note: 'a chamber with a loose mineral grain that rolls to the lower wall (like Loxodes): it reads which way is down' },

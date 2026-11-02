@@ -1165,6 +1165,30 @@ const runDay = (design, y, seconds, opts = {}) => {
     `kin ${fmt(gap, 0)} µm away: ${during ? fmt(during.near) : '-'}; kin 100 µm away: ${during ? fmt(during.far) : '-'}; a stranger close by: ${during ? fmt(during.other) : '-'}; 3 s after the hunter let go: ${fmt(after)}`);
 }
 
+// 28ad. Kamikaze (author, 2026-11-02): a toxin sac whose rule says "bursts when it is being drained" kills its cell and
+// poisons other species close by (energy lost, plastids damaged, by sac size and nearness); kin and far cells are spared;
+// the sac needs extra nitrogen at each doubling
+{
+  const sw = copy('Wave tail'); sw.species = 'hunter';
+  for (const p of sw.parts) if (p.joint && p.joint.type === 'motor') p.joint.controls = [{ sensor: 'feeding', min: 0.5, max: 1, stop: true }];
+  sw.parts.push({ type: 'segment', at: [sw.body.radius, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed' } }, { type: 'inclusion', material: 'plastid', at: [0, 0], radius: 3 });
+  const sac = { type: 'inclusion', id: 'sac', material: 'toxin', at: [0, 4], radius: 4, joint: { type: 'lyse', controls: [{ sensor: 'drained', min: 0.5, max: 1 }] } };
+  const prey = (species, withSac) => ({ species, body: { radius: 10 }, parts: withSac ? [sac] : [{ type: 'inclusion', material: 'plastid', at: [0, 0], radius: 3 }] });
+  const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+  const H = addCell(w, sw, 800, 1000, 0);
+  H.metab.C = H.metab.E = 5e6;
+  const V = addCell(w, prey('p', true), 800 + H.reach + 12, 972, 0), kin = addCell(w, prey('p', false), V.q[0], 972 - 35, 0), far = addCell(w, prey('q', false), V.q[0] + 80, 972, 0);
+  for (const c of [kin, far]) c.metab.C = c.metab.E = 1e6;
+  const E0 = H.metab.E;
+  for (let i = 0; i < 20000 && !V.dead; i++) stepWorld(w);
+  const lost = E0 - H.metab.E, health = 1 - H.pieces[0].inclusions.find((x) => x.material === 'plastid').damage;
+  const plain = addCell(makeWorld(1, { metab: true, grow: true }), prey('p', false), 0, 0, 0), sacked = addCell(makeWorld(1, { metab: true, grow: true }), { ...prey('p', true), parts: [sac, { type: 'inclusion', material: 'plastid', at: [0, -5], radius: 3 }] }, 0, 0, 0);
+  check('kamikaze: drained, a toxin sac bursts its cell and poisons the attacker (energy, plastids); kin and far cells are spared; the sac costs nitrogen',
+    V.dead && /burst/.test(V.diedWhy) && lost > 1e5 && health < 0.9 && !kin.poisoned && !far.poisoned && sacked.grow.Nneed > plain.grow.Nneed,
+    `the prey ${V.dead ? V.diedWhy : 'alive'}; the hunter lost ${fmt(lost / 1000, 0)}k pJ, plastids ${fmt(100 * health, 0)}% healthy; kin 35 µm away ${kin.poisoned ? 'poisoned' : 'spared'}, a stranger 80 µm away ${far.poisoned ? 'poisoned' : 'spared'}; ` +
+    `nitrogen for a doubling ${fmt(plain.grow.Nneed, 0)} -> ${fmt(sacked.grow.Nneed, 0)} with the sac`);
+}
+
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's
 // share and its meter's) goes back to the water
 {

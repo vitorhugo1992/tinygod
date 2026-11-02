@@ -169,6 +169,8 @@ export function sense(world, cell) {
   if (cell.divideRule) { const r = cell.divideRule.controls ? ruleState(world, cell, cell.divideRule.controls) : null; cell.divideOk = !r || (r.go && !r.stop); }
   // resting: the nucleus's rule (REST when… / DON'T REST if…)
   if (cell.rest) { const r = cell.rest.controls ? ruleState(world, cell, cell.rest.controls) : null; cell.resting = !!r && r.go && !r.stop; }
+  // a toxin sac: BURSTS when… (no rule: never)
+  for (const inc of cell.pieces[0].inclusions) if (inc.toxin) inc.go = !!inc.controls && holdsAll(world, cell, inc.controls);
   // buoyancy chambers: SINK if wins, then FLOAT when; neither: neutral
   for (const inc of cell.pieces[0].inclusions) {
     if (inc.material !== 'chamber') continue;

@@ -125,6 +125,16 @@ export const PARAMS = {
     range: 60,              // µm between the bodies' surfaces
     fade: 3,                // s
   },
+  // Kamikaze (author 2026-11-02, swarm defence): a toxin sac's rule "Bursts when…" kills the cell and poisons other
+  // species within `range` µm (surface to surface): per µm³ of sac, at contact, `energy` pJ lost (pool, then stores) and
+  // plastid damage of `damage` × the sac's share of the victim's volume; both fall to nothing at the range; kin immune.
+  // The sac costs upkeep and `nitrogen` N per µm³ at each doubling (toxins are nitrogen-rich)
+  toxin: {
+    range: 30,
+    energy: 5000,           // a sac 5% of an r 10 cell (~210 µm³) at contact: ~1 million pJ
+    damage: 10,             // ... and half the plastid health of a same-size victim
+    nitrogen: 2,
+  },
   // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): every `every` s a peduncle stays latched,
   // the prey's biggest plastid that fits in the thief moves through the tube (the prey lives on without it, and rebuilds
   // it from its growth meter before growing further); a prey drained to death gives up the rest that fit (round, at

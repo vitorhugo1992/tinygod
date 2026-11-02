@@ -37,7 +37,7 @@ export function initMetab(cell) {
   const add = (k, v) => byPart.set(k, (byPart.get(k) || 0) + v);
   const bodyUpkeep = body.volume * M.bodyUpkeep;
   for (const p of cell.pieces) if (p.kind === 'segment') add(p.part, (p.ext ? p.ext.max : p.L) * M.partUpkeep);
-  for (const inc of body.inclusions) if (inc.store || ['plastid', 'chamber', 'statolith'].includes(inc.material)) {
+  for (const inc of body.inclusions) if (inc.store || inc.toxin || ['plastid', 'chamber', 'statolith'].includes(inc.material)) {
     add(inc.part, inc.v * M.insideUpkeep * (inc.material === 'plastid' && inc.pigment === 'shade' ? M.shade.upkeep : 1));
   } else if (inc.material === 'nucleus') add(inc.part, inc.v * P.brain.upkeep);
   let upkeep = bodyUpkeep;
@@ -69,7 +69,9 @@ export function initMetab(cell) {
   // Nneed); each growth step takes PARAMS.grow.step of that (grow.js). Plates are built as it grows (energy by their
   // volume, no nitrogen). Nbody: the nitrogen its body holds now (back to the water when it dies)
   const size = cell.size || 1, V0 = body.volume / size, plates0 = (body.plateVol || 0) / Math.cbrt(size * size);
-  const Eneed = V0 * P.grow.energy + plates0 * P.plates.energy, Nneed = V0 * P.grow.nitrogen;
+  // a toxin sac needs extra nitrogen (its newborn volume × PARAMS.toxin.nitrogen)
+  const og = size <= 2 ? size : 2 + P.grow.organelles * (size - 2), tox0 = body.inclusions.reduce((a, i) => a + (i.toxin ? i.v : 0), 0) / og;
+  const Eneed = V0 * P.grow.energy + plates0 * P.plates.energy, Nneed = V0 * P.grow.nitrogen + tox0 * P.toxin.nitrogen;
   cell.grow = { E: 0, N: 0, Eneed, Nneed, stepE: P.grow.step * Eneed, stepN: P.grow.step * Nneed,
     Nbody: body.volume * P.grow.nitrogen, uptake: 0 };
 }
@@ -106,8 +108,34 @@ function feed(world, cell, l) {
   return e * F.keep;
 }
 
+// Kamikaze: the cell dies and poisons other species close by (PARAMS.toxin; kin immune)
+function burst(world, cell) {
+  const T = P.toxin, body = cell.pieces[0], sac = body.inclusions.reduce((a, i) => a + (i.toxin ? i.v : 0), 0);
+  cell.dead = true; cell.diedAt = world.steps; cell.diedWhy = 'burst itself (its toxin sac)'; cell.metab.E = 0;
+  cell.burst = { step: world.steps, hit: 0 };
+  for (const o of world.cells) {
+    if (o === cell || o.dead || o.species === cell.species) continue;
+    const ob = o.pieces[0], gap = Math.hypot(o.q[0] - cell.q[0], o.q[1] - cell.q[1]) - body.a - ob.a - (body.L + ob.L) / 2;
+    const f = 1 - Math.max(gap, 0) / T.range;
+    if (f <= 0) continue;
+    const dose = sac * f;
+    let hurt = dose * T.energy, lost = 0;
+    const take = Math.min(hurt, o.metab.E); o.metab.E -= take; hurt -= take; lost += take;
+    for (const s of ob.inclusions) {
+      if (!s.store || hurt <= 0) continue;
+      const cap = capacity(s), t = Math.min(hurt, s.fill * cap);
+      s.fill -= t / cap; hurt -= t; lost += t;
+      s.wpt.w = (s.density - CYTO) * s.v * s.fill * G;
+    }
+    for (const s of ob.inclusions) if (s.material === 'plastid') s.damage = Math.min(1, (s.damage || 0) + T.damage * dose / ob.volume);
+    o.poisoned = { by: cell.species, lost, step: world.steps };
+    cell.burst.hit++;
+  }
+}
+
 export function metabolize(world, cell) {
   const m = cell.metab, body = cell.pieces[0];
+  if (!cell.dead && body.inclusions.some((i) => i.toxin && i.go)) burst(world, cell);
   if (cell.dead) {   // nothing earned or spent; still, and its chambers drift neutral (sim/death.js removes it)
     m.E = 0; m.starving = true; m.income = m.motors = m.pumps = m.repair = m.chamber = 0; cell.resting = false;
     for (const j of cell.joints) if (j.type === 'motor') j.on = false;

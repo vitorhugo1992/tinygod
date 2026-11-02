@@ -66,7 +66,9 @@ export function note(world, c) {
   if (health !== null && health > 0.95 && w.hurt) { w.hurt = false; say('its plastids have mended'); }
   if ((c.gen || 0) > (w.gen ?? (c.born !== undefined ? c.gen : 0))) say(`divided: two cells now (generation ${c.gen})`);
   if (c.born !== undefined && w.gen === undefined) say(`born by division (generation ${c.gen})${c.chainedAt !== undefined ? ', joined to its mother in a chain' : ''}`);
-  if (c.dead && !w.dead) say(`died: ${c.diedWhy || 'starved'} (${Math.round(depth)} µm deep, ${Math.round(PARAMS.grow.die)} s without energy)`, true);
+  if (c.dead && !w.dead) say(c.burst ? `burst itself: its toxin poisoned ${c.burst.hit} cell${c.burst.hit === 1 ? '' : 's'} of other species close by` : `died: ${c.diedWhy || 'starved'} (${Math.round(depth)} µm deep, ${Math.round(PARAMS.grow.die)} s without energy)`, true);
+  if (c.poisoned && c.poisoned !== w.poisoned) say(`poisoned by a ${c.poisoned.by} bursting close by: lost ${Math.round(c.poisoned.lost / 1000)}k pJ, its plastids damaged`, true);
+  w.poisoned = c.poisoned;
   w.dead = !!c.dead;
   // the peduncle: latching, letting go, being fed on
   const feeding = (c.feeders || []).find((f) => f.link);

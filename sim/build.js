@@ -307,6 +307,7 @@ export function buildCell(design, opts = {}) {
         part: design.parts.indexOf(part), stolen: part.stolen || null });
       // a buoyancy chamber's rule (FLOAT when: its GO conditions; SINK if: its STOP ones), kept like a part's joint's
       if (part.material === 'chamber' && part.joint && controlsOf(part.joint).length) controls.push([host.inclusions[host.inclusions.length - 1], controlsOf(part.joint)]);
+      if (mat.toxin) { const t = host.inclusions[host.inclusions.length - 1]; t.toxin = true; if (part.joint && controlsOf(part.joint).length) controls.push([t, controlsOf(part.joint)]); }   // BURSTS when…
       if (part.material === 'nucleus' && part.joint && controlsOf(part.joint).length) { controls.push([rest, controlsOf(part.joint)]); rest.part = design.parts.indexOf(part); }
       if (part.material === 'statolith') sensors.push({ id: part.id, piece: parent, x, y, kind: 'statolith',
         facing: (part.angle || 0) * DEG, r, value: 0.5, part: design.parts.indexOf(part) });
