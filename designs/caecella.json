@@ -1,7 +1,7 @@
 {
   "name": "Caecella (Claude, no eyes)",
   "from": "Claude",
-  "note": "A swimmer with no eyespot that survives day and night from the floor. Round, 20 µm, a 48 µm pulling tail at the front, two plastids (sides), a big oil store (8%) at the front. It reads only itself: the tail runs while its plastids are more than 90% healthy (it climbs until the light starts to hurt them, then stops and sinks a little: it rides just below the harmful light all day). It rests while its energy is below 35% (night: burning its store) AND its oil is more than 85%: the oil emptying through the night is its clock, so it rests and sinks for most of the night and wakes before dawn to swim back up. Measured from the floor, any way up: 3 days, never starving. Fragile: with the clock at 80% it wakes too late and starves.",
+  "note": "A swimmer with no eyespot that survives day and night from the floor. Round, 20 µm, a 48 µm pulling tail at the front, two plastids (sides), a big oil store (8%) at the front. It reads only itself: the tail runs while its plastids are more than 90% healthy (it climbs until the light starts to hurt them, then stops and sinks a little: it rides just below the harmful light all day). It rests while its energy is below 35% (night: burning its store) AND its oil is more than 85%: the oil emptying through the night is its clock, so it rests and sinks for most of the night and wakes before dawn to swim back up. Measured from the floor, any way up: 3 days, never starving. Fragile: with the clock at 80% it wakes too late and starves. UPDATE (2026-11-02): rests while energy is below 35% AND oil is more than 40% (was 85%): since cells grow and divide, its oil store is rarely full at dusk (a division halves it; a grown store is emptier), so at 85% it never rested and starved swimming all night. Measured from the floor at four angles: 4 of 4 alive (was 2).",
   "design": {
     "body": {
       "radius": 10
@@ -196,7 +196,7 @@
             },
             {
               "sensor": "oil",
-              "min": 0.85,
+              "min": 0.4,
               "max": 1
             }
           ]

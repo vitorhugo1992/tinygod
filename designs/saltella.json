@@ -1,7 +1,7 @@
 {
   "name": "Saltella (Claude, a jumper)",
   "from": "Claude",
-  "note": "No tail, no chamber: it travels by jumping. Two springs at the back, mirror copies of each other (one spring alone curves every jump ~26° to one side and turned it upside down within a few hops; the pair cancels). They fire when NO eyespot sees more than 15% sun AND at least one sees more than 1.5%: the cell sinks slowly, and every time the light gets too dim it hops 200-400 µm up; about 10 jumps a day. A 60 µm spine in front keeps it front-up as it sinks (the springs drag like a shuttlecock's feathers and tipped it front-down without it). Rests when all eyespots see less than 1%. Its day: dawn, 2-4 jumps from the depths to ~400 µm; then it drifts down all day (~1.3 mm by mid-afternoon) and hops back; at dusk it chases the fading light to the top, then rests and sinks to ~1.6 mm by dawn. Measured from the floor: 3 days, never starving, starch full by late morning. Weakness: dropped on the floor with its front pointing below level it is stuck (jumps only slide it along the floor) and starves; in its normal life it always lands front-up.",
+  "note": "No tail, no chamber: it travels by jumping. Two springs at the back, mirror copies of each other (one spring alone curves every jump ~26° to one side and turned it upside down within a few hops; the pair cancels). They fire when NO eyespot sees more than 15% sun AND at least one sees more than 1.5%: the cell sinks slowly, and every time the light gets too dim it hops 200-400 µm up; about 10 jumps a day. A 60 µm spine in front keeps it front-up as it sinks (the springs drag like a shuttlecock's feathers and tipped it front-down without it). Rests when all eyespots see less than 1%. Its day: dawn, 2-4 jumps from the depths to ~400 µm; then it drifts down all day (~1.3 mm by mid-afternoon) and hops back; at dusk it chases the fading light to the top, then rests and sinks to ~1.6 mm by dawn. Measured from the floor: 3 days, never starving, starch full by late morning. Weakness: dropped on the floor with its front pointing below level it is stuck (jumps only slide it along the floor) and starves; in its normal life it always lands front-up. UPDATE (2026-11-02): its springs also fire while it is being drained (\"or when it is being drained\"): a jump tears a hunter's tube off (the tube snaps under a sustained pull) and throws it ~1 mm away; before, a latched Saltella sat drained for minutes.",
   "design": {
     "body": {
       "radius": 10
@@ -133,6 +133,12 @@
                   "max": 1
                 }
               ]
+            },
+            {
+              "sensor": "drained",
+              "min": 0.5,
+              "max": 1,
+              "or": true
             }
           ]
         },
@@ -279,6 +285,12 @@
                   "max": 1
                 }
               ]
+            },
+            {
+              "sensor": "drained",
+              "min": 0.5,
+              "max": 1,
+              "or": true
             }
           ]
         },
