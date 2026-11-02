@@ -6,6 +6,34 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**NEWEST HANDOFF (2026-11-02, end of a very long chat; the author starts a new chat).** Built today, all pushed, 59
+checks pass (details in the entries below, search for the names): the population graph (tap the graph strip); the
+armoured wall (cellulose plates; glass removed); the Feeding reading; hunters keep 20%; **growing cells** (the design is
+the newborn; 10% steps to 8×; organelles keep pace to 2×, half beyond; the Size reading); **stealing plastids** (from a
+kill and every 30 s latched on a living prey; they squeeze into gaps, fade by half a day, never repaired, shared at
+division; a robbed prey rebuilds); **chains** (at division pad to pad, middle cells slot in, cap 8 r 10 cells by
+volume, pad rule "Holds while…", sharing, Drained reading, drag shielding); **pads that sense and attract** and the
+**Neighbours** reading; oil retuned (one night); the **nutrient sensor back** (a depth sense against the floor trap);
+**swarm defence** (the Alarm reading; the **toxin sac**, kamikaze); **engulfing** (the Mouth: gape, free room, digested
+over a minute drawn shrinking inside; **chains count as one**: a chain must fit across the predator). Dropped: the
+nitrogen store. Species (designs/, From Claude): Raptilla, Raptilla 2 (a thief), Scalella (a ladder chain), Gula (a
+swallower); Saltella now flees when drained, Caecella rests at oil above 40%.
+**Open, in order:** (1) the contest with Gula ran with the OLD rule (chains swallowable): rerun it with the scratch
+contest (8 species, 10 days, cap 200; ~40 min); (2) **the mouth doesn't look like a mouth** (author: "alright for now");
+(3) mouths cost nothing (no upkeep, no room): a balance point to raise with the author; (4) **in a still tank drifters
+only move up and down: encounters need shared columns** (Gula met nothing 60 µm away): moving water rises in priority;
+(5) drifters (Bathyscapha, Scalella) win every contest; swimmers lose; the floor kills; (6) the author will design a
+species (contests so far are all Claude's designs). Queue: toxins as clouds (the toxin sac is the seed), drilling,
+peduncle stretching, coloured light and pigments, chalk and mucus, moving water, self-shading, seasons (where oil and a
+nitrogen store would pay), a fast mode, challenges with stars, share as a link, tips while building.
+**Testing tools (scratchpad is gone with the chat):** headless page tests: write a CDP script (headless Edge,
+--remote-debugging-port, Network.setCacheDisabled, phone size 400×860), kill the Edge processes after (PowerShell:
+Get-CimInstance Win32_Process msedge.exe whose CommandLine has the profile dir); **window.__tg** gives the live world
+and selected cell, and `import('/sim/grow.js')` etc. share the page's modules; to run one check alone, cut
+tools/check.mjs to its imports and helpers plus that check (watch apostrophes in check names); contests: makeWorld with
+grow, one cell of each design from the floor, PARAMS.grow.cap 200. Don't `git add -A designs` (species_test.json is
+the author's, kept out of git).
+
 **Newest handoff (2026-11-02, end of the day; the author went to sleep): step 1a is nearly done, predation has begun.**
 Built and pushed today (details in the numbered entries below): the nitrogen field and the two-bar growth meter;
 division (two identical cells, cap 12); death (60 s starving; nitrogen returned); collisions between species tested;
