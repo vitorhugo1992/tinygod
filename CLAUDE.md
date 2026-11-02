@@ -150,7 +150,8 @@ faster** and mostly **defend**: **drag shielding (author: yes, simple):** a cell
 less with one neighbour, ~25% with two; to tune), so chains of swimmers outpace singles and passive chains sink a bit
 faster. **Later, with moving water:** chains in currents take layouts that maximise photosynthesis (author); needs
 moving water and self-shading (light today depends on depth only)); (4) **engulfing, if possible** (only a
-considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). **(6) Swarm / kamikaze defence (author, 2026-11-02):** one cell attacked, kin nearby
+considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). **PRIORITY (author, 2026-11-02: "important"): pads that sense and attract, the Neighbours
+reading, and a nitrogen store ("seems good").** **(6) Swarm / kamikaze defence (author, 2026-11-02):** one cell attacked, kin nearby
 respond: surround the predator, release a toxin, damage it, or make it sink. Pieces: Drained exists (the victim knows);
 needed: an ALARM reading (a kin nearby / in its chain is being drained; real: wounded diatoms release oxylipin alarm
 cues); making it sink can come from physics already built (kin piling onto it with mucus pads, their weight); kamikaze
