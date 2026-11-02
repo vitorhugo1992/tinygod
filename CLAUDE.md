@@ -162,7 +162,15 @@ not while digesting; the prey is marked eatenBy and dead, death.js removes it at
 predator, not the water; links cleaned as for any removal); metab.js digest(): over PARAMS.engulf.time 60 s the
 predator keeps keep 20% of its energy (pool + stores) and keepN 50% of its nitrogen. Drawn: the mouth a dark gap with
 a pale lip, the meal a brown body shrinking and fading inside; pill DIGESTING / READY / OFF; log "swallowed a X
-whole", "digested a X: kept Nk pJ". Found: a mouth adds no reach (the near test needed + reach). Check 28ae (59
+whole", "digested a X: kept Nk pJ". Found: a mouth adds no reach (the near test needed + reach). **Chains protect (author, 2026-11-02: "wouldn't chains protect the cells?";
+"unless the predator breaks the chain with some strategy and then can swallow the loose cells"):** a chained cell
+counts as its whole chain: swallowed only if the chain fits across the predator (its extent ≤ the predator's width),
+in its free room, and every cell within the gape; then the whole chain at once. Breaking chains already works through
+physics (a drained cell dies and lets go; links snap under a pull; a kamikaze burst kills its cell). **Gula** (Claude,
+a swallower; designs/gula.json): Bathyscapha at 1.5× with four mouths, eats Scalella-sized cells; directly below a
+Scalella it swallowed it within a fifth of a day, but 60 µm apart side by side they never met in 3 days: **in a still
+tank drifters only move up and down, so encounters need shared columns** (moving water would fix it for every hunter).
+Mouths cost nothing yet (no upkeep, no room): a balance point. Check 28ae (59
 checks). Seen in the page. Was: **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). **PRIORITY (author, 2026-11-02: "important"): pads that sense and attract, the Neighbours
 reading, and a nitrogen store ("seems good").** **Nitrogen store DROPPED for now (author, 2026-11-02, after weighing depth vs

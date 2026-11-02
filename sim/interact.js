@@ -86,6 +86,20 @@ function groups(world) {
   return size;
 }
 
+// The cells joined to `c` by pads (a peduncle's latch not counted), itself included
+function chainOf(world, c) {
+  const seen = new Set([c]), todo = [c];
+  while (todo.length) {
+    const x = todo.pop();
+    for (const l of world.links) {
+      if (l.feed || !l.padB) continue;
+      const A = world.cells[l.a], B = world.cells[l.b], o = A === x ? B : B === x ? A : null;
+      if (o && !seen.has(o)) { seen.add(o); todo.push(o); }
+    }
+  }
+  return seen;
+}
+
 export function interact(world) {
   const cells = world.cells;
   world.links ||= [];
@@ -206,13 +220,24 @@ export function interact(world) {
         if (B === A || B.eatenBy || B.species === A.species || B.pieces[0].a > E.gape * A.pieces[0].a || B.pieces[0].volume > free) continue;
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach + E.reach;   // (a mouth is no piece: it adds no reach)
         if (dx * dx + dy * dy > r * r || !surfaceNear(B, mx, my, E.reach, 0)) continue;
-        let energy = B.metab ? B.metab.E : 0;
-        for (const s of B.pieces[0].inclusions) if (s.store) energy += s.fill * s.v * PARAMS.metab[s.store].energy;
-        const N = B.grow ? B.grow.Nbody + B.grow.N : 0;
-        A.meal = { prey: B.species, energy, N, t: 0, r: B.pieces[0].a, L: B.pieces[0].L };
-        A.lastSwallow = { prey: B.species, step: world.steps };
-        B.eatenBy = A.species; B.dead = true; B.diedAt = world.steps; B.diedWhy = `eaten whole by a ${A.species}`;
-        for (const l of world.links) if (cells[l.a] === B || cells[l.b] === B) l.grace = 0;
+        // a chain counts as one (author, 2026-11-02): to swallow a joined cell the mouth takes its whole chain, which must
+        // fit across the predator (its extent at most the predator's width), in its free room, and every cell the gape
+        const chain = chainOf(world, B);
+        let vol = 0, ext = 0;
+        for (const c of chain) {
+          vol += c.pieces[0].volume;
+          for (const o of chain) ext = Math.max(ext, Math.hypot(c.q[0] - o.q[0], c.q[1] - o.q[1]) + c.pieces[0].a + o.pieces[0].a + (c.pieces[0].L + o.pieces[0].L) / 2);
+        }
+        if (chain.size > 1 && (vol > free || ext > 2 * A.pieces[0].a || [...chain].some((c) => c.pieces[0].a > E.gape * A.pieces[0].a))) continue;
+        let energy = 0, N = 0;
+        for (const c of chain) {
+          energy += c.metab ? c.metab.E : 0;
+          for (const s of c.pieces[0].inclusions) if (s.store) energy += s.fill * s.v * PARAMS.metab[s.store].energy;
+          N += c.grow ? c.grow.Nbody + c.grow.N : 0;
+          c.eatenBy = A.species; c.dead = true; c.diedAt = world.steps; c.diedWhy = `eaten whole by a ${A.species}`;
+        }
+        A.meal = { prey: B.species, n: chain.size, energy, N, t: 0, r: Math.cbrt(3 * vol / (4 * Math.PI)) };
+        A.lastSwallow = { prey: B.species, n: chain.size, step: world.steps };
         break;
       }
     }
