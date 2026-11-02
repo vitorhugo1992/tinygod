@@ -91,6 +91,18 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    swallow; chains at division), the spring escape on touch (built), feelers to flee, toxins as deterrent, mucus,
    depth (hiding). Plus a **non-player grazer** (step 1b plan: a ciliate or copepod-like hunter that grazes whatever is
    common: kill-the-winner keeps monopolies hard, and gives every defence a reason even in a one-species tank).
+   **(d) Death BUILT (2026-11-02).** sim/metab.js: with world.grow, cell.starveT counts seconds of empty pool in a row;
+   at PARAMS.grow.die (60) cell.dead (diedAt, diedWhy 'starved'); dead, metabolize earns and spends nothing, motors off,
+   chambers drift neutral. sim/death.js removeDead: on the floor or PARAMS.grow.gone (30) s after dying, removed, its
+   nitrogen (Nneed + its meter's N) back into the layer where it is, pad links renumbered; world.deaths, world.gone.
+   Sandbox: drawn faded with a grey outline; numbers "STARVING dies in N s" / "DEAD starved: sinking…"; trouble log
+   "died: starved (1686 µm deep, 60 s without energy)"; the followed cell gone, the view follows its kin; rebuilds don't
+   resurrect dead copies. Check 28t (48 checks).
+   **DECIDED (author, 2026-11-02): NO GRAZERS** ("I want this a battle between existing species for survival and
+   dominance"): every attack and defence is between players' species. **The glass wall goes** (silica is a layer of
+   complexity too many): to be replaced by **some way to form an armoured wall** (to design with the author; protein
+   stays the plain wall). **First, the author asked for a contest:** all Claude's species in one tank, 10 days, which
+   has the most cells.
 3. **Division:** the meter full, the cell splits: the daughter an exact copy (kin), beside it, stores shared. Later: a rule
    for when to divide; chains at division with kin pads.
 4. **Death:** starving too long, it dies, sinks, is removed; the trouble log says why ("starved at 03:20, 1.9 mm deep").

@@ -9,6 +9,7 @@ import { sense } from './sense.js';
 import { initMetab, metabolize } from './metab.js';
 import { initNitrogen, mixNitrogen } from './nutrient.js';
 import { divideCells } from './divide.js';
+import { removeDead } from './death.js';
 
 // gravity: false switches weight and buoyancy off, to watch swimming alone; light: false turns the light off;
 // day: the sun rises and sets (off: always noon); metab: cells earn and spend energy, stores fill and empty;
@@ -40,7 +41,7 @@ export function stepWorld(world) {
   for (const cell of world.cells) updatePose(cell);
   for (const cell of world.cells) sense(world, cell);   // after every pose is current: sensors look at others
   if (world.metab) for (const cell of world.cells) metabolize(world, cell);   // after sensing: starving overrides wiring
-  if (world.grow) { mixNitrogen(world); divideCells(world); }
+  if (world.grow) { mixNitrogen(world); divideCells(world); removeDead(world); }
   if (world.cells.length > 1) interact(world);
   for (const cell of world.cells) stepCell(cell, t, world.gravity);
   world.steps++;

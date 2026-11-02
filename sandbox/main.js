@@ -1299,12 +1299,13 @@ function reset(pose, carry) {
         for (const k of ['uid', 'gen', 'mother', 'born']) if (from[k] !== undefined) to[k] = from[k];   // the same cell, its lineage
       };
       if (carry.world.nitro) w.nitro = carry.world.nitro;   // the water keeps what cells used
-      w.births = carry.world.births; w.nextUid = carry.world.nextUid;
+      w.births = carry.world.births; w.deaths = carry.world.deaths; w.nextUid = carry.world.nextUid;
       keep(carry.cell, next); keepGrow(carry.cell, next);
       next.metab.E = share(carry.cell) * next.metab.C;
       next.journal = carry.cell.journal;   // the day graph goes on
       for (const c of carry.world.cells) {
         if (c === carry.cell) continue;
+        if (c.design === carry.design && c.dead) continue;   // the dead stay dead (not rebuilt)
         if (c.design === carry.design) {
           const k = addCell(w, design, c.q[0], c.q[1], c.q[2] * 180 / Math.PI);
           k.metab.E = share(c) * k.metab.C; k.journal = c.journal; keep(c, k); keepGrow(c, k);
@@ -1384,6 +1385,11 @@ function advance(steps) {
       trail.push([cell.q[0], cell.q[1]]);
       if (trail.length > 4000) trail.shift();
     }
+  }
+  if (world.born) world.born.length = 0;
+  if (world.gone) world.gone.length = 0;
+  if (!world.cells.includes(cell) && world.cells.length) {   // the followed cell is gone: follow its kin, else anyone
+    select(world.cells.find((c) => c.design === cell.design && !c.dead) || world.cells.find((c) => !c.dead) || world.cells[0]);
   }
   for (const c of world.cells) updatePose(c);
 }
@@ -1626,6 +1632,8 @@ function budget(lines) {
   if (!world.metab) return;
   const base = m.income > 0 ? m.income : null;
   const show = (v) => base ? `${(100 * v / base).toFixed(v / base < 0.01 ? 2 : 0)}%` : `${v.toFixed(0)} pJ/s`;
+  if (cell.dead) { lines.push(`DEAD      ${cell.diedWhy || ''}: sinking, its nitrogen goes back to the water`); return; }
+  if (world.grow && cell.starveT > 0) lines.push(`STARVING  dies in ${Math.max(0, PARAMS.grow.die - cell.starveT).toFixed(0)} s unless it finds energy`);
   lines.push(`energy    pool ${(100 * m.E / m.C).toFixed(0)}%${m.starving ? '  STARVING' : ''}`);
   lines.push(`income    ${m.income.toFixed(0)} pJ/s from plastids${base ? '' : ' (none: dark or no plastid)'}`);
   const health = plastidHealth(world, cell);
@@ -1647,7 +1655,7 @@ function budget(lines) {
   if (world.grow) {
     const g = cell.grow, n = nitrogenAt(world, cell.q[1]);
     lines.push(`growth    energy ${(100 * g.E / g.Eneed).toFixed(0)}% · nitrogen ${(100 * g.N / g.Nneed).toFixed(0)}% of a division${cell.waiting ? ` (ready; waits: ${cell.waiting})` : ''}`);
-    lines.push(`lineage   generation ${cell.gen || 0} · ${world.cells.length} of ${PARAMS.grow.cap} cells in the tank · ${world.births || 0} births`);
+    lines.push(`lineage   generation ${cell.gen || 0} · ${world.cells.length} of ${PARAMS.grow.cap} cells in the tank · ${world.births || 0} births · ${world.deaths || 0} deaths`);
     lines.push(`nitrogen  water here ${(100 * n).toFixed(0)}% of the deep's${g.N >= g.Nneed ? ' (its bar is full)' : ` · +${(100 * g.uptake / g.Nneed * PARAMS.metab.day).toFixed(0)}% of a division a day`}`);
   }
 }
@@ -1745,7 +1753,9 @@ function draw() {
   const spd = playing ? Number($('speed').value) : 0;
   for (const c of world.cells) {
     c.drawn = calmPose(c, lastReal, spd) || c;   // drawn: for taps
+    if (c.dead) ctx.globalAlpha = 0.45;   // dead: faded and grey, sinking
     drawCell(arrange && arrange.cell && c === cell ? arrange.cell : c.drawn, X, Y, s, c);
+    ctx.globalAlpha = 1;
   }
   if (arrange && arrange.trial) {   // the selected organelle outlined; red: overlapping or outside the wall
     const c = arrange.cell || cell, toW = ([x, y]) => [c.cx[0] + c.cs[0] * x - c.sn[0] * y, c.cy[0] + c.sn[0] * x + c.cs[0] * y];
@@ -2079,7 +2089,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     const swell = p.kind === 'body' && real.grow && world.grow ? 1 + PARAMS.grow.swell * Math.min(real.grow.E / real.grow.Eneed, real.grow.N / real.grow.Nneed, 1) : 1;
     const w = Math.max(2 * p.a * s * swell, 1.5);
     if (p.kind === 'body') {   // outline (red while starving)
-      ctx.strokeStyle = world.metab && c.metab.starving ? COLOR.starving : real.resting ? COLOR.resting : COLOR.outline; ctx.lineWidth = w + 2;
+      ctx.strokeStyle = real.dead ? '#8a8f98' : world.metab && c.metab.starving ? COLOR.starving : real.resting ? COLOR.resting : COLOR.outline; ctx.lineWidth = w + 2;
       ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     }
     const jt = p.joint >= 0 ? c.joints[p.joint] : null;

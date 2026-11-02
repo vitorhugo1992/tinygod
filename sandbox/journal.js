@@ -64,6 +64,8 @@ export function note(world, c) {
   if (health !== null && health > 0.95 && w.hurt) { w.hurt = false; say('its plastids have mended'); }
   if ((c.gen || 0) > (w.gen ?? (c.born !== undefined ? c.gen : 0))) say(`divided: two cells now (generation ${c.gen})`);
   if (c.born !== undefined && w.gen === undefined) say(`born by division (generation ${c.gen})`);
+  if (c.dead && !w.dead) say(`died: ${c.diedWhy || 'starved'} (${Math.round(depth)} µm deep, ${Math.round(PARAMS.grow.die)} s without energy)`, true);
+  w.dead = !!c.dead;
   if (c.waiting && c.waiting !== w.waiting) say(`ready to divide, but waits: ${c.waiting}`);
   if (gE === 1 && w.gE < 1) say(gN === 1 ? 'has the energy for a division: ready to divide' : 'has the energy for a division (nitrogen still short)');
   if (gN === 1 && w.gN < 1) say(gE === 1 ? 'has the nitrogen for a division: ready to divide' : 'has the nitrogen for a division (energy still short)');

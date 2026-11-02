@@ -104,7 +104,9 @@ export const PARAMS = {
     swell: 0.08,            // the cell is drawn this much wider when ready to divide (drawing only)
     cap: 12,                // cells the sandbox tank holds (author 2026-11-02: lowered from 24, full physics is costly); at
                             // the cap a ready cell waits
-    every: 100,             // steps between looks for cells ready to divide
+    every: 100,             // steps between looks for cells ready to divide (and dead ones to remove)
+    die: 60,                // s with an empty pool, in a row, before a cell dies (a tenth of a day)
+    gone: 30,               // s a dead cell sinks before it is removed (sooner on the floor); its nitrogen goes back
   },
   // The nucleus, the brain box (sim/brain.js): each brain module takes a slot of its cross-section
   brain: {

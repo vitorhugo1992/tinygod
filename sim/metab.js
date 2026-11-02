@@ -69,6 +69,12 @@ const capacity = (inc) => inc.v * M[inc.store].energy;
 
 export function metabolize(world, cell) {
   const m = cell.metab, body = cell.pieces[0];
+  if (cell.dead) {   // nothing earned or spent; still, and its chambers drift neutral (sim/death.js removes it)
+    m.E = 0; m.starving = true; m.income = m.motors = m.pumps = m.repair = m.chamber = 0; cell.resting = false;
+    for (const j of cell.joints) if (j.type === 'motor') j.on = false;
+    for (const inc of body.inclusions) if (inc.pumpable) inc.target = P.chamber.neutral;
+    return;
+  }
   // resting: flagella stop, plastids earn less and aren't repaired, upkeep falls (PARAMS.metab.rest)
   const slow = cell.resting ? M.rest : 1;
   if (cell.resting) for (const j of cell.joints) if (j.type === 'motor' && !j.burst) j.on = false;
@@ -132,6 +138,10 @@ export function metabolize(world, cell) {
   }
   if (m.E > m.C) m.E = m.C;                 // a full pool wastes the rest (no store has room)
   m.starving = m.E <= 0;
+  if (world.grow) {   // starving too long, it dies
+    cell.starveT = m.starving ? (cell.starveT || 0) + DT : 0;
+    if (cell.starveT >= P.grow.die) { cell.dead = true; cell.diedAt = world.steps; cell.diedWhy = 'starved'; }
+  }
   if (m.starving) {
     m.E = 0;
     for (const j of cell.joints) if (j.type === 'motor') j.on = false;   // no energy, no beating

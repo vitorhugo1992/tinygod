@@ -891,6 +891,28 @@ const runDay = (design, y, seconds, opts = {}) => {
     `starch ${fmt(fill0)} -> ${d ? `${fmt(c.pieces[0].inclusions[0].fill)} each` : '–'}; with a cap of 1: ${full.w.cells.length} cell, waits: ${full.c.waiting}`);
 }
 
+// 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's
+// share and its meter's) goes back to the water
+{
+  const w = makeWorld(1, { light: false, metab: true, grow: true });
+  const c = addCell(w, { body: { radius: 10 }, parts: [] }, 800, 1500, 90);
+  c.grow.N = 2000;
+  const sum = () => w.nitro.c.reduce((a, b) => a + b, 0) * w.nitro.held;
+  let t = 0, starve = null, dead = null, lowest = Infinity;
+  const ref = makeWorld(1, { light: false, metab: true, grow: true });   // the same water without the cell, mixing alike
+  while (w.cells.length && t < 300) {
+    stepWorld(w); stepWorld(ref); t += PARAMS.time.dt;
+    if (starve === null && c.metab.starving) starve = t;
+    if (dead === null && c.dead) { dead = t; lowest = c.q[1]; }
+  }
+  const back = sum() - ref.nitro.c.reduce((a, b) => a + b, 0) * ref.nitro.held;   // its meter's N was set by hand, not taken from this water
+  check('a cell starving 60 s in a row dies, sinks, is removed, and gives its nitrogen back to the water',
+    starve !== null && dead !== null && Math.abs(dead - starve - PARAMS.grow.die) < 0.5 && w.cells.length === 0 && w.deaths === 1
+      && c.q[1] < lowest && Math.abs(back - (c.grow.Nneed + 2000)) < 0.05 * (c.grow.Nneed + 2000),
+    `starving at ${fmt(starve ?? 0, 1)} s, dead at ${fmt(dead ?? 0, 1)} s, removed by ${fmt(t, 1)} s, ${fmt(lowest - c.q[1], 0)} µm lower; ` +
+    `water +${fmt(back, 0)} N (body ${fmt(c.grow.Nneed, 0)} + meter 2000)`);
+}
+
 // 28r. Several sensors in one condition: ANY of them reading so is enough, ALL must; the first and the extra ones each
 // tested on their own values
 {
