@@ -66,6 +66,18 @@ export function note(world, c) {
   if (c.born !== undefined && w.gen === undefined) say(`born by division (generation ${c.gen})`);
   if (c.dead && !w.dead) say(`died: ${c.diedWhy || 'starved'} (${Math.round(depth)} µm deep, ${Math.round(PARAMS.grow.die)} s without energy)`, true);
   w.dead = !!c.dead;
+  // the peduncle: latching, letting go, being fed on
+  const feeding = (c.feeders || []).find((f) => f.link);
+  if (feeding && !w.feeding) say(`latched onto a ${world.cells[feeding.link.b].species} (${PARAMS.feed.pierce / 1000}k pJ to pierce)`);
+  if (!feeding && w.feeding && c.lastMeal) {
+    const why = { drained: 'nothing left', died: 'it died', rule: 'its rule let go', torn: 'torn off' }[c.lastMeal.why];
+    say(`let go of a ${c.lastMeal.prey} (${why}): took ${Math.round(c.lastMeal.took / 1000)}k pJ, kept half`);
+  }
+  w.feeding = !!feeding;
+  const eaten = (world.links || []).find((l) => l.feed && world.cells[l.b] === c);
+  if (eaten && !w.eaten) say(`a ${world.cells[eaten.a].species} latched on: it is being drained`, true);
+  if (!eaten && w.eaten) say('the predator let go');
+  w.eaten = !!eaten;
   if (c.waiting && c.waiting !== w.waiting) say(`ready to divide, but waits: ${c.waiting}`);
   if (gE === 1 && w.gE < 1) say(gN === 1 ? 'has the energy for a division: ready to divide' : 'has the energy for a division (nitrogen still short)');
   if (gN === 1 && w.gN < 1) say(gE === 1 ? 'has the nitrogen for a division: ready to divide' : 'has the nitrogen for a division (energy still short)');

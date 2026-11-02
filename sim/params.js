@@ -83,6 +83,19 @@ export const PARAMS = {
     holdLight: 0.5,         // pJ/s per µm³ held fully light (r 5.5: ~350 pJ/s, ~5% of income), in proportion on the way
     holdHeavy: 0.3,         // pJ/s per µm³ held fully heavy, the same
   },
+  // The peduncle (step 1, author 2026-11-02): a feeding tube; latched on another species' body it drains energy (what the
+  // prey releases into its pool) and nitrogen (its growth meter), keeping half
+  feed: {
+    length: 20,             // µm, fixed for now (stretching later)
+    radius: 0.6,            // µm, the tube's thickness
+    mouth: 1.5,             // µm: its tip latches on a body this close
+    rate: 20000,            // pJ/s it sucks at most (a typical cell spends ~5,000 to live)
+    nitrogen: 50,           // N units/s it sucks at most from the prey's growth meter
+    keep: 0.5,              // share of what it sucks the predator keeps
+    pierce: 40000,          // pJ each latch costs (paid from the pool; it can't latch without it)
+    hold: 40,               // pN the link holds before it snaps (as a kin pad)
+    loadTime: 0.1,          // s the pull is averaged over before it snaps (a stroke's jerk doesn't count)
+  },
   // Nitrogen (sim/nutrient.js): poor at the surface, rich deep, a nutricline between; with world.grow a field cells use up
   nutrient: {
     cline: 0.5,             // depth of the nutricline (share of the tank)

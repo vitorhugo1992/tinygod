@@ -2,12 +2,15 @@
 // - contact: pieces of different cells push apart where their capsules overlap;
 // - pads: a kin pad sticks to a kin pad of the same species, a mucus pad to any surface of another cell;
 //   a stuck pad is a spring that snaps when pulled harder than its pad holds;
+// - peduncles: a feeding tube's tip touching another species' body latches (paying PARAMS.feed.pierce), held like a
+//   pad link (it snaps past PARAMS.feed.hold); it lets go when its rule stops, its cell dies, or the prey is drained
+//   (metab.js sets link.done); metab.js drains the prey through it;
 // - groups: cells joined by pads. No chain rule: chains come from pads meeting. A hidden backstop
 //   (PARAMS.pads.maxChain) only blocks a new link that would make a group bigger than that.
 import { PARAMS } from './params.js';
 
 const KCC = PARAMS.contact.cells;
-const PAD = PARAMS.pads;
+const PAD = PARAMS.pads, FEED = PARAMS.feed;
 
 // Closest points between segments p1-q1 and p2-q2 (Ericson, Real-Time Collision Detection 5.1.9);
 // returns [s, t] along each, 0..1
@@ -52,9 +55,10 @@ function padWorld(cell, pad) {
 }
 
 // Closest surface point of another cell to (x, y), within `reach`: [piece, lx, ly, dist] or null
-function surfaceNear(cell, x, y, reach) {
+function surfaceNear(cell, x, y, reach, only = -1) {
   let best = null;
   for (let i = 0; i < cell.pieces.length; i++) {
+    if (only >= 0 && i !== only) continue;
     const [ax, ay, bx, by] = ends(cell, i);
     const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
     let t = l2 > 0 ? ((x - ax) * dx + (y - ay) * dy) / l2 : 0;
@@ -124,7 +128,15 @@ export function interact(world) {
       return [B.cx[i] + c * l.bx - s * l.by, B.cy[i] + s * l.bx + c * l.by];
     })();
     const force = PAD.stiffness * Math.hypot(ax - bx, ay - by);
-    if (force > l.holds) { l.padA.link = null; if (l.padB) l.padB.link = null; continue; }
+    // a peduncle's link breaks under a sustained pull (averaged over PARAMS.feed.loadTime), not the jerk of each
+    // stroke of its own tail (a swimmer's body bounces ~10 µm a stroke); a spring jump's long pull still snaps it
+    if (l.feed) l.load = (l.load || 0) + (force - (l.load || 0)) * Math.min(1, PARAMS.time.dt / FEED.loadTime);
+    const letGo = l.feed && (!l.padA.go || l.done || A.dead);   // a peduncle lets go
+    if ((l.feed ? l.load : force) > l.holds || letGo) {
+      l.padA.link = null; if (l.padB) l.padB.link = null;
+      if (l.feed) A.lastMeal = { prey: B.species, why: letGo ? (l.done ? 'drained' : A.dead ? 'died' : 'rule') : 'torn', took: l.took || 0, step: world.steps };
+      continue;
+    }
     kept.push(l);
     const [lax, lay] = toLocal(A, l.padA.piece, ax, ay);
     A.ext.push({ type: 'pull', piece: l.padA.piece, x: lax, y: lay, tx: bx, ty: by, k: PAD.stiffness });
@@ -133,6 +145,26 @@ export function interact(world) {
     B.ext.push({ type: 'pull', piece: pb, x: lbx, y: lby, tx: ax, ty: ay, k: PAD.stiffness });
   }
   world.links = kept;
+
+  // free peduncles whose rule holds latch onto another species' body their tip touches
+  for (const A of cells) {
+    if (A.dead) continue;
+    for (const f of A.feeders) {
+      if (f.link || !f.go || (world.metab && A.metab.E < FEED.pierce)) continue;
+      const [x, y] = padWorld(A, f);
+      for (const B of cells) {
+        if (B === A || B.species === A.species) continue;
+        const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
+        if (dx * dx + dy * dy > r * r) continue;
+        const hit = surfaceNear(B, x, y, f.r, 0);   // the body only: spines and flagella keep it off
+        if (!hit) continue;
+        const link = { a: A.index, b: B.index, padA: f, pieceB: 0, bx: hit[1], by: hit[2], holds: FEED.hold, feed: true, took: 0, tookN: 0, since: world.steps };
+        f.link = link; world.links.push(link);
+        if (world.metab) A.metab.E -= FEED.pierce;
+        break;
+      }
+    }
+  }
 
   // free pads that touch something stick
   let size = groups(world);

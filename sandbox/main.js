@@ -391,7 +391,7 @@ function partColours(d) {
 const colourOf = (g) => (g.members[0].tag !== undefined ? PALETTE[g.members[0].tag % PALETTE.length] : null);
 const KIND_NAME = { 'Wave tail (swims)': 'Tail', 'Flexible oar (swims)': 'Oar', 'Stiff flap (goes nowhere)': 'Flap',
   'Burst organ (escape)': 'Spring', 'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Light sensor (eyespot)': 'Eyespot',
-  'Statolith (which way is up)': 'Statolith', 'Feeler': 'Feeler', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity', 'Nutrient sensor': 'Nutrients',
+  'Statolith (which way is up)': 'Statolith', 'Feeler': 'Feeler', 'Peduncle (feeds on others)': 'Peduncle', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity', 'Nutrient sensor': 'Nutrients',
   'Buoyancy chamber': 'Chamber', 'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad' };
 const SIDES = ['front', 'front-top', 'top', 'back-top', 'back', 'back-bottom', 'bottom', 'front-bottom'];
 // a part's name: the one given, or what it is and where ("Oar (back-bottom)"); the same twice gets a number
@@ -528,12 +528,12 @@ function sentence(targets, tappable, where) {
   const stWords = () => st.map((c, i) => (i ? ' or ' : '') + term(c, 'stop', i)).join('');
   const add = (list, label, title) => (tappable ? ` <button class="add" data-add="${list}" title="${title}">${label}</button>` : '');
   const never = (t) => `<span class="never">${t}</span>`;
-  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
+  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
   if (verb === 'floats') return `<div class="line">Floats ${go.length ? `when ${goWords()}` : never('never')}.${add('go', go.length ? '+ and…' : '+ when…', 'A condition that floats it')}</div>
     <div class="line">Sinks ${st.length ? `when ${stWords()}` : never('never')}.${add('stop', st.length ? '+ or…' : '+ when…', 'A condition that sinks it (sinking wins)')}</div>
     <div class="line small">Sinking wins; neither: neutral, no cost.</div>`;
-  const V = { runs: 'Runs', fires: 'Fires', rests: 'Rests' }[verb];
-  const none = verb === 'runs' ? never('all the time') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
+  const V = { runs: 'Runs', fires: 'Fires', rests: 'Rests', feeds: 'Feeds' }[verb];
+  const none = verb === 'runs' ? never('all the time') : verb === 'feeds' ? never('whenever it touches another species') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
   let s = `${V} ${go.length ? `when ${goWords()}` : none}`;
   if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
   if (verb === 'runs') {
@@ -543,6 +543,7 @@ function sentence(targets, tappable, where) {
   }
   s += '.';
   if (verb === 'rests') s += ' <span class="small">(upkeep and income at 40%, flagella stop)</span>';
+  if (verb === 'feeds') s += ` <span class="small">(latches on another species' body it touches: ${PARAMS.feed.pierce / 1000}k pJ to pierce; lets go when this stops holding)</span>`;
   return `<div class="line">${s}${add('go', go.length ? '+ and…' : '+ when…', 'A condition it needs')}${add('stop', '+ unless…', 'Something that stops it, whatever the rest says')}</div>`;
 }
 // the folded card: the same sentence, plain
@@ -575,9 +576,9 @@ function sensorList(except) {
     list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
   return list;
 }
-const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.latched));
+const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.latched));
 // how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part)
-const verbOf = (m) => (m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+const verbOf = (m) => (m.joint.type === 'feed' ? 'feeds' : m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
 // A part's rule as the card shows it: GO groups (all of a group must hold: AND; any group will do: OR) and STOP
 // conditions (any one stops the part, whatever the GO groups say: the override). Stored as one list: GO conditions in
 // their groups (or: true starts a group), then STOP ones (stop: true).
@@ -1012,14 +1013,14 @@ function drawRunMap(cv, m, R) {
   ctx2.putImageData(img, 0, 0);
   const n = MAP_W * MAP_H, pc2 = (v) => `<b>${Math.round(v / n * 100)}%</b>`;
   const what = verb === 'floats' ? `Floats in ${pc2(fl)}, sinks in ${pc2(sk)} of the map; neutral elsewhere`
-    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : 'Fires'} in ${pc2(on)} of the map`;
+    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : verb === 'feeds' ? 'Would feed' : 'Fires'} in ${pc2(on)} of the map`;
   return `${what}${live ? '' : ' (select a cell of this design for its eyespots\' facing and its day)'}.`;
 }
 // the map under a card's sentence: a canvas, the axes, a dot for the selected cell now (moved every frame)
 function runMapEl(targets, R) {
   const m = targets[0], k0 = design.parts.indexOf(m);
   const box = document.createElement('div'); box.className = 'rmap';
-  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
+  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : verbOf(m) === 'feeds' ? 'IT WOULD FEED' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
     <div class="mbox"><canvas width="${MAP_W}" height="${MAP_H}"></canvas><span class="ml t">surface</span><span class="ml b">2 mm</span>
     <span class="mx" style="left:25%">06</span><span class="mx" style="left:50%">12</span><span class="mx" style="left:75%">18</span><i class="mdot" data-mapdot="${k0}"></i></div><div class="cap"></div>`;
   box.redraw = () => { box.querySelector('.cap').innerHTML = drawRunMap(box.querySelector('canvas'), m, R || canon(m)); };
@@ -1082,6 +1083,8 @@ function liveRule(live, k) {
     else { on = !j.latched; state = j.latched ? 'COCKED' : 'RELEASED'; }
     return { ctls: j.controls || null, state, cls: on ? 'on' : '' };
   }
+  const fd = live.feeders && live.feeders.find((x) => x.part === k);
+  if (fd) return { ctls: fd.controls || null, state: fd.link ? 'FEEDING' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
   const ch = live.pieces[0].inclusions.find((x) => x.part === k && x.material === 'chamber');
   if (ch) {
     const st = ch.target === PARAMS.chamber.light ? 'float' : ch.target === PARAMS.chamber.heavy ? 'sink' : '';
@@ -1647,6 +1650,9 @@ function budget(lines) {
   if (m.motors > 0) lines.push(`          flagella beating ${show(m.motors)}`);
   if (m.pumps > 0) lines.push(`          pumping ${show(m.pumps)}`);
   if (cell.resting) lines.push('resting   upkeep and income at 40%, flagella stopped');
+  for (const f of cell.feeders || []) if (f.link) lines.push(`feeding   on a ${world.cells[f.link.b] ? world.cells[f.link.b].species : '?'}: +${m.feeding.toFixed(0)} pJ/s kept (half of what it sucks)`);
+  const by = world.links.filter((l) => l.feed && world.cells[l.b] === cell);
+  if (by.length) lines.push(`DRAINED   by ${by.map((l) => `a ${world.cells[l.a].species}`).join(', ')}: its pool and nitrogen are being sucked out`);
   if (m.chamber > 0.5) lines.push(`          holding the buoyancy chamber ${show(m.chamber)}`);
   if (m.repair > 0.5) lines.push(`          repairing plastids (too much light) ${show(m.repair)}`);
   const net = m.income - m.upkeep * (cell.resting ? PARAMS.metab.rest : 1) - m.motors - m.pumps - m.chamber - m.repair;
@@ -2207,7 +2213,9 @@ function drawLinks(X, Y, s) {
     let bx, by;
     if (l.padB) [bx, by] = padWorld(B, l.padB);
     else { const i = l.pieceB; bx = B.cx[i] + B.cs[i] * l.bx - B.sn[i] * l.by; by = B.cy[i] + B.sn[i] * l.bx + B.cs[i] * l.by; }
+    if (l.feed) { ctx.save(); ctx.strokeStyle = '#ff4d6d'; ctx.lineWidth = Math.max(1.2 * s, 2.5); }
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
+    if (l.feed) { ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(X(bx), Y(by), Math.max(1.5 * s, 3), 0, 2 * Math.PI); ctx.fill(); ctx.restore(); }
   }
 }
 
@@ -2697,6 +2705,7 @@ const PART_ICONS = {
   'Energy store': ['#ece3c4', 'C17 12 7|M11 14.5 Q17 13 23 14.5 L23 16 Q17 21 11 16 Z*'],
   'Buoyancy chamber': ['#7cb0ff', 'C17 12 8*|M13 8 l2 0|M19 9 l1 0|M15 14 l1 0'],
   'Pad': ['#e070ff', 'M5 18 Q17 4 29 18|M8 20 L26 20'],
+  'Peduncle (feeds on others)': ['#ff6b8a', 'C5 12 3*|M8 12 L27 12|M27 8 L31 12 L27 16'],
   'Light sensor (eyespot)': ['#ff8a3c', 'C17 12 5*|M7 6 L11 9|M17 2 L17 5|M27 6 L23 9'],
   'Statolith (which way is up)': ['#e8eef5', 'C17 12 8|C17 17.5 2.6*'],
   'Feeler': ['#5fd0ff', 'C5 20 3*|M8 18 Q14 5 30 6|M27 3 l3 3 -3 3'],
@@ -2718,7 +2727,7 @@ const SHORT = {
   'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Spring',
   'Ejectisome, latched (Release)': 'Ejectisome', 'Oil droplet': 'Oil droplet',
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
-  'Feeler': 'Feeler', 'Spine': 'Spine', 'Pad': 'Pad',
+  'Feeler': 'Feeler', 'Spine': 'Spine', 'Pad': 'Pad', 'Peduncle (feeds on others)': 'Peduncle',
   'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity',
   'Energy store': 'Energy store', 'Buoyancy chamber': 'Buoyancy chamber', 'Statolith (which way is up)': 'Statolith',
@@ -2727,7 +2736,7 @@ const SHORT = {
 // shown in four rows: the small categories outside the body share one
 const SHOWN = {};
 for (const [cat, names] of Object.entries(CATEGORIES)) {
-  const row = ['Spines & appendages', 'Escapes', 'Pads'].includes(cat) ? 'On the outside' : cat;
+  const row = ['Spines & appendages', 'Escapes', 'Pads', 'Hunting'].includes(cat) ? 'On the outside' : cat;
   (SHOWN[row] = SHOWN[row] || []).push(...names);
 }
 for (const [cat, names] of Object.entries(SHOWN)) {

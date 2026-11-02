@@ -16,6 +16,9 @@
 //   nitrogen where it is (saturating; slowed while resting, none while starving) and is taken from the water; energy is
 //   what is left above fillAbove once the stores have taken their share (the surplus that was wasted). Both bars cost
 //   in proportion to the cell's volume (PARAMS.grow); full, the cell is ready to divide.
+// - Feeding (a peduncle latched on another species, interact.js): it sucks the prey's pool (which the prey refills from
+//   its own stores at their burn speed) and its growth meter's nitrogen, up to PARAMS.feed.rate and .nitrogen; the
+//   predator keeps PARAMS.feed.keep of it. From a dead prey it sucks the stores directly; nothing left, it lets go.
 // Numbers are round and tuned for play (CLAUDE.md), not measured.
 import { PARAMS } from './params.js';
 import { lightAt } from './light.js';
@@ -67,6 +70,27 @@ export function initMetab(cell) {
 // A store's full energy
 const capacity = (inc) => inc.v * M[inc.store].energy;
 
+// One step of a peduncle's drain: returns the energy the predator keeps (pJ)
+function feed(world, cell, l) {
+  const F = P.feed, prey = world.cells[l.b], pm = prey.metab, most = F.rate * DT;
+  let e = Math.min(most, pm.E);
+  pm.E -= e;
+  if (prey.dead) for (const inc of prey.pieces[0].inclusions) {   // rotting: straight from its stores
+    if (!inc.store || inc.fill <= 0 || e >= most) continue;
+    const cap = capacity(inc), more = Math.min(most - e, inc.fill * cap);
+    inc.fill -= more / cap; e += more;
+    inc.wpt.w = (inc.density - CYTO) * inc.v * inc.fill * G;
+  }
+  let n = 0;
+  if (prey.grow) { n = Math.min(F.nitrogen * DT, prey.grow.N); prey.grow.N -= n; }
+  l.took += e; l.tookN += n;
+  if (cell.grow) cell.grow.N = Math.min(cell.grow.Nneed, cell.grow.N + n * F.keep);
+  prey.drainedBy = { species: cell.species, step: world.steps };
+  if (prey.dead && e === 0 && n === 0) l.done = true;   // nothing left
+  cell.metab.E += e * F.keep;
+  return e * F.keep;
+}
+
 export function metabolize(world, cell) {
   const m = cell.metab, body = cell.pieces[0];
   if (cell.dead) {   // nothing earned or spent; still, and its chambers drift neutral (sim/death.js removes it)
@@ -106,6 +130,8 @@ export function metabolize(world, cell) {
   }
   m.chamber = hold;
   m.E += (income - m.upkeep * slow - hold) * DT - motors - pumps - repair;
+  m.feeding = 0;
+  for (const f of cell.feeders) if (f.link) m.feeding += feed(world, cell, f.link) / DT;
 
   // stores: surplus in (starch first: it is quick), shortfall out (starch first, then oil)
   const stores = body.inclusions.filter((x) => x.store).sort((a, b) => (a.store === 'starch' ? 0 : 1) - (b.store === 'starch' ? 0 : 1));
@@ -140,7 +166,11 @@ export function metabolize(world, cell) {
   m.starving = m.E <= 0;
   if (world.grow) {   // starving too long, it dies
     cell.starveT = m.starving ? (cell.starveT || 0) + DT : 0;
-    if (cell.starveT >= P.grow.die) { cell.dead = true; cell.diedAt = world.steps; cell.diedWhy = 'starved'; }
+    if (cell.starveT >= P.grow.die) {
+      cell.dead = true; cell.diedAt = world.steps;
+      const d = cell.drainedBy;   // fed on lately: killed by a predator
+      cell.diedWhy = d && (world.steps - d.step) * DT < P.grow.die ? `drained by a ${d.species}` : 'starved';
+    }
   }
   if (m.starving) {
     m.E = 0;

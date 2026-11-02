@@ -891,6 +891,38 @@ const runDay = (design, y, seconds, opts = {}) => {
     `starch ${fmt(fill0)} -> ${d ? `${fmt(c.pieces[0].inclusions[0].fill)} each` : '–'}; with a cap of 1: ${full.w.cells.length} cell, waits: ${full.c.waiting}`);
 }
 
+// 28u. The peduncle (step 1): its tip latches on another species' body (paying to pierce), never on kin; it drains the
+// prey's energy and nitrogen, keeping half, until the prey dies of it; a swimmer that latches stays on (its own strokes'
+// jerks don't tear it off)
+{
+  const ped = (species) => ({ species, body: { radius: 10 }, parts: [{ type: 'segment', at: [10, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed' } }] });
+  const plain = (species) => ({ species, body: { radius: 10 }, parts: [] });
+  const meet = (prey) => {
+    const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+    const A = addCell(w, ped('hunter'), 800, 1000, 0), B = addCell(w, prey, 841, 1000, 0);
+    B.grow.N = B.grow.Nneed;
+    const E0 = A.metab.E;
+    stepWorld(w);
+    const paid = E0 - A.metab.E;
+    let kept = 0;
+    for (let i = 0; i < 90000 && w.cells.includes(B) && !B.dead; i++) { stepWorld(w); kept += A.metab.feeding * PARAMS.time.dt; }
+    return { A, B, paid, kept, latched: !!A.feeders[0].link || !!A.lastMeal };
+  };
+  const hunt = meet(plain('prey')), kin = meet(plain('hunter'));
+  // a swimmer with a peduncle in front, the prey in its path
+  const sw = copy('Wave tail'); sw.species = 'swimmer';
+  sw.parts.push({ type: 'segment', at: [sw.body.radius, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed' } });
+  const w = makeWorld(1, { gravity: false, metab: true, grow: true });
+  const S = addCell(w, sw, 800, 1000, 0); addCell(w, plain('prey'), 800 + S.reach + 12, 972, 0);
+  let held = 0;
+  for (let i = 0; i < 9000; i++) { stepWorld(w); if (S.feeders[0].link) held++; }
+  check('a peduncle latches on another species (not kin), pays to pierce, drains it to death keeping half; a swimmer stays latched',
+    hunt.latched && !kin.latched && Math.abs(hunt.paid - PARAMS.feed.pierce) < 0.2 * PARAMS.feed.pierce && hunt.B.dead
+      && /drained by a hunter/.test(hunt.B.diedWhy) && hunt.A.grow.N > 0.4 * hunt.B.grow.Nneed && held > 5000,
+    `on a stranger: paid ${fmt(hunt.paid / 1000, 0)}k to pierce, kept ${fmt(hunt.kept / 1000, 0)}k pJ and ${fmt(hunt.A.grow.N, 0)} N, ` +
+    `the prey ${hunt.B.diedWhy || 'alive'}; on kin: ${kin.latched ? 'latched' : 'no latch'}; a swimming hunter held its prey ${fmt(held / 1000, 1)} of 9 s`);
+}
+
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's
 // share and its meter's) goes back to the water
 {

@@ -49,6 +49,8 @@
 // ({ when: 'light' } means min 0.5, { when: 'dark' } max 0.5.)
 // A segment's joint, at `at`:
 //   { type: 'fixed' }                                    (default) rigid
+//   { type: 'feed', controls? }   a peduncle (PARAMS.feed): rigid; its tip latches on another species' body and drains
+//       it (interact.js latches, metab.js drains); its rule: FEEDS when… (no rule: always)
 //   { type: 'hinge', stiffness = 0, rest = 0, latched = false }  springy (pN·µm/rad; rest angle in degrees, starts
 //       at 0). Latched, it is held at its angle until released (a trigger: a cocked spring waits).
 //   { type: 'motor', rate, swing, stroke = 0.5, phase = 0, on = true, burst? }
@@ -95,7 +97,7 @@ function capsuleDrag(L, a) {
 }
 
 function parseJoint(j, pieceIndex) {
-  if (!j || j.type === 'fixed') return null;
+  if (!j || j.type === 'fixed' || j.type === 'feed') return null;   // a peduncle is rigid: its 'joint' only holds its rule
   if (j.type === 'hinge') {
     return { type: 'hinge', piece: pieceIndex, stiffness: j.stiffness || 0, rest: (j.rest || 0) * DEG,
       latched: !!j.latched };
@@ -155,6 +157,9 @@ export function rewire(cell, partIndex, controls) {
     cell.rest.controls = controls.length ? controls.map((c) => resolveControl(cell.sensors, c)) : null;
     if (!controls.length) cell.resting = false;
   }
+  for (const f of cell.feeders) if (f.part === partIndex) {
+    if (controls.length) f.controls = controls.map((c) => resolveControl(cell.sensors, c)); else { delete f.controls; f.go = true; }
+  }
   for (const inc of cell.pieces[0].inclusions) if (inc.part === partIndex && inc.material === 'chamber') {
     if (controls.length) inc.controls = controls.map((c) => resolveControl(cell.sensors, c)); else delete inc.controls;
   }
@@ -185,6 +190,7 @@ export function buildCell(design, opts = {}) {
   const pieces = [];
   const joints = [];
   const pads = [];
+  const feeders = [];    // peduncles: { piece, x (its tip), y, r (mouth), part, controls, go, link }
   const sensors = [];
   const controls = [];   // [joint, control] pairs, resolved once every sensor is known
   const rest = { controls: null };   // the nucleus's REST rule (joint: { type: 'rest', controls } on the nucleus)
@@ -237,6 +243,11 @@ export function buildCell(design, opts = {}) {
       }
       piece.part = design.parts.indexOf(part);
       pieces.push(piece);
+      if (part.joint && part.joint.type === 'feed') {
+        const f = { piece: pieces.length - 1, x: L / 2, y: 0, r: PARAMS.feed.mouth, part: piece.part, go: true, link: null, feeder: true };
+        feeders.push(f);
+        if (controlsOf(part.joint).length) controls.push([f, controlsOf(part.joint)]);
+      }
       if (part.id) ids.set(part.id, pieces.length - 1);
     } else if (part.type === 'inclusion') {
       const host = pieces[parent];
@@ -328,7 +339,7 @@ export function buildCell(design, opts = {}) {
 
   const np = pieces.length;
   return {
-    design, pieces, joints, pads, sensors, n, colTurn, reach, rest, resting: false,
+    design, pieces, joints, pads, feeders, sensors, n, colTurn, reach, rest, resting: false,
     species: design.species || design.name || 'A',
     ext: [],                 // this step's contacts and pad pulls from other cells (interact.js)
     jointPiece: Int32Array.from(joints.map((j) => j.piece)),

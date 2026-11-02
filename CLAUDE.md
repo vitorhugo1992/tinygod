@@ -101,7 +101,40 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    **DECIDED (author, 2026-11-02): NO GRAZERS** ("I want this a battle between existing species for survival and
    dominance"): every attack and defence is between players' species. **The glass wall goes** (silica is a layer of
    complexity too many): to be replaced by **some way to form an armoured wall** (to design with the author; protein
-   stays the plain wall). **First, the author asked for a contest:** all Claude's species in one tank, 10 days, which
+   stays the plain wall). **The first attack part: the PEDUNCLE (author, 2026-11-02, Claude's recommendation).** A
+   feeding tube on the rim; latches on touching another species' body (not kin, not spines) and drains it. **Decided so
+   far:** a fixed length to start (stretching later; author: "10 µm seems short, it should be able to stretch… start
+   basic"); **it takes energy in whatever form the prey releases** (no menu: it sucks the prey's pool, which the prey
+   refills from its own stores at their burn speed: starch prey are rich and quick, oil prey give a trickle and starve
+   with their oil unspent; a choice of what to steal belongs to stealing plastids later) **and nitrogen from the prey's
+   growth meter**; **a steady drain while latched: up to 20,000 pJ/s and 50 N/s, the predator keeps half** (author:
+   "middle term, but we need to ensure balance"; a ramp was offered and dropped: steady is clearer; a piercing delay is
+   the knob if predators kill too fast). Balance by contests. **Latching (agreed):** by itself when its tip touches the
+   body of another species (no rule = always feeds); an optional rule "Feeds when…" (no latching while it doesn't hold,
+   and it lets go); lets go when the rule stops, when the prey has nothing left (it stays on a dead prey until then), or
+   when pulled harder than 40 pN (a kin pad's strength: steady swimming ~4-10 pN holds, a spring jump ~50 pN snaps,
+   a tug of war may). **Costs (agreed):** upkeep by length like any outside part; **40,000 pJ to pierce, each latch**
+   (~4 s of full gain: latching on poor or escaping prey loses); half the take lost; the tether and the prey's
+   defences come from the physics. No hidden stat penalty. Length: ~20 µm fixed to start.
+   **Peduncle BUILT (2026-11-02).** A segment with joint { type: 'feed', controls } (rigid; the "joint" only holds its
+   rule, as the chamber's and REST's do); build.js cell.feeders [{ piece, x: its tip, r: mouth, part, controls, go,
+   link }]; sense.js sets f.go from its rule (none: always); interact.js latches a free feeder whose rule holds and whose
+   pool has the piercing price, its tip within PARAMS.feed.mouth (1.5 µm) of another species' BODY (piece 0 only), as a
+   pad-like link { feed: true, pieceB: 0, took, tookN }; it lets go when its rule stops, its cell dies, or metab sets
+   link.done (a dead prey with nothing left); A.lastMeal { prey, why: drained / died / rule / torn, took }. **A feed
+   link breaks on its pull averaged over PARAMS.feed.loadTime 0.1 s** (found: a swimmer's own strokes jerk its body ~10
+   µm 20 times a second and tore every latch off within 8 ms; a spring jump's long pull still snaps it). metab.js
+   feed(): sucks min(rate·dt, prey pool) (a dead prey: its stores directly) and min(N rate·dt, prey meter N), keeps
+   half (pool; N into its meter), m.feeding (pJ/s kept), prey.drainedBy; a cell starving to death within 60 s of being
+   fed on dies 'drained by a <species>'. Sandbox: Build panel "Peduncle" (On the outside; category Hunting), its rule card
+   "Feeds when… (latches on another species' body it touches…)", pill FEEDING / READY / OFF, the map "IT WOULD FEED";
+   the latch drawn as a red line and a red dot on the prey; numbers "feeding on a X: +N pJ/s kept" / "DRAINED by a X";
+   trouble log "latched onto a X (40k pJ to pierce)", "let go of a X (nothing left / torn off…): took Nk pJ", "a X
+   latched on: it is being drained". **Measured (a still predator, no plastid, dark):** a prey with no store dies in 68 s
+   (83k kept); a starch prey (r 5 store) in 215 s (1.3 million kept, full N); an oil prey releases ~7,800 pJ/s, so the
+   predator keeps less than its upkeep (it starved first). A swimmer latching on pushes its prey along while feeding.
+   Check 28u (49 checks). Not yet: stretching, stealing plastids; the contest with a hunter.
+   **First, the author asked for a contest:** all Claude's species in one tank, 10 days, which
    has the most cells.
 3. **Division:** the meter full, the cell splits: the daughter an exact copy (kin), beside it, stores shared. Later: a rule
    for when to divide; chains at division with kin pads.
