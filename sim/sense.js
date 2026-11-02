@@ -65,10 +65,12 @@ export function plastidHealth(world, cell) {
 // swimming while it feeds, or its own pull tears the tube off)
 export const feedingLevel = (cell) => ((cell.feeders || []).some((f) => f.link) ? 1 : 0);
 // Size: how grown the cell is, 0 newborn to 1 at PARAMS.grow.max times its newborn volume (in words: 1× ... 8×)
+// Drained: 1 while another cell's peduncle is latched on it (chains, author 2026-11-02: a chain can cut a victim loose)
+export const drainedLevel = (world, cell) => ((world.links || []).some((l) => l.feed && world.cells[l.b] === cell) ? 1 : 0);
 export const sizeLevel = (cell) => ((cell.size || 1) - 1) / (PARAMS.grow.max - 1);
 // A reading by index: a sensor part, or one built in (-1 energy, -2 starch, -3 oil, -4 plastid health, -5 feeding)
 const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ? energyLevel(world, cell)
-  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
+  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : k === -7 ? drainedLevel(world, cell) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
 
 // One condition: is the reading inside its range? (with a little hysteresis)
 function holds(ctl, v) {
@@ -149,6 +151,8 @@ export function sense(world, cell) {
   }
   // peduncles: FEEDS when… (no rule: always)
   for (const f of cell.feeders) f.go = f.controls ? holdsAll(world, cell, f.controls) : true;
+  // pads: HOLDS while… (no rule: always)
+  for (const p of cell.pads) p.go = p.controls ? holdsAll(world, cell, p.controls) : true;
   // division: DIVIDES when… (no rule: whenever its meter is full)
   if (cell.divideRule) { const r = cell.divideRule.controls ? ruleState(world, cell, cell.divideRule.controls) : null; cell.divideOk = !r || (r.go && !r.stop); }
   // resting: the nucleus's rule (REST when… / DON'T REST if…)

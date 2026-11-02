@@ -165,6 +165,13 @@ export const PARAMS = {
     stiffness: 5,          // pN/µm, the spring of a stuck pad
     kinBreak: 40,           // pN a kin pad holds before it snaps
     mucusBreak: 4,          // pN a mucus pad holds
+    share: 0.05,            // share of the difference in fullness (energy pool, nitrogen bar) kin joined by pads even out a second
+    shield: [1, 0.85, 0.75],   // a body's drag with 0, 1, 2+ kin joined by pads (author: chains of swimmers swim faster;
+                               // not real fluid dynamics, the shape of it; passive chains sink a bit faster too)
+    grace: 1,               // s a chain's links can't snap after a daughter slots in (contact pushes the cells apart)
     maxChain: 32,           // hidden backstop: a new link may not make a group bigger than this
+    // a chain holds at most this much cell volume (author 2026-11-02: "8 max or more depending on the size"): 8 cells
+    // of r 10 µm; smaller cells make longer chains (up to maxChain), bigger ones shorter (never fewer than 2 cells)
+    chainVolume: 8 * 4 / 3 * Math.PI * 1000,
   },
 };

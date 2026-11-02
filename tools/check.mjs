@@ -1062,6 +1062,57 @@ const runDay = (design, y, seconds, opts = {}) => {
     `divided: ${each.join(' + ')} stolen plastids; from a living prey after 35 s: the thief has ${live.thief}, the prey lost ${live.lost} (${live.alive ? 'alive' : 'dead'}), then rebuilt ${L.rebuilt || 0}`);
 }
 
+// 28z. Chains (author, 2026-11-02): a cell with kin pads places its daughter pad to pad and they stay joined (front-back
+// pads: a straight line; a middle cell's daughter slots in); a chain holds at most PARAMS.pads.chainVolume (8 r 10
+// cells); joined kin even out their energy; a pad's rule "holds while not drained" lets a victim go; a joined body is
+// shielded (a passive chain sinks a little faster)
+{
+  const line = (extra = [], hold) => ({ species: 'line', body: { radius: 10 }, parts: [...[0, 180].map((a, i) => ({ type: 'pad', id: `p${i}`, at: [10 * Math.cos(a * Math.PI / 180), 10 * Math.sin(a * Math.PI / 180)], kind: 'kin', joint: { type: 'hold', ...(hold ? { controls: hold } : {}) } })), ...extra] });
+  const was = PARAMS.grow.cap; PARAMS.grow.cap = 200;
+  const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+  addCell(w, line(), 800, 1000, 0);
+  for (let g = 0; g < 4; g++) { for (const k of w.cells) { regrow(w, k, 2); k.metab.E = k.metab.C; } for (let i = 0; i < 1500; i++) stepWorld(w); }
+  PARAMS.grow.cap = was;
+  let members = [];
+  const longest = (() => {   // the biggest group of cells joined by pads (its cells in members)
+    let best = 0; const seen = new Set();
+    for (const c of w.cells) { if (seen.has(c)) continue; const todo = [c]; let n = 0; seen.add(c); const group = []; while (todo.length) { const x = todo.pop(); n++; group.push(x); for (const l of w.links) { const A = w.cells[l.a], B = w.cells[l.b], o = A === x ? B : B === x ? A : null; if (o && !seen.has(o)) { seen.add(o); todo.push(o); } } } if (n > best) { best = n; members = group; } }
+    return best;
+  })();
+  const ys = members.map((c) => c.q[1]), xs = members.map((c) => c.q[0]).sort((a, b) => a - b);
+  const straight = Math.max(...ys) - Math.min(...ys) < 2 && members.every((c) => Math.abs(Math.sin(c.q[2])) < 0.05);
+  // sharing: one cell's pool emptied, its neighbours fill it
+  const s = w.cells.find((c) => w.links.some((l) => w.cells[l.a] === c || w.cells[l.b] === c));
+  s.metab.E = 0;
+  for (let i = 0; i < 10000; i++) stepWorld(w);
+  const shared = s.metab.E / s.metab.C;
+  // a victim cut loose: a hunter latches on one of two joined cells whose pads hold while not drained
+  const w2 = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+  const pair = line([], [{ sensor: 'drained', min: 0, max: 0.5 }]);
+  addCell(w2, pair, 800, 1000, 0); regrow(w2, w2.cells[0], 2); w2.cells[0].metab.E = w2.cells[0].metab.C;
+  for (let i = 0; i < 300; i++) stepWorld(w2);
+  const joinedBefore = w2.links.length;
+  const hunter = { species: 'hunter', body: { radius: 8 }, parts: [{ type: 'segment', at: [0, -8], angle: -90, length: 20, radius: 0.6, joint: { type: 'feed' } }] };
+  const V = w2.cells[1], H = addCell(w2, hunter, V.q[0], V.q[1] + 10 + 8 + 20 + 1, 0);
+  H.metab.C = H.metab.E = 1e7;
+  for (let i = 0; i < 2000; i++) stepWorld(w2);
+  const cut = joinedBefore === 1 && !w2.links.some((l) => !l.feed) && w2.links.some((l) => l.feed);
+  // shielding: three joined cells sink faster than one, the same cells
+  const sinkOf = (n) => {
+    const w3 = makeWorld(1, { metab: false });
+    const cs = [];
+    for (let k = 0; k < n; k++) cs.push(addCell(w3, line(), 800 + 20.5 * k, 1000, 0));
+    for (let k = 1; k < n; k++) { const L = { a: k - 1, b: k, padA: cs[k - 1].pads[0], padB: cs[k].pads[1], holds: PARAMS.pads.kinBreak }; cs[k - 1].pads[0].link = L; cs[k].pads[1].link = L; w3.links.push(L); }
+    const y0 = cs[0].q[1]; for (let i = 0; i < 5000; i++) stepWorld(w3);
+    return (y0 - cs[0].q[1]) / 5;
+  };
+  const one = sinkOf(1), three = sinkOf(3);
+  check('chains: daughters join pad to pad in a straight line (middle ones slot in), at most 8 r 10 cells; joined kin share energy; a "holds while not drained" pad lets a victim go; a chain sinks a little faster',
+    straight && longest === 8 && w.cells.length > 8 && shared > 0.2 && cut && three > 1.05 * one,
+    `${w.cells.length} cells, the longest chain ${longest}, ${straight ? 'straight' : 'not straight'} (x ${fmt(xs[0] - 800, 0)} to ${fmt(xs[xs.length - 1] - 800, 0)} µm); ` +
+    `an emptied pool refilled to ${fmt(100 * shared, 0)}% by its neighbours in 10 s; drained: ${cut ? 'cut loose' : 'still joined'}; sinking ${fmt(one)} alone, ${fmt(three)} µm/s three joined`);
+}
+
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's
 // share and its meter's) goes back to the water
 {

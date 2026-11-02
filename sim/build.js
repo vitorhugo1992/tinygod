@@ -99,7 +99,7 @@ function capsuleDrag(L, a) {
 }
 
 function parseJoint(j, pieceIndex) {
-  if (!j || j.type === 'fixed' || j.type === 'feed') return null;   // a peduncle is rigid: its 'joint' only holds its rule
+  if (!j || j.type === 'fixed' || j.type === 'feed' || j.type === 'hold') return null;   // a peduncle is rigid: its 'joint' only holds its rule
   if (j.type === 'hinge') {
     return { type: 'hinge', piece: pieceIndex, stiffness: j.stiffness || 0, rest: (j.rest || 0) * DEG,
       latched: !!j.latched };
@@ -122,8 +122,9 @@ function parseJoint(j, pieceIndex) {
 // A joint's wiring as the design writes it -> as the cell uses it (the sensor by index, the range)
 // A sensor by id, as its index in the cell (-1: the built-in energy level)
 // (-1: the built-in energy level; -2, -3: the built-in starch and oil levels, how full those stores are; -4: how
-// healthy its plastids are; -5: feeding, 1 while a peduncle of its is latched; -6: size, how grown it is)
-const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6 };
+// healthy its plastids are; -5: feeding, 1 while a peduncle of its is latched; -6: size, how grown it is; -7: drained,
+// 1 while another's peduncle drains it)
+const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7 };
 function sensorIndex(sensors, id) {
   if (BUILT_IN[id] !== undefined) return BUILT_IN[id];
   const s = sensors.findIndex((x) => x.id === id);
@@ -317,7 +318,10 @@ export function buildCell(design, opts = {}) {
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
       if (kind !== 'kin' && kind !== 'mucus') throw new Error(`unknown pad kind: ${kind}`);
-      pads.push({ piece: parent, x, y, r: part.radius || 1, kind, link: null });
+      const pad = { piece: parent, x, y, r: part.radius || 1, kind, link: null, go: true, part: design.parts.indexOf(part) };
+      pads.push(pad);
+      // HOLDS while… (chains, author 2026-11-02): no rule, it always holds; while its rule fails it lets go and won't stick
+      if (part.joint && part.joint.type === 'hold' && controlsOf(part.joint).length) controls.push([pad, controlsOf(part.joint)]);
     } else {
       throw new Error(`unknown part type: ${part.type}`);
     }

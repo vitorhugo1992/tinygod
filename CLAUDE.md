@@ -110,7 +110,19 @@ already make them; "at division" is only one way, a daughter starting stuck; **w
 2026-11-02): protection from predators, more buoyancy, cells in a chain trading nutrients between themselves, more
 resting, etc.**; **the chain's form comes from where the pads sit and the cell's geometry** (author; already true in
 the physics: front-back pads a line, angled pads an arc or ring, three a star; rods end to end a thread, side pads a
-ladder). **CHAIN PLAN, decided with the author (2026-11-02), not built yet:** (a) **forming at division by the pads:**
+ladder). **CHAINS BUILT (2026-11-02), as planned below, plus (author, mid-build): middle cells' daughters SLOT IN (between the
+mother and a neighbour; her twin pad takes the neighbour's link; the chain's links can't snap for PARAMS.pads.grace 1 s
+while contact pushes it apart: without that the shove snapped them), and a CAP by volume (PARAMS.pads.chainVolume = 8
+r 10 cells: smaller cells longer chains up to maxChain 32, bigger ones shorter, at least 2; a full chain's daughters
+separate; the same when kin meet). Code: divide.js chainSpot (least turn first; padNormal, posedClear, chainOf);
+build.js pad.go/controls (joint { type: 'hold' }); sense.js pad.go, drainedLevel (BUILT_IN -7); interact.js letGo
+for pads (rule fails, either dies), groups() ignores feed links and sums volume, cell.shield; physics.js body drag ×
+shield; metab.js shareChains (PARAMS.pads.share 0.05/s). Page: pad card "Holds always / while …" (pill JOINED / FREE
+/ LETS GO), Drained in the readings ("unless it is being drained"), old pads get the rule slot on load, numbers
+"chain 3 cells joined…", log "born by division, joined to its mother in a chain". Measured: r 10 front-back pads: a
+straight line, longest 8; arcs (±60°) curve 60° a cell; three pads branch; a chain of 3 sinks 11% faster; an emptied
+pool refilled to 25% by its neighbours in 10 s. Seen in the page (8 cells in a line). Check 28z (55 checks).
+**The plan as decided:** (a) **forming at division by the pads:**
 a cell with kin pads places its daughter pad to pad (turned so the pads face), joined; meeting kin still sticks;
 no pads, they separate; (b) **breaking:** links snap under force, a dead cell lets go, and each kin pad may carry an
 optional rule **"Holds while…"** (none: always holds); (c) **sharing:** joined kin slowly even out their energy pools

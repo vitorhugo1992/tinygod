@@ -8,7 +8,7 @@ import { regrow } from '../sim/grow.js';
 import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
 import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax } from './mould.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
-import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel } from '../sim/sense.js';
+import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
@@ -53,6 +53,7 @@ function withoutTimers(d) {
   if (!nucleiOf(d).length) for (const p of d.parts || []) if (p.joint) { delete p.joint.controls; delete p.joint.control; delete p.joint.speed; }
   for (const p of d.parts || []) if (p.type === 'inclusion' && p.material === 'nucleus' && !p.joint) p.joint = { type: 'rest' };   // its REST rule
   for (const p of d.parts || []) if (p.type === 'inclusion' && p.material === 'chamber' && !p.joint) p.joint = { type: 'chamber' };   // its FLOAT / SINK rule
+  for (const p of d.parts || []) if (p.type === 'pad' && !p.joint) p.joint = { type: 'hold' };   // its HOLDS while… rule (chains)
   if (!(d.parts || []).some((p) => p.type === 'rule' && p.joint && p.joint.type === 'divide')) (d.parts ||= []).push({ type: 'rule', id: 'divide', label: 'Division', joint: { type: 'divide' } });   // its DIVIDE rule
   tagParts(d);
   const gone = new Set((d.parts || []).filter((p) => p.type === 'sensor' && p.kind === 'timer').map((p) => p.id));
@@ -437,7 +438,7 @@ function partName(g, all = partGroups(design.parts || [])) {
   const same = all.filter((x) => own(x) === name);
   return same.length > 1 ? `${name} ${same.indexOf(all.find((x) => x.members[0] === g.members[0])) + 1}` : name;
 }
-const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health', feeding: 'Feeding', size: 'Size' };
+const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health', feeding: 'Feeding', size: 'Size', drained: 'Drained' };
 // a sensor (or built-in reading) by id: its name and colour (built-ins have none)
 function sensorInfo(id) {
   if (BUILT_NAME[id]) return { name: BUILT_NAME[id], colour: null };
@@ -457,6 +458,7 @@ function meaning(kind, v, id) {
   if (kind === 'energy' || kind === 'starch' || kind === 'oil') return `${pc} full`;
   if (kind === 'health') return `${pc} healthy`;
   if (kind === 'feeding') return v >= 0.5 ? 'feeding' : 'not feeding';
+  if (kind === 'drained') return v >= 0.5 ? 'being drained' : 'not being drained';
   if (kind === 'size') return `${sizeX(v)} its newborn volume`;
   if (kind === 'touch') return v >= 0.5 ? 'touching' : 'not touching';
   if (kind === 'near') return v <= 0 ? 'nothing near' : v >= 1 ? 'touching' : `something ${Math.round((1 - v) * nearRange(id))} µm away`;
@@ -486,6 +488,7 @@ const KINDS = {
   health: { verb: 'is', zones: [[0, 0.3, 'wrecked'], [0.3, 0.7, 'hurt'], [0.7, 1, 'healthy']], u: (v) => `${pc(v)} healthy` },
   touch: { verb: 'is', zones: [[0, 0.5, 'not touching'], [0.5, 1, 'touching']], u: (v) => (v >= 0.5 ? 'touching' : 'not touching') },
   size: { verb: 'is', zones: [[0, 1 / 7, 'newborn'], [1 / 7, 3 / 7, 'grown'], [3 / 7, 1, 'big']], u: (v) => sizeX(v) },
+  drained: { verb: 'is', zones: [[0, 0.5, 'not being drained'], [0.5, 1, 'being drained']], u: (v) => (v >= 0.5 ? 'being drained' : 'not being drained') },
   feeding: { verb: 'is', zones: [[0, 0.5, 'not feeding'], [0.5, 1, 'feeding']], u: (v) => (v >= 0.5 ? 'feeding' : 'not feeding') },
   near: { verb: 'feels', zones: [[0, 0.05, 'nothing'], [0.05, 0.5, 'far'], [0.5, 0.95, 'close'], [0.95, 1, 'touching']],
     u: (v, id) => `${Math.round((1 - v) * nearRange(id))} µm` },
@@ -503,6 +506,7 @@ function rangeWords(id, a, b, out) {
   if (lo && hi) return out ? 'never' : 'anything';
   if (kind === 'touch') return hi !== out ? 'touching' : 'not touching';
   if (kind === 'feeding') return hi !== out ? 'feeding' : 'not feeding';
+  if (kind === 'drained') return hi !== out ? 'being drained' : 'not being drained';
   if (kind === 'near') {
     if (hi !== out && (hi || lo)) return `something within ${u(hi ? a : b)}`;
     if (lo || hi) return `nothing within ${u(lo ? b : a)}`;
@@ -529,7 +533,7 @@ function termWords(c, ref) {
   if (c.vs !== undefined) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(c.not ? 'less than' : 'more than', r(0))} ${sensorWord(c.vs, r(0))}`;
   const also = c.also || [], all = [c, ...also];
   // its own state (feeding): "it is feeding"
-  if (!also.length && sensorKind(c.sensor) === 'feeding') return `it ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
+  if (!also.length && (sensorKind(c.sensor) === 'feeding' || sensorKind(c.sensor) === 'drained')) return `it ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
   if (!also.length) return `${sensorWord(c.sensor, r(0))} ${verb} ${valueWord(rangeWords(c.sensor, c.min, c.max, c.not), r(0))}`;
   const jw = c.all ? 'and' : 'or', join = ref ? ` <span class="j" data-alsojoin="${ref}" title="Tap: or / and / but not when">${jw}</span> ` : ` ${jw} `;
   // every sensor of one kind on the cell: "any eyespot" / "every eyespot" (author, 2026-11-01: name the group, shorter);
@@ -564,7 +568,7 @@ function sentence(targets, tappable, where) {
   const stWords = () => st.map((c, i) => (i ? ' or ' : '') + term(c, 'stop', i)).join('');
   const add = (list, label, title) => (tappable ? ` <button class="add" data-add="${list}" title="${title}">${label}</button>` : '');
   const never = (t) => `<span class="never">${t}</span>`;
-  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'divides' ? 'Divides as soon as it has doubled' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
+  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'holds' ? 'Always holds' : verb === 'divides' ? 'Divides as soon as it has doubled' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
   if (verb === 'floats') return `<div class="line">Floats ${go.length ? `when ${goWords()}` : never('never')}.${add('go', go.length ? '+ and…' : '+ when…', 'A condition that floats it')}</div>
     <div class="line">Sinks ${st.length ? `when ${stWords()}` : never('never')}.${add('stop', st.length ? '+ or…' : '+ when…', 'A condition that sinks it (sinking wins)')}</div>
     <div class="line small">Sinking wins; neither: neutral, no cost.</div>`;
@@ -573,9 +577,9 @@ function sentence(targets, tappable, where) {
     if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
     return `<div class="line">${s}.${add('go', '+ and…', 'Wait to divide until this holds too (e.g. after dawn)')}${add('stop', '+ unless…', 'Never divide while this holds')}</div>`;
   }
-  const V = { runs: 'Runs', fires: 'Fires', rests: 'Rests', feeds: 'Feeds' }[verb];
-  const none = verb === 'runs' ? never('all the time') : verb === 'feeds' ? never('whenever it touches another species') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
-  let s = `${V} ${go.length ? `when ${goWords()}` : none}`;
+  const V = { runs: 'Runs', fires: 'Fires', rests: 'Rests', feeds: 'Feeds', holds: 'Holds' }[verb];
+  const none = verb === 'runs' ? never('all the time') : verb === 'holds' ? never('always') : verb === 'feeds' ? never('whenever it touches another species') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
+  let s = `${V} ${go.length ? `${verb === 'holds' ? 'while' : 'when'} ${goWords()}` : none}`;
   if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
   if (verb === 'runs') {
     const sp = m.joint.speed;
@@ -584,6 +588,7 @@ function sentence(targets, tappable, where) {
   }
   s += '.';
   if (verb === 'rests') s += ' <span class="small">(upkeep and income at 40%, flagella stop)</span>';
+  if (verb === 'holds') s += ` <span class="small">(${m.kind === 'mucus' ? 'sticks to anything it touches, weakly' : 'joins a kin pad it touches, and its daughter at division: chains'}; while this fails it lets go and won't stick)</span>`;
   if (verb === 'feeds') s += ` <span class="small">(latches on another species' body it touches: ${PARAMS.feed.pierce * m.length / 1000}k pJ to pierce; lets go when this stops holding)</span>`;
   return `<div class="line">${s}${add('go', go.length ? '+ and…' : '+ when…', 'A condition it needs')}${add('stop', '+ unless…', 'Something that stops it, whatever the rest says')}</div>`;
 }
@@ -594,11 +599,11 @@ const ruleSummary = (targets) => sentence(targets, false);
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
-const ICON = { size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
+const RANGE = { drained: [0.5, 1], size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
+const ICON = { drained: '🩸', size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
-  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding' || id === 'size') return id;
+  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding' || id === 'size' || id === 'drained') return id;
   const p = (design.parts || []).find((x) => x.id === id) || {};
   return p.material === 'statolith' ? 'statolith' : p.kind || 'light';
 }
@@ -615,14 +620,15 @@ function sensorList(except) {
     list.push({ id: k, name: `its ${k} level (how full its ${k} is)`, short: `${k[0].toUpperCase() + k.slice(1)} level`, kind: k });
   if ((design.parts || []).some((p) => p.type === 'inclusion' && p.material === 'plastid'))
     list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
+  list.push({ id: 'drained', name: 'drained (another cell\'s peduncle is latched on it)', short: 'Drained', kind: 'drained' });
   list.push({ id: 'size', name: 'its size (how grown it is: 1× newborn, 2× ready to divide)', short: 'Size', kind: 'size' });
   if ((design.parts || []).some((p) => p.joint && p.joint.type === 'feed'))
     list.push({ id: 'feeding', name: 'feeding (its peduncle latched on prey)', short: 'Feeding', kind: 'feeding' });
   return list;
 }
-const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.type === 'divide' || m.joint.latched));
+const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.type === 'divide' || m.joint.type === 'hold' || m.joint.latched));
 // how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part)
-const verbOf = (m) => (m.joint.type === 'divide' ? 'divides' : m.joint.type === 'feed' ? 'feeds' : m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+const verbOf = (m) => (m.joint.type === 'divide' ? 'divides' : m.joint.type === 'hold' ? 'holds' : m.joint.type === 'feed' ? 'feeds' : m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
 // A part's rule as the card shows it: GO groups (all of a group must hold: AND; any group will do: OR) and STOP
 // conditions (any one stops the part, whatever the GO groups say: the override). Stored as one list: GO conditions in
 // their groups (or: true starts a group), then STOP ones (stop: true).
@@ -1057,14 +1063,14 @@ function drawRunMap(cv, m, R) {
   ctx2.putImageData(img, 0, 0);
   const n = MAP_W * MAP_H, pc2 = (v) => `<b>${Math.round(v / n * 100)}%</b>`;
   const what = verb === 'floats' ? `Floats in ${pc2(fl)}, sinks in ${pc2(sk)} of the map; neutral elsewhere`
-    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : verb === 'feeds' ? 'Would feed' : verb === 'divides' ? 'Would divide (meter full)' : 'Fires'} in ${pc2(on)} of the map`;
+    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : verb === 'feeds' ? 'Would feed' : verb === 'holds' ? 'Holds' : verb === 'divides' ? 'Would divide (meter full)' : 'Fires'} in ${pc2(on)} of the map`;
   return `${what}${live ? '' : ' (select a cell of this design for its eyespots\' facing and its day)'}.`;
 }
 // the map under a card's sentence: a canvas, the axes, a dot for the selected cell now (moved every frame)
 function runMapEl(targets, R) {
   const m = targets[0], k0 = design.parts.indexOf(m);
   const box = document.createElement('div'); box.className = 'rmap';
-  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : verbOf(m) === 'feeds' ? 'WOULD FEED' : verbOf(m) === 'divides' ? 'WOULD DIVIDE' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
+  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : verbOf(m) === 'feeds' ? 'WOULD FEED' : verbOf(m) === 'holds' ? 'HOLDS' : verbOf(m) === 'divides' ? 'WOULD DIVIDE' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
     <div class="mbox"><canvas width="${MAP_W}" height="${MAP_H}"></canvas><span class="ml t">surface</span><span class="ml b">2 mm</span>
     <span class="mx" style="left:25%">06</span><span class="mx" style="left:50%">12</span><span class="mx" style="left:75%">18</span><i class="mdot" data-mapdot="${k0}"></i></div><div class="cap"></div>`;
   box.redraw = () => { box.querySelector('.cap').innerHTML = drawRunMap(box.querySelector('canvas'), m, R || canon(m)); };
@@ -1132,6 +1138,8 @@ function liveRule(live, k) {
     return { ctls: live.divideRule.controls, state: !world.grow || !g ? '' : full ? (live.waiting ? `${size.toFixed(1)}× WAITING` : 'DIVIDING') : `${size.toFixed(1)}× GROWING`, cls: full && !live.waiting ? 'on' : '' };
   }
   const fd = live.feeders && live.feeders.find((x) => x.part === k);
+  const pd = live.pads && live.pads.find((x) => x.part === k);   // a pad: joined, free, or letting go (its rule fails)
+  if (pd) return { ctls: pd.controls || null, state: pd.link ? 'JOINED' : pd.go ? 'FREE' : 'LETS GO', cls: pd.link ? 'on' : '' };
   if (fd) return { ctls: fd.controls || null, state: fd.link ? 'FEEDING' : fd.go && live.cantPierce ? 'TOO DEAR' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
   const ch = live.pieces[0].inclusions.find((x) => x.part === k && x.material === 'chamber');
   if (ch) {
@@ -1192,6 +1200,7 @@ function liveReading(c, id) {
   if (id === 'health') return { value: plastidHealth(world, c) };
   if (id === 'feeding') return { value: feedingLevel(c) };
   if (id === 'size') return { value: sizeLevel(c) };
+  if (id === 'drained') return { value: drainedLevel(world, c) };
   return c.sensors.find((x) => x.id === id);
 }
 
@@ -1724,6 +1733,11 @@ function budget(lines) {
   if (world.grow) {
     const g = cell.grow, n = nitrogenAt(world, cell.q[1]);
     const stolen = cell.pieces[0].inclusions.filter((x) => x.stolen);
+    {   // its chain: kin joined by pads
+      const seen = new Set([cell]), todo = [cell];
+      while (todo.length) { const x = todo.pop(); for (const l of world.links || []) { if (l.feed || !l.padB) continue; const A = world.cells[l.a], B = world.cells[l.b], o = A === x ? B : B === x ? A : null; if (o && !seen.has(o)) { seen.add(o); todo.push(o); } } }
+      if (seen.size > 1) lines.push(`chain     ${seen.size} cells joined: they even out energy and nitrogen; its drag ${Math.round(100 * (1 - (cell.shield || 1)))}% less`);
+    }
     if (cell.lost && cell.lost.length) lines.push(`robbed    ${cell.lost.length} of its plastids taken by a thief: it rebuilds them from its growth meter before growing`);
     if (stolen.length) lines.push(`stolen    ${stolen.length} plastid${stolen.length > 1 ? 's' : ''} at ${stolen.map((x) => `${Math.round(100 * x.stolen.fade)}%`).join(', ')} of their output (fading by half a day; light damage is never mended)`);
     lines.push(`size      ${(cell.size || 1).toFixed(1)}× its newborn volume${(cell.size || 1) >= PARAMS.grow.max - 1e-9 ? ' (its largest: no more growing)' : ''}${cell.waiting ? ` (waits: ${cell.waiting})` : ''}`);

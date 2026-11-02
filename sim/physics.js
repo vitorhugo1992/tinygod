@@ -121,15 +121,16 @@ function assemble(cell, gravity) {
     const p = pieces[i], cols = p.cols, m = cols.length;
     const c = cs[i], s = sn[i];
 
-    // drag about the centre
-    const rxx = p.xt * c * c + p.xn * s * s, rxy = (p.xt - p.xn) * c * s, ryy = p.xt * s * s + p.xn * c * c;
+    // drag about the centre (a body joined to kin in a chain is shielded a little: cell.shield, interact.js)
+    const sh = i === 0 ? cell.shield || 1 : 1;
+    const rxx = sh * (p.xt * c * c + p.xn * s * s), rxy = sh * (p.xt - p.xn) * c * s, ryy = sh * (p.xt * s * s + p.xn * c * c);
     fillCols(cell, cols, cx[i], cy[i]);
     for (let k = 0; k < m; k++) {
       const ax = rxx * UX[k] + rxy * UY[k], ay = rxy * UX[k] + ryy * UY[k];
       const turnk = cell.colTurn[cols[k]];
       const row = cols[k] * n;
       for (let l = 0; l < m; l++) {
-        A[row + cols[l]] += UX[l] * ax + UY[l] * ay + (turnk && cell.colTurn[cols[l]] ? p.xr : 0);
+        A[row + cols[l]] += UX[l] * ax + UY[l] * ay + (turnk && cell.colTurn[cols[l]] ? sh * p.xr : 0);
       }
     }
 

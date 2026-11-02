@@ -134,7 +134,7 @@ export const PART_TEMPLATES = {
       radius: PARAMS.feed.radius, material: 'protein', joint: { type: 'feed' } }],
   // one pad: sticks to its own kind only (kin), or to anything (mucus)
   'Pad': (body, deg, id, size, tilt, depth, feels, len, strength, kind = 'kin') =>
-    [{ type: 'pad', id, label: kind === 'mucus' ? 'Mucus pad' : 'Kin pad', at: surfacePoint(body, deg), kind }],
+    [{ type: 'pad', id, label: kind === 'mucus' ? 'Mucus pad' : 'Kin pad', at: surfacePoint(body, deg), kind, joint: { type: 'hold' } }],   // its rule: HOLDS while… (chains)
   'Touch sensor': (body, deg, id, size, tilt, depth, feels) =>
     [{ type: 'sensor', id, label: `Touch sensor${feels === 'anything' ? ' (anything)' : ''}`, at: surfacePoint(body, deg), kind: 'touch', feels }],
   'Proximity sensor': (body, deg, id, size, tilt, depth, feels) =>

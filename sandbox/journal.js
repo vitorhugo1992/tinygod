@@ -65,7 +65,7 @@ export function note(world, c) {
   if (health !== null && health < 0.75 && !w.hurt) { w.hurt = true; say(`bright light damaged its plastids (${(100 * health).toFixed(0)}% healthy)`, true); }
   if (health !== null && health > 0.95 && w.hurt) { w.hurt = false; say('its plastids have mended'); }
   if ((c.gen || 0) > (w.gen ?? (c.born !== undefined ? c.gen : 0))) say(`divided: two cells now (generation ${c.gen})`);
-  if (c.born !== undefined && w.gen === undefined) say(`born by division (generation ${c.gen})`);
+  if (c.born !== undefined && w.gen === undefined) say(`born by division (generation ${c.gen})${c.chainedAt !== undefined ? ', joined to its mother in a chain' : ''}`);
   if (c.dead && !w.dead) say(`died: ${c.diedWhy || 'starved'} (${Math.round(depth)} µm deep, ${Math.round(PARAMS.grow.die)} s without energy)`, true);
   w.dead = !!c.dead;
   // the peduncle: latching, letting go, being fed on

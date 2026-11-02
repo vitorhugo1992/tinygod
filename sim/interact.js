@@ -74,13 +74,15 @@ function surfaceNear(cell, x, y, reach, only = -1) {
   return best;
 }
 
-// Groups of cells joined by pads (union-find over the links); sets cell.group and returns sizes by group
+// Groups of cells joined by pads (union-find over the links, a peduncle's latch not counted); sets cell.group and
+// returns sizes by group (and their volumes in groups.vol)
 function groups(world) {
   const parent = world.cells.map((_, i) => i);
   const find = (i) => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
-  for (const l of world.links) { const a = find(l.a), b = find(l.b); if (a !== b) parent[Math.max(a, b)] = Math.min(a, b); }
-  const size = new Map();
-  world.cells.forEach((c, i) => { c.group = find(i); size.set(c.group, (size.get(c.group) || 0) + 1); });
+  for (const l of world.links) { if (l.feed) continue; const a = find(l.a), b = find(l.b); if (a !== b) parent[Math.max(a, b)] = Math.min(a, b); }
+  const size = new Map(), vol = new Map();
+  world.cells.forEach((c, i) => { c.group = find(i); size.set(c.group, (size.get(c.group) || 0) + 1); vol.set(c.group, (vol.get(c.group) || 0) + c.pieces[0].volume); });
+  size.vol = vol;
   return size;
 }
 
@@ -131,8 +133,10 @@ export function interact(world) {
     // a peduncle's link breaks under a sustained pull (averaged over PARAMS.feed.loadTime), not the jerk of each
     // stroke of its own tail (a swimmer's body bounces ~10 µm a stroke); a spring jump's long pull still snaps it
     if (l.feed) l.load = (l.load || 0) + (force - (l.load || 0)) * Math.min(1, PARAMS.time.dt / FEED.loadTime);
-    const letGo = l.feed && (!l.padA.go || l.done || A.dead);   // a peduncle lets go
-    if ((l.feed ? l.load : force) > l.holds || letGo) {
+    const letGo = l.feed ? (!l.padA.go || l.done || A.dead)   // a peduncle lets go
+      : (l.padA.go === false || (l.padB && l.padB.go === false) || A.dead || B.dead);   // a pad's rule lets go; the dead let go
+    const graced = l.grace && world.steps < l.grace;   // a chain making room for a new cell: no snapping yet
+    if (((l.feed ? l.load : force) > l.holds && !graced) || letGo) {
       l.padA.link = null; if (l.padB) l.padB.link = null;
       if (l.feed) A.lastMeal = { prey: B.species, why: letGo ? (l.done ? 'drained' : A.dead ? 'died' : 'rule') : 'torn', took: l.took || 0, step: world.steps };
       continue;
@@ -145,6 +149,10 @@ export function interact(world) {
     B.ext.push({ type: 'pull', piece: pb, x: lbx, y: lby, tx: ax, ty: ay, k: PAD.stiffness });
   }
   world.links = kept;
+  // shielding: each body's drag by how many kin it is joined to (PARAMS.pads.shield)
+  const joins = new Map();
+  for (const l of kept) if (!l.feed && l.padB) for (const c of [cells[l.a], cells[l.b]]) joins.set(c, (joins.get(c) || 0) + 1);
+  for (const c of cells) c.shield = PAD.shield[Math.min(joins.get(c) || 0, PAD.shield.length - 1)];
 
   // free peduncles whose rule holds latch onto another species' body their tip touches
   for (const A of cells) {
@@ -174,19 +182,20 @@ export function interact(world) {
   let size = groups(world);
   for (const A of cells) {
     for (const pad of A.pads) {
-      if (pad.link) continue;
+      if (pad.link || pad.go === false) continue;
       const [x, y] = padWorld(A, pad);
       for (const B of cells) {
         if (B === A || pad.link) continue;
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
         if (dx * dx + dy * dy > r * r) continue;
         const joined = A.group === B.group;
-        if (!joined && size.get(A.group) + size.get(B.group) > PAD.maxChain) continue;
+        if (!joined && (size.get(A.group) + size.get(B.group) > PAD.maxChain
+          || size.vol.get(A.group) + size.vol.get(B.group) > PAD.chainVolume)) continue;   // a full chain takes no more
         let link = null;
         if (pad.kind === 'kin') {
           if (B.species !== A.species) continue;
           for (const other of B.pads) {
-            if (other.link || other.kind !== 'kin') continue;
+            if (other.link || other.kind !== 'kin' || other.go === false) continue;
             const [ox, oy] = padWorld(B, other);
             if (Math.hypot(x - ox, y - oy) <= pad.r + other.r) {
               link = { a: A.index, b: B.index, padA: pad, padB: other, holds: PAD.kinBreak };

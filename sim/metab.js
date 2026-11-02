@@ -197,3 +197,22 @@ export function metabolize(world, cell) {
     for (const inc of body.inclusions) if (inc.pumpable) inc.target = P.chamber.neutral;   // nothing holds it: it drifts neutral
   }
 }
+
+// Chains share (author, 2026-11-02): kin joined by pads slowly even out how full their energy pools and their growth
+// meters' nitrogen are (PARAMS.pads.share of the difference a second), so a cell in the light feeds one in shade and a
+// resting cell lives on its neighbours. The dead and a peduncle's latch share nothing.
+export function shareChains(world) {
+  const k = P.pads.share * DT;
+  for (const l of world.links || []) {
+    if (l.feed || !l.padB) continue;
+    const A = world.cells[l.a], B = world.cells[l.b];
+    if (!A || !B || A.dead || B.dead || A.species !== B.species) continue;
+    const a = A.metab, b = B.metab;
+    const e = k * (a.E / a.C - b.E / b.C) * Math.min(a.C, b.C);
+    a.E -= e; b.E += e;
+    if (A.grow && B.grow) {
+      const n = k * (A.grow.N / A.grow.Nneed - B.grow.N / B.grow.Nneed) * Math.min(A.grow.Nneed, B.grow.Nneed);
+      A.grow.N -= n; B.grow.N += n;
+    }
+  }
+}
