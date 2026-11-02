@@ -68,7 +68,7 @@ export function note(world, c) {
   w.dead = !!c.dead;
   // the peduncle: latching, letting go, being fed on
   const feeding = (c.feeders || []).find((f) => f.link);
-  if (feeding && !w.feeding) say(`latched onto a ${world.cells[feeding.link.b].species} (${PARAMS.feed.pierce / 1000}k pJ to pierce)`);
+  if (feeding && !w.feeding) say(`latched onto a ${world.cells[feeding.link.b].species} (${Math.round(feeding.cost / 1000)}k pJ to pierce)`);
   if (!feeding && w.feeding && c.lastMeal) {
     const why = { drained: 'nothing left', died: 'it died', rule: 'its rule let go', torn: 'torn off' }[c.lastMeal.why];
     say(`let go of a ${c.lastMeal.prey} (${why}): took ${Math.round(c.lastMeal.took / 1000)}k pJ, kept half`);

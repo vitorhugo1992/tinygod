@@ -3,7 +3,7 @@
 // - pads: a kin pad sticks to a kin pad of the same species, a mucus pad to any surface of another cell;
 //   a stuck pad is a spring that snaps when pulled harder than its pad holds;
 // - peduncles: a feeding tube's tip touching another species' body latches (paying PARAMS.feed.pierce), held like a
-//   pad link (it snaps past PARAMS.feed.hold); it lets go when its rule stops, its cell dies, or the prey is drained
+//   pad link (it snaps past PARAMS.feed.hold; piercing costs PARAMS.feed.pierce per µm of tube); it lets go when its rule stops, its cell dies, or the prey is drained
 //   (metab.js sets link.done); metab.js drains the prey through it;
 // - groups: cells joined by pads. No chain rule: chains come from pads meeting. A hidden backstop
 //   (PARAMS.pads.maxChain) only blocks a new link that would make a group bigger than that.
@@ -150,7 +150,7 @@ export function interact(world) {
   for (const A of cells) {
     if (A.dead) continue;
     for (const f of A.feeders) {
-      if (f.link || !f.go || (world.metab && A.metab.E < FEED.pierce)) continue;
+      if (f.link || !f.go || (world.metab && A.metab.E < f.cost)) continue;
       const [x, y] = padWorld(A, f);
       for (const B of cells) {
         if (B === A || B.species === A.species) continue;
@@ -160,7 +160,7 @@ export function interact(world) {
         if (!hit) continue;
         const link = { a: A.index, b: B.index, padA: f, pieceB: 0, bx: hit[1], by: hit[2], holds: FEED.hold, feed: true, took: 0, tookN: 0, since: world.steps };
         f.link = link; world.links.push(link);
-        if (world.metab) A.metab.E -= FEED.pierce;
+        if (world.metab) A.metab.E -= f.cost;
         break;
       }
     }

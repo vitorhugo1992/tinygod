@@ -133,7 +133,9 @@ the first decision; the rest still to settle ONE QUESTION AT A TIME, with a reco
    latched on: it is being drained". **Measured (a still predator, no plastid, dark):** a prey with no store dies in 68 s
    (83k kept); a starch prey (r 5 store) in 215 s (1.3 million kept, full N); an oil prey releases ~7,800 pJ/s, so the
    predator keeps less than its upkeep (it starved first). A swimmer latching on pushes its prey along while feeding.
-   Check 28u (49 checks). Not yet: stretching, stealing plastids; the contest with a hunter.
+   Check 28u (49 checks). **Length slider (author, 2026-11-02: "the longer the more energy needed to use it"):** 10-80 µm
+   (default 20); piercing costs PARAMS.feed.pierce 2,000 pJ per µm of tube (f.cost: 20 µm 40k, 80 µm 160k); upkeep by
+   length as every outside part. Not yet: stretching, stealing plastids; the contest with a hunter.
    **First, the author asked for a contest:** all Claude's species in one tank, 10 days, which
    has the most cells.
 3. **Division:** the meter full, the cell splits: the daughter an exact copy (kin), beside it, stores shared. Later: a rule

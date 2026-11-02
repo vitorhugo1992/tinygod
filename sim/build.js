@@ -244,7 +244,8 @@ export function buildCell(design, opts = {}) {
       piece.part = design.parts.indexOf(part);
       pieces.push(piece);
       if (part.joint && part.joint.type === 'feed') {
-        const f = { piece: pieces.length - 1, x: L / 2, y: 0, r: PARAMS.feed.mouth, part: piece.part, go: true, link: null, feeder: true };
+        const f = { piece: pieces.length - 1, x: L / 2, y: 0, r: PARAMS.feed.mouth, part: piece.part, go: true, link: null, feeder: true,
+          cost: PARAMS.feed.pierce * L };   // what each latch costs: longer tubes cost more to use
         feeders.push(f);
         if (controlsOf(part.joint).length) controls.push([f, controlsOf(part.joint)]);
       }

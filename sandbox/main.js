@@ -543,7 +543,7 @@ function sentence(targets, tappable, where) {
   }
   s += '.';
   if (verb === 'rests') s += ' <span class="small">(upkeep and income at 40%, flagella stop)</span>';
-  if (verb === 'feeds') s += ` <span class="small">(latches on another species' body it touches: ${PARAMS.feed.pierce / 1000}k pJ to pierce; lets go when this stops holding)</span>`;
+  if (verb === 'feeds') s += ` <span class="small">(latches on another species' body it touches: ${PARAMS.feed.pierce * m.length / 1000}k pJ to pierce; lets go when this stops holding)</span>`;
   return `<div class="line">${s}${add('go', go.length ? '+ and…' : '+ when…', 'A condition it needs')}${add('stop', '+ unless…', 'Something that stops it, whatever the rest says')}</div>`;
 }
 // the folded card: the same sentence, plain

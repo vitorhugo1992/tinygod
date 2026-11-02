@@ -129,8 +129,8 @@ export const PART_TEMPLATES = {
     { type: 'segment', id, label: material === 'glass' ? 'Glass spine' : 'Protein spine', at: surfacePoint(body, deg), angle: deg + tilt,
       length: Math.round(100 * size), radius: 0.5, material }],
   // the peduncle (author, 2026-11-02): a feeding tube; its tip latches on another species' body and drains it (PARAMS.feed)
-  'Peduncle (feeds on others)': (body, deg, id, size, tilt) => [
-    { type: 'segment', id, label: 'Peduncle', at: surfacePoint(body, deg), angle: deg + tilt, length: PARAMS.feed.length,
+  'Peduncle (feeds on others)': (body, deg, id, size, tilt, depth, feels, len = PARAMS.feed.length) => [
+    { type: 'segment', id, label: 'Peduncle', at: surfacePoint(body, deg), angle: deg + tilt, length: len,
       radius: PARAMS.feed.radius, material: 'protein', joint: { type: 'feed' } }],
   // one pad: sticks to its own kind only (kin), or to anything (mucus)
   'Pad': (body, deg, id, size, tilt, depth, feels, len, strength, kind = 'kin') =>
@@ -231,8 +231,8 @@ export const CONTROLS = {
   'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), sizeLabel: 'Sensitivity', feels: true, sizeDefault: 10 },
   'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long`, material: true },
   'Pad': { sticks: true },
-  'Peduncle (feeds on others)': { tilt: true,
-    tip: () => `Latches on another species' body it touches and drains its energy and nitrogen, keeping half. Each latch costs ${PARAMS.feed.pierce / 1000}k pJ; the link snaps if pulled hard (a spring jump). Its rule: FEEDS when…` },
+  'Peduncle (feeds on others)': { tilt: true, length: { min: 10, max: 80, step: 5, def: PARAMS.feed.length },
+    tip: () => `Latches on another species' body it touches and drains its energy and nitrogen, keeping half. Each latch costs ${PARAMS.feed.pierce / 1000}k pJ per µm of tube (longer reaches past spines, costs more); the link snaps if pulled hard (a spring jump). Its rule: FEEDS when…` },
   'Plastid (makes energy)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, pigment: true, sizeDefault: 50, ...ROD },   // ~11% of the cell: enough for a day
   'Starch granule (quick store, heavy)': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Light sensor (eyespot)': { tilt: true, size: (s) => `${Math.max(20, Math.round(180 * s))}° cone`, sizeDefault: 100 }, 'Touch sensor': { feels: true },

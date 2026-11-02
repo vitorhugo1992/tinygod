@@ -86,13 +86,14 @@ export const PARAMS = {
   // The peduncle (step 1, author 2026-11-02): a feeding tube; latched on another species' body it drains energy (what the
   // prey releases into its pool) and nitrogen (its growth meter), keeping half
   feed: {
-    length: 20,             // µm, fixed for now (stretching later)
+    length: 20,             // µm by default (the Build panel's Length: 10-80; stretching later)
     radius: 0.6,            // µm, the tube's thickness
     mouth: 1.5,             // µm: its tip latches on a body this close
     rate: 20000,            // pJ/s it sucks at most (a typical cell spends ~5,000 to live)
     nitrogen: 50,           // N units/s it sucks at most from the prey's growth meter
     keep: 0.5,              // share of what it sucks the predator keeps
-    pierce: 40000,          // pJ each latch costs (paid from the pool; it can't latch without it)
+    pierce: 2000,           // pJ per µm of tube each latch costs (20 µm: 40k; 80 µm: 160k; paid from the pool, it can't
+                            // latch without it): a longer tube reaches past spines but costs more to use (author)
     hold: 40,               // pN the link holds before it snaps (as a kin pad)
     loadTime: 0.1,          // s the pull is averaged over before it snaps (a stroke's jerk doesn't count)
   },
