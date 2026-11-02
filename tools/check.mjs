@@ -304,6 +304,26 @@ const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
     `yanked: kin 5 µm ${kinHolds ? 'holds' : 'snaps'}, kin 10 µm ${kinSnaps ? 'holds' : 'snaps'}, mucus 2 µm ${mucusSnaps ? 'holds' : 'snaps'}`);
 }
 
+// 16b. Cells of different species push each other apart like kin (author, 2026-11-02: collisions between species were
+// never tested): overlapped bodies part, and a swimmer driven into a stranger goes round it, not through it
+{
+  const bodyGap = (A, B) => Math.hypot(A.q[0] - B.q[0], A.q[1] - B.q[1]) - A.pieces[0].a - B.pieces[0].a;
+  const w = makeWorld(1, { gravity: false });
+  const roundA = copy('Round cell'); roundA.species = 'A';
+  const roundB = copy('Round cell'); roundB.species = 'B';
+  const a = addCell(w, roundA, 800, 1000, 0), b = addCell(w, roundB, 808, 1000, 0);   // 12 µm into each other
+  for (let i = 0; i < 1000; i++) stepWorld(w);
+  const parted = bodyGap(a, b);
+  const w2 = makeWorld(1, { gravity: false });
+  const sw = addCell(w2, copy('Wave tail'), 700, 1000, 0), still = addCell(w2, roundB, 745, 1000, 0);
+  let worst = 0;
+  for (let i = 0; i < 8000; i++) { stepWorld(w2); worst = Math.min(worst, bodyGap(sw, still)); }
+  check('cells of different species push apart: overlapped bodies part, a swimmer goes round a stranger, not through',
+    parted > -0.2 && worst > -1.5 && Number.isFinite(sw.q[0] + still.q[0]),
+    `two species 12 µm into each other: ${fmt(parted, 2)} µm apart after 1 s; a wave tail swimming into a round stranger: ` +
+    `deepest overlap ${fmt(-worst, 2)} µm, it ended at x ${fmt(sw.q[0], 0)} (the stranger at ${fmt(still.q[0], 0)})`);
+}
+
 // 17. The hidden chain backstop: no group grows past PARAMS.pads.maxChain (lowered to 3 here to test it)
 {
   const cap = PARAMS.pads.maxChain;
