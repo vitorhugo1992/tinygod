@@ -119,6 +119,12 @@ export const PARAMS = {
     pierce: 2,              // the piercing price × (1 + 2 × thickness): ×3 at 1 µm, ×5 at 2 µm
     energy: 300,            // pJ per µm³ of plate each division needs (as PARAMS.grow.energy)
   },
+  // The alarm (author 2026-11-02, swarm defence): a cell being drained leaks a cue (like wounded diatoms' oxylipins); kin
+  // within `range` read it, 1 touching to 0 at the range; it fades over `fade` s once the attack stops
+  alarm: {
+    range: 60,              // µm between the bodies' surfaces
+    fade: 3,                // s
+  },
   // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): every `every` s a peduncle stays latched,
   // the prey's biggest plastid that fits in the thief moves through the tube (the prey lives on without it, and rebuilds
   // it from its growth meter before growing further); a prey drained to death gives up the rest that fit (round, at

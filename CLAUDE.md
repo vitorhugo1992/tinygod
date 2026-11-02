@@ -162,7 +162,13 @@ weak):** a rule can read any pad by its id (0 free, 0.5 joined to kin, 1 stuck t
 its index, sense.js padLevel; a module only once wired) and the built-in **Neighbours** (-8: kin joined, 0..4+;
 interact.js cell.neighbours; offered when the design has kin pads); free kin pads pull free kin pads of their species
 within PARAMS.pads.attract 15 µm at PARAMS.pads.pull 3 pN (mucus and strangers: no), not while the pad's rule fails;
-rewire() knows pads. Check 28aa (56 checks). Seen in the page: the rule editor lists the pads and Neighbours. **(6) Swarm / kamikaze defence (author, 2026-11-02):** one cell attacked, kin nearby
+rewire() knows pads. Check 28aa (56 checks). Seen in the page: the rule editor lists the pads and Neighbours. **ALARM BUILT (2026-11-02, the swarm's first piece; author chose "a cue in the water"):** a
+built-in reading (-9): kin within PARAMS.alarm.range 60 µm (surface to surface) of a cell being drained read 1
+touching to 0 at the range, fading over PARAMS.alarm.fade 3 s once the attack stops (interact.js cell.alarm); not
+the victim itself (it has Drained), not strangers; how near, not which way. Log "alarm: a kin nearby is being drained".
+Check 28ac (57 checks). **KAMIKAZE decided, not built:** a TOXIN SAC part (room, upkeep, double nitrogen for its
+volume at each doubling), rule "Bursts when…" (none: never); bursting kills the cell and POISONS other-species cells
+within 30 µm (energy lost and plastid damage, by sac volume and nearness); kin immune. **(6) Swarm / kamikaze defence (author, 2026-11-02):** one cell attacked, kin nearby
 respond: surround the predator, release a toxin, damage it, or make it sink. Pieces: Drained exists (the victim knows);
 needed: an ALARM reading (a kin nearby / in its chain is being drained; real: wounded diatoms release oxylipin alarm
 cues); making it sink can come from physics already built (kin piling onto it with mucus pads, their weight); kamikaze

@@ -1142,6 +1142,29 @@ const runDay = (design, y, seconds, opts = {}) => {
     `a chain of three: neighbours ${n.join(', ')}, front pads ${pads.join(', ')}; tails "front pad joined or 2+ neighbours": ${runs.map((r) => (r ? 'run' : 'stop')).join(', ')}`);
 }
 
+// 28ac. The alarm (author, 2026-11-02, swarm defence): kin near a cell being drained read how near (1 touching, 0 at
+// PARAMS.alarm.range); far kin and strangers read nothing; it fades once the attack stops
+{
+  const sw = copy('Wave tail'); sw.species = 'hunter';
+  for (const p of sw.parts) if (p.joint && p.joint.type === 'motor') p.joint.controls = [{ sensor: 'feeding', min: 0.5, max: 1, stop: true }];
+  sw.parts.push({ type: 'segment', at: [sw.body.radius, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed', controls: [{ sensor: 'energy', min: 0.5, max: 1 }] } });
+  const prey = (species) => ({ species, body: { radius: 10 }, parts: [] });
+  const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+  const H = addCell(w, sw, 800, 1000, 0);
+  H.metab.C = H.metab.E = 1e7;
+  const V = addCell(w, prey('p'), 800 + H.reach + 12, 972, 0);
+  const near = addCell(w, prey('p'), V.q[0], 972 - 40, 0), far = addCell(w, prey('p'), V.q[0] + 120, 972, 0), other = addCell(w, prey('q'), V.q[0], 972 + 40, 0);
+  for (const c of [V, near, far, other]) { c.metab.C = c.metab.E = 1e7; }
+  let latched = false, during = null;
+  for (let i = 0; i < 20000 && !during; i++) { stepWorld(w); if (H.feeders[0].link) { latched = true; if (i % 100 === 0) during = { near: near.alarm, far: far.alarm || 0, other: other.alarm || 0, gap: Math.hypot(near.q[0] - V.q[0], near.q[1] - V.q[1]) - 20 }; } }
+  H.metab.E = 0.4 * H.metab.C;   // its rule (energy above 50%) fails: it lets go
+  for (let i = 0; i < 3000; i++) stepWorld(w);
+  const after = near.alarm || 0, gap = during ? during.gap : 0;
+  check('the alarm: kin near a drained cell read how near; far kin and strangers read nothing; it fades once the attack stops',
+    latched && during && Math.abs(during.near - (1 - gap / PARAMS.alarm.range)) < 0.1 && during.far === 0 && during.other === 0 && after < 0.5 * during.near && !H.feeders[0].link,
+    `kin ${fmt(gap, 0)} µm away: ${during ? fmt(during.near) : '-'}; kin 100 µm away: ${during ? fmt(during.far) : '-'}; a stranger close by: ${during ? fmt(during.other) : '-'}; 3 s after the hunter let go: ${fmt(after)}`);
+}
+
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's
 // share and its meter's) goes back to the water
 {

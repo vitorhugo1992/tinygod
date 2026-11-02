@@ -6,7 +6,7 @@
 import { PARAMS } from './params.js';
 import { volumeOf } from './shape.js';
 
-export const BUILT_INS = ['energy', 'starch', 'oil', 'health', 'feeding', 'size', 'drained', 'neighbours'];
+export const BUILT_INS = ['energy', 'starch', 'oil', 'health', 'feeding', 'size', 'drained', 'neighbours', 'alarm'];
 
 // The design's nucleus parts
 export const nucleiOf = (design) => (design.parts || []).filter((p) => p.type === 'inclusion' && p.material === 'nucleus');

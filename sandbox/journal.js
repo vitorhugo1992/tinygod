@@ -85,6 +85,8 @@ export function note(world, c) {
   const eaten = (world.links || []).find((l) => l.feed && world.cells[l.b] === c);
   if (eaten && !w.eaten) say(`a ${world.cells[eaten.a].species} latched on: it is being drained`, true);
   if (!eaten && w.eaten) say('the predator let go');
+  if ((c.alarm || 0) > 0.05 && !(w.alarm > 0.05)) say(`alarm: a kin nearby is being drained (~${Math.round((1 - c.alarm) * PARAMS.alarm.range)} µm away)`);
+  w.alarm = c.alarm || 0;
   w.eaten = !!eaten;
   if (c.waiting && c.waiting !== w.waiting) say(`ready to divide, but waits: ${c.waiting}`);
   if (gE === 1 && w.gE < 1 && gN < 1) say('its energy bar is full: nitrogen is what limits its growth');

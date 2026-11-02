@@ -77,10 +77,12 @@ export function padLevel(world, cell, pad) {
   const other = world.cells[l.a] === cell ? world.cells[l.b] : world.cells[l.a];
   return other && other.species === cell.species ? 0.5 : 1;
 }
+// Alarm: how near a kin being drained is (interact.js keeps cell.alarm: 1 touching, 0 at PARAMS.alarm.range, fading)
+export const alarmLevel = (cell) => cell.alarm || 0;
 export const sizeLevel = (cell) => ((cell.size || 1) - 1) / (PARAMS.grow.max - 1);
 // A reading by index: a sensor part, or one built in (-1 energy, -2 starch, -3 oil, -4 plastid health, -5 feeding)
 const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ? energyLevel(world, cell)
-  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : k === -7 ? drainedLevel(world, cell) : k === -8 ? neighboursLevel(cell) : k <= -100 ? padLevel(world, cell, cell.pads[-100 - k]) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
+  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : k === -7 ? drainedLevel(world, cell) : k === -8 ? neighboursLevel(cell) : k === -9 ? alarmLevel(cell) : k <= -100 ? padLevel(world, cell, cell.pads[-100 - k]) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
 
 // One condition: is the reading inside its range? (with a little hysteresis)
 function holds(ctl, v) {

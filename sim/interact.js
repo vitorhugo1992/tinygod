@@ -178,6 +178,21 @@ export function interact(world) {
     }
   }
 
+  // the alarm: kin near a cell being drained read how near (PARAMS.alarm), fading once the attack stops
+  const fade = 1 - PARAMS.time.dt / PARAMS.alarm.fade;
+  for (const c of cells) c.alarm = (c.alarm || 0) * fade;
+  for (const l of world.links) {
+    if (!l.feed) continue;
+    const V = cells[l.b];
+    if (!V || V.dead) continue;
+    for (const c of cells) {
+      if (c === V || c.dead || c.species !== V.species) continue;
+      const d = Math.hypot(c.q[0] - V.q[0], c.q[1] - V.q[1]) - c.pieces[0].a - V.pieces[0].a - (c.pieces[0].L + V.pieces[0].L) / 2;
+      const a = 1 - Math.max(d, 0) / PARAMS.alarm.range;
+      if (a > c.alarm) c.alarm = a;
+    }
+  }
+
   // free kin pads gently pull free kin pads of their species within PARAMS.pads.attract (kin find each other)
   for (let a = 0; a < cells.length; a++) {
     const A = cells[a];

@@ -124,8 +124,8 @@ function parseJoint(j, pieceIndex) {
 // (-1: the built-in energy level; -2, -3: the built-in starch and oil levels, how full those stores are; -4: how
 // healthy its plastids are; -5: feeding, 1 while a peduncle of its is latched; -6: size, how grown it is; -7: drained,
 // 1 while another's peduncle drains it; -8: neighbours, how many kin it is joined to; a pad's id: what that pad holds,
-// as PAD_READ - its place in the cell's pads)
-const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7, neighbours: -8 };
+// as PAD_READ - its place in the cell's pads; -9: alarm, a kin nearby is being drained)
+const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7, neighbours: -8, alarm: -9 };
 export const PAD_READ = -100;
 let padIds = new Map();   // the design being built: pad id -> its place among the cell's pads
 function sensorIndex(sensors, id) {
