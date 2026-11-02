@@ -164,3 +164,68 @@ export function forecast(design, from, settings, onProgress, onDone) {
   setTimeout(slice, 0);
   return () => { cancelled = true; };
 }
+
+// The census: how many living cells of each species the tank holds, every CENSUS_EVERY steps (5 s), ten days kept,
+// for the population graph. It lives on the world (rebuilds carry it over).
+const CENSUS_EVERY = 5000, CENSUS_KEEP = 10 * M.day / 5;
+const POP_COLORS = ['#7fd6ff', '#ffb35c', '#a6e36a', '#ff7fa8', '#c9a2ff', '#ffe066', '#5ce0c0', '#ff8a5c'];
+export function census(world) {
+  if (world.steps % CENSUS_EVERY) return;
+  const c = world.census || (world.census = { s: [], colors: {} });
+  const n = {};
+  for (const k of world.cells) if (!k.dead) n[k.species] = (n[k.species] || 0) + 1;
+  for (const sp of Object.keys(n)) if (!c.colors[sp]) c.colors[sp] = POP_COLORS[Object.keys(c.colors).length % POP_COLORS.length];
+  c.s.push({ t: worldTime(world), sun: world.light ? (world.day ? daylight(world) : 1) : 0, n,
+    births: world.births || 0, deaths: world.deaths || 0 });
+  if (c.s.length > CENSUS_KEEP) c.s.shift();
+}
+
+// The population graph: cells of each species over the census kept (up to ten days), nights shaded, a line per species
+// in its colour, the counts now in the legend; days marked along the bottom
+export function drawCensus(ctx, cz, x, y, w, h) {
+  ctx.fillStyle = 'rgba(6,10,18,.88)'; ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#23324a'; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  const top = y + 21, gh = h - 35;
+  ctx.font = '10px system-ui'; ctx.fillStyle = '#8197a8';
+  if (!cz || cz.s.length < 2) { ctx.fillText('population: counting… (every 5 s)', x + 6, y + 12); return; }
+  const s = cz.s, t0 = s[0].t, t1 = s[s.length - 1].t, span = Math.max(t1 - t0, M.day / 4);
+  const X = (t) => x + 4 + (w - 8) * (t - t0) / span;
+  const species = Object.keys(cz.colors);
+  let max = 1;
+  for (const p of s) for (const sp of species) max = Math.max(max, p.n[sp] || 0);
+  const Y = (n) => top + gh * (1 - n / max);
+  ctx.fillStyle = 'rgba(40,50,90,.35)';
+  for (let k = 1; k < s.length; k++) if (s[k].sun === 0) ctx.fillRect(X(s[k - 1].t), top, X(s[k].t) - X(s[k - 1].t) + 0.5, gh);
+  // a faint line at each whole count when few, at the top count always
+  ctx.strokeStyle = '#1c2a40'; ctx.lineWidth = 1;
+  const step = max <= 6 ? 1 : max <= 30 ? 5 : 10;
+  for (let n = step; n <= max; n += step) { ctx.beginPath(); ctx.moveTo(x + 4, Y(n) + 0.5); ctx.lineTo(x + w - 4, Y(n) + 0.5); ctx.stroke(); }
+  ctx.fillStyle = '#5d7085'; ctx.fillText(String(max), x + w - 4 - ctx.measureText(String(max)).width, Y(max) + 10);
+  // a line per species, in steps (counts change by whole cells)
+  // (each species a little apart, so equal counts don't hide each other)
+  species.forEach((sp, i) => {
+    const off = (i - (species.length - 1) / 2) * 1.8;
+    ctx.strokeStyle = cz.colors[sp]; ctx.lineWidth = 1.6; ctx.beginPath();
+    let prev = null;
+    for (const p of s) {
+      const py = Y(p.n[sp] || 0) + off;
+      if (prev === null) ctx.moveTo(X(p.t), py); else { ctx.lineTo(X(p.t), prev); ctx.lineTo(X(p.t), py); }
+      prev = py;
+    }
+    ctx.stroke();
+  });
+  // days along the bottom (day 1 begins at the world's start)
+  const now = s[s.length - 1], tally = `${now.births} births · ${now.deaths} deaths`;
+  const room = x + w - 12 - ctx.measureText(tally).width;   // day labels stop short of the tally
+  ctx.fillStyle = '#5d7085';
+  const d0 = Math.ceil(t0 / M.day), d1 = Math.floor(t1 / M.day), every = Math.max(1, Math.ceil((d1 - d0 + 1) / 8));
+  for (let d = d0; d <= d1; d += every) { const px = X(d * M.day); ctx.fillRect(px, top + gh, 1, 4); if (px + 2 + ctx.measureText(`day ${d + 1}`).width < room) ctx.fillText(`day ${d + 1}`, px + 2, y + h - 4); }
+  // title and legend: each species with its count now
+  ctx.fillStyle = '#8197a8'; ctx.fillText('population ⇄', x + 6, y + 12);
+  let lx = x + 6 + ctx.measureText('population ⇄').width + 10;
+  for (const sp of species) {
+    const label = `${sp} ${now.n[sp] || 0}`;
+    ctx.fillStyle = cz.colors[sp]; ctx.fillText(label, lx, y + 12); lx += ctx.measureText(label).width + 8;
+  }
+  ctx.fillStyle = '#8197a8'; ctx.fillText(tally, x + w - 6 - ctx.measureText(tally).width, y + h - 4);
+}

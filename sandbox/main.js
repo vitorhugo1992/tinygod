@@ -11,7 +11,7 @@ import { energyLevel, storeLevel, plastidHealth } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
-import { note, nightsLeft, drawJournal, eventText, forecast } from './journal.js';
+import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus } from './journal.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
@@ -1315,6 +1315,7 @@ function reset(pose, carry) {
       };
       if (carry.world.nitro) w.nitro = carry.world.nitro;   // the water keeps what cells used
       w.births = carry.world.births; w.deaths = carry.world.deaths; w.nextUid = carry.world.nextUid;
+      w.census = carry.world.census;   // the population graph goes on
       keep(carry.cell, next); keepGrow(carry.cell, next);
       next.metab.E = share(carry.cell) * next.metab.C;
       next.journal = carry.cell.journal;   // the day graph goes on
@@ -1392,6 +1393,7 @@ function advance(steps) {
   for (let i = 0; i < steps; i++) {
     stepWorld(world);
     for (const c of world.cells) { remember1(c); note(world, c); }
+    census(world);
     if (world.steps % 10 === 0) {              // every 10 ms: samples for beat-averaged speed and power
       samples.push({ t: worldTime(world), x: cell.q[0], y: cell.q[1], e: cell.energy.motor + cell.energy.pump });
       if (samples.length > 400) samples.shift();
@@ -1801,9 +1803,12 @@ function draw() {
   drawRuleLinks(X, Y, s);
   drawForces(X, Y, s);
   let bottom = H;   // the day graph sits along the bottom; the scale and the clock above it
+  graphBox = null;
   if (graphOn) {
     const gh = H < 500 ? 84 : 110;
-    drawJournal(ctx, forecastJ || cell.journal, 8, H - gh - 6, W - 60, gh, forecastJ ? 'forecast: the next day' : 'the last day');
+    graphBox = { x: 8, y: H - gh - 6, w: W - 60, h: gh };
+    if (graphPop && !forecastJ) drawCensus(ctx, world.census, 8, H - gh - 6, W - 60, gh);
+    else drawJournal(ctx, forecastJ || cell.journal, 8, H - gh - 6, W - 60, gh, forecastJ ? 'forecast: the next day' : 'the last day ⇄');
     bottom = H - gh - 8;
   }
   drawScale(W, bottom, s);
@@ -1919,6 +1924,8 @@ $('pasteDesign').onclick = async () => {
 
 // ----- the day graph and Test a day -----
 let graphOn = false,   // the day graph starts tucked away (author); 📈 Graph shows it
+    graphPop = false,   // tapping the strip switches it between the selected cell's last day and the population
+    graphBox = null,    // where the strip was drawn (for the tap)
     forecastJ = null, stopForecast = null;
 $('graphBtn').onclick = () => { graphOn = !graphOn; };
 $('testDay').onclick = () => {
@@ -2303,6 +2310,10 @@ canvas.addEventListener('pointerdown', (e) => {
     return;
   }
   if (touches.size > 2) return;
+  const r = canvas.getBoundingClientRect(), gx = e.clientX - r.left, gy = e.clientY - r.top;
+  if (graphBox && touches.size === 1 && gx >= graphBox.x && gx <= graphBox.x + graphBox.w && gy >= graphBox.y && gy <= graphBox.y + graphBox.h) {
+    graphPop = !graphPop; touches.delete(e.pointerId); tap = null; drag = null; return;   // the strip: switch day graph / population
+  }
   const [wx, wy] = toWorld(e);
   const s = Number($('zoom').value);
   const hit = world.cells.find((c) => Math.hypot(c.q[0] - wx, c.q[1] - wy) < c.pieces[0].a + c.pieces[0].L / 2 + 6 / s);
