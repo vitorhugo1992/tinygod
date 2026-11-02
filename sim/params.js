@@ -15,7 +15,7 @@ export const PARAMS = {
   },
   cell: {
     cytoplasm: 1060,        // density of the living cell without wall or inclusions
-    wallThickness: 0.3,     // µm; the wall material's share of the body
+    wallThickness: 0.3,     // µm; the wall material's share of the body (plates: their own thickness, PARAMS.plates)
     maxInclusionFraction: 0.9, // inclusions may fill at most this share of the body (a diatom is mostly vacuole)
   },
   drag: {
@@ -107,6 +107,15 @@ export const PARAMS = {
     resupply: 600,          // s: a used-up layer eases back toward the usual profile on this time (a day)
     spread: 0.002,          // share per s a layer evens out with each neighbour
     every: 100,             // steps between mixings
+  },
+  // The armoured wall (author, 2026-11-02): cellulose thecal plates, body.wall 'plates', body.plates µm thick. A peduncle
+  // pays its piercing price × (1 + pierce × thickness); each division builds the daughter's plates (energy by their
+  // volume, no nitrogen: cellulose is carbon); heavy (MATERIALS.plates). They don't take room from the organelles.
+  plates: {
+    min: 0.25, max: 2,      // µm
+    start: 0.5,             // µm, when Plates is first picked
+    pierce: 2,              // the piercing price × (1 + 2 × thickness): ×3 at 1 µm, ×5 at 2 µm
+    energy: 300,            // pJ per µm³ of plate each division needs (as PARAMS.grow.energy)
   },
   // Growth and division (step 1, author 2026-11-01): a meter of two bars, energy and nitrogen; full, the cell divides.
   // Both cost in proportion to the cell's volume; nitrogen comes in through its surface, so smaller cells fill faster.

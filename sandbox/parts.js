@@ -66,7 +66,7 @@ export const PART_TEMPLATES = {
     { type: 'segment', id, label: 'Protein spine', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(100 * size), radius: 0.5, material: 'protein' },
   ],
   'Spine, glass': (body, deg, id, size, tilt) => [
-    { type: 'segment', id, label: 'Glass spine', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(100 * size), radius: 0.5, material: 'glass' },
+    { type: 'segment', id, label: 'Spine', at: surfacePoint(body, deg), angle: deg + tilt, length: Math.round(100 * size), radius: 0.5, material: 'protein' },   // glass is gone (old designs)
   ],
   // the Spring (author, 2026-10-28: was 'Burst organ'; the template keeps its old name so saved designs edit)
   'Burst organ (escape)': (body, deg, id, size, tilt, depth, feels, len = 20) => {
@@ -124,10 +124,10 @@ export const PART_TEMPLATES = {
   'Feeler': (body, deg, id, size, tilt, depth, feels) => (size <= 0.1
     ? [{ type: 'sensor', id, label: 'Feeler', at: surfacePoint(body, deg), kind: 'touch', feels }]
     : [{ type: 'sensor', id, label: 'Feeler', at: surfacePoint(body, deg), kind: 'near', range: Math.round(200 * size), feels }]),
-  // one spine, its material chosen (protein: light and cheap; glass: heavy and stiff)
-  'Spine': (body, deg, id, size, tilt, depth, feels, len, strength, material = 'protein') => [
-    { type: 'segment', id, label: material === 'glass' ? 'Glass spine' : 'Protein spine', at: surfacePoint(body, deg), angle: deg + tilt,
-      length: Math.round(100 * size), radius: 0.5, material }],
+  // one spine, protein (glass was removed, author 2026-11-02)
+  'Spine': (body, deg, id, size, tilt) => [
+    { type: 'segment', id, label: 'Spine', at: surfacePoint(body, deg), angle: deg + tilt,
+      length: Math.round(100 * size), radius: 0.5, material: 'protein' }],
   // the peduncle (author, 2026-11-02): a feeding tube; its tip latches on another species' body and drains it (PARAMS.feed)
   'Peduncle (feeds on others)': (body, deg, id, size, tilt, depth, feels, len = PARAMS.feed.length) => [
     { type: 'segment', id, label: 'Peduncle', at: surfacePoint(body, deg), angle: deg + tilt, length: len,
@@ -229,7 +229,7 @@ export const CONTROLS = {
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
   'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), sizeLabel: 'Sensitivity', feels: true, sizeDefault: 10 },
-  'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long`, material: true },
+  'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },
   'Pad': { sticks: true },
   'Peduncle (feeds on others)': { tilt: true, length: { min: 10, max: 80, step: 5, def: PARAMS.feed.length },
     tip: () => `Latches on another species' body it touches and drains its energy and nitrogen, keeping half. Each latch costs ${PARAMS.feed.pierce / 1000}k pJ per µm of tube (longer reaches past spines, costs more); the link snaps if pulled hard (a spring jump). Its rule: FEEDS when…` },

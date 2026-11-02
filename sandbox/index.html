@@ -379,7 +379,9 @@
     <h2>Body</h2>
     <div class="slider">Radius <input type="range" id="bodyRadius" min="1" max="50" step="0.5"><span id="bodyRadiusOut"></span></div>
     <div class="slider" title="0 = round; longer makes a rod">Length <input type="range" id="bodyLength" min="0" max="200" step="1"><span id="bodyLengthOut"></span></div>
-    <div class="row">Wall <span class="seg" id="wallSeg"></span></div>
+    <div class="row" title="Plain: a thin protein wall. Plates: cellulose armour (like armoured dinoflagellates): a peduncle pays more to pierce it, but plates are heavy and each division must build them">Wall <span class="seg" id="wallSeg"></span></div>
+    <div class="slider" id="platesRow" title="How thick the plates are: thicker, dearer to pierce (×1 + 2 per µm), heavier and costlier to build at each division">Thickness <input type="range" id="bodyPlates" min="0.25" max="2" step="0.25" value="0.5"><span id="bodyPlatesOut"></span></div>
+    <div class="tip" id="platesNote"></div>
   </section>
   <section class="sec" data-sec="add" style="--hue: var(--h-add)">
     <h2>Add a part</h2>
@@ -440,11 +442,11 @@
   <select id="speed" hidden><option value="0.1">0.1×</option><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
   <select id="viewMode" hidden><option value="follow" selected>Follow</option><option value="fit">Fit</option><option value="free">Free</option></select>
   <select id="partFeels" hidden><option value="strangers" selected>Other species</option><option value="anything">Anything (cells, walls)</option></select>
-  <select id="bodyWall" hidden><option value="protein">Protein</option><option value="glass">Glass</option></select>
+  <select id="bodyWall" hidden><option value="protein">Plain</option><option value="plates">Plates</option></select>
   <input type="checkbox" id="partFlip" hidden>
   <input type="checkbox" id="partPull" hidden>
   <select id="partPigment" hidden><option value="sun">Chl a</option><option value="shade">Phycobilins</option></select>
-  <select id="partMaterial" hidden><option value="protein">Protein</option><option value="glass">Glass</option></select>
+  <select id="partMaterial" hidden><option value="protein">Protein</option></select>
   <select id="partSticks" hidden><option value="kin">Its own kind</option><option value="mucus">Anything</option></select>
   <select id="partContent" hidden><option value="starch">Starch</option><option value="oil">Oil</option></select>
   <input type="checkbox" id="gravity" checked hidden>

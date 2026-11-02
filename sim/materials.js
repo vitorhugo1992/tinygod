@@ -3,7 +3,7 @@
 // statolith is a sensor (sense.js); a buoyancy chamber is pumped light, neutral or heavy by its rule (PARAMS.chamber).
 export const MATERIALS = {
   protein: { density: 1100, label: 'protein', note: 'flexible, cheap: thecal plates, flagella' },
-  glass:   { density: 2000, label: 'glass',   note: 'stiff and heavy: hydrated biogenic opal' },
+  plates:  { density: 1150, label: 'plates',  note: 'armour: cellulose thecal plates (armoured dinoflagellates); dearer to pierce, heavy, built at each division' },
   chamber: { density: 1025, min: 500, max: 1100, label: 'buoyancy chamber', note: 'an ion vacuole pumped lighter or heavier than seawater (Pyrocystis, Ethmodiscus)' },
   oil:     { density: 920,  label: 'oil',     note: 'light: lipid droplets; an energy store, compact and slow', store: 'oil' },
   starch:  { density: 1500, label: 'starch',  note: 'heavy: starch or chrysolaminarin; an energy store, quick', store: 'starch' },
@@ -12,8 +12,11 @@ export const MATERIALS = {
   nucleus: { density: 1100, label: 'nucleus', note: 'the brain box: DNA and protein, a little denser than the cytoplasm' },
 };
 
+// Glass was removed (author, 2026-11-02: silica is a layer too many): old designs' glass walls and spines are protein
+export const legacyMaterial = (name) => (name === 'glass' ? 'protein' : name);
+
 export function material(name) {
-  const m = MATERIALS[name];
+  const m = MATERIALS[legacyMaterial(name)];
   if (!m) throw new Error(`unknown material: ${name}`);
   return m;
 }

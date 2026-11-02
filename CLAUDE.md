@@ -16,7 +16,19 @@ the first contest (Claude's five species, 10 days: Bathyscapha, Noctilla, Saltel
 species every 5 s (world.census { s, colors }, ten days kept, carried through rebuilds like births); drawCensus draws
 it in the graph strip (a stepped line per species in its own colour, a little apart so equal counts show, nights
 shaded, days along the bottom, counts now in the legend, births · deaths); **tap the strip to switch** "the last
-day ⇄" / "population ⇄" (main.js graphPop, graphBox); seen in the page at phone size; (2) **the armoured wall** (replaces glass; design it
+day ⇄" / "population ⇄" (main.js graphPop, graphBox); seen in the page at phone size; (2) ~~the armoured wall~~
+**BUILT (2026-11-02), decided with the author one question at a time:** **cellulose thecal plates** (not chalk);
+**pricier to pierce, not slower** (author convinced: a delay protects only prey with an escape; a price works for any
+prey and makes armour scale with how rich the prey is; "drilling", the price paid as a flow, parked for later); **costs:
+growth + weight** (no upkeep); **glass removed entirely** (walls and spines; old designs load as protein; the Glass rod
+preset is now Plated rod). Code: MATERIALS.plates (1,150 kg/m³), legacyMaterial; body { wall: 'plates', plates: µm }
+(PARAMS.plates: 0.25-2, start 0.5); the plate layer replaces that much cytoplasm (weight) but **does not take room from
+organelles** (Claude's call so Plates never breaks a packed design; at 2 µm the nucleus is drawn over the band; tell
+the author, revisit if it bothers); the energy bar needs + 300 pJ per µm³ of plate, nitrogen unchanged; a peduncle pays
+f.cost × (1 + 2 × thickness) (link.price), can't latch without it (A.cantPierce; card pill TOO DEAR; trouble log "can't
+afford to pierce a plated X"). Body section: Wall Plain / Plates, Thickness, a note ("pierced at ×3 · +30% energy per
+division · sinks 1.6× as fast", from the design built with and without). Drawn as a tan band inside the outline with
+seams. Check 28v (51 checks). Measured r 10: 1 µm sinks 7.8 → 12.5 µm/s, division 1.26 → 1.63 million pJ; (3) (replaces glass; design it
 with the author first, one question at a time); then, from the queue: chains at division (kin defence), stealing
 plastids (the peduncle's next stage), engulfing, toxins, a contest with a hunter. Scratchpad tools are gone with the
 chat: for headless page tests write a CDP script (headless Edge, --remote-debugging-port, Network.setCacheDisabled or

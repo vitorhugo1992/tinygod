@@ -14,9 +14,9 @@ export const PRESETS = {
     note: 'Four protein spines: about three times slower sinking.',
     body: { radius: 10 }, parts: spines(10, 4, 40, 'protein'),
   },
-  'Glass rod': {
-    note: 'A long glass cell (like a pennate diatom). Start it tilted: it slides sideways as it sinks, never turns.',
-    body: { radius: 4, length: 80, wall: 'glass' }, parts: [],
+  'Plated rod': {
+    note: 'A long armoured cell. Start it tilted: it slides sideways as it sinks, never turns.',
+    body: { radius: 4, length: 80, wall: 'plates', plates: 1 }, parts: [],
     start: { angle: 45 },
   },
   'Oil droplet': {

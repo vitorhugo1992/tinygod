@@ -21,7 +21,7 @@ const canvas = $('c'), ctx = canvas.getContext('2d');
 const COLOR = {
   water: '#0b1322', outside: '#060a12', grid: '#132036', gridMajor: '#1f3352', label: '#4d6a86',
   trail: '#6fd3b5', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
-  body: { protein: '#3f7d5c', glass: '#4f8fa0' }, outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
+  body: { protein: '#3f7d5c', plates: '#4d7a52' }, plates: '#cdb98a', outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
   extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
   nucleus: 'rgba(176,150,214,.55)', envelope: '#c9b6ea', chromatin: 'rgba(92,70,140,.8)', nucleolus: '#5b467f',
   resting: '#7d93d8',
@@ -123,13 +123,36 @@ $('clearParts').onclick = () => {
 // ----- the body: radius, length (0 = round), wall. Parts on it keep their angle; inclusions scale with it -----
 function showBody() {
   const b = design.body;
-  $('bodyRadius').value = b.radius; $('bodyLength').value = b.length || 0; $('bodyWall').value = b.wall || 'protein';
+  $('bodyRadius').value = b.radius; $('bodyLength').value = b.length || 0; $('bodyWall').value = b.wall === 'plates' ? 'plates' : 'protein';   // old glass: plain
   $('bodyRadiusOut').textContent = `${b.radius} µm`;
   $('bodyLengthOut').textContent = b.length ? `${b.length} µm (rod)` : '0 (round)';
+  const plated = b.wall === 'plates';
+  $('platesRow').style.display = $('platesNote').style.display = plated ? '' : 'none';
+  if (plated) { $('bodyPlates').value = b.plates ?? PARAMS.plates.start; showPlates(); }
 }
+// what the plates do and cost: the piercing price, the energy per division, how much faster it sinks (the design
+// built with and without them)
+function showPlates() {
+  const t = Number($('bodyPlates').value);
+  $('bodyPlatesOut').textContent = `${t} µm`;
+  let note = `pierced at ×${1 + PARAMS.plates.pierce * t}`;
+  try {
+    const d = JSON.parse(JSON.stringify(design));
+    const with_ = buildCell({ ...d, body: { ...d.body, wall: 'plates', plates: t } }), without = buildCell({ ...d, body: { ...d.body, wall: 'protein' } });
+    const b = with_.pieces[0], extra = Math.round(100 * b.plateVol * PARAMS.plates.energy / (b.volume * PARAMS.grow.energy));
+    note += ` · +${extra}% energy per division`;
+    const wt = (c) => c.pieces.reduce((a, p) => a + p.wpts.reduce((x, q) => x + q.w, 0) + p.inclusions.reduce((x, i) => x + i.wpt.w, 0), 0);
+    const w1 = wt(with_), w0 = wt(without);
+    note += w0 > 0 ? ` · sinks ${(w1 / w0).toFixed(1)}× as fast` : ` · ${Math.round(w1 - w0)} pN heavier`;
+  } catch (e) { /* the design doesn't build: the ghost and message say why */ }
+  $('platesNote').textContent = note;
+}
+$('bodyPlates').oninput = showPlates;
+$('bodyPlates').onchange = () => reshape();
 function reshape() {
   const d = JSON.parse(JSON.stringify(design));
   const old = d.body, body = { ...old, radius: Number($('bodyRadius').value), length: Number($('bodyLength').value), wall: $('bodyWall').value };
+  if (body.wall === 'plates') body.plates = Number($('bodyPlates').value) || PARAMS.plates.start; else delete body.plates;
   const k = body.radius / old.radius;
   for (const p of d.parts || []) {
     if ((p.parent && p.parent !== 'body') || p.type === 'rule') continue;
@@ -391,7 +414,7 @@ function partColours(d) {
 }
 const colourOf = (g) => (g.members[0].tag !== undefined ? PALETTE[g.members[0].tag % PALETTE.length] : null);
 const KIND_NAME = { 'Wave tail (swims)': 'Tail', 'Flexible oar (swims)': 'Oar', 'Stiff flap (goes nowhere)': 'Flap',
-  'Burst organ (escape)': 'Spring', 'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Light sensor (eyespot)': 'Eyespot',
+  'Burst organ (escape)': 'Spring', 'Spine, protein': 'Spine', 'Spine, glass': 'Spine', 'Light sensor (eyespot)': 'Eyespot',
   'Statolith (which way is up)': 'Statolith', 'Feeler': 'Feeler', 'Peduncle (feeds on others)': 'Peduncle', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity', 'Nutrient sensor': 'Nutrients',
   'Buoyancy chamber': 'Chamber', 'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad' };
 const SIDES = ['front', 'front-top', 'top', 'back-top', 'back', 'back-bottom', 'bottom', 'front-bottom'];
@@ -1095,7 +1118,7 @@ function liveRule(live, k) {
     return { ctls: live.divideRule.controls, state: !world.grow || !g ? '' : full ? (live.waiting ? 'WAITING' : 'DIVIDING') : `${Math.round(100 * Math.min(g.E / g.Eneed, g.N / g.Nneed))}% GROWN`, cls: full && !live.waiting ? 'on' : '' };
   }
   const fd = live.feeders && live.feeders.find((x) => x.part === k);
-  if (fd) return { ctls: fd.controls || null, state: fd.link ? 'FEEDING' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
+  if (fd) return { ctls: fd.controls || null, state: fd.link ? 'FEEDING' : fd.go && live.cantPierce ? 'TOO DEAR' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
   const ch = live.pieces[0].inclusions.find((x) => x.part === k && x.material === 'chamber');
   if (ch) {
     const st = ch.target === PARAMS.chamber.light ? 'float' : ch.target === PARAMS.chamber.heavy ? 'sink' : '';
@@ -2138,6 +2161,12 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     // a stopped flagellum is grey, or faded in its colour: every piece its motor moves
     ctx.strokeStyle = stoppedAt(c, i) ? (tag ? tag + '66' : COLOR.stopped) : fill; ctx.lineWidth = w;
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
+    if (p.kind === 'body' && p.plates) {   // armour: a tan band just inside the outline, its plates' seams dark
+      const band = Math.max(p.plates * s, 1.5), R = Math.max(w / 2 - band / 2, 1), th = Math.atan2(Y(by) - Y(ay), X(bx) - X(ax));
+      ctx.beginPath(); ctx.arc(X(bx), Y(by), R, th - Math.PI / 2, th + Math.PI / 2); ctx.arc(X(ax), Y(ay), R, th + Math.PI / 2, th + 3 * Math.PI / 2); ctx.closePath();
+      ctx.strokeStyle = real.dead ? '#8a8f98' : COLOR.plates; ctx.lineWidth = band; ctx.stroke();
+      ctx.lineCap = 'butt'; ctx.lineWidth = band + 0.5; ctx.setLineDash([1.2, Math.max(5, 2 * Math.PI * R / 14) - 1.2]); ctx.strokeStyle = 'rgba(60,48,28,.9)'; ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'round';
+    }
     if (p.kind === 'body') for (const inc of p.inclusions) {
       const ix = c.cx[i] + c.cs[i] * inc.x - c.sn[i] * inc.y, iy = c.cy[i] + c.sn[i] * inc.x + c.cs[i] * inc.y;
       const r = inc.r, a = c.phi[i] + (inc.ang || 0), xf = bodyXf(c, X, Y);
@@ -2747,7 +2776,7 @@ function partIcon(name) {
 // Part buttons by category (short names, small pictures); tapping one picks it
 const SHORT = {
   'Wave tail (swims)': 'Wave tail', 'Flexible oar (swims)': 'Flexible oar', 'Stiff flap (goes nowhere)': 'Stiff flap',
-  'Spine, protein': 'Spine', 'Spine, glass': 'Glass spine', 'Burst organ (escape)': 'Spring',
+  'Spine, protein': 'Spine', 'Spine, glass': 'Spine', 'Burst organ (escape)': 'Spring',
   'Ejectisome, latched (Release)': 'Ejectisome', 'Oil droplet': 'Oil droplet',
   'Sap vacuole (slider)': 'Sap vacuole', 'Kin pad': 'Kin pad', 'Mucus pad': 'Mucus pad',
   'Feeler': 'Feeler', 'Spine': 'Spine', 'Pad': 'Pad', 'Peduncle (feeds on others)': 'Peduncle',

@@ -61,17 +61,17 @@ const sphere = (radius, wall = 'protein') => ({ body: { radius, wall }, parts: [
   check('sphere sinks at Stokes speed; speed ∝ size² × density excess', ok, rows.join('\n      '));
 }
 
-// 2. Density excess: a glass wall sinks faster, an oil droplet slows it, a big light buoyancy chamber floats
+// 2. Density excess: a plated wall sinks faster, an oil droplet slows it, a big light buoyancy chamber floats
 {
   const plain = sinking(run(sphere(20), 1));
-  const glass = sinking(run(sphere(20, 'glass'), 1));
+  const plated = sinking(run({ body: { radius: 20, wall: 'plates', plates: 1 }, parts: [] }, 1));
   const oil = sinking(run({ body: { radius: 20 }, parts: [{ type: 'inclusion', at: [0, 0], radius: 10, material: 'oil' }] }, 1));
   const sap = sinking(run({ body: { radius: 20 }, parts: [{ type: 'inclusion', at: [0, 0], radius: 18, material: 'chamber', density: 900 }] }, 1));
-  check('wall and inclusions change sinking through density', glass > plain && oil < plain && sap < 0,
-    `protein ${fmt(plain)}, glass wall ${fmt(glass)}, oil droplet ${fmt(oil)}, light chamber ${fmt(sap)} µm/s (negative rises)`);
+  check('wall and inclusions change sinking through density', plated > plain && oil < plain && sap < 0,
+    `protein ${fmt(plain)}, 1 µm plates ${fmt(plated)}, oil droplet ${fmt(oil)}, light chamber ${fmt(sap)} µm/s (negative rises)`);
 }
 
-// 3. Spines slow sinking (drag), even glass ones that add weight, if long and thin enough
+// 3. Spines slow sinking (drag), longer ones more
 {
   const spined = (material, length) => ({
     body: { radius: 10 },
@@ -82,15 +82,14 @@ const sphere = (radius, wall = 'protein') => ({ body: { radius, wall }, parts: [
   });
   const bare = sinking(run(sphere(10), 1));
   const prot = sinking(run(spined('protein', 40), 1));
-  const glass = sinking(run(spined('glass', 40), 1));
-  const longGlass = sinking(run(spined('glass', 80), 1));
-  check('spines slow sinking', prot < bare && glass < bare,
-    `bare ${fmt(bare)}, 4 protein spines ${fmt(prot)}, 4 glass spines ${fmt(glass)}, 4 long glass spines ${fmt(longGlass)} µm/s`);
+  const long = sinking(run(spined('protein', 80), 1));
+  check('spines slow sinking', prot < bare && long < prot,
+    `bare ${fmt(bare)}, 4 spines 40 µm ${fmt(prot)}, 4 spines 80 µm ${fmt(long)} µm/s`);
 }
 
 // 4. A long rod sinks faster end-on than broadside; tilted, it slides sideways as it sinks and does not turn
 {
-  const rod = { body: { radius: 4, length: 80, wall: 'glass' }, parts: [] };
+  const rod = { body: { radius: 4, length: 80, wall: 'plates', plates: 1 }, parts: [] };
   const flat = run(rod, 1, 300, 1000, 0), end = run(rod, 1, 300, 1000, 90), tilt = run(rod, 1, 300, 1000, 45);
   const side = (tilt.q1[0] - tilt.q0[0]) / tilt.seconds;
   const turn = Math.abs(tilt.q1[2] - tilt.q0[2]);
@@ -115,7 +114,7 @@ const sphere = (radius, wall = 'protein') => ({ body: { radius, wall }, parts: [
 
 // 6. A sinking cell comes to rest on the floor
 {
-  const r = run(sphere(10, 'glass'), 20, 300, 40);
+  const r = run({ body: { radius: 10, wall: 'plates', plates: 2 }, parts: [] }, 20, 300, 40);
   const v = Math.abs(r.cell.v[1]);
   check('cell rests on the floor', r.q1[1] > 9.5 && r.q1[1] < 10.5 && v < 1e-3,
     `centre ${fmt(r.q1[1], 3)} µm above the floor (radius 10), speed ${v.toExponential(1)} µm/s`);
@@ -123,8 +122,8 @@ const sphere = (radius, wall = 'protein') => ({ body: { radius, wall }, parts: [
 
 // 7. Determinism: the same world twice, bit for bit
 {
-  const designs = [sphere(10), sphere(20, 'glass'),
-    { body: { radius: 4, length: 80 }, parts: [{ type: 'segment', at: [40, 0], angle: 30, length: 50, radius: 1, material: 'glass' }] }];
+  const designs = [sphere(10), sphere(20, 'plates'),
+    { body: { radius: 4, length: 80 }, parts: [{ type: 'segment', at: [40, 0], angle: 30, length: 50, radius: 1 }] }];
   const go = () => {
     const w = makeWorld(7);
     designs.forEach((d, i) => addCell(w, d, 100 + 150 * i, 1200, 20 * i));
@@ -270,7 +269,7 @@ const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
 {
   const w = makeWorld(1);
   const a = addCell(w, sphere(10), 300, 10, 0);
-  const b = addCell(w, sphere(8, 'glass'), 300, 60, 0);
+  const b = addCell(w, { body: { radius: 8, wall: 'plates', plates: 2 }, parts: [] }, 300, 60, 0);
   for (let i = 0; i < 20000; i++) stepWorld(w);
   const gap = Math.hypot(a.q[0] - b.q[0], a.q[1] - b.q[1]);
   check('a cell dropped on another comes to rest on it', b.q[1] > a.q[1] && gap > 17.5 && gap < 18.5,
@@ -932,6 +931,31 @@ const runDay = (design, y, seconds, opts = {}) => {
       && /drained by a hunter/.test(hunt.B.diedWhy) && hunt.A.grow.N > 0.4 * hunt.B.grow.Nneed && held > 5000,
     `on a stranger: paid ${fmt(hunt.paid / 1000, 0)}k to pierce, kept ${fmt(hunt.kept / 1000, 0)}k pJ and ${fmt(hunt.A.grow.N, 0)} N, ` +
     `the prey ${hunt.B.diedWhy || 'alive'}; on kin: ${kin.latched ? 'latched' : 'no latch'}; a swimming hunter held its prey ${fmt(held / 1000, 1)} of 9 s`);
+}
+
+// 28v. The armoured wall (author, 2026-11-02): cellulose plates make a cell sink faster, need more energy at each division
+// (their volume, no nitrogen), and multiply a peduncle's piercing price by (1 + 2 × thickness); a predator that can't pay
+// doesn't latch; an old design's glass wall loads as protein
+{
+  const body = (plates) => ({ species: 'prey', body: plates ? { radius: 10, wall: 'plates', plates } : { radius: 10 }, parts: [] });
+  const ped = { species: 'hunter', body: { radius: 10 }, parts: [{ type: 'segment', at: [10, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed' } }] };
+  const sinks = (d) => sinking(run(d, 1));
+  const v0 = sinks(body(0)), v1 = sinks(body(1));
+  const meet = (plates, E) => {
+    const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+    const A = addCell(w, ped, 800, 1000, 0), B = addCell(w, body(plates), 841, 1000, 0);
+    if (E !== undefined) A.metab.C = A.metab.E = E;
+    const E0 = A.metab.E;
+    stepWorld(w);
+    return { paid: A.feeders[0].link ? A.feeders[0].link.price : E0 - A.metab.E, latched: !!A.feeders[0].link, cant: A.cantPierce, B };   // the price on the latch (a big pool also fills the growth meter that step)
+  };
+  const p0 = meet(0), p1 = meet(1, 1e6), poor = meet(2, 150000);
+  const g0 = p0.B.grow, g1 = p1.B.grow, oldGlass = run({ body: { radius: 10, wall: 'glass' }, parts: [] }, 1);
+  check('plates: sink faster, cost energy at division (no nitrogen), triple the piercing price at 1 µm; a poor predator can\'t latch',
+    v1 > 1.3 * v0 && g1.Eneed > 1.25 * g0.Eneed && g1.Nneed === g0.Nneed && Math.abs(p1.paid - 3 * PARAMS.feed.pierce * 20) < 1e-6 && Math.abs(p0.paid - PARAMS.feed.pierce * 20) < 1e-6 && p1.latched
+      && !poor.latched && poor.cant && poor.cant.price === 5 * PARAMS.feed.pierce * 20 && Math.abs(sinking(oldGlass) - v0) < 1e-9,
+    `sinks ${fmt(v0)} → ${fmt(v1)} µm/s with 1 µm plates; energy per division ${fmt(g0.Eneed / 1e6)} → ${fmt(g1.Eneed / 1e6)} million pJ; ` +
+    `pierce ${fmt(p0.paid / 1000, 0)}k → ${fmt(p1.paid / 1000, 0)}k; 2 µm plates with 150k in the pool: ${poor.latched ? 'latched' : 'no latch'}; old glass wall: as protein`);
 }
 
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's

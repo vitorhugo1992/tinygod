@@ -64,7 +64,8 @@ export function initMetab(cell) {
     starving: false,
   };
   // the growth meter (used with world.grow): what a division needs, and what the cell has gathered toward it
-  cell.grow = { E: 0, N: 0, Eneed: body.volume * P.grow.energy, Nneed: body.volume * P.grow.nitrogen, uptake: 0 };
+  // (plates: the daughter's are built too, energy by their volume, no nitrogen)
+  cell.grow = { E: 0, N: 0, Eneed: body.volume * P.grow.energy + (body.plateVol || 0) * P.plates.energy, Nneed: body.volume * P.grow.nitrogen, uptake: 0 };
 }
 
 // A store's full energy

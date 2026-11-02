@@ -150,7 +150,8 @@ export function interact(world) {
   for (const A of cells) {
     if (A.dead) continue;
     for (const f of A.feeders) {
-      if (f.link || !f.go || (world.metab && A.metab.E < f.cost)) continue;
+      if (f.link || !f.go) continue;
+      A.cantPierce = null;
       const [x, y] = padWorld(A, f);
       for (const B of cells) {
         if (B === A || B.species === A.species) continue;
@@ -158,9 +159,12 @@ export function interact(world) {
         if (dx * dx + dy * dy > r * r) continue;
         const hit = surfaceNear(B, x, y, f.r, 0);   // the body only: spines and flagella keep it off
         if (!hit) continue;
-        const link = { a: A.index, b: B.index, padA: f, pieceB: 0, bx: hit[1], by: hit[2], holds: FEED.hold, feed: true, took: 0, tookN: 0, since: world.steps };
+        // plates make it dearer to pierce; a predator that can't pay doesn't latch (and says so)
+        const price = f.cost * (1 + PARAMS.plates.pierce * (B.pieces[0].plates || 0));
+        if (world.metab && A.metab.E < price) { A.cantPierce = { prey: B.species, price }; continue; }
+        const link = { a: A.index, b: B.index, padA: f, pieceB: 0, bx: hit[1], by: hit[2], holds: FEED.hold, feed: true, took: 0, tookN: 0, since: world.steps, price };
         f.link = link; world.links.push(link);
-        if (world.metab) A.metab.E -= f.cost;
+        if (world.metab) A.metab.E -= price;
         break;
       }
     }

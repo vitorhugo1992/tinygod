@@ -68,7 +68,7 @@
 //       exposed length is the unknown, from 0 to `length`, pushed toward `rest` by a spring (pN/µm). Latched,
 //       it waits at `start` until released.
 import { PARAMS } from './params.js';
-import { material } from './materials.js';
+import { legacyMaterial, material } from './materials.js';
 import { DEG, dlog, dcos, dsin } from './dmath.js';
 import { brainProblem } from './brain.js';
 import { shapeOf, polysOverlap } from './shape.js';
@@ -209,11 +209,12 @@ export function buildCell(design, opts = {}) {
   const b = design.body;
   const bL = b.length || 0, bA = b.radius;
   const vol = capsuleVolume(bL, bA);
-  const wallVol = Math.min(capsuleArea(bL, bA) * C.wallThickness, vol);
-  const wallMat = b.wall || 'protein';
+  const wallMat = legacyMaterial(b.wall || 'protein');
+  const plates = wallMat === 'plates' ? Math.min(Math.max(b.plates ?? PARAMS.plates.start, PARAMS.plates.min), PARAMS.plates.max) : 0;
+  const wallVol = Math.min(capsuleArea(bL, bA) * (plates || C.wallThickness), vol);
   pieces.push({
     kind: 'body', parent: -1, ax: 0, ay: 0, mount: 0, offset: 0, joint: -1,
-    L: bL, a: bA, material: wallMat, volume: vol, area: capsuleArea(bL, bA),
+    L: bL, a: bA, material: wallMat, volume: vol, area: capsuleArea(bL, bA), plates, plateVol: plates ? wallVol : 0,
     ...capsuleDrag(bL, bA),
     wpts: [{ x: 0, y: 0, w: weight(C.cytoplasm, vol - wallVol) + weight(material(wallMat).density, wallVol) }],
     inclusions: [],
@@ -226,7 +227,7 @@ export function buildCell(design, opts = {}) {
     if (parent === undefined) throw new Error(`unknown parent: ${part.parent}`);
     const [x, y] = part.at || [0, 0];
     if (part.type === 'segment') {
-      const L = part.length, a = part.radius, mat = part.material || 'protein';
+      const L = part.length, a = part.radius, mat = legacyMaterial(part.material || 'protein');
       const v = capsuleVolume(L, a);
       const joint = parseJoint(part.joint, pieces.length);
       if (joint) joints.push(joint);

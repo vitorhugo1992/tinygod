@@ -68,7 +68,13 @@ export function note(world, c) {
   w.dead = !!c.dead;
   // the peduncle: latching, letting go, being fed on
   const feeding = (c.feeders || []).find((f) => f.link);
-  if (feeding && !w.feeding) say(`latched onto a ${world.cells[feeding.link.b].species} (${Math.round(feeding.cost / 1000)}k pJ to pierce)`);
+  if (feeding && !w.feeding) {
+    const prey = world.cells[feeding.link.b], price = feeding.link.price ?? feeding.cost;
+    say(`latched onto a ${prey.species} (${Math.round(price / 1000)}k pJ to pierce${prey.pieces[0].plates ? `: plated, ×${(price / feeding.cost).toFixed(1)}` : ''})`);
+  }
+  // touching a plated prey it can't afford to pierce: said once per prey species until it latches on something
+  if (c.cantPierce && w.cantPierce !== c.cantPierce.prey) say(`can't afford to pierce a plated ${c.cantPierce.prey} (${Math.round(c.cantPierce.price / 1000)}k pJ; it has ${Math.round(c.metab.E / 1000)}k)`);
+  if (c.cantPierce) w.cantPierce = c.cantPierce.prey; else if (feeding) w.cantPierce = null;
   if (!feeding && w.feeding && c.lastMeal) {
     const why = { drained: 'nothing left', died: 'it died', rule: 'its rule let go', torn: 'torn off' }[c.lastMeal.why];
     say(`let go of a ${c.lastMeal.prey} (${why}): took ${Math.round(c.lastMeal.took / 1000)}k pJ, kept half`);
