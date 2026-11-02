@@ -69,6 +69,13 @@ from the floor (no starving except Caecella):** Bathyscapha divided at ~2.4 d (w
 Saltella 1.6×, Raptilla 1.3×, Trochilla 1.3× (deep nights, ~1.8 mm), none divided; **Caecella died on day 1** (its
 rest rule needs oil above 85%; a grown oil store is emptier: the division lesson again). Grown cells are
 energy-limited (Noctilla 1.4×: upkeep +25%, income +15%; bigger stores to refill): doubling ~2× slower than before.
+**Contest with growing, 1st (organelles half at every size):** Bathyscapha 16; Noctilla stuck at 1.8× from day 5,
+Raptilla 1.8×, Trochilla 1.3×: **swimmers stalled below 2× and never divided** (each step adds upkeep, drag and longer
+flagella; income lagged). **Fixed (author): organelles keep pace up to 2×, half beyond** (grow.js organelleGrowth).
+**2nd:** day 10: **Bathyscapha 16, Noctilla 8, Trochilla 1 (1.6×, energy-poor: its oars grow and cost more)**;
+Saltella eaten out by day 5.2; both Raptillas starved ON THE FLOOR (day 5.6-5.7) after draining Saltellas deep (the
+tail stops while feeding: a heavy prey drags both down; the drained prey dies on the floor and the hunter is stuck
+there); Caecella died day 1.8 (its oil clock). 3 days from the floor: Noctilla divides by day 3, Saltella 1.9×.
 (2) **stealing plastids** (the
 peduncle's next stage); (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
 already make them; "at division" is only one way, a daughter starting stuck); (4) **engulfing, if possible** (only a
