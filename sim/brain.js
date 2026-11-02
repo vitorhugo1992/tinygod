@@ -1,12 +1,12 @@
 // The nucleus is the cell's brain box (CLAUDE.md, author 2026-10-28): an inclusion whose size gives it slots, and each
 // brain module takes one. Modules: every sensor on the cell (its module in the brain), every built-in reading that is
-// wired (energy, starch, oil, plastid health), and every rule box (each GO box and each part's STOP box). Cables are
+// wired (energy, starch, oil, plastid health, ...; a pad's reading too), and every rule box (each GO box and each part's STOP box). Cables are
 // free. buildCell refuses a design whose nucleus is too small for its modules; a cell with no nucleus has no brain
 // (the sandbox strips its wiring, so every part simply runs); the physics itself reads wiring on any cell.
 import { PARAMS } from './params.js';
 import { volumeOf } from './shape.js';
 
-export const BUILT_INS = ['energy', 'starch', 'oil', 'health', 'feeding', 'size', 'drained'];
+export const BUILT_INS = ['energy', 'starch', 'oil', 'health', 'feeding', 'size', 'drained', 'neighbours'];
 
 // The design's nucleus parts
 export const nucleiOf = (design) => (design.parts || []).filter((p) => p.type === 'inclusion' && p.material === 'nucleus');
@@ -29,7 +29,8 @@ export function brainUse(design) {
   const parts = design.parts || [];
   const sensors = parts.filter((p) => p.type === 'sensor' || (p.type === 'inclusion' && p.material === 'statolith')).length;
   const used = new Set();
-  const note = (id) => { if (BUILT_INS.includes(id)) used.add(id); };
+  const padIds = new Set(parts.filter((p) => p.type === 'pad' && p.id).map((p) => p.id));   // a pad's reading: a module once wired
+  const note = (id) => { if (BUILT_INS.includes(id) || padIds.has(id)) used.add(id); };
   // each part group (a part on the body and everything hanging from it) shares one rule: count it once
   const byId = new Map(parts.filter((p) => p.id).map((p) => [p.id, p]));
   const rootOf = (p) => { while (p.parent && p.parent !== 'body' && byId.has(p.parent)) p = byId.get(p.parent); return p; };

@@ -67,10 +67,20 @@ export const feedingLevel = (cell) => ((cell.feeders || []).some((f) => f.link) 
 // Size: how grown the cell is, 0 newborn to 1 at PARAMS.grow.max times its newborn volume (in words: 1× ... 8×)
 // Drained: 1 while another cell's peduncle is latched on it (chains, author 2026-11-02: a chain can cut a victim loose)
 export const drainedLevel = (world, cell) => ((world.links || []).some((l) => l.feed && world.cells[l.b] === cell) ? 1 : 0);
+// Neighbours: how many kin it is joined to by pads (interact.js counts them: cell.neighbours), 0-1 as 0 .. 4+ kin
+export const neighboursLevel = (cell) => Math.min(cell.neighbours || 0, 4) / 4;
+// A pad's reading: 0 free, 0.5 joined to kin, 1 stuck to a stranger (another species: a mucus pad hitch-hiking, or a
+// predator caught)
+export function padLevel(world, cell, pad) {
+  const l = pad && pad.link;
+  if (!l) return 0;
+  const other = world.cells[l.a] === cell ? world.cells[l.b] : world.cells[l.a];
+  return other && other.species === cell.species ? 0.5 : 1;
+}
 export const sizeLevel = (cell) => ((cell.size || 1) - 1) / (PARAMS.grow.max - 1);
 // A reading by index: a sensor part, or one built in (-1 energy, -2 starch, -3 oil, -4 plastid health, -5 feeding)
 const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ? energyLevel(world, cell)
-  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : k === -7 ? drainedLevel(world, cell) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
+  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : k === -7 ? drainedLevel(world, cell) : k === -8 ? neighboursLevel(cell) : k <= -100 ? padLevel(world, cell, cell.pads[-100 - k]) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
 
 // One condition: is the reading inside its range? (with a little hysteresis)
 function holds(ctl, v) {

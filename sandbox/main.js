@@ -8,7 +8,7 @@ import { regrow } from '../sim/grow.js';
 import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
 import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax } from './mould.js';
 import { lightAt, daylight, clock } from '../sim/light.js';
-import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel } from '../sim/sense.js';
+import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel, neighboursLevel, padLevel } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
@@ -438,7 +438,7 @@ function partName(g, all = partGroups(design.parts || [])) {
   const same = all.filter((x) => own(x) === name);
   return same.length > 1 ? `${name} ${same.indexOf(all.find((x) => x.members[0] === g.members[0])) + 1}` : name;
 }
-const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health', feeding: 'Feeding', size: 'Size', drained: 'Drained' };
+const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health', feeding: 'Feeding', size: 'Size', drained: 'Drained', neighbours: 'Neighbours' };
 // a sensor (or built-in reading) by id: its name and colour (built-ins have none)
 function sensorInfo(id) {
   if (BUILT_NAME[id]) return { name: BUILT_NAME[id], colour: null };
@@ -459,6 +459,8 @@ function meaning(kind, v, id) {
   if (kind === 'health') return `${pc} healthy`;
   if (kind === 'feeding') return v >= 0.5 ? 'feeding' : 'not feeding';
   if (kind === 'drained') return v >= 0.5 ? 'being drained' : 'not being drained';
+  if (kind === 'neighbours') return `${Math.round(4 * v)}${v >= 1 ? '+' : ''} kin joined`;
+  if (kind === 'pad') return v < 0.25 ? 'free' : v < 0.75 ? 'joined to kin' : 'stuck to a stranger';
   if (kind === 'size') return `${sizeX(v)} its newborn volume`;
   if (kind === 'touch') return v >= 0.5 ? 'touching' : 'not touching';
   if (kind === 'near') return v <= 0 ? 'nothing near' : v >= 1 ? 'touching' : `something ${Math.round((1 - v) * nearRange(id))} µm away`;
@@ -488,6 +490,8 @@ const KINDS = {
   health: { verb: 'is', zones: [[0, 0.3, 'wrecked'], [0.3, 0.7, 'hurt'], [0.7, 1, 'healthy']], u: (v) => `${pc(v)} healthy` },
   touch: { verb: 'is', zones: [[0, 0.5, 'not touching'], [0.5, 1, 'touching']], u: (v) => (v >= 0.5 ? 'touching' : 'not touching') },
   size: { verb: 'is', zones: [[0, 1 / 7, 'newborn'], [1 / 7, 3 / 7, 'grown'], [3 / 7, 1, 'big']], u: (v) => sizeX(v) },
+  neighbours: { verb: 'has', zones: [[0, 0.125, 'alone'], [0.125, 0.375, 'a chain end'], [0.375, 0.625, 'in the middle'], [0.625, 1, 'a branch']], u: (v) => `${Math.round(4 * v)}${v >= 1 ? '+' : ''} kin` },
+  pad: { verb: 'is', zones: [[0, 0.25, 'free'], [0.25, 0.75, 'joined to kin'], [0.75, 1, 'stuck to a stranger']], u: (v) => (v < 0.25 ? 'free' : v < 0.75 ? 'joined to kin' : 'stuck to a stranger') },
   drained: { verb: 'is', zones: [[0, 0.5, 'not being drained'], [0.5, 1, 'being drained']], u: (v) => (v >= 0.5 ? 'being drained' : 'not being drained') },
   feeding: { verb: 'is', zones: [[0, 0.5, 'not feeding'], [0.5, 1, 'feeding']], u: (v) => (v >= 0.5 ? 'feeding' : 'not feeding') },
   near: { verb: 'feels', zones: [[0, 0.05, 'nothing'], [0.05, 0.5, 'far'], [0.5, 0.95, 'close'], [0.95, 1, 'touching']],
@@ -599,12 +603,13 @@ const ruleSummary = (targets) => sentence(targets, false);
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { drained: [0.5, 1], size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
-const ICON = { drained: '🩸', size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
+const RANGE = { neighbours: [0.375, 1], pad: [0.25, 1], drained: [0.5, 1], size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
+const ICON = { neighbours: '🔗', pad: '🧷', drained: '🩸', size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
-  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding' || id === 'size' || id === 'drained') return id;
+  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding' || id === 'size' || id === 'drained' || id === 'neighbours') return id;
   const p = (design.parts || []).find((x) => x.id === id) || {};
+  if (p.type === 'pad') return 'pad';
   return p.material === 'statolith' ? 'statolith' : p.kind || 'light';
 }
 // the sensors a rule can read: every sensor part (but `except`), then the energy level
@@ -620,6 +625,10 @@ function sensorList(except) {
     list.push({ id: k, name: `its ${k} level (how full its ${k} is)`, short: `${k[0].toUpperCase() + k.slice(1)} level`, kind: k });
   if ((design.parts || []).some((p) => p.type === 'inclusion' && p.material === 'plastid'))
     list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
+  // its pads (what each holds) and how many kin it is joined to (author 2026-11-02: pads that sense; Neighbours)
+  const padGroups = all.filter((g) => g.category === 'Pads' && g.members[0].id);
+  for (const g of padGroups) list.push({ id: g.members[0].id, name: `${partName(g, all)} (free / joined to kin / stuck to a stranger)`, short: partName(g, all), kind: 'pad', colour: colourOf(g) });
+  if (padGroups.some((g) => g.members[0].kind !== 'mucus')) list.push({ id: 'neighbours', name: 'its neighbours (how many kin it is joined to)', short: 'Neighbours', kind: 'neighbours' });
   list.push({ id: 'drained', name: 'drained (another cell\'s peduncle is latched on it)', short: 'Drained', kind: 'drained' });
   list.push({ id: 'size', name: 'its size (how grown it is: 1× newborn, 2× ready to divide)', short: 'Size', kind: 'size' });
   if ((design.parts || []).some((p) => p.joint && p.joint.type === 'feed'))
@@ -1201,6 +1210,8 @@ function liveReading(c, id) {
   if (id === 'feeding') return { value: feedingLevel(c) };
   if (id === 'size') return { value: sizeLevel(c) };
   if (id === 'drained') return { value: drainedLevel(world, c) };
+  if (id === 'neighbours') return { value: neighboursLevel(c) };
+  { const k = c.pads.findIndex((p) => c.design.parts[p.part] && c.design.parts[p.part].id === id); if (k >= 0) return { value: padLevel(world, c, c.pads[k]) }; }
   return c.sensors.find((x) => x.id === id);
 }
 

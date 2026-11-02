@@ -13,7 +13,7 @@ import { buildCell as build } from '../sim/build.js';
 import { volumeOf } from '../sim/shape.js';
 import { moveTo, dragSpot, toOutline, ownPoints, relax } from '../sandbox/mould.js';
 import { DEG } from '../sim/dmath.js';
-import { feedingLevel, sizeLevel } from '../sim/sense.js';
+import { feedingLevel, sizeLevel, padLevel } from '../sim/sense.js';
 import { regrow, organelleGrowth } from '../sim/grow.js';
 
 const DT = PARAMS.time.dt;
@@ -1111,6 +1111,35 @@ const runDay = (design, y, seconds, opts = {}) => {
     straight && longest === 8 && w.cells.length > 8 && shared > 0.2 && cut && three > 1.05 * one,
     `${w.cells.length} cells, the longest chain ${longest}, ${straight ? 'straight' : 'not straight'} (x ${fmt(xs[0] - 800, 0)} to ${fmt(xs[xs.length - 1] - 800, 0)} µm); ` +
     `an emptied pool refilled to ${fmt(100 * shared, 0)}% by its neighbours in 10 s; drained: ${cut ? 'cut loose' : 'still joined'}; sinking ${fmt(one)} alone, ${fmt(three)} µm/s three joined`);
+}
+
+// 28aa. Pads that sense and attract (author, 2026-11-02): a free kin pad gently pulls a free kin pad of its species within
+// PARAMS.pads.attract, so drifting kin come together and join (strangers and mucus pads don't); the Neighbours reading
+// counts the kin a cell is joined to (a chain of three: ends 1, middle 2); a pad reads free / joined to kin / a stranger
+{
+  const cellWith = (species, kind) => ({ species, body: { radius: 10 }, parts: [
+    { type: 'pad', id: 'pf', at: [10, 0], kind, joint: { type: 'hold' } }, { type: 'pad', id: 'pb', at: [-10, 0], kind, joint: { type: 'hold' } },
+    { type: 'segment', id: 'tail', at: [0, 10], angle: 90, length: 8, radius: 0.25, joint: { type: 'motor', rate: 30, swing: 0, controls: [{ sensor: 'pf', min: 0.25, max: 1 }, { sensor: 'neighbours', min: 0.375, max: 1, or: true }] } }] });
+  const meet = (a, b, gap = 5) => {
+    const w = makeWorld(1, { gravity: false, light: false });
+    const A = addCell(w, a, 800, 1000, 0), B = addCell(w, b, 800 + 20 + gap, 1000, 0);
+    for (let i = 0; i < 20000; i++) stepWorld(w);
+    return { w, A, B, joined: w.links.length > 0, gap: Math.hypot(A.q[0] - B.q[0], A.q[1] - B.q[1]) - 20 };
+  };
+  const kin = meet(cellWith('k', 'kin'), cellWith('k', 'kin')), strangers = meet(cellWith('k', 'kin'), cellWith('s', 'kin')), mucus = meet(cellWith('m', 'mucus'), cellWith('m', 'mucus'));
+  // a chain of three, joined by hand
+  const w = makeWorld(1, { gravity: false, light: false });
+  const cs = [0, 1, 2].map((k) => addCell(w, cellWith('k', 'kin'), 800 + 20.5 * k, 1000, 0));
+  for (let k = 1; k < 3; k++) { const L = { a: k - 1, b: k, padA: cs[k - 1].pads[0], padB: cs[k].pads[1], holds: PARAMS.pads.kinBreak }; cs[k - 1].pads[0].link = L; cs[k].pads[1].link = L; w.links.push(L); }
+  for (let i = 0; i < 5; i++) stepWorld(w);
+  const n = cs.map((c) => c.neighbours), pads = cs.map((c) => padLevel(w, c, c.pads[0]));
+  // the wired tail: runs while its front pad is joined OR it has 2+ neighbours (the middle: both; the last: neither)
+  const runs = cs.map((c) => c.joints[0].on);
+  check('pads sense and attract: kin drift together and join (strangers, mucus: no); Neighbours counts joined kin; a pad reads what it holds',
+    kin.joined && kin.gap < 1 && !strangers.joined && strangers.gap > 4 && !mucus.joined && mucus.gap > 4
+      && n.join() === '1,2,1' && pads.join() === '0.5,0.5,0' && runs.join() === 'true,true,false',
+    `kin 5 µm apart: ${kin.joined ? 'joined' : 'apart'} (gap ${fmt(kin.gap)}); strangers: ${strangers.joined ? 'joined' : 'apart'} (${fmt(strangers.gap)}); mucus: ${mucus.joined ? 'joined' : 'apart'} (${fmt(mucus.gap)}); ` +
+    `a chain of three: neighbours ${n.join(', ')}, front pads ${pads.join(', ')}; tails "front pad joined or 2+ neighbours": ${runs.map((r) => (r ? 'run' : 'stop')).join(', ')}`);
 }
 
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's

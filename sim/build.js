@@ -123,10 +123,14 @@ function parseJoint(j, pieceIndex) {
 // A sensor by id, as its index in the cell (-1: the built-in energy level)
 // (-1: the built-in energy level; -2, -3: the built-in starch and oil levels, how full those stores are; -4: how
 // healthy its plastids are; -5: feeding, 1 while a peduncle of its is latched; -6: size, how grown it is; -7: drained,
-// 1 while another's peduncle drains it)
-const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7 };
+// 1 while another's peduncle drains it; -8: neighbours, how many kin it is joined to; a pad's id: what that pad holds,
+// as PAD_READ - its place in the cell's pads)
+const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7, neighbours: -8 };
+export const PAD_READ = -100;
+let padIds = new Map();   // the design being built: pad id -> its place among the cell's pads
 function sensorIndex(sensors, id) {
   if (BUILT_IN[id] !== undefined) return BUILT_IN[id];
+  if (padIds.has(id)) return PAD_READ - padIds.get(id);
   const s = sensors.findIndex((x) => x.id === id);
   if (s < 0) throw new Error(`no sensor called ${id}`);
   return s;
@@ -156,6 +160,7 @@ export const controlsOf = (j) => (j.controls ? j.controls : j.control ? [j.contr
 
 // Rewire a living cell's joints that came from design part `partIndex` (an empty list: unwire), without rebuilding it
 export function rewire(cell, partIndex, controls) {
+  padIds = new Map(cell.pads.map((p, i) => [cell.design.parts[p.part] && cell.design.parts[p.part].id, i]).filter(([id]) => id));   // its pads, by id
   if (cell.design.parts[partIndex] && cell.design.parts[partIndex].material === 'nucleus') {   // the REST rule
     cell.rest.controls = controls.length ? controls.map((c) => resolveControl(cell.sensors, c)) : null;
     if (!controls.length) cell.resting = false;
@@ -163,6 +168,9 @@ export function rewire(cell, partIndex, controls) {
   if (cell.divideRule && cell.divideRule.part === partIndex) {   // the DIVIDE rule
     cell.divideRule.controls = controls.length ? controls.map((c) => resolveControl(cell.sensors, c)) : null;
     if (!controls.length) cell.divideOk = true;
+  }
+  for (const p of cell.pads) if (p.part === partIndex) {   // a pad's HOLDS while… rule
+    if (controls.length) p.controls = controls.map((c) => resolveControl(cell.sensors, c)); else { delete p.controls; p.go = true; }
   }
   for (const f of cell.feeders) if (f.part === partIndex) {
     if (controls.length) f.controls = controls.map((c) => resolveControl(cell.sensors, c)); else { delete f.controls; f.go = true; }
@@ -194,6 +202,7 @@ export function respeed(cell, partIndex, speed) {
 // opts.loose: build even if organelles overlap, stick out, overfill the cell or the nucleus (only to draw while arranging)
 export function buildCell(design, opts = {}) {
   const loose = !!opts.loose;
+  padIds = new Map();
   const pieces = [];
   const joints = [];
   const pads = [];
@@ -319,6 +328,7 @@ export function buildCell(design, opts = {}) {
       const kind = part.kind || 'kin';
       if (kind !== 'kin' && kind !== 'mucus') throw new Error(`unknown pad kind: ${kind}`);
       const pad = { piece: parent, x, y, r: part.radius || 1, kind, link: null, go: true, part: design.parts.indexOf(part) };
+      if (part.id) padIds.set(part.id, pads.length);
       pads.push(pad);
       // HOLDS while… (chains, author 2026-11-02): no rule, it always holds; while its rule fails it lets go and won't stick
       if (part.joint && part.joint.type === 'hold' && controlsOf(part.joint).length) controls.push([pad, controlsOf(part.joint)]);

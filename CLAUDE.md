@@ -151,7 +151,12 @@ less with one neighbour, ~25% with two; to tune), so chains of swimmers outpace 
 faster. **Later, with moving water:** chains in currents take layouts that maximise photosynthesis (author); needs
 moving water and self-shading (light today depends on depth only)); (4) **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). **PRIORITY (author, 2026-11-02: "important"): pads that sense and attract, the Neighbours
-reading, and a nitrogen store ("seems good").** **(6) Swarm / kamikaze defence (author, 2026-11-02):** one cell attacked, kin nearby
+reading, and a nitrogen store ("seems good").** **Pads and Neighbours BUILT (2026-11-02; author chose both, and kin pads only, short and
+weak):** a rule can read any pad by its id (0 free, 0.5 joined to kin, 1 stuck to a stranger; build.js PAD_READ -100 -
+its index, sense.js padLevel; a module only once wired) and the built-in **Neighbours** (-8: kin joined, 0..4+;
+interact.js cell.neighbours; offered when the design has kin pads); free kin pads pull free kin pads of their species
+within PARAMS.pads.attract 15 µm at PARAMS.pads.pull 3 pN (mucus and strangers: no), not while the pad's rule fails;
+rewire() knows pads. Check 28aa (56 checks). Seen in the page: the rule editor lists the pads and Neighbours. **(6) Swarm / kamikaze defence (author, 2026-11-02):** one cell attacked, kin nearby
 respond: surround the predator, release a toxin, damage it, or make it sink. Pieces: Drained exists (the victim knows);
 needed: an ALARM reading (a kin nearby / in its chain is being drained; real: wounded diatoms release oxylipin alarm
 cues); making it sink can come from physics already built (kin piling onto it with mucus pads, their weight); kamikaze

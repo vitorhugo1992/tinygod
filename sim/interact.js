@@ -152,7 +152,7 @@ export function interact(world) {
   // shielding: each body's drag by how many kin it is joined to (PARAMS.pads.shield)
   const joins = new Map();
   for (const l of kept) if (!l.feed && l.padB) for (const c of [cells[l.a], cells[l.b]]) joins.set(c, (joins.get(c) || 0) + 1);
-  for (const c of cells) c.shield = PAD.shield[Math.min(joins.get(c) || 0, PAD.shield.length - 1)];
+  for (const c of cells) { c.neighbours = joins.get(c) || 0; c.shield = PAD.shield[Math.min(c.neighbours, PAD.shield.length - 1)]; }
 
   // free peduncles whose rule holds latch onto another species' body their tip touches
   for (const A of cells) {
@@ -174,6 +174,31 @@ export function interact(world) {
         f.link = link; world.links.push(link);
         if (world.metab) A.metab.E -= price;
         break;
+      }
+    }
+  }
+
+  // free kin pads gently pull free kin pads of their species within PARAMS.pads.attract (kin find each other)
+  for (let a = 0; a < cells.length; a++) {
+    const A = cells[a];
+    if (A.dead) continue;
+    for (let b = a + 1; b < cells.length; b++) {
+      const B = cells[b];
+      if (B.dead || B.species !== A.species) continue;
+      const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach + PAD.attract;
+      if (dx * dx + dy * dy > r * r) continue;
+      for (const pa of A.pads) {
+        if (pa.link || pa.kind !== 'kin' || pa.go === false) continue;
+        const [ax, ay] = padWorld(A, pa);
+        for (const pb of B.pads) {
+          if (pb.link || pb.kind !== 'kin' || pb.go === false) continue;
+          const [bx, by] = padWorld(B, pb), d = Math.hypot(ax - bx, ay - by);
+          if (d > PAD.attract || d < 1e-6) continue;
+          const k = PAD.pull / d;   // a pull of PAD.pull pN toward the other pad
+          const [lax, lay] = toLocal(A, pa.piece, ax, ay), [lbx, lby] = toLocal(B, pb.piece, bx, by);
+          A.ext.push({ type: 'pull', piece: pa.piece, x: lax, y: lay, tx: bx, ty: by, k });
+          B.ext.push({ type: 'pull', piece: pb.piece, x: lbx, y: lby, tx: ax, ty: ay, k });
+        }
       }
     }
   }

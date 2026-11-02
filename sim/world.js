@@ -44,7 +44,7 @@ export function stepWorld(world) {
   for (const cell of world.cells) sense(world, cell);   // after every pose is current: sensors look at others
   if (world.metab) { for (const cell of world.cells) metabolize(world, cell); shareChains(world); }   // after sensing: starving overrides wiring
   if (world.grow) { mixNitrogen(world); growCells(world); divideCells(world); removeDead(world); }
-  if (world.cells.length > 1) interact(world); else if (world.cells.length) world.cells[0].shield = 1;   // alone: nobody shields it
+  if (world.cells.length > 1) interact(world); else if (world.cells.length) { world.cells[0].shield = 1; world.cells[0].neighbours = 0; }   // alone: nobody shields it
   for (const cell of world.cells) stepCell(cell, t, world.gravity);
   world.steps++;
 }
