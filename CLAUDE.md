@@ -39,7 +39,16 @@ offered when the design has a peduncle; sentence "unless it is feeding"); with "
 held 218 s, drained 1.8 million pJ, killed the Saltella; (3) a feeler stopping the tail stopped it before it touched;
 (4) a hunter re-pierced an empty corpse: prey.emptied, never pierced again; (5) **meetings are rare**: in 2 days it met
 only Saltella (cells move up and down in a 1.6 mm wide tank). Check 28w (52 checks).
-**Next, the author's order (2026-11-02):** (1) **a contest with a hunter** (running); (2) **stealing plastids** (the
+**Next, the author's order (2026-11-02):** (1) ~~a contest with a hunter~~ **RUN (2026-11-02):** the five + Raptilla, one each from the floor, 10 days
+(~36 min): **day 10: Trochilla 4, Raptilla 8, the rest extinct** (first contest: Bathyscapha 8, Noctilla 8, Saltella 8,
+Trochilla 4, Caecella 0). 21 latches, 10 kills: Saltella (its only cell, day 1.6, before it ever divided), every
+Noctilla, every Bathyscapha (a still rod, rich: one latch took 7.6 million pJ); Caecella died on its own as before
+(day 3.8); two Raptillas starved on the floor. Latches cluster as prey multiply (days 6-9: kill rate rises with
+density). **Trochilla was never latched: its four 40 µm oars keep the tube off its body** (an unplanned defence, the
+spines idea working). Balance worries for the author: (a) **a kill pays far more than a division** (half of a rich
+prey's stores: 3.8 million kept from one Bathyscapha, ~3 divisions; real food chains pass on ~10-30%); (b) **plates
+wouldn't have helped**: the price (×3 = 120k) is nothing against a 7.6 million meal or a fed hunter's pool; (c) 8 latches
+on Noctilla took 0 (torn at once or nothing to give), 40k each. (2) **stealing plastids** (the
 peduncle's next stage); (3) **chains** (author: chains form when cells interact, at division or not: kin pads meeting
 already make them; "at division" is only one way, a daughter starting stuck); (4) **engulfing, if possible** (only a
 considerably bigger cell swallows a smaller one whole); (5) **toxins** last, open to debate (feels abstract). Scratchpad tools are gone with the
