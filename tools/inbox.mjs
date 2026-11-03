@@ -20,7 +20,7 @@ const save = (got, sent) => {
 };
 
 const saveEntry = (got, sent) => {
-  const ai = String(got.ai || 'AI').replace(/[^p{L}p{N} ._-]/gu, '').trim().slice(0, 60) || 'AI';
+  const ai = String(got.ai || 'AI').replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 60) || 'AI';
   mkdirSync(join(DIR, 'entries'), { recursive: true });
   const file = ai.replace(/ /g, '_') + '.json';
   writeFileSync(join(DIR, 'entries', file), JSON.stringify({ name: got.name, ai, sent, note: got.note || '', design: got.design || got }, null, 2));
