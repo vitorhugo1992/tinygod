@@ -41,6 +41,11 @@
   .sec h2 { color: var(--hue); }
   .sec > button { align-self: flex-start; }
   #panelTop { display: flex; flex-direction: column; gap: 6px; }
+  #savedList { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 10px; }
+  #savedList .sv { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #22394f; border-radius: 9px; background: rgba(16,32,47,.6); }
+  #savedList .sv b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  #savedList .sv button { flex: 0 0 auto; padding: 5px 9px; }
+  #savedList .none { color: #7890a3; font-size: 13px; }
   #toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); max-width: min(92%, 460px); z-index: 6;
     background: rgba(40,14,18,.92); border: 1px solid #a9444f; color: #ffd9dc; border-radius: 10px; padding: 8px 12px;
     font-size: 13px; line-height: 1.35; box-shadow: 0 4px 18px rgba(0,0,0,.45); cursor: pointer; }
@@ -352,10 +357,9 @@
     <button id="release" title="Fire the springs (a charged spring beats hard for a moment and throws the cell)">⚡<span class="lbl"> Release</span></button>
     <span class="seg" id="speedSeg" title="Speed"></span>
     <button id="graphBtn" class="on" title="The day graph: depth, energy, stores and float over the last day, and what went wrong. Tap the graph to switch to the population: cells of each species over the last ten days">📈<span class="lbl"> Graph</span></button>
-    <button id="forcesBtn" title="Arrows: weight minus buoyancy, the way it moves, and which way gravity turns it">↗<span class="lbl"> Forces</span></button>
-    <button id="infoBtn" title="Numbers and what happened (the trouble log)">ⓘ</button>
+    <span class="seg zoomseg"><button id="rotL" title="Turn the selected cell (or Q)">⟲</button><button id="rotR" title="Turn the selected cell (or E)">⟳</button></span>
     <span class="seg zoomseg"><button id="zoomOut" title="Zoom out (or mouse wheel)">−</button><button id="zoomIn" title="Zoom in (or mouse wheel)">+</button></span>
-    <button id="moreBtn" class="rail" title="More: step, camera, gravity, light, calm, day, turn the cell">⋯</button>
+    <button id="moreBtn" class="rail" title="More: step, camera, gravity, light, calm, day, water, forces, info">⋯</button>
     <div id="barMore">   <!-- a computer: part of the row; a phone: a pop-out beside the rail -->
       <button id="step" title="Step 10 ms">Step</button>
       <span class="seg" id="viewSeg" title="Camera"></span>
@@ -364,7 +368,9 @@
       <button id="calmBtn" title="Draw beating parts slowly so they are pleasant to watch (the physics is unchanged); off: the true beat">〰 Calm</button>
       <button id="dayBtn" title="The sun rises and sets (a day lasts 10 minutes at 1×); off: always noon">☾ Day</button>
       <button id="flowBtn" title="Moving water: the tank turns in slow loops, rising in one column and sinking in the next, faster at night; drifters ride it, swimmers fight it. Off: still water">≋ Water</button>
-      <span class="seg"><button id="rotL" title="Turn the selected cell (or Q)">⟲</button><button id="rotR" title="Turn the selected cell (or E)">⟳</button></span>
+      <button id="trailBtn" title="The path the selected cell has taken (dots)">⋰ Trail</button>
+      <button id="forcesBtn" title="Arrows: weight minus buoyancy, the way it moves, and which way gravity turns it">↗ Forces</button>
+      <button id="infoBtn" title="Numbers and what happened (the trouble log)">ⓘ Info</button>
     </div>
   </div>
   <div id="stats"></div>
@@ -435,18 +441,18 @@
     <div class="row">
       <select id="addWhat" title="What to add"></select>
       <button id="add" title="Add a cell beside the selected one">＋ Cell</button>
+      <button id="removeCell" title="Remove the selected cell (the one with the dashed ring; tap a cell in the tank to select it)">🗑 Remove cell</button>
       <button id="testDay" title="Run this design a whole day ahead, from where it is now, and show the forecast in the graph">⏩ Test a day</button>
     </div>
     <h2>Designs</h2>
     <div class="row" id="files">
       <button id="saveDesign" title="Save this design in this browser (it survives a reload)">💾 Save</button>
-      <select id="savedWhat" title="Load a saved design in place of the selected cell (the tank goes on)"></select>
-      <button id="deleteSaved" title="Delete the chosen saved design">✕</button>
       <button id="getDesigns" title="Get the designs Claude left for you: they go into your saved designs">📥 From Claude</button>
       <button id="sendDesign" title="Send this design to Claude: the computer running the sandbox saves it in the project (designs/)">📤 Send to Claude</button>
       <button id="copyDesign" title="Copy this design as text, to paste on another device (e.g. message it to yourself)">📋 Copy</button>
       <button id="pasteDesign" title="Paste a copied design: it goes into your saved designs and the tank">📋 Paste</button>
     </div>
+    <div id="savedList"></div>
     <details>
       <summary>Advanced: design as JSON</summary>
       <textarea id="json" spellcheck="false"></textarea>

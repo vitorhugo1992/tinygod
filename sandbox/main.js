@@ -1482,15 +1482,35 @@ $('release').onclick = () => {
   released = { x: cell.q[0], y: cell.q[1], t: worldTime(world) };
   ghosts = world.cells.map(outline);
 };
-$('add').onclick = () => {   // another cell beside the selected one: a copy (kin), or any preset (its own species)
-  const v = addSelect.value;
-  const d = v.startsWith('saved:') ? savedDesign(v.slice(6)) : v ? preset(v) : design;
+// another cell beside the selected one: a copy (kin), a preset or a saved design (its own species); it is selected
+function addToTank(d) {
   if (!d) return;
   try {
-    const c = addCell(world, d, cell.q[0], cell.q[1], (d.start || {}).angle ?? 0);
+    const c = addCell(world, withoutTimers(d), cell.q[0], cell.q[1], (d.start || {}).angle ?? 0);
     c.q[0] = Math.min(Math.max(cell.q[0] + cell.reach + c.reach + 2, c.reach), TW - c.reach);
     updatePose(c);
-  } catch (e) { $('err').textContent = e.message; }
+    $('buildErr').textContent = `a ${c.species} joined the tank (${world.cells.length} cells)`;
+  } catch (e) { $('buildErr').textContent = e.message; }
+}
+$('add').onclick = () => {
+  const v = addSelect.value;
+  addToTank(v.startsWith('saved:') ? savedDesign(v.slice(6)) : v ? preset(v) : design);
+};
+// remove the selected cell from the tank (author, 2026-11-03: "where is the delete button"); the last cell stays
+$('removeCell').onclick = () => {
+  if (world.cells.length < 2) { $('buildErr').textContent = 'the last cell stays: load another design instead'; return; }
+  const gone = cell, old = world.cells, keep = old.filter((x) => x !== gone);
+  const at = new Map(keep.map((c, i) => [c, i]));   // links name cells by their place in the list: renumber them
+  world.links = (world.links || []).filter((l) => {
+    const a = at.get(old[l.a]), b = at.get(old[l.b]);
+    if (a === undefined || b === undefined) { l.padA.link = null; if (l.padB) l.padB.link = null; return false; }
+    l.a = a; l.b = b; return true;
+  });
+  world.cells = keep;
+  const next = keep.find((c) => c.design === gone.design) || keep.find((c) => c.design === design) || keep[0];
+  select(next);
+  if (next.design !== design) { design = next.design; $('json').value = JSON.stringify(design, null, 2); listParts(); }   // none of its kind left: edit the next one's
+  $('buildErr').textContent = `removed a ${gone.species} (${keep.length} cell${keep.length === 1 ? '' : 's'} left)`;
 };
 
 // The capsules of a cell, as they are now
@@ -1894,9 +1914,10 @@ function draw() {
   ctx.fillStyle = 'rgba(190,220,240,.28)'; ctx.font = '11px system-ui';
   for (let gy = Math.ceil(Math.max(y0, 0) / 100) * 100; gy <= Math.min(y1, TH); gy += 100) ctx.fillText(`${TH - gy} µm deep`, X(Math.max(x0, 0)) + 4, Y(gy) - 3);
   drawDrift(ctx, world, v, worldTime(world), now);   // marine snow and specks, carried by the water
-  // trail
-  ctx.fillStyle = COLOR.trail;
-  for (const [tx, ty] of trail) ctx.fillRect(X(tx) - 1, Y(ty) - 1, 2, 2);
+  if (trailOn) {   // the path the selected cell has taken (hidden unless ⋰ Trail is on; author)
+    ctx.fillStyle = COLOR.trail;
+    for (const [tx, ty] of trail) ctx.fillRect(X(tx) - 1, Y(ty) - 1, 2, 2);
+  }
 
   if (released) {   // a cross where the latches were let go
     ctx.strokeStyle = COLOR.motor; ctx.lineWidth = 1.5; ctx.beginPath();
@@ -1966,14 +1987,24 @@ function savedDesign(name) {
   const s = savedList().find((x) => x.name === name);
   return s ? Object.assign(JSON.parse(JSON.stringify(s.design)), { species: name }) : null;
 }
+// the saved designs as a list (author, 2026-11-03: the menu was confusing): each with ＋ Tank (a cell of it beside the
+// selected one, as its own species), ✎ Edit (it replaces the selected cell's design, to change it) and 🗑 (delete)
 function showSaved() {
-  const list = savedList(), sel = $('savedWhat');
-  sel.innerHTML = '';
-  sel.add(new Option(list.length ? `saved designs (${list.length})…` : 'no saved designs yet', ''));
-  for (const s of list) sel.add(new Option(s.name, s.name));
+  const list = savedList(), box = $('savedList');
   savedGroup.innerHTML = '';
   for (const s of list) savedGroup.appendChild(new Option(s.name, `saved:${s.name}`));
-  $('deleteSaved').disabled = !sel.value;
+  box.innerHTML = list.length ? '' : '<div class="none">No saved designs yet: 💾 Save keeps this one; 📥 From Claude brings Claude\'s.</div>';
+  for (const s of list) {
+    const row = document.createElement('div'); row.className = 'sv';
+    row.innerHTML = `<b title="${esc(s.name)}">${esc(s.name)}</b><button data-a="tank" title="Put a cell of this design in the tank, beside the selected cell">＋ Tank</button><button data-a="edit" title="Edit this design: it takes the place of the selected cell's design">✎ Edit</button><button data-a="del" title="Delete this saved design">🗑</button>`;
+    row.querySelector('[data-a=tank]').onclick = () => addToTank(savedDesign(s.name));
+    row.querySelector('[data-a=edit]').onclick = () => { const d = savedDesign(s.name); if (d && applyDesign(d)) $('buildErr').textContent = `editing "${s.name}"`; };
+    row.querySelector('[data-a=del]').onclick = () => {
+      if (!confirm(`Delete the saved design "${s.name}"?`)) return;
+      writeSaved(savedList().filter((x) => x.name !== s.name)); showSaved();
+    };
+    box.appendChild(row);
+  }
 }
 $('saveDesign').onclick = () => {
   const list = savedList();
@@ -1983,17 +2014,7 @@ $('saveDesign').onclick = () => {
   const rest = list.filter((x) => x.name !== name);
   if (!writeSaved([...rest, { name, design: d, saved: Date.now() }])) { $('buildErr').textContent = 'this browser would not save it'; return; }
   design.species = name;
-  showSaved(); $('savedWhat').value = name; $('deleteSaved').disabled = false;
-};
-$('savedWhat').onchange = () => {
-  $('deleteSaved').disabled = !$('savedWhat').value;
-  const d = $('savedWhat').value && savedDesign($('savedWhat').value);
-  if (d) applyDesign(d);   // in place of the selected cell: the tank and the time of day go on
-};
-$('deleteSaved').onclick = () => {
-  const name = $('savedWhat').value;
-  if (!name || !confirm(`Delete the saved design "${name}"?`)) return;
-  writeSaved(savedList().filter((x) => x.name !== name)); showSaved();
+  showSaved(); $('buildErr').textContent = `saved "${name}"`;
 };
 showSaved();
 // From Claude: the designs Claude left in designs/ go into the saved designs (same name: replaced)
@@ -2119,6 +2140,8 @@ const clearForecast = () => { if (stopForecast) stopForecast(); stopForecast = n
 // way gravity turns it about its centre (orange arc; the turn it actually makes is the dashed one) -----
 let forcesOn = false;
 $('forcesBtn').onclick = () => { forcesOn = !forcesOn; };
+let trailOn = false;
+$('trailBtn').onclick = () => { trailOn = !trailOn; };
 function arrow(x0, y0, x1, y1, color, label) {
   const a = Math.atan2(y1 - y0, x1 - x0);
   ctx.strokeStyle = ctx.fillStyle = color; ctx.lineWidth = 2;
@@ -3136,6 +3159,7 @@ function syncButtons() {
   $('calmBtn').classList.toggle('on', calmBeats);
   $('graphBtn').classList.toggle('on', graphOn);
   $('forcesBtn').classList.toggle('on', forcesOn);
+  $('trailBtn').classList.toggle('on', trailOn);
   $('infoBtn').classList.toggle('on', !$('stats').hidden);
   $('speedBtn').textContent = $('speed').selectedOptions[0].text;
   $('moreBtn').classList.toggle('on', $('barMore').classList.contains('open'));
