@@ -46,7 +46,9 @@ export function takeNitrogen(world, y, amount) {
 export function mixNitrogen(world) {
   if (world.steps % N.every) return;
   const f = world.nitro, c = f.c, dt = N.every * PARAMS.time.dt;
-  const back = dt / N.resupply, side = dt * N.spread;
+  // moving water mixes the layers faster (night convection brings the rich deep water up)
+  const fs = world.flowNow, stir = fs ? 1 + PARAMS.flow.mix * fs.speed / PARAMS.flow.night : 1;
+  const back = dt / N.resupply, side = dt * N.spread * stir;
   let prev = c[0];
   for (let k = 0; k < N.layers; k++) {
     const here = c[k], next = k + 1 < N.layers ? c[k + 1] : here;

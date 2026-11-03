@@ -1307,6 +1307,53 @@ const runDay = (design, y, seconds, opts = {}) => {
     `${use.total} modules; r 2: "${small}"; r 4.5: builds; two nuclei: "${two}"`);
 }
 
+// 28af. Moving water (author, 2026-11-03; sim/flow.js): a drifting cell (no weight) moves with the water and turns with
+// its curl; the loops never cross a wall (no flow into the floor, the surface or the sides); faster at night; a mouth costs
+// upkeep; the same world twice is bit-identical
+{
+  const { flowState, flowAt } = await import('../sim/flow.js');
+  const plain = { name: 'drifter', body: { radius: 10 }, parts: [] };
+  const w = makeWorld(1, { gravity: false, flow: true });
+  const c = addCell(w, plain, 800, 1000, 0);
+  stepWorld(w);
+  const f = flowAt(w.flowNow, 800, 1000, [0, 0, 0]), y0 = c.q[1];
+  for (let i = 0; i < 5000; i++) stepWorld(w);
+  const vy = (c.q[1] - y0) / 5;
+  const w2 = makeWorld(1, { gravity: false, flow: true });
+  const d = addCell(w2, plain, 400, 1000, 0);   // a loop's middle: the water only turns
+  stepWorld(w2);
+  const spin = flowAt(w2.flowNow, 400, 1000, [0, 0, 0])[2] / 2, a0 = d.q[2];
+  for (let i = 0; i < 5000; i++) stepWorld(w2);
+  const turn = (d.q[2] - a0) / 5;
+  // walls: no water through them, at any blend of the loops
+  let leak = 0;
+  const night = makeWorld(1, { flow: true, day: true }), noon = makeWorld(1, { flow: true });
+  night.steps = Math.round(0.75 * PARAMS.metab.day / PARAMS.time.dt);
+  for (let k = 0; k < 8; k++) {
+    night.steps += Math.round(PARAMS.flow.shift / 8 / PARAMS.time.dt);
+    const fs = flowState(night);
+    for (let x = 0; x <= PARAMS.tank.w; x += 100) leak = Math.max(leak, Math.abs(flowAt(fs, x, 0, [0, 0, 0])[1]), Math.abs(flowAt(fs, x, PARAMS.tank.h, [0, 0, 0])[1]));
+    for (let y = 0; y <= PARAMS.tank.h; y += 100) leak = Math.max(leak, Math.abs(flowAt(fs, 0, y, [0, 0, 0])[0]), Math.abs(flowAt(fs, PARAMS.tank.w, y, [0, 0, 0])[0]));
+  }
+  const sNight = flowState(night).speed, sNoon = flowState(noon).speed;
+  const mouth = (n) => { const x = build({ body: { radius: 10 }, parts: Array.from({ length: n }, (_, i) => ({ type: 'mouth', id: 'm' + i, at: [10 * Math.cos(i), 10 * Math.sin(i)], angle: i * 57.3 })) }); return x; };
+  let up0 = null, up2 = null;
+  try { const { initMetab } = await import('../sim/metab.js'); const a = mouth(0), b = mouth(2); initMetab(a); initMetab(b); up0 = a.metab.upkeep; up2 = b.metab.upkeep; } catch (e) { up2 = e.message; }
+  const go = () => {
+    const ww = makeWorld(3, { day: true, metab: true, flow: true });
+    addCell(ww, phototroph(4, PRESETS['Wave tail'].parts), 700, 1500, 90);
+    addCell(ww, phototroph(), 900, 1800, 0);
+    for (let i = 0; i < 20000; i++) stepWorld(ww);
+    return new Uint8Array(Float64Array.from(ww.cells.flatMap((x) => [...x.q])).buffer);
+  };
+  const A = go(), B = go();
+  check('moving water carries a drifter at its speed and turns it with its curl, never crosses a wall, is faster at night; a mouth costs upkeep; deterministic',
+    Math.abs(vy - f[1]) < 0.05 * Math.abs(f[1]) && Math.abs(turn - spin) < 0.05 * Math.abs(spin) && leak < 1e-6 &&
+    Math.abs(sNight - PARAMS.flow.night) < 0.01 && Math.abs(sNoon - PARAMS.flow.day) < 0.01 && up2 - up0 === 2 * PARAMS.engulf.upkeep && A.every((x, i) => x === B[i]),
+    `water ${fmt(f[1], 2)} µm/s up, the cell ${fmt(vy, 2)}; curl/2 ${spin.toExponential(2)}, the cell turns ${turn.toExponential(2)} rad/s; ` +
+    `most through a wall ${leak.toExponential(1)} µm/s; night ${fmt(sNight, 1)}, noon ${fmt(sNoon, 1)} µm/s; two mouths +${up2 - up0} pJ/s`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

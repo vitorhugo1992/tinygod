@@ -10,6 +10,7 @@ import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWal
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel, neighboursLevel, padLevel, alarmLevel } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
+import { flowState, flowAt } from '../sim/flow.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus } from './journal.js';
@@ -1400,7 +1401,7 @@ function listParts() {
 function reset(pose, carry) {
   $('err').textContent = '';
   const s = (pose && pose.x !== undefined ? pose : null) || design.start || {};
-  const w = makeWorld(1, { gravity: $('gravity').checked, light: $('light').checked, day: $('day').checked, metab: true, grow: true });
+  const w = makeWorld(1, { gravity: $('gravity').checked, light: $('light').checked, day: $('day').checked, flow: $('flow').checked, metab: true, grow: true });
   try {
     const next = addCell(w, design, s.x ?? TW / 2, s.y ?? TH * 0.6, s.angle ?? 0);
     if (carry) {
@@ -1843,6 +1844,36 @@ function resize() {
 window.addEventListener('resize', resize);
 if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);   // the tank's own size changes too (the phone's rail steps aside while arranging)
 
+// Moving water drawn as faint motes drifting with it, each a short streak along the flow, always about as many in view
+// whatever the zoom (they live in the view, not the tank). Still water: none.
+let motes = [], moteT = null, moteView = null;
+const MOTE_FLOW = new Float64Array(3);
+function drawMotes(X, Y, s, x0, x1, y0, y1) {
+  const fs = flowState(world);
+  if (!fs) { motes = []; return; }
+  const t = worldTime(world), dt = moteT === null ? 0 : Math.max(0, Math.min(1, t - moteT));
+  moteT = t;
+  const lx = Math.max(0, x0), hx = Math.min(TW, x1), ly = Math.max(0, y0), hy = Math.min(TH, y1);
+  if (hx <= lx || hy <= ly) return;
+  // the view jumped or was resized (a zoom, a new camera): new motes all over it, not a clump where the old view was
+  const vw = hx - lx, vh = hy - ly, mv = moteView;
+  if (!mv || Math.abs(vw - mv.w) > 0.15 * mv.w || Math.abs(vh - mv.h) > 0.15 * mv.h || Math.abs(lx - mv.x) > 0.5 * vw || Math.abs(ly - mv.y) > 0.5 * vh) motes = [];
+  moteView = { x: lx, y: ly, w: vw, h: vh };
+  const fresh = () => ({ x: lx + Math.random() * (hx - lx), y: ly + Math.random() * (hy - ly), age: 0, life: 4 + Math.random() * 6 });
+  while (motes.length < 70) motes.push(fresh());
+  ctx.lineCap = 'round'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < motes.length; i++) {
+    let m = motes[i];
+    const f = flowAt(fs, m.x, m.y, MOTE_FLOW);
+    m.x += f[0] * dt; m.y += f[1] * dt; m.age += dt;
+    if (m.age > m.life || m.x < lx || m.x > hx || m.y < ly || m.y > hy) { m = motes[i] = fresh(); continue; }
+    const sp = Math.hypot(f[0], f[1]);
+    if (sp < 0.05) continue;
+    const len = Math.min(14, 3 + sp * 1.2), a = 0.28 * Math.min(1, sp / 4) * Math.min(1, m.age / 0.8, (m.life - m.age) / 0.8);
+    ctx.strokeStyle = `rgba(170,215,235,${a.toFixed(3)})`;
+    ctx.beginPath(); ctx.moveTo(X(m.x), Y(m.y)); ctx.lineTo(X(m.x) - f[0] / sp * len, Y(m.y) + f[1] / sp * len); ctx.stroke();
+  }
+}
 function draw() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
   const view = $('viewMode').value;
@@ -1884,6 +1915,7 @@ function draw() {
     for (let k = 0; k <= 40; k++) g.addColorStop(k / 40, `rgba(200,178,106,${(0.09 * nitrogenAt(world, TH * (1 - k / 40))).toFixed(3)})`);
     ctx.fillStyle = g; ctx.fillRect(X(0), Y(TH), TW * s, TH * s);
   }
+  drawMotes(X, Y, s, x0, x1, y0, y1);
   // trail
   ctx.fillStyle = COLOR.trail;
   for (const [tx, ty] of trail) ctx.fillRect(X(tx) - 1, Y(ty) - 1, 2, 2);
@@ -2067,7 +2099,7 @@ $('testDay').onclick = () => {
     stolen: (cell.stolen || []).map((x) => ({ ...x })), lost: [...(cell.lost || [])],
     grow: cell.grow && { E: cell.grow.E / cell.grow.Eneed, N: cell.grow.N / cell.grow.Nneed }, size: cell.size || 1,
     nitro: world.nitro && Float64Array.from(world.nitro.c) };
-  const settings = { gravity: world.gravity, light: world.light, day: world.day, metab: world.metab, grow: world.grow };
+  const settings = { gravity: world.gravity, light: world.light, day: world.day, flow: world.flow, metab: world.metab, grow: world.grow };
   stopForecast = forecast(cell.design, from, settings, (p) => { $('testDay').textContent = `⏩ ${Math.round(100 * p)}%`; },
     (j) => { stopForecast = null; forecastJ = j; $('testDay').textContent = '✕ Close forecast'; });
 };
@@ -2841,8 +2873,9 @@ function segmented(boxId, selectId) {
 segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall'); segmented('feelsSeg', 'partFeels'); segmented('contentSeg', 'partContent'); segmented('pigmentSeg', 'partPigment'); segmented('materialSeg', 'partMaterial'); segmented('sticksSeg', 'partSticks');
 const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked = !$(boxId).checked; $(boxId).dispatchEvent(new Event('change')); }; };
 $('calmBtn').onclick = () => { calmBeats = !calmBeats; };
-toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day');
+toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day'); toggle('flowBtn', 'flow');
 $('day').onchange = () => { if (world) world.day = $('day').checked; };
+$('flow').onchange = () => { if (world) world.flow = $('flow').checked; };
 $('stats').hidden = true;   // the numbers start hidden everywhere (author, 2026-11-01): ⓘ shows them
 $('infoBtn').onclick = () => { $('stats').hidden = !$('stats').hidden; };
 // a phone: the speed is one button that steps through them, and the rarer tools wait behind ⋯ More
@@ -2942,6 +2975,7 @@ function syncButtons() {
   $('gravityBtn').classList.toggle('on', $('gravity').checked);
   $('lightBtn').classList.toggle('on', $('light').checked);
   $('dayBtn').classList.toggle('on', $('day').checked);
+  $('flowBtn').classList.toggle('on', $('flow').checked);
   $('calmBtn').classList.toggle('on', calmBeats);
   $('graphBtn').classList.toggle('on', graphOn);
   $('forcesBtn').classList.toggle('on', forcesOn);

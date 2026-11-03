@@ -40,6 +40,7 @@ export function initMetab(cell) {
   for (const inc of body.inclusions) if (inc.store || inc.toxin || ['plastid', 'chamber', 'statolith'].includes(inc.material)) {
     add(inc.part, inc.v * M.insideUpkeep * (inc.material === 'plastid' && inc.pigment === 'shade' ? M.shade.upkeep : 1));
   } else if (inc.material === 'nucleus') add(inc.part, inc.v * P.brain.upkeep);
+  for (const mo of cell.mouths || []) add(mo.part, P.engulf.upkeep);   // a mouth costs its keep (author, 2026-11-03)
   let upkeep = bodyUpkeep;
   for (const v of byPart.values()) upkeep += v;
   for (const inc of body.inclusions) if (inc.material === 'plastid') inc.damage = 0;

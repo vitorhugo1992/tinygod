@@ -1,12 +1,13 @@
 // Contest: one cell of each design from the floor, N sandbox days (default 10), cap 200; prints the census every half
-// day and every death. node tools/contest.mjs [bathyscapha,noctilla,...] [days]
+// day and every death. node tools/contest.mjs [bathyscapha,noctilla,...] [days] [--still] (moving water unless --still)
 import { readFileSync } from 'fs';
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 
 const ROOT = new URL('../designs/', import.meta.url);
-const names = (process.argv[2] || 'bathyscapha,noctilla,saltella,trochilla,caecella,raptilla2,scalella,gula').split(',');
-const days = +(process.argv[3] || 10);
+const still = process.argv.includes('--still'), args = process.argv.slice(2).filter((a) => a !== '--still');
+const names = (args[0] || 'bathyscapha,noctilla,saltella,trochilla,caecella,raptilla2,scalella,gula').split(',');
+const days = +(args[1] || 10);
 PARAMS.grow.cap = 200;
 
 function prep(d) {   // the sandbox's withoutTimers stubs
@@ -19,7 +20,7 @@ function prep(d) {   // the sandbox's withoutTimers stubs
   return d;
 }
 
-const w = makeWorld(1, { day: true, metab: true, grow: true });
+const w = makeWorld(1, { day: true, metab: true, grow: true, flow: !still });
 const species = [];
 names.forEach((n, i) => {
   const f = JSON.parse(readFileSync(new URL(n + '.json', ROOT), 'utf8'));

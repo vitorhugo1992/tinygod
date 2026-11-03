@@ -8,6 +8,7 @@
 // so two cells pushing on each other never overshoot.
 import { PARAMS } from './params.js';
 import { dsin, dcos } from './dmath.js';
+import { flowAt } from './flow.js';
 
 const DT = PARAMS.time.dt;
 const KC = PARAMS.contact.stiffness;
@@ -17,6 +18,8 @@ const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 
 // Step length used for the implicit spring and contact terms (the current sub-step)
 let IMP = DT;
+let FLOW = null;             // the water's state this step (sim/flow.js), or null: still water
+const FU = new Float64Array(3);
 
 // Scratch: velocity of one point per unit rate of each of a piece's columns
 const MAXC = 64;
@@ -132,6 +135,12 @@ function assemble(cell, gravity) {
       for (let l = 0; l < m; l++) {
         A[row + cols[l]] += UX[l] * ax + UY[l] * ay + (turnk && cell.colTurn[cols[l]] ? sh * p.xr : 0);
       }
+    }
+    // moving water: the drag is against the water, so the piece is pushed along with it and turned by its curl
+    if (FLOW) {
+      flowAt(FLOW, cx[i], cy[i], FU);
+      const fx = rxx * FU[0] + rxy * FU[1], fy = rxy * FU[0] + ryy * FU[1], tq = sh * p.xr * FU[2] / 2;
+      for (let k = 0; k < m; k++) f[cols[k]] += UX[k] * fx + UY[k] * fy + (cell.colTurn[cols[k]] ? tq : 0);
     }
 
     // weight minus buoyancy, at each weight point (light and heavy points apart make a turning couple)
@@ -275,7 +284,8 @@ function pump(cell) {
 // Step one cell from time t to t + dt in cell.sub sub-steps, each by the midpoint method: velocities at the start
 // take it halfway, the velocities there take the whole sub-step. Its error falls with dt² (simple Euler's falls
 // with dt and leaked a steady drift into strokes that should go nowhere).
-export function stepCell(cell, t, gravity = true) {
+export function stepCell(cell, t, gravity = true, flow = null) {
+  FLOW = flow;
   const { q, v, n } = cell;
   const q0 = cell.q0 || (cell.q0 = new Float64Array(n));
   burst(cell);

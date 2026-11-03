@@ -18,6 +18,18 @@ nights, a bright noon fading with depth), where the part acts in its colour laid
 dawn / noon / dusk under, surface / floor on the side, a legend (runs / still, floats / sinks / neutral, rests / awake,
 your cell now), caption "Runs 82% of the day and depths"; a rule with no condition gets a line, not a map ("◷ No map: it
 holds at every hour and depth…"). main.js drawRunMap / runMapEl (MAP_W 192 × MAP_H 64), CSS .rmap / .rmapnone.
+(3) **Mouths cost** PARAMS.engulf.upkeep 100 pJ/s each (author: "cost per mouth"). (4) **MOVING WATER BUILT** (author:
+"very important, how to do it in a contained tank is crucial"; chose Claude's recommendation, convection rolls, over a
+wraparound current or random eddies; defaults agreed): sim/flow.js, PARAMS.flow. Stream function psi = sin(pi y/H)(a2
+sin(2 pi x/W) + a3 sin(3 pi x/W)): zero on every wall (no water through it; it slides along the floor); two loops and
+three blended, the blend turning over `shift` 1800 s (3 days) so loop edges wander; fastest stream night 10 µm/s, day 2
+(by daylight). physics.js: each piece's drag is against the water (force R·u at its centre, torque xr·curl/2), so a
+weightless cell rides it exactly and turns with its curl; stepCell(cell, t, gravity, flow), world.flowNow; makeWorld({
+flow }) (checks: off; sandbox, Test a day and tools/contest.mjs: on, `--still` for still water). Nitrogen layers mix up
+to 1 + mix 4 times faster as it moves (nutrient.js). Page: faint streaks drifting with it (drawMotes, ~70 in view at any
+zoom), ≋ Water in ⋯ More. Check 28af (60 checks). Measured: all eight of Claude's species alone, 3 days from the floor in
+moving water: alive (Bathyscapha 2, Gula 2, Scalella 2, the rest 1). A loop takes about a day; ~1.3 ms per sim s for the
+water's cost on a 1-piece cell.
 
 **NEWEST HANDOFF (2026-11-02, end of a very long chat; the author starts a new chat).** Built today, all pushed, 59
 checks pass (details in the entries below, search for the names): the population graph (tap the graph strip); the

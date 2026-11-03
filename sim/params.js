@@ -6,7 +6,18 @@ export const PARAMS = {
     viscosity: 1.08e-3,     // seawater at ~20 °C, in pN·s/µm²
   },
   gravity: 9.81,            // m/s²
-  tank: { w: 1600, h: 2000 },// still water, y up from the floor
+  tank: { w: 1600, h: 2000 },// y up from the floor
+  // Moving water (author, 2026-11-03: "how to do it in a contained tank is crucial"; sim/flow.js): the tank's water turns
+  // in slow loops side by side (convection rolls), rising in one column, crossing at the top, sinking in the next, back
+  // along the floor; never through a wall. Two loops and three loops are blended, the blend turning over `shift` s, so
+  // the loops' edges wander and no cell circles one path forever. Stronger at night (the surface cools and sinks), calm
+  // by day. Each piece's drag is against the water, so drifters ride it, swimmers fight it, and the loops' curl turns cells.
+  flow: {
+    night: 10,              // µm/s: the fastest the water moves at night
+    day: 2,                 // µm/s: by day (in between at dawn and dusk, with the light)
+    shift: 1800,            // s: the loops' blend turns over in this time (three sandbox days)
+    mix: 4,                 // nitrogen layers even out up to 1 + this many times faster, as the water moves (night mixing)
+  },
   time: {
     dt: 1 / 1000,           // fixed physics step (s), midpoint method; motors up to ~50 Hz get >= 20 steps a beat
     subPerRelax: 16,        // a stiff spring gets sub-steps of at most 1/16 of its relaxation time
@@ -145,6 +156,7 @@ export const PARAMS = {
     time: 60,               // s to digest a meal
     keep: 0.2,              // share of the prey's energy kept (as the peduncle's)
     keepN: 0.5,             // share of its nitrogen kept
+    upkeep: 100,            // pJ/s per mouth (author, 2026-11-03: a mouth costs; as much as 20 µm of an outside part)
   },
   // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): every `every` s a peduncle stays latched,
   // the prey's biggest plastid that fits in the thief moves through the tube (the prey lives on without it, and rebuilds
