@@ -69,7 +69,7 @@
   </section>
 
   <section id="r2" hidden style="border-left-color:#e0b050">
-    <h2>3 · Round 2: improve to beat the others</h2>
+    <h2 id="r2title">3 · Next round: improve to beat the others</h2>
     <p class="note" style="margin-top:0">Each AI gets the round-1 results, how its own species did and every opponent's design.
       Copy its message, paste it <b>in the same chat as its round-1 entry</b>, then bring the new answer back in box 2.</p>
     <div class="row" id="r2buttons" style="margin-top:10px"></div>
@@ -128,9 +128,18 @@ function round2Message(R, me) {
   const story = (s) => s.refused ? `refused: ${s.refused}` : [`cells over time (mean of the runs): ${growth(s.ai)}`,
     s.deaths ? `deaths: ${Object.entries(s.causes).map(([k, v]) => `${v}× ${k}`).join('; ')} (first on day ${s.firstDeath})` : 'no deaths',
     Object.keys(s.kills).length ? `it killed: ${Object.entries(s.kills).map(([k, v]) => `${v} ${k}`).join(', ')}` : ''].filter(Boolean).join(NL);
-  const designs = R.entries.map((e) => `--- ${e.ai}${e.ai === me.ai ? ' (yours)' : ''}: ${e.name}
+  // opponents are described, not given (author, 2026-11-03: round 2's losers copied the winner part for part): their note,
+  // their body and what parts they carry, never their JSON, positions or sizes; your own design in full
+  const kind = (p) => p.type === 'inclusion' ? ({ nucleus: 'nucleus', plastid: p.pigment === 'shade' ? 'shade plastid' : 'plastid', starch: 'starch store', oil: 'oil store', chamber: 'buoyancy chamber', statolith: 'statolith', toxin: p.joint && p.joint.type === 'leak' ? 'leaking toxin sac' : 'bursting toxin sac' }[p.material] || p.material)
+    : p.type === 'sensor' ? ({ light: 'eyespot', touch: 'touch feeler', near: 'feeler', flow: 'moving-water feeler', chem: 'nutrient sensor' }[p.kind] || 'sensor')
+    : p.type === 'segment' ? (p.parent && p.parent !== 'body' ? null : p.joint && p.joint.type === 'feed' ? 'feeding tube' : p.joint && p.joint.type === 'fire' ? 'harpoon' : p.joint && p.joint.burst ? 'spring' : p.joint && p.joint.type === 'motor' ? 'flagellum' : 'spine')
+    : p.type === 'mouth' ? 'mouth' : p.type === 'pad' ? (p.kind === 'mucus' ? 'mucus pad' : 'kin pad') : null;
+  const carries = (d) => { const n = {}; for (const p of d.parts || []) { const k = kind(p); if (k) n[k] = (n[k] || 0) + 1; } return Object.entries(n).map(([k, v]) => (v > 1 ? `${v} × ${k}` : k)).join(', '); };
+  const body = (d) => (d.body.length ? `a rod, ${2 * d.body.radius} µm wide and ${d.body.length + 2 * d.body.radius} µm long` : `round, ${2 * d.body.radius} µm across`) + (d.body.wall === 'plates' ? ', armoured with plates' : '');
+  const designs = R.entries.map((e) => e.ai === me.ai ? `--- Yours: ${e.name}
+${JSON.stringify({ name: e.name, design: e.design })}` : `--- ${e.ai}: ${e.name}
 Its note: ${e.note || '(none)'}
-${JSON.stringify({ name: e.name, design: e.design })}`).join(NL + NL);
+Its body: ${body(e.design)}. It carries: ${carries(e.design)}.`).join(NL + NL);
   return `TinyGod AI tournament, round ${R.round + 1}. In round ${R.round} you entered "${me.name}" (as ${me.ai}). The same brief applies: ${RAW} (or ${SITE}).
 
 Round ${R.round} results (all species in one tank holding at most ${R.cap || 200} cells in all, one cell each from the floor, moving water, ${R.days} days, ${R.seeds} runs with different starting spots; score: mean living cells at day ${R.days}):
@@ -143,18 +152,20 @@ The others:
 ${R.scores.filter((s) => s.ai !== me.ai).map((s) => `${s.ai} (${s.name}):
 ${story(s)}`).join(NL + NL)}
 
-Every species' design, yours and your opponents':
+Your design, and what your opponents are (their designs themselves stay secret: work out from the results and these descriptions why they did well or badly):
 
 ${designs}
 
-Your task: revise your species to beat the competition in round ${R.round + 1} (all of these designs' new versions will be in the tank). You may change anything, borrow ideas, or start again. Reply with the single JSON object the brief asks for in its section 8.`;
+Your task: revise your species to beat the competition in round ${R.round + 1} (all of these designs' new versions will be in the tank). You may change anything or start again; build your own answer to what beat you. Reply with the single JSON object the brief asks for in its section 8.`;
 }
-fetch(`../tournament/round-1/results.json?t=${Date.now()}`).then((r) => (r.ok ? r.json() : null)).then((R) => {
+fetch(`../tournament/latest.json?t=${Date.now()}`).then((r) => (r.ok ? r.json() : { round: 1 })).catch(() => ({ round: 1 }))
+  .then((L) => fetch(`../tournament/round-${L.round}/results.json?t=${Date.now()}`)).then((r) => (r.ok ? r.json() : null)).then((R) => {
   if (!R) return;
   $('r2').hidden = false;
+  $('r2title').textContent = `3 · Round ${R.round + 1}: improve to beat the others`;
   for (const e of R.entries) {
     const b = document.createElement('button'); b.textContent = `📋 ${e.ai}'s message`;
-    b.onclick = async () => { const ok = await copy(round2Message(R, e)); say($('msg3'), ok ? `${e.ai}'s round-2 message is copied: paste it in its chat and send.` : 'Could not copy here.', ok ? 'ok' : 'bad'); };
+    b.onclick = async () => { const ok = await copy(round2Message(R, e)); say($('msg3'), ok ? `${e.ai}'s round-${R.round + 1} message is copied: paste it in its chat and send.` : 'Could not copy here.', ok ? 'ok' : 'bad'); };
     $('r2buttons').appendChild(b);
   }
 }).catch(() => {});

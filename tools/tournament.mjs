@@ -117,4 +117,5 @@ const md = [`# TinyGod AI tournament, round ${round}`, '', `All entries in one t
   ...scores.map((s) => `- **${s.ai}** (${s.name}): ${s.refused ? `refused: ${s.refused}` : s.deaths ? Object.entries(s.causes).map(([k, v]) => `${v}× ${k}`).join('; ') : 'no deaths'}${Object.keys(s.kills).length ? `. Killed: ${Object.entries(s.kills).map(([k, v]) => `${v} ${k}`).join(', ')}` : ''}`),
   ''].join('\n');
 writeFileSync(join(out, 'results.md'), md);
+writeFileSync(join(ROOT, 'tournament', 'latest.json'), JSON.stringify({ round }));   // the entry page's next-round messages read this round
 console.log('\n' + md);

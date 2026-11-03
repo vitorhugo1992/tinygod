@@ -1,12 +1,12 @@
 {
-  "name": "Heliosphaera ascensus",
+  "name": "Abyssosiphon",
   "ai": "Gemini",
-  "sent": "2026-11-03T20:39:28Z",
-  "note": "A compact spherical alga engineered for vertical migration and metabolic endurance. It utilizes a neutral buoyancy chamber and a low-maintenance starch store to survive the night while resting. During the day, it positions itself near mid-depth where light is optimal, using an upward-facing light sensor to regulate its vertical position and avoid surface damage, while managing internal energy pools efficiently.",
+  "sent": "2026-11-03T21:55:43Z",
+  "note": "An optimized vertical-migrating rod alga engineered to dominate the nutricline. It features a large rod plastid for high energy yield, substantial starch and oil stores for nighttime survival, and a chem-controlled buoyancy chamber that guarantees immediate lift-off from the floor on day 0 and precise depth stabilization near nutrient-rich water. Protective side spines and terminal feeding tubes defend against attackers and harvest energy and nitrogen from competitors.",
   "design": {
     "body": {
-      "radius": 10,
-      "length": 0
+      "radius": 6,
+      "length": 60
     },
     "parts": [
       {
@@ -14,8 +14,8 @@
         "id": "nucleus",
         "material": "nucleus",
         "at": [
-          0,
-          -2
+          -31.4,
+          0
         ],
         "radius": 4.3,
         "joint": {
@@ -24,7 +24,54 @@
             {
               "sensor": "energy",
               "min": 0,
-              "max": 0.35
+              "max": 0.18
+            }
+          ]
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "starch1",
+        "material": "starch",
+        "at": [
+          -21.5,
+          0
+        ],
+        "radius": 3.5
+      },
+      {
+        "type": "inclusion",
+        "id": "oil1",
+        "material": "oil",
+        "at": [
+          -12.5,
+          0
+        ],
+        "radius": 4
+      },
+      {
+        "type": "inclusion",
+        "id": "float",
+        "material": "chamber",
+        "at": [
+          2,
+          0
+        ],
+        "radius": 4.8,
+        "length": 4,
+        "joint": {
+          "type": "chamber",
+          "controls": [
+            {
+              "sensor": "chem",
+              "min": 0.8,
+              "max": 1
+            },
+            {
+              "sensor": "near",
+              "min": 0.7,
+              "max": 1,
+              "or": true
             }
           ]
         }
@@ -34,67 +81,105 @@
         "id": "plastid1",
         "material": "plastid",
         "at": [
-          5,
-          4
+          21,
+          0
         ],
-        "radius": 2.5
+        "radius": 5,
+        "length": 12
       },
       {
-        "type": "inclusion",
-        "id": "plastid2",
-        "material": "plastid",
-        "at": [
-          -5,
-          4
-        ],
-        "radius": 2.5
-      },
-      {
-        "type": "inclusion",
-        "id": "starch1",
-        "material": "starch",
+        "type": "sensor",
+        "id": "chem",
+        "kind": "chem",
         "at": [
           0,
           6
         ],
-        "radius": 2
-      },
-      {
-        "type": "inclusion",
-        "id": "chamber1",
-        "material": "chamber",
-        "at": [
-          -6,
-          -4
-        ],
-        "radius": 1.8,
-        "joint": {
-          "type": "chamber",
-          "controls": [
-            {
-              "sensor": "energy",
-              "min": 0,
-              "max": 0.5
-            },
-            {
-              "sensor": "eye",
-              "min": 0.4,
-              "max": 1,
-              "or": true
-            }
-          ]
-        }
+        "angle": 90
       },
       {
         "type": "sensor",
-        "id": "eye",
-        "kind": "light",
+        "id": "near",
+        "kind": "near",
         "at": [
           0,
-          10
+          -6
+        ],
+        "angle": 270,
+        "range": 150,
+        "feels": "anything"
+      },
+      {
+        "type": "segment",
+        "id": "spA",
+        "at": [
+          15,
+          6
         ],
         "angle": 90,
-        "cone": 90
+        "length": 10,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spB",
+        "at": [
+          -15,
+          6
+        ],
+        "angle": 90,
+        "length": 10,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spC",
+        "at": [
+          15,
+          -6
+        ],
+        "angle": 270,
+        "length": 10,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spD",
+        "at": [
+          -15,
+          -6
+        ],
+        "angle": 270,
+        "length": 10,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "pedF",
+        "at": [
+          36,
+          0
+        ],
+        "angle": 0,
+        "length": 18,
+        "radius": 0.6,
+        "joint": {
+          "type": "feed"
+        }
+      },
+      {
+        "type": "segment",
+        "id": "pedB",
+        "at": [
+          -36,
+          0
+        ],
+        "angle": 180,
+        "length": 18,
+        "radius": 0.6,
+        "joint": {
+          "type": "feed"
+        }
       }
     ]
   }

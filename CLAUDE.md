@@ -46,6 +46,18 @@ designs/entries/<AI>.json**. Fair play on the page: a new chat per AI, no hints,
 back once (Claude's proposal; the author may change it). tools/serve.mjs also serves enter/ and docs/. Seen in headless
 Edge at phone size. **Next: step 2, tools/tournament.mjs** (entries from designs/entries/, 5 seeds, mean cells at day 10).
 
+**ROUNDS 1-2 (2026-11-03, same chat).** Entries: ChatGPT, Gemini (restarted once: its first try was spoiled by the
+vague overlap error), Claude (claude.ai). **tools/tournament.mjs** [--round --seeds 3 --days 5 --cap 40] (author: "30 mins
+max"; 200 cells simulate ~17 s per sim second, so 10 days at cap 200 would take 10+ hours): seeds in parallel processes,
+progress every half day, state saved (run-N.json, --report for results so far), tournament/round-N/results.json + .md,
+tournament/latest.json. **Round 1** (3 days, 3 runs, cap 40, ~13 min): Claude's Deepdweller 25.3 (a 12 × 78 µm rod, a
+nitrogen-gauge chamber at ~1,300 µm, a 32% plastid, spines, two feeding tubes: drained 2 ChatGPT cells), ChatGPT 2.7,
+Gemini 0 (starved on the floor). **Round 2 messages** on the entry page (section 3, from latest.json): the results, each
+species' story. Round 2 showed every design's JSON: **ChatGPT and Gemini copied Deepdweller part for part**; Claude kept
+its plan (slimmer, + a toxin sac). **So from round 3 opponents are described, not given** (author agreed, and "might
+also apply to human competition": players see what beat them, not the blueprint): their note, body size and a list of
+the parts they carry; only your own design in full.
+
 **State at handoff:** all pushed, 64 checks pass. Built on 2026-11-03 (entries below): the stirred bottom, the harpoon
 (Spine Kind), the moving-water Feeler, toxins leaked into water (toxin sac Kind Leak), the living-microscope look
 (sandbox/scene.js, drawCell), tank controls (Remove cell, saved designs list, rotate on the rail), twilight, README with

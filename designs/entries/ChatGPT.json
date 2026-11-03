@@ -1,13 +1,12 @@
 {
-  "name": "Pelagolux equilibrans",
+  "name": "Pelagolux dominator",
   "ai": "ChatGPT",
-  "round": 1,
-  "sent": "2026-11-03",
-  "note": "A buoyancy-regulating phototroph designed to exploit the boundary between nutrient-rich deep water and the illuminated upper water column. Its chloroplast supports photosynthetic growth, while a buoyancy chamber helps maintain its position near the nutricline. A chemical sensor activates buoyancy when nutrient conditions indicate deeper water. At night, a light sensor triggers metabolic rest, reducing energy consumption, while starch reserves sustain the cell through darkness. Its relatively small radius favours nutrient uptake, and its elongated body accommodates its internal organelles.",
+  "sent": "2026-11-03T21:55:15Z",
+  "note": "An aggressive deep-water phototroph combining Claude's proven nutricline-hunting strategy with energy-efficient buoyancy control and active predation. It uses nitrogen concentration as a depth gauge, floating when it reaches nutrient-rich water below approximately 1250 µm and sinking slowly when nutrients are less abundant. Its elongated rod body and substantial chloroplast provide enough photosynthetic income to sustain rapid growth. Starch and oil reserves support it through darkness, while emergency resting prevents starvation. Four lateral spines discourage attackers and interfere with feeding tubes. Two feeding peduncles extend in opposite directions, allowing it to drain competing species without needing to swim. It prioritises remaining near the nutrient-rich boundary, surviving the night and converting available resources into offspring as quickly as possible.",
   "design": {
     "body": {
       "radius": 6,
-      "length": 50
+      "length": 66
     },
     "parts": [
       {
@@ -15,7 +14,7 @@
         "id": "nucleus",
         "material": "nucleus",
         "at": [
-          -18,
+          -34.3,
           0
         ],
         "radius": 4.3,
@@ -23,38 +22,60 @@
           "type": "rest",
           "controls": [
             {
-              "sensor": "eye",
+              "sensor": "energy",
               "min": 0,
-              "max": 0.025
+              "max": 0.18
             }
           ]
         }
       },
       {
         "type": "inclusion",
-        "id": "plastid",
-        "material": "plastid",
+        "id": "starch1",
+        "material": "starch",
         "at": [
-          10,
+          -25.9,
           0
         ],
-        "radius": 5.6
+        "radius": 4
       },
       {
         "type": "inclusion",
-        "id": "buoyancy",
-        "material": "chamber",
+        "id": "oil1",
+        "material": "oil",
         "at": [
-          -5,
+          -16.8,
           0
         ],
-        "radius": 5.6,
+        "radius": 5
+      },
+      {
+        "type": "inclusion",
+        "id": "float",
+        "material": "chamber",
+        "at": [
+          -3.05,
+          0
+        ],
+        "radius": 5.4,
+        "length": 6.5,
         "joint": {
           "type": "chamber",
           "controls": [
             {
               "sensor": "chem",
-              "min": 0.25,
+              "min": 0.85,
+              "max": 1
+            },
+            {
+              "sensor": "near",
+              "min": 0.7,
+              "max": 1,
+              "or": true
+            },
+            {
+              "sensor": "chem",
+              "min": 0.3,
               "max": 1
             }
           ]
@@ -62,24 +83,14 @@
       },
       {
         "type": "inclusion",
-        "id": "starch",
-        "material": "starch",
+        "id": "plastid1",
+        "material": "plastid",
         "at": [
-          23,
+          22.05,
           0
         ],
-        "radius": 3.4
-      },
-      {
-        "type": "sensor",
-        "id": "eye",
-        "kind": "light",
-        "at": [
-          0,
-          6
-        ],
-        "angle": 90,
-        "cone": 180
+        "radius": 5.4,
+        "length": 21.9
       },
       {
         "type": "sensor",
@@ -87,8 +98,93 @@
         "kind": "chem",
         "at": [
           0,
+          6
+        ],
+        "angle": 90
+      },
+      {
+        "type": "sensor",
+        "id": "near",
+        "kind": "near",
+        "at": [
+          0,
           -6
-        ]
+        ],
+        "angle": 270,
+        "range": 150,
+        "feels": "anything"
+      },
+      {
+        "type": "segment",
+        "id": "spA",
+        "at": [
+          18,
+          6
+        ],
+        "angle": 90,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spB",
+        "at": [
+          -18,
+          6
+        ],
+        "angle": 90,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spC",
+        "at": [
+          18,
+          -6
+        ],
+        "angle": 270,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spD",
+        "at": [
+          -18,
+          -6
+        ],
+        "angle": 270,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "pedF",
+        "at": [
+          39,
+          0
+        ],
+        "angle": 0,
+        "length": 20,
+        "radius": 0.6,
+        "joint": {
+          "type": "feed"
+        }
+      },
+      {
+        "type": "segment",
+        "id": "pedB",
+        "at": [
+          -39,
+          0
+        ],
+        "angle": 180,
+        "length": 20,
+        "radius": 0.6,
+        "joint": {
+          "type": "feed"
+        }
       }
     ]
   }
