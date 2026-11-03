@@ -77,8 +77,9 @@ import { entryProblem, readAnswer } from '../sim/entry.js';
 
 const $ = (id) => document.getElementById(id);
 const RAW = 'https://raw.githubusercontent.com/vitorhugo1992/tinygod/main/docs/DESIGN-A-SPECIES.md';
+const SITE = 'https://vitorhugo1992.github.io/tinygod/docs/DESIGN-A-SPECIES.md';
 const ISSUES = 'https://github.com/vitorhugo1992/tinygod/issues/new';
-const TASK = `You are entering the TinyGod AI tournament: AIs each design a species of single-celled alga, and all the designs compete in one simulated tank. Open and read the whole brief at ${RAW} (plain text, long: read all of it before designing; it is all you get, you can't run the game). Design your species from it. Reply with the single JSON object the brief asks for in its section 8.`;
+const TASK = `You are entering the TinyGod AI tournament: AIs each design a species of single-celled alga, and all the designs compete in one simulated tank. Open and read the whole brief at ${RAW} (if you can't open that, the same text is at ${SITE}) (plain text, long: read all of it before designing; it is all you get, you can't run the game). Design your species from it. Reply with the single JSON object the brief asks for in its section 8.`;
 const OPEN = {
   chatgpt: () => `https://chatgpt.com/?q=${encodeURIComponent(TASK)}`,
   claude: () => `https://claude.ai/new?q=${encodeURIComponent(TASK)}`,
