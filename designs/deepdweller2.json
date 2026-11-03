@@ -1,0 +1,243 @@
+{
+  "name": "Deepdweller II (claude.ai)",
+  "from": "Claude",
+  "note": "Designed by Claude on claude.ai for the AI tournament, round 2 (its revision of Deepdweller). Refined round-1 winner. A slim, swimmerless rod (radius 5, length 72) that steers only with a big buoyancy chamber, using its nitrogen sensor as a depth gauge. It floats whenever nitrogen reads 0.85 or more (about 1,250 µm deep or below), or when within ~45 µm of the floor, a wall or kin while deeper than ~800 µm. Otherwise it sinks slowly, so it bobs just under the nutricline where nitrogen, the real limit on growth, is rich. The thinner body has about 19% more surface per volume than round 1's, so it takes up nitrogen faster and divides sooner. The plastid is 31% of the body, so it earns more than its upkeep even on the floor. It stays awake at night so it keeps taking up nitrogen at the full rate. Starch plus oil (3.7M pJ) cover a night of about 2.5M pJ and refill about 2.9M a day, and it rests only as an emergency. It lifts off the floor on day 0 whatever way it lies. Six side spines keep attackers' tubes and mouths off its body. Feeding tubes at both ends drain rival cells that touch them, and a small toxin sac leaks only while another species is within ~75 µm. Kin are immune, so copycats sharing its deep layer pay while it doesn't.",
+  "design": {
+    "body": {
+      "radius": 5,
+      "length": 72
+    },
+    "parts": [
+      {
+        "type": "inclusion",
+        "id": "nucleus",
+        "material": "nucleus",
+        "at": [
+          -36.3,
+          0
+        ],
+        "radius": 4.3,
+        "joint": {
+          "type": "rest",
+          "controls": [
+            {
+              "sensor": "energy",
+              "min": 0,
+              "max": 0.18
+            }
+          ]
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "starch1",
+        "material": "starch",
+        "at": [
+          -27.9,
+          0
+        ],
+        "radius": 4
+      },
+      {
+        "type": "inclusion",
+        "id": "oil1",
+        "material": "oil",
+        "at": [
+          -20,
+          0
+        ],
+        "radius": 3.8
+      },
+      {
+        "type": "inclusion",
+        "id": "sac",
+        "material": "toxin",
+        "at": [
+          -14.1,
+          0
+        ],
+        "radius": 2,
+        "joint": {
+          "type": "leak",
+          "controls": [
+            {
+              "sensor": "foe",
+              "min": 0.25,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "float",
+        "material": "chamber",
+        "at": [
+          -2.25,
+          0
+        ],
+        "radius": 4.5,
+        "length": 10.5,
+        "joint": {
+          "type": "chamber",
+          "controls": [
+            {
+              "sensor": "chem",
+              "min": 0.85,
+              "max": 1
+            },
+            {
+              "sensor": "near",
+              "min": 0.7,
+              "max": 1,
+              "or": true
+            },
+            {
+              "sensor": "chem",
+              "min": 0.3,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "plastid1",
+        "material": "plastid",
+        "at": [
+          24.1,
+          0
+        ],
+        "radius": 4.5,
+        "length": 24
+      },
+      {
+        "type": "sensor",
+        "id": "chem",
+        "kind": "chem",
+        "at": [
+          8,
+          5
+        ],
+        "angle": 90
+      },
+      {
+        "type": "sensor",
+        "id": "near",
+        "kind": "near",
+        "at": [
+          8,
+          -5
+        ],
+        "angle": 270,
+        "range": 150,
+        "feels": "anything"
+      },
+      {
+        "type": "sensor",
+        "id": "foe",
+        "kind": "near",
+        "at": [
+          -8,
+          5
+        ],
+        "angle": 90,
+        "range": 100
+      },
+      {
+        "type": "segment",
+        "id": "spA",
+        "at": [
+          26,
+          5
+        ],
+        "angle": 90,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spB",
+        "at": [
+          0,
+          5
+        ],
+        "angle": 90,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spC",
+        "at": [
+          -26,
+          5
+        ],
+        "angle": 90,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spD",
+        "at": [
+          26,
+          -5
+        ],
+        "angle": 270,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spE",
+        "at": [
+          0,
+          -5
+        ],
+        "angle": 270,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "spF",
+        "at": [
+          -26,
+          -5
+        ],
+        "angle": 270,
+        "length": 12,
+        "radius": 0.5
+      },
+      {
+        "type": "segment",
+        "id": "pedF",
+        "at": [
+          41,
+          0
+        ],
+        "angle": 0,
+        "length": 20,
+        "radius": 0.6,
+        "joint": {
+          "type": "feed"
+        }
+      },
+      {
+        "type": "segment",
+        "id": "pedB",
+        "at": [
+          -41,
+          0
+        ],
+        "angle": 180,
+        "length": 20,
+        "radius": 0.6,
+        "joint": {
+          "type": "feed"
+        }
+      }
+    ]
+  }
+}
