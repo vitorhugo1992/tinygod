@@ -143,7 +143,7 @@ $('answer').oninput = check;
 $('clearAns').onclick = () => { $('answer').value = ''; check(); $('answer').focus(); };
 $('pasteAns').onclick = async () => {
   try { $('answer').value = await navigator.clipboard.readText(); check(); }
-  catch { say($('msg2'), 'This browser won't let the page paste: tap the box and paste (Ctrl+V).', 'bad'); $('answer').focus(); }
+  catch { say($('msg2'), 'This browser does not let the page paste: tap the box and paste (Ctrl+V).', 'bad'); $('answer').focus(); }
 };
 $('copyErr').onclick = async () => {
   const ok = await copy(`The game refused your design: ${why}. Fix it and send the whole JSON object again.`);
