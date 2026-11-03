@@ -13,7 +13,7 @@ import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus } from './journal.js';
-import { drawWater, drawDrift, drawVignette } from './scene.js';
+import { drawWater, drawDrift, drawVignette, speciesTint } from './scene.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
@@ -2208,21 +2208,26 @@ function grow(P, d) {
 const bodyXf = (c, X, Y) => ([x, y]) => [X(c.cx[0] + c.cs[0] * x - c.sn[0] * y), Y(c.cy[0] + c.sn[0] * x + c.cs[0] * y)];
 // An inclusion's outline as the current path (xf: body frame -> screen)
 function incPath(inc, xf) { outlinePath(inc.outline.map(xf)); }
-// A store (starch, oil): its outline, and liquid filling it from the bottom as far as it is full
-function drawLevel(inc, xf) {
+// A store (starch, oil): a glossy container, its liquid filling it from the bottom as far as it is full
+const LIQUID = { starch: ['#fbf4de', '#d8c79c'], oil: ['#ffe9a0', '#d9a024'] };
+function drawLevel(inc, xf, s = 1, dim = 1) {
   const P = inc.outline.map(xf);
   const top = Math.min(...P.map((p) => p[1])), bot = Math.max(...P.map((p) => p[1]));
   const lx = Math.min(...P.map((p) => p[0])), rx = Math.max(...P.map((p) => p[0]));
+  const [c0, c1] = LIQUID[inc.material] || [COLOR[inc.material], COLOR[inc.material]];
   ctx.save();
   outlinePath(P);
-  ctx.fillStyle = 'rgba(8,14,26,.35)'; ctx.fill();
+  ctx.fillStyle = 'rgba(8,14,26,.28)'; ctx.fill();
   ctx.clip();
   const h = (bot - top) * inc.fill;   // the level, from the lowest point up (screen y grows downward)
-  ctx.fillStyle = COLOR[inc.material];
-  ctx.fillRect(lx, bot - h, rx - lx, h);
+  const g = ctx.createLinearGradient(0, bot - h, 0, bot); g.addColorStop(0, c0); g.addColorStop(1, c1);
+  ctx.globalAlpha = 0.95 * dim; ctx.fillStyle = g; ctx.fillRect(lx, bot - h, rx - lx, h); ctx.globalAlpha = 1;
+  if (inc.fill > 0.02 && inc.fill < 0.98) { ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(lx, bot - h); ctx.lineTo(rx, bot - h); ctx.stroke(); }
+  const r = (rx - lx) / 2, gx = lx + r * 0.65, gy = top + (bot - top) * 0.3, gg = ctx.createRadialGradient(gx, gy, 0, gx, gy, r * 0.5);
+  gg.addColorStop(0, `rgba(255,255,245,${(0.55 * dim).toFixed(2)})`); gg.addColorStop(1, 'rgba(255,255,245,0)'); ctx.fillStyle = gg; ctx.fillRect(lx, top, rx - lx, bot - top);
   ctx.restore();
-  ctx.strokeStyle = COLOR[inc.material]; ctx.lineWidth = 1.5;
-  outlinePath(P); ctx.stroke();
+  ctx.strokeStyle = c1; ctx.globalAlpha = 0.8; ctx.lineWidth = Math.max(0.4 * s, 1);
+  outlinePath(P); ctx.stroke(); ctx.globalAlpha = 1;
 }
 // A buoyancy chamber's colour: pale while light, clear blue-grey at neutral, deep blue while heavy
 function sapColor(inc) {
@@ -2240,8 +2245,12 @@ function plastidColor(inc) {
 // The nucleus: a pale violet sphere in its envelope, specks of chromatin and a dark nucleolus (they turn with the cell)
 function drawNucleus(inc, xf, s, rot) {
   const r = Math.max(inc.r * s, 2);
-  incPath(inc, xf); ctx.fillStyle = COLOR.nucleus; ctx.fill();
-  ctx.strokeStyle = COLOR.envelope; ctx.lineWidth = Math.max(1, 0.25 * s); ctx.stroke();
+  {
+    const [gx, gy] = xf([inc.x, inc.y]), ng = ctx.createRadialGradient(gx - r * 0.3, gy - r * 0.3, r * 0.1, gx, gy, r * 1.05);
+    ng.addColorStop(0, 'rgba(214,200,255,.9)'); ng.addColorStop(1, 'rgba(104,84,170,.85)');
+    incPath(inc, xf); ctx.fillStyle = ng; ctx.fill();
+    ctx.strokeStyle = 'rgba(235,225,255,.6)'; ctx.lineWidth = Math.max(1, 0.3 * s); ctx.stroke();
+  }
   // specks spread round its widest inside spot, each as far out as the outline allows that way (a round one: its centre)
   const P = inc.outline.map(xf), core = inc.core || (inc.core = inscribed(inc.outline, true)), [cx, cy] = xf([core[1], core[2]]);
   const at = (t, a, d) => {
@@ -2274,128 +2283,206 @@ function stoppedAt(c, i) {
   }
   return false;
 }
+const CELL_T0 = performance.now();
+// ----- a cell as under a living microscope (author, 2026-11-03; design/microscope-mockup.html): a see-through body in its
+// species' tint, a membrane that never quite holds still, streaming cytoplasm, organelles with depth, flagella as smooth
+// tapering whips in their rule colour. What the old drawing showed is all still here: store levels, a chamber's float
+// or sink, bleached and stolen plastids, the outline red while starving, blue resting, yellow stunned, grey dead. -----
+// a capsule's outline (body frame, µm) as points, wobbling `wob` µm
+function capsulePts(r, L, wob, t, seed) {
+  const h = L / 2, per = 2 * L + 2 * Math.PI * r, n = Math.max(36, Math.min(96, Math.round(per / 1.6))), pts = [];
+  for (let i = 0; i < n; i++) {
+    let s = i / n * per, x, y, nx, ny;
+    if (s < L) { x = -h + s; y = r; nx = 0; ny = 1; }
+    else if ((s -= L) < Math.PI * r) { const a = Math.PI / 2 - s / r; nx = Math.cos(a); ny = Math.sin(a); x = h + r * nx; y = r * ny; }
+    else if ((s -= Math.PI * r) < L) { x = h - s; y = -r; nx = 0; ny = -1; }
+    else { s -= L; const a = -Math.PI / 2 - s / r; nx = Math.cos(a); ny = Math.sin(a); x = -h + r * nx; y = r * ny; }
+    const u = i / n * 6.283, w = wob * (0.6 * Math.sin(3 * u + t * 1.3 + seed) + 0.4 * Math.sin(7 * u - t * 2.1 + seed * 2));
+    pts.push([x + nx * w, y + ny * w]);
+  }
+  return pts;
+}
+const rgbOf = (c) => (c[0] === '#' ? [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)] : c.match(/\d+/g).slice(0, 3).map(Number));
+const rgbaOf = (c, a) => { const [r, g, b] = rgbOf(c); return `rgba(${r},${g},${b},${a})`; };
+const lighter = (c, f) => { const [r, g, b] = rgbOf(c); return `rgb(${Math.round(r + (255 - r) * f)},${Math.round(g + (255 - g) * f)},${Math.round(b + (255 - b) * f)})`; };
+// a cell's outside parts as chains of pieces, root first (cached per design)
+const chainCache = new WeakMap();
+function chainsOf(c) {
+  let ch = chainCache.get(c.design);
+  if (ch) return ch;
+  ch = [];
+  const kids = c.pieces.map(() => []);
+  c.pieces.forEach((p, i) => { if (p.parent >= 0) kids[p.parent].push(i); });
+  for (const r of kids[0]) { const run = [r]; let k = r; while (kids[k].length) { k = kids[k][0]; run.push(k); } ch.push(run); }
+  chainCache.set(c.design, ch);
+  return ch;
+}
+// a soft glossy spot (upper left: the light comes from above)
+function gloss(x, y, r, a) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(255,255,240,${a})`); g.addColorStop(1, 'rgba(255,255,240,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+}
+// a smooth tapered stroke through screen points, w0 at the start to w1 at the end
+function taper(P, w0, w1, style) {
+  if (P.length < 2) return;
+  const pts = [];   // Catmull-Rom, 4 steps a piece
+  for (let i = 0; i < P.length - 1; i++) {
+    const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
+    for (let k = 0; k < 4; k++) {
+      const t = k / 4, t2 = t * t, t3 = t2 * t;
+      pts.push([0.5 * (2 * p1[0] + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+        0.5 * (2 * p1[1] + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)]);
+    }
+  }
+  pts.push(P[P.length - 1]);
+  ctx.strokeStyle = style; ctx.lineCap = 'round';
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineWidth = w0 + (w1 - w0) * i / pts.length;
+    ctx.beginPath(); ctx.moveTo(pts[i - 1][0], pts[i - 1][1]); ctx.lineTo(pts[i][0] + 0.01, pts[i][1]); ctx.stroke();
+  }
+}
 function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the cell itself
   ctx.lineCap = 'round';
-  // segments first, body over them, then inclusions and joints
-  const order = c.pieces.map((p, i) => i).sort((a, b) => (c.pieces[a].kind === 'body') - (c.pieces[b].kind === 'body'));
-  for (const i of order) {
-    const p = c.pieces[i], h = p.L / 2;
-    const ax = c.cx[i] - c.cs[i] * h, ay = c.cy[i] - c.sn[i] * h, bx = c.cx[i] + c.cs[i] * h, by = c.cy[i] + c.sn[i] * h;
-    const tag = partColours(c.design).get(p.part);   // a part with its own colour (flagella, springs)
-    const fill = p.kind === 'body' ? COLOR.body[p.material] : tag || COLOR[p.material];
-    const w = Math.max(2 * p.a * s, 1.5);
-    if (p.kind === 'body') {   // outline (red while starving)
-      ctx.strokeStyle = real.dead ? '#8a8f98' : real.stunT > 0 ? '#ffe066' : world.metab && c.metab.starving ? COLOR.starving : real.resting ? COLOR.resting : COLOR.outline; ctx.lineWidth = w + 2;
-      ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
+  const t = (performance.now() - CELL_T0) / 1000, b = c.pieces[0], xf = bodyXf(c, X, Y), now = performance.now();
+  const lit = world.light ? Math.min(1, Math.sqrt(lightAt(world, c.cy[0])) * 1.25) : 0.6;
+  const tint = real.dead ? '#8a8f98' : speciesTint(real.species), small = b.a * s < 7;
+  const glowing = (part) => real === cell && glow && glow.until > now && glow.parts.has(part);
+  const seed = ((real.uid || 1) * 7.31) % 100;
+  const rim = real.dead ? '#8a8f98' : real.stunT > 0 ? '#ffe066' : world.metab && c.metab.starving ? COLOR.starving : real.resting ? COLOR.resting : null;
+
+  // the outside parts, behind the body: flagella, oars, springs, spines, tubes, harpoons
+  for (const run of chainsOf(c)) {
+    const r0 = c.pieces[run[0]], jt = r0.joint >= 0 ? c.joints[r0.joint] : null, tag = partColours(c.design).get(r0.part);
+    const P = [[X(c.jx[run[0]]), Y(c.jy[run[0]])]];
+    for (const i of run) { const p = c.pieces[i], h = p.L / 2; P.push([X(c.cx[i] + c.cs[i] * h), Y(c.cy[i] + c.sn[i] * h)]); }
+    const w = Math.max(2 * r0.a * s, 1.4), harpoon = (c.harpoons || []).some((hp) => hp.piece === run[0]), feeder = (c.feeders || []).some((f) => f.piece === run[0]);
+    if (glowing(r0.part)) taper(P, w + 8, w + 6, (tag || '#ffffff') + '55');
+    if (jt && jt.burst) {   // a spring: a coil, bright while firing, dull while recharging
+      const st = jt.burst.state, col = tag ? tag + (st === 'firing' ? '' : st === 'charged' ? 'dd' : '55') : st === 'firing' ? COLOR.coilFiring : st === 'charged' ? COLOR.coil : COLOR.coilEmpty;
+      const [ax, ay] = P[0], [bx, by] = P[P.length - 1], len = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / len, ny = (bx - ax) / len, amp = Math.max(1.4 * s, 2);
+      ctx.strokeStyle = col; ctx.lineWidth = Math.max(0.5 * s, 1.2); ctx.beginPath();
+      for (let k = 0; k <= 40; k++) { const f = k / 40, side = Math.sin(f * Math.PI * 7) * amp * (1 - 0.3 * f); const x = ax + (bx - ax) * f + nx * side, y = ay + (by - ay) * f + ny * side; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+      ctx.stroke(); continue;
     }
-    const jt = p.joint >= 0 ? c.joints[p.joint] : null;
-    if (real === cell && glow && glow.until > performance.now() && glow.parts.has(p.part) && p.kind !== 'body') {   // lit: its card was tapped
-      ctx.strokeStyle = (tag || '#ffffff') + '66'; ctx.lineWidth = w + 8;
-      ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
-    }
-    if (jt && jt.burst) {   // a burst organ: a coil, bright while firing, dull while recharging
-      const st = jt.burst.state;
-      ctx.strokeStyle = tag ? tag + (st === 'firing' ? '' : st === 'charged' ? 'cc' : '55') : st === 'firing' ? COLOR.coilFiring : st === 'charged' ? COLOR.coil : COLOR.coilEmpty;
-      ctx.lineWidth = Math.max(0.5 * s, 1);
-      const turns = 3, amp = 1.2, nx = -(by - ay) / (p.L || 1), ny = (bx - ax) / (p.L || 1);
-      ctx.beginPath(); ctx.moveTo(X(ax), Y(ay));
-      for (let k = 1; k <= turns * 2; k++) {
-        const t = k / (turns * 2), side = k === turns * 2 ? 0 : (k % 2 ? amp : -amp);
-        ctx.lineTo(X(ax + (bx - ax) * t + nx * side), Y(ay + (by - ay) * t + ny * side));
+    if (harpoon || (!jt && !feeder)) {   // a spine (or a harpoon): glassy, tapering to a point
+      if (r0.L < 0.5 && harpoon) continue;   // thrown: nothing there yet
+      taper(P, w * 1.2, Math.max(w * 0.2, 0.6), tag ? rgbaOf(tag, 0.9) : `rgba(215,238,255,${0.6 + 0.3 * lit})`);
+      if (w > 1.6) taper(P, w * 0.35, 0.3, 'rgba(255,255,255,.45)');
+      if (harpoon) {   // a barb at the tip
+        const [ex, ey] = P[P.length - 1], [px, py] = P[P.length - 2], a = Math.atan2(ey - py, ex - px), r = Math.max(1.5 * s, 4);
+        ctx.fillStyle = tag || '#ffb0c8'; ctx.beginPath(); ctx.moveTo(ex + Math.cos(a) * r * 0.6, ey + Math.sin(a) * r * 0.6);
+        ctx.lineTo(ex + Math.cos(a + 2.6) * r, ey + Math.sin(a + 2.6) * r); ctx.lineTo(ex + Math.cos(a - 2.6) * r, ey + Math.sin(a - 2.6) * r); ctx.closePath(); ctx.fill();
       }
-      ctx.stroke();
       continue;
     }
-    // a stopped flagellum is grey, or faded in its colour: every piece its motor moves
-    ctx.strokeStyle = stoppedAt(c, i) ? (tag ? tag + '66' : COLOR.stopped) : fill; ctx.lineWidth = w;
-    ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
-    if (p.kind === 'body' && p.plates) {   // armour: a tan band just inside the outline, its plates' seams dark
-      const band = Math.max(p.plates * s, 1.5), R = Math.max(w / 2 - band / 2, 1), th = Math.atan2(Y(by) - Y(ay), X(bx) - X(ax));
-      ctx.beginPath(); ctx.arc(X(bx), Y(by), R, th - Math.PI / 2, th + Math.PI / 2); ctx.arc(X(ax), Y(ay), R, th + Math.PI / 2, th + 3 * Math.PI / 2); ctx.closePath();
-      ctx.strokeStyle = real.dead ? '#8a8f98' : COLOR.plates; ctx.lineWidth = band; ctx.stroke();
-      ctx.lineCap = 'butt'; ctx.lineWidth = band + 0.5; ctx.setLineDash([1.2, Math.max(5, 2 * Math.PI * R / 14) - 1.2]); ctx.strokeStyle = 'rgba(60,48,28,.9)'; ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'round';
+    if (feeder) {   // the peduncle: a pink tube
+      taper(P, w * 1.1, w * 0.8, tag ? rgbaOf(tag, 0.85) : 'rgba(255,150,170,.85)');
+      taper(P, w * 0.4, w * 0.3, 'rgba(120,30,50,.6)');
+      continue;
     }
-    if (p.kind === 'body') for (const inc of p.inclusions) {
-      const ix = c.cx[i] + c.cs[i] * inc.x - c.sn[i] * inc.y, iy = c.cy[i] + c.sn[i] * inc.x + c.cs[i] * inc.y;
-      const r = inc.r, a = c.phi[i] + (inc.ang || 0), xf = bodyXf(c, X, Y);
-      if (inc.store) { drawLevel(inc, xf); continue; }   // a container, filled as far as it is full
-      if (inc.material === 'nucleus') { drawNucleus(inc, xf, s, a); continue; }
-      ctx.fillStyle = inc.pumpable ? sapColor(inc) : inc.material === 'plastid' ? plastidColor(inc) : COLOR[inc.material];
-      if (inc.stolen) ctx.globalAlpha = 0.25 + 0.75 * inc.stolen.fade;   // a stolen plastid pales as it fades
-      if (r > 0.02) { incPath(inc, xf); ctx.fill(); }
-      if (inc.stolen) {
-        ctx.globalAlpha = 1; ctx.setLineDash([2, 2]); ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1;
-        incPath(inc, xf); ctx.stroke(); ctx.setLineDash([]);
-      }
-      if (inc.material === 'statolith') {   // the grain lies on the chamber's lower wall (in the middle with gravity off)
-        const g = 0.4 * inc.r, drop = world.gravity ? inc.r - g : 0;
-        ctx.fillStyle = COLOR.grain;
-        ctx.beginPath(); ctx.arc(X(ix), Y(iy - drop), Math.max(g * s, 1.5), 0, Math.PI * 2); ctx.fill();
-      }
+    // a flagellum or an oar: a whip in its rule colour, pale when it has none; faded while stopped
+    const stopped = stoppedAt(c, run[0]), base = tag || '#dcefe8';
+    taper(P, w * 1.15, Math.max(w * 0.35, 0.7), rgbaOf(base, stopped ? 0.35 : 0.9));
+    if (!stopped && w > 1.6) taper(P, w * 0.35, 0.3, 'rgba(255,255,255,.35)');
+  }
+
+  // the body: see-through in its species' tint, lit from above, its membrane wobbling a little
+  const bp = capsulePts(b.a, b.L, small ? 0 : 0.3, t * (c.joints.some((j) => j.on) ? 1.6 : 1), seed).map(xf);
+  const [ccx, ccy] = [X(c.cx[0]), Y(c.cy[0])], R = (b.a + b.L / 2) * s;
+  if (!small) {   // a soft halo in the water
+    const hg = ctx.createRadialGradient(ccx, ccy, b.a * s * 0.6, ccx, ccy, R + 6 * s);
+    hg.addColorStop(0, rgbaOf(tint, 0)); hg.addColorStop(0.75, rgbaOf(tint, 0.05 + 0.05 * lit)); hg.addColorStop(1, rgbaOf(tint, 0));
+    ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(ccx, ccy, R + 6 * s, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.save();
+  outlinePath(bp);
+  const bg = ctx.createRadialGradient(ccx, ccy - b.a * s * 0.35, b.a * s * 0.15, ccx, ccy, R);
+  bg.addColorStop(0, rgbaOf(lighter(tint, 0.35), 0.12 + 0.08 * lit)); bg.addColorStop(0.7, rgbaOf(tint, 0.16 + 0.08 * lit)); bg.addColorStop(1, rgbaOf(tint, 0.32 + 0.12 * lit));
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.clip();
+  if (!small) {   // cytoplasm streaming: fine granules circling slowly
+    const gr = real.grains || (real.grains = Array.from({ length: 26 }, () => ({ p: Math.random() * 6.283, q: 0.25 + 0.7 * Math.random(), w: 0.3 + 0.5 * Math.random() })));
+    ctx.fillStyle = `rgba(230,240,225,${(0.16 + 0.14 * lit).toFixed(2)})`;
+    for (const q of gr) {
+      const a = q.p + t * 0.25 * q.w, [x, y] = xf([Math.cos(a) * (b.L / 2 + b.a * 0.8) * q.q, Math.sin(a) * b.a * 0.78 * q.q]);
+      ctx.beginPath(); ctx.arc(x, y, Math.max((0.28 + 0.25 * q.w) * s, 0.6), 0, Math.PI * 2); ctx.fill();
     }
   }
-  for (let i = 0; i < c.pieces.length; i++) {
-    const p = c.pieces[i];
-    if (p.joint < 0) continue;
-    ctx.fillStyle = COLOR[c.joints[p.joint].type] || COLOR.motor;
-    ctx.beginPath(); ctx.arc(X(c.jx[i]), Y(c.jy[i]), Math.max(0.8 * s, 2), 0, Math.PI * 2); ctx.fill();
+  for (const inc of b.inclusions) drawOrganelle(c, inc, xf, s, lit, small);
+  if (real.meal) {   // a swallowed cell, shrinking and fading as it is digested
+    const left = 1 - real.meal.t / PARAMS.engulf.time, rr = real.meal.r * Math.sqrt(Math.max(left, 0));
+    ctx.globalAlpha = 0.25 + 0.55 * left; ctx.fillStyle = '#8a6a3c'; ctx.strokeStyle = '#d8c39a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(ccx, ccy, Math.max(rr * s, 1), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.globalAlpha = 1;
   }
+  {   // light from above: a sheen on the upper side, shade below
+    const sh = ctx.createLinearGradient(0, ccy - R, 0, ccy + R);
+    sh.addColorStop(0, `rgba(255,255,240,${(0.10 + 0.14 * lit).toFixed(2)})`); sh.addColorStop(0.45, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(0,10,25,.22)');
+    ctx.fillStyle = sh; ctx.fillRect(ccx - R - 4, ccy - R - 4, 2 * R + 8, 2 * R + 8);
+  }
+  ctx.restore();
+  // the membrane: a soft glow inside and a thin bright rim (in the state's colour while starving, resting, stunned, dead)
+  outlinePath(bp);
+  ctx.strokeStyle = rgbaOf(rim || tint, rim ? 0.35 : 0.18 + 0.1 * lit); ctx.lineWidth = Math.max(2.2 * s, rim ? 4 : 2); ctx.stroke();
+  ctx.strokeStyle = rim || rgbaOf(lighter(tint, 0.45), 0.65 + 0.3 * lit); ctx.lineWidth = Math.max(0.55 * s, rim ? 2 : 1.2); ctx.stroke();
+  if (b.plates) {   // armour: a tan band just inside the outline, its plates' seams dark
+    const band = Math.max(b.plates * s, 1.5), inner = capsulePts(Math.max(b.a - b.plates / 2, 0.5), b.L, 0, 0, 0).map(xf);
+    outlinePath(inner); ctx.strokeStyle = real.dead ? '#8a8f98' : 'rgba(205,185,138,.8)'; ctx.lineWidth = band; ctx.stroke();
+    ctx.lineCap = 'butt'; ctx.setLineDash([1.2, Math.max(5, 2 * Math.PI * b.a * s / 14) - 1.2]); ctx.strokeStyle = 'rgba(60,48,28,.85)'; ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'round';
+  }
+
+  // sensors on the rim: eyespots (a red-orange pigment spot, glowing when lit), feelers (fine hairs), nutrient pores
   for (const sn of c.sensors) {
     const i = sn.piece, px = c.cx[i] + c.cs[i] * sn.x - c.sn[i] * sn.y, py = c.cy[i] + c.sn[i] * sn.x + c.cs[i] * sn.y;
-    const stag = partColours(c.design).get(sn.part);
-    if (stag || (real === cell && glow && glow.until > performance.now() && glow.parts.has(sn.part))) {   // a ring in its colour
-      const lit = real === cell && glow && glow.until > performance.now() && glow.parts.has(sn.part);
-      ctx.strokeStyle = stag || '#ffffff'; ctx.lineWidth = lit ? 4 : 2;
-      ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max((sn.kind === 'statolith' ? sn.r : 1.2) * s, 3) + (lit ? 5 : 2.5), 0, Math.PI * 2); ctx.stroke();
+    const stag = partColours(c.design).get(sn.part), lt = glowing(sn.part);
+    if ((stag && real === cell && !small) || lt) {   // a ring in its rule colour (on the selected cell: where its rules are edited)
+      ctx.strokeStyle = stag ? rgbaOf(stag, 0.85) : '#ffffff'; ctx.lineWidth = lt ? 4 : 1.5;
+      ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max((sn.kind === 'statolith' ? sn.r : 1.2) * s, 3) + (lt ? 5 : 2.5), 0, Math.PI * 2); ctx.stroke();
     }
-    if (sn.kind === 'statolith') continue;   // drawn with the inclusions
-    if (sn.kind === 'chem') {   // a tan dot, filled as far as the water is rich
-      const r = Math.max(1.2 * s, 3);
-      ctx.strokeStyle = COLOR.chem; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(X(px), Y(py), r, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = COLOR.chem; ctx.beginPath(); ctx.arc(X(px), Y(py), r * Math.sqrt(sn.value), 0, Math.PI * 2); ctx.fill();
+    if (sn.kind === 'statolith') continue;   // drawn with the organelles
+    const dir = c.phi[i] + (sn.facing || 0);
+    if (sn.kind === 'chem') {   // a tan pore, filled as far as the water is rich
+      const r = Math.max(1.1 * s, 2.5);
+      ctx.strokeStyle = 'rgba(200,178,106,.8)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(X(px), Y(py), r, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(200,178,106,.9)'; ctx.beginPath(); ctx.arc(X(px), Y(py), r * Math.sqrt(sn.value), 0, Math.PI * 2); ctx.fill();
       continue;
     }
-    if (sn.kind !== 'light') {   // touch and proximity: a blue dot, filled while it feels someone; the range, faint
-      ctx.strokeStyle = COLOR.touch; ctx.fillStyle = COLOR.touch; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2);
-      if (sn.value > 0) ctx.fill(); else ctx.stroke();
+    if (sn.kind !== 'light') {   // a feeler: fine hairs, bright while it feels something; its range, faint, on the selected cell
+      const out = Math.atan2(py - c.cy[0], px - c.cx[0]), on = sn.value > (sn.kind === 'flow' ? 0.1 : 0);
+      ctx.strokeStyle = on ? '#9fe8ff' : 'rgba(150,215,245,.6)'; ctx.lineWidth = on ? 1.4 : 1;
+      for (let j = -1; j <= 1; j++) {
+        const a = out + j * 0.35 + 0.08 * Math.sin(t * 3 + j + seed), L = Math.max(3.5 * s, small ? 2.5 : 6);
+        ctx.beginPath(); ctx.moveTo(X(px), Y(py)); ctx.lineTo(X(px) + Math.cos(a) * L, Y(py) - Math.sin(a) * L); ctx.stroke();
+      }
       if ((sn.kind === 'near' || sn.kind === 'flow') && real === cell) {
-        ctx.strokeStyle = COLOR.near + (0.15 + 0.5 * sn.value) + ')'; ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = COLOR.near + (0.12 + 0.4 * sn.value) + ')'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
         ctx.beginPath(); ctx.arc(X(px), Y(py), sn.range * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
       }
       continue;
     }
-    if (real === cell) {   // the eyespot's cone, faint
-      const dir = c.phi[i] + sn.facing, r = 14;
+    if (lt) {   // the eyespot's view, while its card is lit
+      const r = 12;
       ctx.fillStyle = COLOR.light + '.12)';
       ctx.beginPath(); ctx.moveTo(X(px), Y(py));
       for (let k = 0; k <= 12; k++) { const a = dir - sn.cone / 2 + sn.cone * k / 12; ctx.lineTo(X(px + Math.cos(a) * r), Y(py + Math.sin(a) * r)); }
       ctx.closePath(); ctx.fill();
     }
-    // eyespots: dark red, bright orange when lit, a tick the way they face
-    const dir = c.phi[i] + sn.facing;
-    const lit = sn.value > 0.5, on = COLOR.eyeLit, off = COLOR.eyeDark;
-    ctx.strokeStyle = lit ? on : off; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(X(px), Y(py)); ctx.lineTo(X(px + Math.cos(dir) * 4), Y(py + Math.sin(dir) * 4)); ctx.stroke();
-    ctx.fillStyle = lit ? on : off;
-    ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2); ctx.fill();
+    const on = sn.value > 0.5, ex = X(px - Math.cos(dir) * 0.6), ey = Y(py - Math.sin(dir) * 0.6), r = Math.max(1.5 * s, small ? 1.4 : 3);
+    const eg = ctx.createRadialGradient(ex, ey, 0, ex, ey, r * (on ? 1.8 : 1.2));
+    eg.addColorStop(0, on ? 'rgba(255,170,90,1)' : 'rgba(190,70,40,.95)'); eg.addColorStop(0.5, on ? 'rgba(255,110,50,.85)' : 'rgba(140,40,25,.8)'); eg.addColorStop(1, 'rgba(200,60,30,0)');
+    ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(ex, ey, r * (on ? 1.8 : 1.2), 0, Math.PI * 2); ctx.fill();
   }
   for (const mo of c.mouths || []) {   // a mouth: a dark gap in the wall with a pale lip
-    const [px, py] = padWorld(c, mo), r = Math.max(1.6 * s, 3);
-    ctx.fillStyle = '#1a0d14'; ctx.strokeStyle = '#e8b3c8'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(X(px), Y(py), r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const [px, py] = padWorld(c, mo), a = Math.atan2(py - c.cy[0], px - c.cx[0]), r = Math.max(2.4 * s, small ? 2 : 4);
+    ctx.fillStyle = 'rgba(30,8,16,.85)'; ctx.beginPath(); ctx.ellipse(X(px), Y(py), r, r * 0.5, -a + Math.PI / 2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,190,205,.85)'; ctx.lineWidth = Math.max(0.5 * s, 1.2); ctx.beginPath(); ctx.ellipse(X(px), Y(py), r * 1.12, r * 0.62, -a + Math.PI / 2, 0, Math.PI * 2); ctx.stroke();
   }
-  if (real.meal) {   // a swallowed cell, shrinking and fading as it is digested
-    const left = 1 - real.meal.t / PARAMS.engulf.time, rr = real.meal.r * Math.sqrt(Math.max(left, 0));
-    ctx.globalAlpha = 0.25 + 0.55 * left; ctx.fillStyle = '#8a6a3c'; ctx.strokeStyle = '#d8c39a'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(X(c.cx[0]), Y(c.cy[0]), Math.max(rr * s, 1), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
-  for (const pad of c.pads) {
-    const [px, py] = padWorld(c, pad);
-    ctx.strokeStyle = COLOR[pad.kind]; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(pad.r * s, 2.5), 0, Math.PI * 2); ctx.stroke();
+  for (const pad of c.pads) {   // a pad: a glowing sticky knob (kin violet, mucus pale gold)
+    const [px, py] = padWorld(c, pad), r = Math.max(pad.r * s * 1.4, small ? 2 : 3.5), col = COLOR[pad.kind];
+    const pg = ctx.createRadialGradient(X(px), Y(py), 0, X(px), Y(py), r);
+    pg.addColorStop(0, rgbaOf(lighter(col, 0.4), pad.link ? 1 : 0.8)); pg.addColorStop(1, rgbaOf(col, 0));
+    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(X(px), Y(py), r, 0, Math.PI * 2); ctx.fill();
   }
   if (real === cell && c.design === design && !arrange) {      // where the Build panel would put the next part
     const [mx, my] = surfacePoint(design.body, Number($('partAngle').value));
@@ -2406,10 +2493,61 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     ctx.beginPath(); ctx.moveTo(X(wx), Y(wy)); ctx.lineTo(X(wx + Math.cos(dir) * 8), Y(wy + Math.sin(dir) * 8)); ctx.stroke();
   }
   if (real === cell && world.cells.length > 1) {   // a ring round the selected cell
-    ctx.strokeStyle = COLOR.selected; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
-    ctx.beginPath(); ctx.arc(X(c.q[0]), Y(c.q[1]), (c.pieces[0].a + c.pieces[0].L / 2) * s + 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.arc(X(c.q[0]), Y(c.q[1]), R + 6, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
   }
+}
+// one organelle (body frame outline -> screen through xf)
+function drawOrganelle(c, inc, xf, s, lit, small) {
+  if (inc.r <= 0.02) return;
+  const dim = 0.6 + 0.4 * lit, [ix, iy] = xf([inc.x, inc.y]), r = inc.r * s;
+  if (inc.store) { drawLevel(inc, xf, s, dim); return; }   // a container, filled as far as it is full
+  if (inc.material === 'nucleus') { drawNucleus(inc, xf, s, c.phi[0] + (inc.ang || 0)); return; }
+  if (inc.material === 'plastid') {   // green (or pink-red), bleaching as light damages it; fine thylakoid bands; glossy
+    const col = plastidColor(inc);
+    if (inc.stolen) ctx.globalAlpha = 0.25 + 0.75 * inc.stolen.fade;   // a stolen plastid pales as it fades
+    ctx.save(); incPath(inc, xf);
+    const g = ctx.createLinearGradient(ix, iy - r, ix, iy + r);
+    g.addColorStop(0, lighter(col, 0.3)); g.addColorStop(1, rgbaOf(col.replace(/\d+/g, (v) => Math.round(v * 0.45)), 1));
+    ctx.fillStyle = g; ctx.fill();
+    if (!small) {
+      ctx.clip();
+      const a = c.phi[0] + (inc.ang || 0), ux = Math.cos(a), uy = -Math.sin(a), nx = -uy, ny = ux, span = (inc.r + (inc.h || 0) + 1) * s;
+      ctx.strokeStyle = 'rgba(20,60,20,.22)'; ctx.lineWidth = Math.max(0.06 * r, 0.6);
+      for (let o = -0.7; o <= 0.71; o += 0.35) { const ox = ix + nx * o * r, oy = iy + ny * o * r; ctx.beginPath(); ctx.moveTo(ox - ux * span, oy - uy * span); ctx.lineTo(ox + ux * span, oy + uy * span); ctx.stroke(); }
+      gloss(ix - r * 0.35, iy - r * 0.4, r * 0.7, 0.3 * dim);
+    }
+    ctx.restore();
+    if (inc.stolen) { ctx.globalAlpha = 1; ctx.setLineDash([2, 2]); ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1; incPath(inc, xf); ctx.stroke(); ctx.setLineDash([]); }
+    else { incPath(inc, xf); ctx.strokeStyle = rgbaOf(lighter(col, 0.5), 0.35); ctx.lineWidth = 1; ctx.stroke(); }
+    return;
+  }
+  if (inc.pumpable) {   // a buoyancy chamber: a clear bubble, pale while light, deep blue while heavy
+    const col = sapColor(inc), heavy = Math.min(Math.max((inc.density - PARAMS.chamber.neutral) / (inc.max - PARAMS.chamber.neutral), 0), 1);
+    incPath(inc, xf);
+    const g = ctx.createRadialGradient(ix, iy, r * 0.2, ix, iy, r);
+    g.addColorStop(0, rgbaOf(col, 0.06 + 0.5 * heavy)); g.addColorStop(0.85, rgbaOf(col, 0.16 + 0.45 * heavy)); g.addColorStop(1, rgbaOf(col, 0.4 + 0.4 * heavy));
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = rgbaOf(lighter(col, 0.4), 0.6 * dim); ctx.lineWidth = Math.max(0.4 * s, 1); ctx.stroke();
+    if (!small) { ctx.strokeStyle = `rgba(255,255,255,${0.5 * dim})`; ctx.lineWidth = Math.max(0.6 * s, 1); ctx.beginPath(); ctx.arc(ix, iy, r * 0.75, Math.PI + 0.5, Math.PI + 1.3); ctx.stroke(); }
+    return;
+  }
+  if (inc.material === 'statolith') {   // a chamber with a dense grain lying on its lower wall
+    incPath(inc, xf); ctx.fillStyle = 'rgba(190,210,230,.12)'; ctx.fill(); ctx.strokeStyle = 'rgba(200,215,230,.5)'; ctx.lineWidth = 1; ctx.stroke();
+    const g = 0.4 * inc.r, drop = world.gravity ? inc.r - g : 0, [gx, gy0] = xf([inc.x, inc.y]), gy = gy0 + drop * s;   // down on screen
+    ctx.fillStyle = '#5a4838'; ctx.beginPath(); ctx.arc(gx, gy, Math.max(g * s, 1.5), 0, Math.PI * 2); ctx.fill();
+    gloss(gx - g * s * 0.3, gy - g * s * 0.3, Math.max(g * s * 0.5, 1), 0.7);
+    return;
+  }
+  if (inc.toxin) {   // a toxin sac: a glowing magenta vesicle
+    incPath(inc, xf);
+    const g = ctx.createRadialGradient(ix - r * 0.3, iy - r * 0.3, r * 0.1, ix, iy, r);
+    g.addColorStop(0, 'rgba(255,150,210,.95)'); g.addColorStop(1, 'rgba(160,40,110,.9)');
+    ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = 'rgba(255,170,220,.8)'; ctx.lineWidth = 1; ctx.stroke();
+    return;
+  }
+  incPath(inc, xf); ctx.fillStyle = COLOR[inc.material] || '#888'; ctx.fill();
 }
 
 function padWorld(c, pad) {
