@@ -6,6 +6,34 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**NEXT CHAT STARTS HERE (handoff, 2026-11-03 evening): the AI TOURNAMENT, step 1, THE BRIEF.** The author's idea: "make
+different AI compete with each other" (ChatGPT, Gemini, Claude…): each designs a species from the same brief, and the
+designs fight in one tank. Agreed outline (Claude's proposal; author: "maybe we do that brief in a fresh chat"):
+(1) **the brief**, docs/DESIGN-A-SPECIES.md: written for an AI that knows nothing about TinyGod, self-contained (pasted
+into any chat, or read from https://raw.githubusercontent.com/vitorhugo1992/tinygod/main/docs/DESIGN-A-SPECIES.md):
+what the game is and what a cell needs to live (light by day, stores for the night, off the floor, nitrogen below);
+every part with the numbers that matter (sizes, costs, what it does; from sandbox/parts.js PART_TEMPLATES and CONTROLS
+and sim/params.js); the design JSON format (body; parts: inclusion / segment / sensor / pad / mouth / rule; `at`
+positions in the body frame; joints and their rules as `controls` with sensor ids, min, max, not, or, stop, vs;
+built-in readings by name: energy, starch, oil, health, feeding, size, drained, neighbours, alarm, poisoned); the
+limits (nucleus slots, room inside, no overlapping organelles; buildCell's errors); 2-3 working species as examples
+with why they live (Bathyscapha, Noctilla, Jaculella); the traps found (shuttlecock tipping, the rest trap, plastids
+too small, a store too slow, a jumper landing front-down); the goal (most cells after 10 days in a shared tank) and
+the answer format (a JSON { name, design } that 📋 Paste takes). **Test it**: give it to a fresh subagent with no other
+context and check its design builds and lives. (2) **tools/tournament.mjs**: entries (e.g. designs/entries/<ai>.json),
+validate, run 5-10 seeds free-for-all (contest.mjs runs one), score by mean cells at day 10, log deaths and causes,
+write results. (3) **a leaderboard page** on the website with ▶ Watch (all entries into the tank). Rounds: 1 blind,
+2 informed (each AI gets its own results and revises once). Claude enters too, as "Claude (with the simulator)", a
+benchmark.
+**State at handoff:** all pushed, 64 checks pass. Built on 2026-11-03 (entries below): the stirred bottom, the harpoon
+(Spine Kind), the moving-water Feeler, toxins leaked into water (toxin sac Kind Leak), the living-microscope look
+(sandbox/scene.js, drawCell), tank controls (Remove cell, saved designs list, rotate on the rail), twilight, README with
+screenshots. Species added: Pendulina (the author's, fixed), Jaculella (a harpooner), Miasmella (toxic). A
+10-species contest with Jaculella was running when the chat ended and its results were not recorded: rerun with
+`node tools/contest.mjs bathyscapha,noctilla,saltella,trochilla,caecella,raptilla2,scalella,gula,pendulina,jaculella,miasmella 10 --seed=N`
+for N = 1-5 (~45 min each; run them in parallel). Bash lesson: never put backticks in `node -e` strings (the shell
+runs them); write text through files.
+
 **WHEN THE AUTHOR SAYS THEY SENT A DESIGN: run `node tools/inbox.mjs`** (2026-11-03). On the website 📤 Send to Claude
 packs the design ("TG1." + base64url of the deflated JSON, numbers to 2 decimals: ~2.8k characters for a 27-part design,
 was 10k of JSON) and opens a pre-filled GitHub issue "Design: <name>" on vitorhugo1992/tinygod (public, like the repo);
