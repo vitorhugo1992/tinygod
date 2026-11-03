@@ -93,18 +93,26 @@ export function drawWater(ctx, world, v, t) {
   const L = world.light ? lightAt(world, (v.y0 + v.y1) / 2) : 0;
   ctx.save();
   ctx.beginPath(); ctx.rect(left, top, right - left, bot - top); ctx.clip();   // light only in the water
-  // ripple light near the surface
-  const zTop = clamp(1 - v.y1 / TH, 0, 1), ca = sun * clamp(1 - zTop / 0.18, 0, 1);
-  if (ca > 0.01) {
-    ctx.globalCompositeOperation = 'lighter';
-    const sz = 256 * Math.max(0.9, s * 0.9);
-    ctx.globalAlpha = 0.11 * ca;
-    const ox = (t * 6) % sz, oy = (t * 3.5) % sz;
-    for (let x = -ox - sz; x < W; x += sz) for (let y = -oy - sz; y < H; y += sz) ctx.drawImage(CAUSTIC, x, y, sz, sz);
-    ctx.globalAlpha = 0.07 * ca;
-    const ox2 = (-t * 4) % sz, oy2 = (t * 2) % sz;
-    for (let x = ox2 - sz; x < W; x += sz * 1.3) for (let y = oy2 - sz; y < H; y += sz * 1.3) ctx.drawImage(CAUSTIC, x, y, sz * 1.3, sz * 1.3);
-    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  // ripple light near the surface: only in the top RIPPLE µm, fading with depth (author, 2026-11-03: zoomed out it covered
+  // the whole tank: "too much"), its pattern sized in µm (not pixels) and softer when zoomed out
+  const RIPPLE = 200, bandTop = Math.max(top, 0), bandBot = Math.min(Y(TH - RIPPLE), H);
+  if (sun > 0.01 && bandBot > bandTop) {
+    const sz = Math.max(60, 320 * s), soft = clamp(s, 0.35, 1);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let b = 0; b < 4; b++) {   // four bands, each fainter than the one above
+      const y0 = Math.max(Y(TH - RIPPLE * b / 4), bandTop), y1 = Math.min(Y(TH - RIPPLE * (b + 1) / 4), bandBot);
+      if (y1 <= y0) continue;
+      ctx.save(); ctx.beginPath(); ctx.rect(left, y0, right - left, y1 - y0); ctx.clip();
+      const a = sun * soft * [1, 0.6, 0.32, 0.12][b];
+      ctx.globalAlpha = 0.11 * a;
+      const ox = (t * 6) % sz, oy = (t * 3.5) % sz;
+      for (let x = -ox - sz; x < W; x += sz) for (let y = -oy - sz + Math.floor((y0 + oy) / sz) * sz; y < y1; y += sz) ctx.drawImage(CAUSTIC, x, y, sz, sz);
+      ctx.globalAlpha = 0.07 * a;
+      const s2 = sz * 1.3, ox2 = (-t * 4) % s2, oy2 = (t * 2) % s2;
+      for (let x = ox2 - s2; x < W; x += s2) for (let y = oy2 - s2 + Math.floor((y0 - oy2) / s2) * s2; y < y1; y += s2) ctx.drawImage(CAUSTIC, x, y, s2, s2);
+      ctx.restore();
+    }
+    ctx.restore();
   }
   // shafts of light from above, slanting and swaying, fainter with depth
   if (L > 0.003) {
