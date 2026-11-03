@@ -109,6 +109,13 @@ function feed(world, cell, l) {
   return e * F.keep;
 }
 
+// All the energy a cell holds: its pool and its stores
+export function energyOf(o) {
+  let e = o.metab.E;
+  for (const s of o.pieces[0].inclusions) if (s.store) e += s.fill * capacity(s);
+  return e;
+}
+
 // Energy taken from a cell by a poison: its pool first, then its stores (their weight follows); returns how much
 export function drainEnergy(o, amount) {
   let hurt = amount, lost = 0;

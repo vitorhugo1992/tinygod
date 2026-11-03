@@ -467,6 +467,7 @@ function meaning(kind, v, id) {
   if (kind === 'touch') return v >= 0.5 ? 'touching' : 'not touching';
   if (kind === 'near') return v <= 0 ? 'nothing near' : v >= 1 ? 'touching' : `something ${Math.round((1 - v) * nearRange(id))} µm away`;
   if (kind === 'chem') return v < 0.5 ? `poor water (${pc})` : `rich water (${pc})`;
+  if (kind === 'flow') return `${zoneAt(KINDS.flow, v)} water (${pc})`;
   return v.toFixed(2);
 }
 const nearRange = (id) => { const p = (design.parts || []).find((x) => x.id === id); return (p && p.range) || PARAMS.sensor.nearRange; };
@@ -500,6 +501,7 @@ const KINDS = {
   near: { verb: 'feels', zones: [[0, 0.05, 'nothing'], [0.05, 0.5, 'far'], [0.5, 0.95, 'close'], [0.95, 1, 'touching']],
     u: (v, id) => `${Math.round((1 - v) * nearRange(id))} µm` },
   chem: { verb: 'tastes', zones: [[0, 0.5, 'poor water'], [0.5, 1, 'rich water']], u: pc },
+  flow: { verb: 'feels the water', zones: [[0, 0.1, 'still'], [0.1, 0.4, 'gently moving'], [0.4, 0.7, 'moving'], [0.7, 1, 'rough']], u: pc },
 };
 const kindOf = (id) => KINDS[sensorKind(id)] || KINDS.energy;
 const posOf = (K, v) => (K.pos ? K.pos(v) : v);
@@ -532,7 +534,7 @@ const valueWord = (html, ref) => (ref ? `<span class="w v" data-ed="${ref}">${ht
 // one condition in words: "● Eyespot (top) sees more than 5% sun (dim)"; several sensors: "● A or ● B sees …" (any),
 // "● A and ● B sees …" (all), of different kinds each with its own value; a compare: "● A sees more than ● B".
 // `ref` ("go:0"): tappable words, each opening the editor on its sensor
-const GROUP_NOUN = { light: 'eyespot', statolith: 'statolith', touch: 'feeler', near: 'feeler', chem: 'nutrient sensor' };
+const GROUP_NOUN = { light: 'eyespot', statolith: 'statolith', touch: 'feeler', near: 'feeler', flow: 'feeler', chem: 'nutrient sensor' };
 // the ids of every sensor of a kind on the design
 const kindIds = (kind) => (design.parts || []).filter((x) => x.id && (x.type === 'sensor' || x.material === 'statolith') && sensorKind(x.id) === kind).map((x) => x.id);
 function termWords(c, ref) {
@@ -596,7 +598,7 @@ function sentence(targets, tappable, where) {
   s += '.';
   if (verb === 'rests') s += ' <span class="small">(upkeep and income at 40%, flagella stop)</span>';
   if (verb === 'engulfs') s += ` <span class="small">(swallows another species' cell touching its mouth whole, if it is at most half as wide as this one and fits in its free room; digests it over a minute)</span>`;
-  if (verb === 'shoots') s += ` <span class="small">(throws the spine straight out ${PARAMS.harpoon.range} µm, blind: a cell's body in its line, kin too, is stunned ${PARAMS.harpoon.stun} s and loses ${PARAMS.harpoon.venom / 1000}k pJ; it grows back in ${PARAMS.harpoon.reload} s, ${PARAMS.harpoon.cost / 1000}k pJ per µm)</span>`;
+  if (verb === 'shoots') s += ` <span class="small">(throws the spine straight out ${PARAMS.harpoon.range} µm, blind: a cell's body in its line, kin too, is stunned ${PARAMS.harpoon.stun} s and loses ${PARAMS.harpoon.venom / 1000}k pJ + ${Math.round(100 * PARAMS.harpoon.wound)}% of its energy (less than that and it dies); it grows back in ${PARAMS.harpoon.reload} s, ${PARAMS.harpoon.cost / 1000}k pJ per µm)</span>`;
   if (verb === 'bursts') s += ` <span class="small">(dies, poisoning other species within ${PARAMS.toxin.range} µm: kin are immune)</span>`;
   if (verb === 'holds') s += ` <span class="small">(${m.kind === 'mucus' ? 'sticks to anything it touches, weakly' : 'joins a kin pad it touches, and its daughter at division: chains'}; while this fails it lets go and won't stick)</span>`;
   if (verb === 'feeds') s += ` <span class="small">(latches on another species' body it touches: ${PARAMS.feed.pierce * m.length / 1000}k pJ to pierce; lets go when this stops holding)</span>`;
@@ -609,8 +611,8 @@ const ruleSummary = (targets) => sentence(targets, false);
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { alarm: [0.05, 1], neighbours: [0.375, 1], pad: [0.25, 1], drained: [0.5, 1], size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
-const ICON = { alarm: '🚨', neighbours: '🔗', pad: '🧷', drained: '🩸', size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', energy: '⚡', statolith: '⚖', chem: '🧪' };
+const RANGE = { alarm: [0.05, 1], neighbours: [0.375, 1], pad: [0.25, 1], drained: [0.5, 1], size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], flow: [0.4, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
+const ICON = { alarm: '🚨', neighbours: '🔗', pad: '🧷', drained: '🩸', size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', flow: '🌊', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
   if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding' || id === 'size' || id === 'drained' || id === 'neighbours' || id === 'alarm') return id;
@@ -1764,7 +1766,7 @@ function stats() {
   budget(lines);
   const ev = (cell.journal ? cell.journal.ev : []).slice(-6);
   if (ev.length) { lines.push('what happened (latest last):'); for (const e of ev) lines.push(`  ${e.serious ? '⚠' : '·'} ${eventText(e)}`); }
-  const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity', hunger: 'hunger', statolith: 'statolith', chem: 'nutrients' };
+  const NAME = { light: 'eyespot', touch: 'touch', near: 'proximity', flow: 'water', hunger: 'hunger', statolith: 'statolith', chem: 'nutrients' };
   cell.sensors.forEach((sn, i) => lines.push(`${NAME[sn.kind].padEnd(9)} ${sn.value.toFixed(2)}`));
   const bursts = cell.joints.filter((j) => j.burst);
   if (bursts.length) {
@@ -2403,7 +2405,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
       ctx.strokeStyle = COLOR.touch; ctx.fillStyle = COLOR.touch; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2);
       if (sn.value > 0) ctx.fill(); else ctx.stroke();
-      if (sn.kind === 'near' && real === cell) {
+      if ((sn.kind === 'near' || sn.kind === 'flow') && real === cell) {
         ctx.strokeStyle = COLOR.near + (0.15 + 0.5 * sn.value) + ')'; ctx.setLineDash([4, 4]);
         ctx.beginPath(); ctx.arc(X(px), Y(py), sn.range * s, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
       }

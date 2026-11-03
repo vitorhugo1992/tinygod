@@ -124,7 +124,10 @@ export const PART_TEMPLATES = {
     [{ type: 'sensor', id, label: 'Light sensor', at: surfacePoint(body, deg), angle: deg + tilt, kind: 'light',
       cone: Math.max(20, Math.round(180 * size)) }],
   // one sensor that feels (author, 2026-10-28): Range at its least, touch only; wider, it feels things coming
-  'Feeler': (body, deg, id, size, tilt, depth, feels) => (size <= 0.1
+  // Feels: moving water (author, 2026-11-03): rough water and the wakes of moving cells within its range
+  'Feeler': (body, deg, id, size, tilt, depth, feels) => (feels === 'water'
+    ? [{ type: 'sensor', id, label: 'Feeler', at: surfacePoint(body, deg), kind: 'flow', range: Math.max(20, Math.round(200 * size)), feels: 'anything' }]
+    : size <= 0.1
     ? [{ type: 'sensor', id, label: 'Feeler', at: surfacePoint(body, deg), kind: 'touch', feels }]
     : [{ type: 'sensor', id, label: 'Feeler', at: surfacePoint(body, deg), kind: 'near', range: Math.round(200 * size), feels }]),
   // one spine, protein (glass was removed, author 2026-11-02); Kind Harpoon (author, 2026-11-03): it fires a dart
@@ -235,9 +238,10 @@ export const CONTROLS = {
   'Burst organ (escape)': { tilt: true, flip: true, length: { min: 10, max: 40, step: 5, def: 20 }, size: (s) => `${(Math.round(20 * s) / 10).toFixed(1)} s burst`, sizeDefault: 40 },
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
-  'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), sizeLabel: 'Sensitivity', feels: true, sizeDefault: 10 },
+  'Feeler': { size: (s) => (s <= 0.1 ? 'touch only (moving water: 20 µm)' : `feels within ${Math.round(200 * s)} µm`), sizeLabel: 'Sensitivity', feels: true, sizeDefault: 10,
+    tip: () => 'Other species: feels a stranger touching (or within its range). Anything: cells and walls too. Moving water: how rough the water is here, and the wakes of cells moving through it within its range, any species (a still cell, or one carried by the current, makes none). Swimming gives you away.' },
   'Spine': { tilt: true, material: true, size: (s) => `${Math.round(100 * s)} µm long`,
-    tip: () => `A harpoon throws itself straight out, blind: the first thing within ${PARAMS.harpoon.range} µm of its tip takes it. A cell's body, kin too, is stunned ${PARAMS.harpoon.stun} s (its tails, springs, tubes and mouths stop: a hunter lets go) and loses ${PARAMS.harpoon.venom / 1000}k pJ; a spine or flagellum catches it. The spine grows back in ${PARAMS.harpoon.reload} s, for ${PARAMS.harpoon.cost / 1000}k pJ per µm of it. Its rule: FIRES when…` },
+    tip: () => `A harpoon throws itself straight out, blind: the first thing within ${PARAMS.harpoon.range} µm of its tip takes it. A cell's body, kin too, is stunned ${PARAMS.harpoon.stun} s (its tails, springs, tubes and mouths stop: a hunter lets go) and wounded: it loses ${PARAMS.harpoon.venom / 1000}k pJ plus ${Math.round(100 * PARAMS.harpoon.wound)}% of all it holds (a small or hungry cell may die; a big one suffers too); a spine or flagellum catches it. The spine grows back in ${PARAMS.harpoon.reload} s, for ${PARAMS.harpoon.cost / 1000}k pJ per µm of it. Its rule: FIRES when…` },
   'Pad': { sticks: true },
   'Mouth (engulfs)': { tip: () => `Swallows another species' cell touching it whole, if that cell is at most half as wide as this one and fits in its free room (a packed cell can't eat; spines, chains, plates and size protect prey). It digests it over a minute, keeping ${Math.round(100 * PARAMS.engulf.keep)}% of its energy and half its nitrogen; it can't swallow again meanwhile. Its rule: ENGULFS when…` },
   'Peduncle (feeds on others)': { tilt: true, length: { min: 10, max: 80, step: 5, def: PARAMS.feed.length },

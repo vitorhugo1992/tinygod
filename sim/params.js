@@ -92,6 +92,13 @@ export const PARAMS = {
                             // small threshold ("more than 2% sun") still switches in dim water (Claude, 2026-11-01: it needed 5%)
     touchRange: 2,          // µm from a touch sensor's spot that counts as touching
     nearRange: 60,          // µm a proximity sensor feels another species from (default)
+    // A feeler set to feel moving water (author, 2026-11-03; real cells feel shear through stretch-sensitive channels): it
+    // reads how rough the water is where it sits plus the wakes of cells moving through the water near it (any species:
+    // it is only water moving; a cell carried along by a current makes no wake). 0 still, 1 very rough.
+    flowCurl: 0.25,         // rad/s of the water's turning that reads 1 (loops at night up to ~0.04, a stirring spell ~0.08:
+                            // rough water reads up to ~0.3, so a cell passing close still stands out)
+    flowWake: 6,            // µm/s through the water of a cell touching the feeler that reads 1; fading to 0 at its range
+    flowSmooth: 0.5,        // s: a cell's speed for its wake is averaged over this (not its beat-by-beat bounce)
     compareMargin: 0.05,    // a compare condition holds once one reading is this much more than the other
   },
   // The buoyancy chamber (made playable): an ion vacuole pumped light, neutral or heavy by its rule (author, 2026-10-28)
@@ -177,7 +184,10 @@ export const PARAMS = {
     cost: 3000,             // pJ per µm of spine, each shot (regrowing it; the pool must hold it): 20 µm, 60k (author:
                             // "make it costly, as it can severely damage bigger predators")
     reload: 20,             // s to grow the spine back; it can't fire until it has
-    venom: 60000,           // pJ the stricken cell loses (its pool, then its stores)
+    // the wound (author: "a smaller cell will hurt more or die, but a larger cell will also suffer damage"): a fixed
+    // part, heavy for a small or hungry cell, and a share of all it holds, felt by a big fed one; more than it holds kills it
+    venom: 400000,          // pJ every wound takes (an r 10 swimmer late at night holds ~500k)
+    wound: 0.1,             // plus this share of all its energy (pool and stores)
     stun: 8,                // s it stays stunned
   },
   // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): every `every` s a peduncle stays latched,

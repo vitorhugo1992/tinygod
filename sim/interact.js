@@ -8,7 +8,7 @@
 // - groups: cells joined by pads. No chain rule: chains come from pads meeting. A hidden backstop
 //   (PARAMS.pads.maxChain) only blocks a new link that would make a group bigger than that.
 import { PARAMS } from './params.js';
-import { drainEnergy } from './metab.js';
+import { drainEnergy, energyOf } from './metab.js';
 import { setSegmentLength } from './build.js';
 
 const KCC = PARAMS.contact.cells;
@@ -223,7 +223,8 @@ export function interact(world) {
       h.shot = { step: world.steps, x0, y0, x1: x0 + ux * len, y1: y0 + uy * len, hit: hit ? hit.species : null,
         caught: !B || hit ? null : B.dead ? 'a dead cell' : 'a spine or flagellum', kin: !!hit && hit.species === A.species };
       A.lastShot = h.shot;
-      if (hit) { const lost = world.metab ? drainEnergy(hit, HP.venom) : 0; hit.stunT = HP.stun; hit.harpooned = { by: A.species, lost, step: world.steps }; }
+      if (hit) { const has = world.metab ? energyOf(hit) : 0, hurt = HP.venom + HP.wound * has, lost = world.metab ? drainEnergy(hit, hurt) : 0;
+        if (world.metab && hurt >= has) { hit.dead = true; hit.diedAt = world.steps; hit.diedWhy = `killed by a ${A.species}'s harpoon`; } hit.stunT = HP.stun; hit.harpooned = { by: A.species, lost, step: world.steps }; }
     }
   }
 

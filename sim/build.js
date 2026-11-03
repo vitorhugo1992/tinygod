@@ -330,7 +330,7 @@ export function buildCell(design, opts = {}) {
         facing: (part.angle || 0) * DEG, r, value: 0.5, part: design.parts.indexOf(part) });
     } else if (part.type === 'sensor') {
       const kind = part.kind || 'light';
-      if (!['light', 'touch', 'near', 'hunger', 'chem'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
+      if (!['light', 'touch', 'near', 'hunger', 'chem', 'flow'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
       const facing = part.angle !== undefined ? part.angle * DEG : Math.atan2(y, x);
       const range = part.range || (kind === 'near' ? PARAMS.sensor.nearRange : PARAMS.sensor.touchRange);
       const cone = Math.min(Math.max(part.cone || 180, 10), 180) * DEG;

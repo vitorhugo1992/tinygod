@@ -1415,6 +1415,39 @@ const runDay = (design, y, seconds, opts = {}) => {
     `kin: ${kin.shot && kin.shot.kin ? 'wounded' : 'spared'}; out of range: ${far.shot && far.shot.hit ? 'hit' : 'missed'}; behind a spine: ${shielded.shot && shielded.shot.caught}`);
 }
 
+// 28ai. A feeler set to feel moving water (author, 2026-11-03): a cell swimming by reads, a still one doesn't (nor one
+// beyond its range); the loops' turning reads at night, not in still water. And the harpoon's wound is a share of all the
+// stricken cell's energy (author: "potent"), as bad for a big, fed cell
+{
+  const feeler = { name: 'Listener', body: { radius: 10 }, parts: [{ type: 'sensor', id: 'f', label: 'Feeler', at: [10, 0], kind: 'flow', range: 60, feels: 'anything' }] };
+  const pass = (d, start) => {
+    const w = makeWorld(1, { gravity: false });
+    const A = addCell(w, feeler, 500, 1000, 0), B = addCell(w, d, 500 + 10 + start, 1000, 180);
+    let max = 0; for (let i = 0; i < 4000; i++) { stepWorld(w); max = Math.max(max, A.sensors[0].value); }
+    return max;
+  };
+  const swim = pass({ name: 'Swim', ...PRESETS['Wave tail'] }, 120), still = pass({ name: 'Still', body: { radius: 9 }, parts: [] }, 20);
+  const far = (() => { const w = makeWorld(1, { gravity: false }); const A = addCell(w, feeler, 500, 1000, 0); addCell(w, { name: 'Swim', ...PRESETS['Wave tail'] }, 500, 1200, 90);
+    let max = 0; for (let i = 0; i < 3000; i++) { stepWorld(w); max = Math.max(max, A.sensors[0].value); } return max; })();
+  const night = (flow) => { const w = makeWorld(1, { gravity: false, day: true, flow }); w.steps = Math.round(0.75 * PARAMS.metab.day / DT);
+    const A = addCell(w, feeler, 300, 1000, 0); for (let i = 0; i < 50; i++) stepWorld(w); return A.sensors[0].value; };
+  const rough = night(true), calm = night(false);
+  const { energyOf } = await import('../sim/metab.js');
+  const w = makeWorld(1, { gravity: false, metab: true });
+  const A = addCell(w, { name: 'Hunter', body: { radius: 10 }, parts: [{ type: 'segment', id: 'h', at: [10, 0], angle: 0, length: 20, radius: 0.5, material: 'protein',
+    joint: { type: 'fire', controls: [{ sensor: 'energy', min: 0, max: 1 }] } }] }, 500, 1000, 0);
+  const B = addCell(w, { name: 'Big', body: { radius: 25 }, parts: [] }, 500 + 30 + 20 + 25, 1000, 0);   // a big, fed cell
+  B.metab.E = B.metab.C;
+  const e0 = energyOf(B); stepWorld(w); stepWorld(w);
+  const share = (e0 - energyOf(B)) / e0, want = (PARAMS.harpoon.venom + PARAMS.harpoon.wound * e0) / e0;
+  const small = addCell(w, { name: 'Tiny', body: { radius: 4 }, parts: [] }, 500, 1000 - 30 - 20 - 4, 0);   // below the hunter
+  A.harpoons[0].t = DT; A.q[2] = -Math.PI / 2; A.metab.E = A.metab.C;   // grown back at once, turned to face it, fed
+  for (let i = 0; i < 3; i++) stepWorld(w);
+  check('a moving-water feeler feels a swimmer passing, not a still cell nor one out of range; the loops at night; a harpoon takes a share of its energy',
+    swim > 0.5 && still === 0 && far === 0 && rough > 0.05 && calm === 0 && want < 1 && !B.dead && Math.abs(share - want) < 0.02 && small.dead && /harpoon/.test(small.diedWhy),
+    `a swimmer passing reads up to ${fmt(swim)}, a still cell ${fmt(still)}, a swimmer 200 µm away ${fmt(far)}; midnight water ${fmt(rough)} (still water ${fmt(calm)}); a harpoon took ${fmt(100 * share, 1)}% of a big cell's energy (${Math.round(e0 / 1000)}k), a tiny cell: ${small.diedWhy}`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

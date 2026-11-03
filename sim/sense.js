@@ -24,6 +24,7 @@ import { fire } from './physics.js';
 import { lightAt } from './light.js';
 import { nitrogenAt } from './nutrient.js';
 import { setSegmentLength } from './build.js';
+import { flowAt } from './flow.js';
 
 const S = PARAMS.sensor, CH = PARAMS.chamber;
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -124,12 +125,39 @@ function ruleState(world, cell, controls) {
   return { any, go: any && (all || group), stop };
 }
 
+// How a moving-water feeler at (x, y) reads: the water's turning there plus the wakes of other cells moving through the
+// water within its range (each by its speed through the water, its size and how near it is), 0-1
+const FU = [0, 0, 0];
+function flowFelt(world, cell, x, y, range) {
+  let v = 0;
+  if (world.flowNow) { const w = flowAt(world.flowNow, x, y, FU)[2]; v += (w < 0 ? -w : w) / S.flowCurl; }
+  for (const o of world.cells) {
+    if (o === cell || o.dead || !o.wake) continue;
+    const b = o.pieces[0], h = b.L / 2, ex = o.cs[0] * h, ey = o.sn[0] * h;
+    const dx = x - o.cx[0], dy = y - o.cy[0], l2 = ex * ex + ey * ey;
+    let t = l2 > 0 ? (dx * ex + dy * ey) / l2 : 0; t = t < -1 ? -1 : t > 1 ? 1 : t;
+    const d = Math.max(0, Math.hypot(dx - ex * t, dy - ey * t) - b.a);
+    if (d > range) continue;
+    v += o.wake / S.flowWake * b.a / (b.a + d) * (1 - d / range);
+  }
+  return v > 1 ? 1 : v;
+}
+
 export function sense(world, cell) {
+  // its speed through the water, averaged over PARAMS.sensor.flowSmooth (the wake others feel)
+  {
+    const dt = PARAMS.time.dt, k = dt / S.flowSmooth, px = cell.lastX ?? cell.q[0], py = cell.lastY ?? cell.q[1];
+    let vx = (cell.q[0] - px) / dt, vy = (cell.q[1] - py) / dt;
+    if (world.flowNow) { flowAt(world.flowNow, cell.q[0], cell.q[1], FU); vx -= FU[0]; vy -= FU[1]; }
+    cell.svx = (cell.svx || 0) + (vx - (cell.svx || 0)) * k; cell.svy = (cell.svy || 0) + (vy - (cell.svy || 0)) * k;
+    cell.wake = Math.hypot(cell.svx, cell.svy); cell.lastX = cell.q[0]; cell.lastY = cell.q[1];
+  }
   for (const s of cell.sensors) {
     const i = s.piece, c = cell.cs[i], n = cell.sn[i];
     const x = cell.cx[i] + c * s.x - n * s.y, y = cell.cy[i] + n * s.x + c * s.y;
     if (s.kind === 'hunger') { s.value = energyLevel(world, cell); continue; }   // old designs: same as the built-in
     if (s.kind === 'chem') { s.value = nitrogenAt(world, y); continue; }
+    if (s.kind === 'flow') { s.value = flowFelt(world, cell, x, y, s.range); continue; }
     if (s.kind === 'statolith') {   // the grain lies on the lower wall: how far its direction points up (no weight: 0.5)
       s.value = world.gravity ? (1 + dsin(cell.phi[i] + s.facing)) / 2 : 0.5;
       continue;
