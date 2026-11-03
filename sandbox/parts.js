@@ -109,9 +109,10 @@ export const PART_TEMPLATES = {
     const at = inside(body, deg, size, depth, len, tilt);
     return [{ type: 'inclusion', id, ...at, ...(content === 'oil' ? { label: 'Oil store', material: 'oil' } : { label: 'Starch store', material: 'starch', fill: 0.5 }) }];
   },
-  // a toxin sac (author, 2026-11-02, kamikaze): its rule BURSTS when… (none: never)
-  'Toxin sac': (body, deg, id, size, tilt, depth, feels, len = 0) =>
-    [{ type: 'inclusion', id, label: 'Toxin sac', ...inside(body, deg, size, depth, len, tilt), material: 'toxin', joint: { type: 'lyse' } }],
+  // a toxin sac (author, 2026-11-02, kamikaze): its rule BURSTS when… (none: never); Kind Leak (2026-11-03): LEAKS when…
+  // (none: always), into the water (sim/toxin.js)
+  'Toxin sac': (body, deg, id, size, tilt, depth, feels, len = 0, strength, kind) =>
+    [{ type: 'inclusion', id, label: 'Toxin sac', ...inside(body, deg, size, depth, len, tilt), material: 'toxin', joint: { type: kind === 'leak' ? 'leak' : 'lyse' } }],
   // a buoyancy chamber (author, 2026-10-28): its rule pumps it light (FLOAT when) or heavy (SINK if); neither: neutral
   'Buoyancy chamber': (body, deg, id, size, tilt, depth, feels, len = 0) =>
     [{ type: 'inclusion', id, label: 'Buoyancy chamber', ...inside(body, deg, size, depth, len, tilt), material: 'chamber', joint: { type: 'chamber' } }],
@@ -226,8 +227,8 @@ export const CONTROLS = {
   'Energy store': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, content: true, sizeDefault: 40, ...ROD },
   'Buoyancy chamber': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 50, ...ROD,
     tip: () => 'Pumped light, it lifts the cell; heavy, it sinks it; neutral, nothing (and free). Its rule: FLOAT when… / SINK if…. Bigger pushes harder, takes room, costs more to hold' },
-  'Toxin sac': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 30, ...ROD,
-    tip: () => 'Its rule: BURSTS when… (e.g. when it is being drained, or the Alarm is close). Bursting kills the cell and poisons other species within 30 µm (energy and plastids); kin are immune. Bigger hurts more; costs room, upkeep and nitrogen at each division' },
+  'Toxin sac': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 30, toxkind: true, ...ROD,
+    tip: () => 'Burst: its rule BURSTS when… (e.g. when it is being drained); bursting kills the cell and poisons other species within 30 µm. Leak: its rule LEAKS when… (no rule: always); it releases toxin into the water, a cloud that drifts with the currents, spreads and fades; other species in it lose energy and their plastids are damaged. Kin are immune to both. Leaking costs energy and nitrogen (a bigger sac leaks more); currents carry a lone cell\'s cloud away, a crowd\'s builds up' },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
   'Nutrient sensor': { tip: () => 'Reads the nitrogen in the water where it is: poor in the upper half, rich below the nutricline (~1 mm down), less where cells have used it up. A sense of depth (keep a resting cell off the floor) and of where the food for growth is.' },
   'Wave tail (swims)': { tilt: true, flip: true, pull: true, length: { min: 16, max: 96, step: 8, def: 48 } },

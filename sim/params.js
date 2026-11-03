@@ -161,6 +161,22 @@ export const PARAMS = {
     energy: 5000,           // a sac 5% of an r 10 cell (~210 µm³) at contact: ~1 million pJ
     damage: 10,             // ... and half the plastid health of a same-size victim
     nitrogen: 2,
+    // Kind Leak (author, 2026-11-03; sim/toxin.js): released into the water while its rule holds (no rule: always)
+    leak: {
+      rate: 1,              // toxin units a second per µm³ of sac (a r 4 sac: ~270 a second)
+      energy: 3.7,          // pJ a unit (that sac: ~1,000 pJ/s, ~10% of a good day's income)
+      nitrogen: 0.0087,     // N a unit (that sac, leaking all the time: ~a third of an r 10 division's nitrogen a day)
+      cell: 40,             // µm: the cloud's grid squares
+      every: 100,           // steps between the clouds' drift, spread and fading (0.1 s)
+      spread: 20,           // µm²/s: how fast a cloud spreads to neighbouring squares
+      half: 60,             // s for a cloud to fade by half (~2.4 sandbox hours)
+      harm: 0.001,          // pJ/s lost per unit of cloud per µm² of the victim's surface (a lone leaker 20 µm away
+                            // from an r 10 cell: ~a quarter of its income)
+      damage: 5e-6,         // plastid damage a second per unit of cloud (repair evens it at ~25% in a lone leaker's cloud)
+      felt: 1,              // below this a cloud does nothing
+      full: 5000,           // the Poisoned reading is 1 at this much cloud
+      gone: 1,              // a cloud with less than this in all is dropped
+    },
   },
   // Engulfing (author 2026-11-02): a Mouth on the rim swallows another species' cell touching it whole, if the prey's body
   // is at most `gape` of the predator's width and its volume fits in the predator's free cytoplasm (room for the meal);

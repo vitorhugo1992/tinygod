@@ -1448,6 +1448,43 @@ const runDay = (design, y, seconds, opts = {}) => {
     `a swimmer passing reads up to ${fmt(swim)}, a still cell ${fmt(still)}, a swimmer 200 µm away ${fmt(far)}; midnight water ${fmt(rough)} (still water ${fmt(calm)}); a harpoon took ${fmt(100 * share, 1)}% of a big cell's energy (${Math.round(e0 / 1000)}k), a tiny cell: ${small.diedWhy}`);
 }
 
+// 28aj. Toxins leaked into the water (author, 2026-11-03; sim/toxin.js): a sac of Kind Leak pays to release toxin while its
+// rule holds (none: always); another species near it loses energy and plastid health and reads Poisoned; kin are
+// immune; the cloud drifts with moving water and fades by half in PARAMS.toxin.leak.half s
+{
+  const T = PARAMS.toxin.leak;
+  const { sample } = await import('../sim/toxin.js');
+  const leaker = (name) => ({ name, body: { radius: 10 }, parts: [
+    { type: 'inclusion', id: 'p', at: [4, 0], radius: 4, material: 'plastid' },
+    { type: 'inclusion', id: 't', at: [-5, 0], radius: 4, material: 'toxin', joint: { type: 'leak' } }] });
+  const plain = (name) => ({ name, body: { radius: 10 }, parts: [{ type: 'inclusion', id: 'p', at: [0, 0], radius: 5, material: 'plastid' }] });
+  const w = makeWorld(1, { gravity: false, metab: true });
+  const L = addCell(w, leaker('Toxica'), 800, 1000, 0), V = addCell(w, plain('Victim'), 840, 1000, 0), K = addCell(w, plain('Toxica'), 760, 1000, 0);
+  for (let i = 0; i < 20000; i++) stepWorld(w);
+  const spent = L.metab.leak, loss = V.poison ? V.poison.loss : 0, dmg = V.pieces[0].inclusions[0].damage || 0;
+  const { poisonedLevel } = await import('../sim/sense.js');
+  const reads = poisonedLevel(V), kin = !!K.poison;
+  // fading: with the leaker gone, the cloud halves in T.half s
+  const f = w.toxins.get('Toxica'), tot0 = f.reduce((a, b) => a + b, 0);
+  w.cells = [V, K]; w.links = [];
+  for (let i = 0; i < Math.round(T.half / PARAMS.time.dt); i++) stepWorld(w);
+  const tot1 = (w.toxins.get('Toxica') || []).reduce((a, b) => a + b, 0);
+  // drifting: in moving water the cloud's middle moves
+  const m = makeWorld(1, { gravity: false, metab: true, flow: true, day: true });
+  m.steps = Math.round(0.75 * PARAMS.metab.day / DT);
+  const L2 = addCell(m, leaker('Toxica'), 400, 1000, 0);
+  for (let i = 0; i < 300; i++) stepWorld(m);
+  L2.pieces[0].inclusions.forEach((x) => { x.leak = false; });   // stop leaking: watch the cloud move
+  const mid = (g) => { let sx = 0, sy = 0, s = 0; for (let j = 0; j < 50; j++) for (let k = 0; k < 40; k++) { const c = g[j * 40 + k]; sx += c * (k + 0.5) * T.cell; sy += c * (j + 0.5) * T.cell; s += c; } return [sx / s, sy / s]; };
+  const a = mid(m.toxins.get('Toxica'));
+  for (let i = 0; i < 20000; i++) stepWorld(m);
+  const b = mid(m.toxins.get('Toxica')), moved = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  check('a leaking toxin sac pays, harms another species near it (Poisoned), spares kin; its cloud fades by half in its half-life and drifts with the water',
+    spent > 500 && loss > 500 && dmg > 0.02 && reads > 0.1 && !kin && Math.abs(tot1 / tot0 - 0.5) < 0.05 && moved > 20,
+    `the leaker spends ${fmt(spent, 0)} pJ/s; a stranger 30 µm away loses ${fmt(loss, 0)} pJ/s, plastids ${fmt(100 * dmg, 0)}% damaged, reads Poisoned ${fmt(reads)}; kin poisoned: ${kin}; ` +
+    `after ${T.half} s ${fmt(100 * tot1 / tot0, 0)}% left; in moving water its middle moved ${fmt(moved, 0)} µm in 20 s`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

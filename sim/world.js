@@ -7,6 +7,7 @@ import { stepCell, updatePose, motorAngle, planSubsteps } from './physics.js';
 import { interact } from './interact.js';
 import { sense } from './sense.js';
 import { initMetab, metabolize, shareChains } from './metab.js';
+import { stepToxins } from './toxin.js';
 import { initNitrogen, mixNitrogen } from './nutrient.js';
 import { divideCells } from './divide.js';
 import { growCells } from './grow.js';
@@ -45,7 +46,7 @@ export function stepWorld(world) {
   world.flowNow = flowState(world);
   for (const cell of world.cells) updatePose(cell);
   for (const cell of world.cells) sense(world, cell);   // after every pose is current: sensors look at others
-  if (world.metab) { for (const cell of world.cells) metabolize(world, cell); shareChains(world); }   // after sensing: starving overrides wiring
+  if (world.metab) { for (const cell of world.cells) metabolize(world, cell); shareChains(world); stepToxins(world); }   // after sensing: starving overrides wiring
   if (world.grow) { mixNitrogen(world); growCells(world); divideCells(world); }
   if (world.grow || world.cells.some((c) => c.eatenBy)) removeDead(world);
   if (world.cells.length > 1) interact(world); else if (world.cells.length) { world.cells[0].shield = 1; world.cells[0].neighbours = 0; }   // alone: nobody shields it

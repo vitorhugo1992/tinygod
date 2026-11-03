@@ -24,6 +24,7 @@ import { PARAMS } from './params.js';
 import { lightAt } from './light.js';
 import { nitrogenAt, takeNitrogen } from './nutrient.js';
 import { dexp } from './dmath.js';
+import { leak, poison } from './toxin.js';
 
 const M = PARAMS.metab, P = PARAMS, DT = PARAMS.time.dt, CYTO = PARAMS.cell.cytoplasm;
 const G = PARAMS.gravity * 1e-6;
@@ -158,7 +159,7 @@ function digest(cell) {
 export function metabolize(world, cell) {
   const m = cell.metab, body = cell.pieces[0];
   if (cell.meal && !cell.dead) digest(cell);
-  if (!cell.dead && body.inclusions.some((i) => i.toxin && i.go)) burst(world, cell);
+  if (!cell.dead && body.inclusions.some((i) => i.toxin && !i.leak && i.go)) burst(world, cell);
   if (cell.dead) {   // nothing earned or spent; still, and its chambers drift neutral (sim/death.js removes it)
     m.E = 0; m.starving = true; m.income = m.motors = m.pumps = m.repair = m.chamber = 0; cell.resting = false;
     for (const j of cell.joints) if (j.type === 'motor') j.on = false;
@@ -202,6 +203,9 @@ export function metabolize(world, cell) {
   m.E += (income - m.upkeep * slow - hold) * DT - motors - pumps - repair;
   m.feeding = 0;
   for (const f of cell.feeders) if (f.link) m.feeding += feed(world, cell, f.link) / DT;
+  // toxins (sim/toxin.js): its sacs of Kind Leak release, other species' clouds round it harm it
+  m.leak = leak(world, cell, DT);
+  poison(world, cell, DT);
 
   // stores: surplus in (starch first: it is quick), shortfall out (starch first, then oil)
   const stores = body.inclusions.filter((x) => x.store).sort((a, b) => (a.store === 'starch' ? 0 : 1) - (b.store === 'starch' ? 0 : 1));
@@ -239,7 +243,8 @@ export function metabolize(world, cell) {
     if (cell.starveT >= P.grow.die) {
       cell.dead = true; cell.diedAt = world.steps;
       const d = cell.drainedBy;   // fed on lately: killed by a predator
-      cell.diedWhy = d && (world.steps - d.step) * DT < P.grow.die ? `drained by a ${d.species}` : 'starved';
+      const pz = cell.poison;   // in a toxin cloud lately
+      cell.diedWhy = d && (world.steps - d.step) * DT < P.grow.die ? `drained by a ${d.species}` : pz && pz.loss > 0.25 * m.upkeep ? `poisoned by a ${pz.by}'s toxin` : 'starved';
     }
   }
   if (m.starving) {

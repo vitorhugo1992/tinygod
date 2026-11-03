@@ -132,7 +132,7 @@ function parseJoint(j, pieceIndex) {
 // healthy its plastids are; -5: feeding, 1 while a peduncle of its is latched; -6: size, how grown it is; -7: drained,
 // 1 while another's peduncle drains it; -8: neighbours, how many kin it is joined to; a pad's id: what that pad holds,
 // as PAD_READ - its place in the cell's pads; -9: alarm, a kin nearby is being drained)
-const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7, neighbours: -8, alarm: -9 };
+const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7, neighbours: -8, alarm: -9, poisoned: -10 };
 export const PAD_READ = -100;
 let padIds = new Map();   // the design being built: pad id -> its place among the cell's pads
 function sensorIndex(sensors, id) {
@@ -184,6 +184,9 @@ export function rewire(cell, partIndex, controls) {
   }
   for (const h of cell.harpoons || []) if (h.part === partIndex) {
     if (controls.length) h.controls = controls.map((c) => resolveControl(cell.sensors, c)); else { delete h.controls; h.go = false; }
+  }
+  for (const inc of cell.pieces[0].inclusions) if (inc.part === partIndex && inc.toxin) {   // a toxin sac's rule
+    if (controls.length) inc.controls = controls.map((c) => resolveControl(cell.sensors, c)); else delete inc.controls;
   }
   for (const inc of cell.pieces[0].inclusions) if (inc.part === partIndex && inc.material === 'chamber') {
     if (controls.length) inc.controls = controls.map((c) => resolveControl(cell.sensors, c)); else delete inc.controls;
@@ -324,7 +327,7 @@ export function buildCell(design, opts = {}) {
         part: design.parts.indexOf(part), stolen: part.stolen || null });
       // a buoyancy chamber's rule (FLOAT when: its GO conditions; SINK if: its STOP ones), kept like a part's joint's
       if (part.material === 'chamber' && part.joint && controlsOf(part.joint).length) controls.push([host.inclusions[host.inclusions.length - 1], controlsOf(part.joint)]);
-      if (mat.toxin) { const t = host.inclusions[host.inclusions.length - 1]; t.toxin = true; if (part.joint && controlsOf(part.joint).length) controls.push([t, controlsOf(part.joint)]); }   // BURSTS when…
+      if (mat.toxin) { const t = host.inclusions[host.inclusions.length - 1]; t.toxin = true; t.leak = !!part.joint && part.joint.type === 'leak'; if (part.joint && controlsOf(part.joint).length) controls.push([t, controlsOf(part.joint)]); }   // BURSTS when… / LEAKS when…
       if (part.material === 'nucleus' && part.joint && controlsOf(part.joint).length) { controls.push([rest, controlsOf(part.joint)]); rest.part = design.parts.indexOf(part); }
       if (part.material === 'statolith') sensors.push({ id: part.id, piece: parent, x, y, kind: 'statolith',
         facing: (part.angle || 0) * DEG, r, value: 0.5, part: design.parts.indexOf(part) });

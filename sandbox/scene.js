@@ -6,6 +6,7 @@
 import { PARAMS } from '../sim/params.js';
 import { daylight, lightAt, clock } from '../sim/light.js';
 import { flowState, flowAt } from '../sim/flow.js';
+import { NX, NY } from '../sim/toxin.js';
 
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 const rnd = (n) => { const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
@@ -183,6 +184,27 @@ export function drawDrift(ctx, world, v, simT, t) {
     }
   }
   ctx.globalAlpha = 1;
+}
+
+// Toxin clouds (sim/toxin.js): a soft haze in each toxic species' tint, stronger where the cloud is; the grid drawn small and
+// stretched with smoothing, so it looks like a cloud, not squares
+const hazeCv = new Map();
+export function drawToxins(ctx, world, v) {
+  if (!world.toxins || !world.toxins.size) return;
+  const full = PARAMS.toxin.leak.full, D = PARAMS.toxin.leak.cell;
+  for (const [sp, f] of world.toxins) {
+    let h = hazeCv.get(sp);
+    if (!h) { const c = document.createElement('canvas'); c.width = NX; c.height = NY; h = { c, g: c.getContext('2d'), img: null }; h.img = h.g.createImageData(NX, NY); hazeCv.set(sp, h); }
+    const [r, g, b] = hexRGB(speciesTint(sp)), d = h.img.data;
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+      const k = ((NY - 1 - j) * NX + i) * 4, a = Math.min(1, Math.sqrt(f[j * NX + i] / (0.4 * full)));   // row 0 at the top
+      d[k] = r; d[k + 1] = g; d[k + 2] = b; d[k + 3] = Math.round(150 * a);
+    }
+    h.g.putImageData(h.img, 0, 0);
+    ctx.save(); ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(h.c, v.X(0), v.Y(NY * D), NX * D * v.s, NY * D * v.s);
+    ctx.restore();
+  }
 }
 
 // The microscope's soft vignette, over the cells

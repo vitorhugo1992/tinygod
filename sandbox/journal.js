@@ -70,6 +70,14 @@ export function note(world, c) {
   if (c.dead && !w.dead) say(c.burst ? `burst itself: its toxin poisoned ${c.burst.hit} cell${c.burst.hit === 1 ? '' : 's'} of other species close by` : `died: ${c.diedWhy || 'starved'} (${Math.round(depth)} µm deep${/starved|drained/.test(c.diedWhy || 'starved') ? `, ${Math.round(PARAMS.grow.die)} s without energy` : ''})`, true);
   if (c.poisoned && c.poisoned !== w.poisoned) say(`poisoned by a ${c.poisoned.by} bursting close by: lost ${Math.round(c.poisoned.lost / 1000)}k pJ, its plastids damaged`, true);
   w.poisoned = c.poisoned;
+  const leaking = (c.metab && c.metab.leak) > 0;
+  if (leaking && !w.leaking) say(`began leaking toxin (−${Math.round(c.metab.leak)} pJ/s)`);
+  if (!leaking && w.leaking) say('stopped leaking toxin');
+  w.leaking = leaking;
+  const hurt = !!c.poison && c.poison.loss > 0.1 * c.metab.upkeep;
+  if (hurt && !w.inToxin) say(`in a ${c.poison.by}'s toxin: losing ${(c.poison.loss / 1000).toFixed(1)}k pJ/s, plastids damaged`, true);
+  if (!hurt && w.inToxin) say('out of the toxin');
+  w.inToxin = hurt;
   if (c.lastShot && c.lastShot !== w.shot) { const sh = c.lastShot;
     say(sh.hit ? `threw its harpoon: hit a ${sh.kin ? 'kin cell' : sh.hit} (stunned ${PARAMS.harpoon.stun} s)` : sh.caught ? `threw its harpoon: caught by ${sh.caught}` : 'threw its harpoon: missed (nothing in its line)'); }
   w.shot = c.lastShot;
