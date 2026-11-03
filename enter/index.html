@@ -39,15 +39,15 @@
     <div class="row">
       <button class="big" data-ai="chatgpt">ChatGPT</button>
       <button class="big" data-ai="claude">Claude</button>
-      <button class="big" data-ai="gemini">Gemini</button>
     </div>
-    <p class="note">A new chat opens with the task in it and a link to the rules: just send it. Gemini: the message is
-      copied, so paste it there and send.</p>
+    <p class="note">A new chat opens with the task in it and a link to the rules: just send it.</p>
     <div class="row" style="margin-top:10px">
+      <button id="copyTask">📋 Copy the message</button>
       <button id="copyAll">📋 Copy the whole rules</button>
       <a class="btn" href="../docs/DESIGN-A-SPECIES.md" target="_blank">📄 Read them</a>
     </div>
-    <p class="note">For any other AI, or if one says it can't open the link: paste the whole rules into the chat instead.</p>
+    <p class="note"><b>Gemini or any other AI:</b> 📋 Copy the message (the task and the link), open a new chat and paste it.
+      If the AI says it can't open the link, 📋 Copy the whole rules and paste those instead.</p>
     <div class="msg" id="msg1"></div>
   </section>
 
@@ -94,13 +94,13 @@ async function copy(text) {
 }
 const say = (el, text, cls = '') => { el.textContent = text; el.className = 'msg ' + cls; };
 
-for (const b of document.querySelectorAll('[data-ai]')) b.onclick = async () => {
-  const ai = b.dataset.ai;
-  if (OPEN[ai]) { window.open(OPEN[ai](), '_blank'); say($('msg1'), `${b.textContent} opened with the task: send it.`, 'ok'); return; }
-  const tab = window.open('https://gemini.google.com/app', '_blank');   // opened while the tap still counts
+for (const b of document.querySelectorAll('[data-ai]')) b.onclick = () => {
+  window.open(OPEN[b.dataset.ai](), '_blank');
+  say($('msg1'), `${b.textContent} opened with the task: send it.`, 'ok');
+};
+$('copyTask').onclick = async () => {
   const ok = await copy(TASK);
-  say($('msg1'), ok ? 'The message is copied: paste it into Gemini and send.' : 'Could not copy: use 📋 Copy the whole rules.', ok ? 'ok' : 'bad');
-  if (!tab) say($('msg1'), 'Open gemini.google.com and paste the copied message.', 'ok');
+  say($('msg1'), ok ? 'The message is copied: paste it into a new chat and send.' : 'Could not copy here.', ok ? 'ok' : 'bad');
 };
 
 $('copyAll').onclick = async () => {

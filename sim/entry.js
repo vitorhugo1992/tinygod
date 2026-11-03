@@ -35,11 +35,24 @@ export function entryProblem(design) {
   return '';
 }
 
+// What copying a chat's answer can do to it (seen from ChatGPT on a phone: "\" at every line's end, "&#x20;" for
+// spaces): HTML entities, line-end backslashes, odd spaces and curly quotes, undone
+export function cleanAnswer(text) {
+  return String(text || '')
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d))
+    .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    .replace(/\\\r?\n/g, '\n').replace(/\\$/, '')
+    .replace(/[  -​ 　]/g, ' ')
+    .replace(/[“”„″]/g, '"').replace(/[‘’]/g, "'");
+}
+
 // An AI's answer as text -> { name, note, design } (the first {...} in it), or throws
 export function readAnswer(text) {
-  const s = String(text || ''), a = s.indexOf('{'), b = s.lastIndexOf('}');
+  const s = cleanAnswer(text), a = s.indexOf('{'), b = s.lastIndexOf('}');
   if (a < 0 || b < a) throw new Error('no JSON object in it');
-  const got = JSON.parse(s.slice(a, b + 1));
+  let got;
+  try { got = JSON.parse(s.slice(a, b + 1)); } catch (e) { throw new Error('its JSON is broken (' + e.message + ')'); }
   const design = got.design || got;
   return { name: String(got.name || 'Entry').trim().slice(0, 60), note: got.note ? String(got.note) : '', design };
 }
