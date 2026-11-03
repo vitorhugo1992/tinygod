@@ -1518,6 +1518,7 @@ function advance(steps) {
       if (trail.length > 4000) trail.shift();
     }
   }
+  for (const c of [...world.cells, ...(world.gone || [])]) if (c.dead && !c.deathTold) { c.deathTold = true; if (c === cell || c.design === design) toldDeath(c); }
   if (world.born) world.born.length = 0;
   if (world.gone) world.gone.length = 0;
   if (!world.cells.includes(cell) && world.cells.length) {   // the followed cell is gone: follow its kin, else anyone
@@ -1525,6 +1526,22 @@ function advance(steps) {
   }
   for (const c of world.cells) updatePose(c);
 }
+
+// A death is never silent (author, 2026-11-03: "when it sinks to the bottom it disappears??"): a message over the tank
+// when the followed cell or one of this design's cells dies, and when the design has no living cell left. Tap to close.
+let toastT = null;
+function toldDeath(c) {
+  const left = world.cells.filter((x) => x.design === c.design && !x.dead).length;
+  const hm = clock(world), at = `${String(Math.floor(hm)).padStart(2, '0')}:${String(Math.floor(60 * (hm % 1))).padStart(2, '0')}`;
+  const why = c.eatenBy ? `eaten whole by a ${c.eatenBy}` : c.burst ? 'burst itself (its toxin sac)' : c.diedWhy || 'starved';
+  const starved = /starved|drained/.test(why) ? ` (${Math.round(PARAMS.grow.die)} s without energy)` : '';
+  let text = `✝ <b>${c === cell ? 'Your cell' : `A ${esc(c.species)}`} died</b>: ${esc(why)} at ${at}, ${Math.round(TH - c.q[1])} µm deep${starved}.`;
+  text += left ? ` ${left} of its kind still alive.` : ` <b>None of its kind is left.</b>`;
+  if (!c.eatenBy) text += ' Its body sinks and lies on the floor a while.';
+  $('toast').innerHTML = text; $('toast').hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { $('toast').hidden = true; }, 12000);
+}
+$('toast').onclick = () => { $('toast').hidden = true; };
 
 // ----- calm drawing: beats drawn slowly, the body's beat-wobble smoothed; the physics is untouched -----
 // A real tail beats 20-500 times a second: on screen, a blur. Each motor gets a drawn phase that advances at most
@@ -2035,19 +2052,48 @@ $('getDesigns').onclick = async () => {
     $('buildErr').textContent = `from Claude: ${got.map((g) => g.name).join(', ')}: pick it in the saved designs`;
   } catch (e) { $('buildErr').textContent = 'no connection: Claude\'s designs need the internet (or home Wi-Fi)'; }
 };
-// Send to Claude: the computer serving the sandbox keeps it as designs/<name>.json, where Claude can read it
+// A design packed short (author, 2026-11-03: "send to you without having to paste the enormous text"): numbers to two
+// decimals, deflated, base64url, "TG1." in front. tools/inbox.mjs unpacks it; 📋 Paste takes it too.
+async function packDesign(obj) {
+  const json = JSON.stringify(obj, (k, v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v));
+  const buf = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
+  let bin = ''; for (const b of new Uint8Array(buf)) bin += String.fromCharCode(b);
+  return 'TG1.' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function unpackDesign(code) {
+  const b = atob(code.slice(4).replace(/-/g, '+').replace(/_/g, '/'));
+  const bytes = Uint8Array.from(b, (c) => c.charCodeAt(0));
+  return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text());
+}
+const ISSUES = 'https://github.com/vitorhugo1992/tinygod/issues/new';
+// Send to Claude: at home, the computer serving the sandbox keeps it as designs/<name>.json; on the website, a GitHub
+// issue on the game's repository opens filled in with the design's code, and one tap on "Create" sends it (Claude reads
+// it with tools/inbox.mjs). Issues there are public, like the repository.
 $('sendDesign').onclick = async () => {
   const name = (prompt('Name it for Claude', design.species && !PRESETS[design.species] ? design.species : 'my species') || '').trim();
   if (!name) return;
   const d = JSON.parse(JSON.stringify(design)); delete d.species;
-  try {
-    const r = await fetch(`/design?name=${encodeURIComponent(name)}`, { method: 'POST', body: JSON.stringify(d) });
-    if (!r.ok && r.status !== 400 && r.status !== 413) throw new Error('no server');   // the website: nothing to send to
-    $('buildErr').textContent = r.ok ? `sent: Claude can read ${(await r.json()).file}` : `not sent: ${await r.text()}`;
-  } catch (e) {   // away from home: copy it, to paste to Claude in the chat
-    $('buildErr').textContent = await copyText(JSON.stringify({ name, design: d }))
-      ? 'away from home: copied instead. Paste it to Claude in the chat' : 'not sent: the computer is not reachable';
+  const web = location.protocol === 'https:';
+  const tab = web ? window.open('', '_blank') : null;   // opened now, while the tap still counts (a phone blocks it later)
+  if (!web) {
+    try {
+      const r = await fetch(`/design?name=${encodeURIComponent(name)}`, { method: 'POST', body: JSON.stringify(d) });
+      if (!r.ok && r.status !== 400 && r.status !== 413) throw new Error('no server');
+      $('buildErr').textContent = r.ok ? `sent: Claude can read ${(await r.json()).file}` : `not sent: ${await r.text()}`;
+      return;
+    } catch (e) { /* no server here: fall through to GitHub */ }
   }
+  let code;
+  try { code = await packDesign({ name, design: d }); } catch (e) { if (tab) tab.close(); $('buildErr').textContent = 'this browser cannot pack a design: use 📋 Copy and paste it to Claude'; return; }
+  const title = `Design: ${name}`, intro = 'A TinyGod design, sent from the sandbox. Tap **Create** (or Submit new issue) to send it to Claude.\n\n';
+  let url = `${ISSUES}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(intro + code)}`, copied = false;
+  if (url.length > 7500) {   // too long for a link: the issue opens empty and the code waits in the clipboard
+    copied = await copyText(code);
+    url = `${ISSUES}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(intro + '(paste the code here)')}`;
+  }
+  if (tab) tab.location = url; else location.href = url;
+  $('buildErr').textContent = copied ? 'a GitHub page opened: paste the code (it is copied) where it says, then tap Create'
+    : 'a GitHub page opened with the design: tap Create to send it to Claude';
 };
 
 // Copy / Paste: carry a design between devices or browsers (each keeps its own saved designs), e.g. by messaging it
@@ -2069,8 +2115,10 @@ $('copyDesign').onclick = async () => {
 $('pasteDesign').onclick = async () => {
   let text = '';
   try { text = await navigator.clipboard.readText(); } catch (e) { /* not allowed here: ask */ }
-  if (!text || !text.includes('{')) text = prompt('Paste the design here') || '';
+  if (!text || (!text.includes('{') && !text.includes('TG1.'))) text = prompt('Paste the design here') || '';
   if (!text.trim()) return;
+  const packed = text.match(/TG1\.[A-Za-z0-9_-]+/);
+  if (packed) { try { text = JSON.stringify(await unpackDesign(packed[0])); } catch (e) { $('buildErr').textContent = 'that code is broken: copy it again'; return; } }
   try {
     const got = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
     const d = got.design || got, name = (got.name || `Pasted ${savedList().length + 1}`).trim();
@@ -3097,8 +3145,5 @@ requestAnimationFrame(frame);
 // Offline on the website: a service worker keeps a copy of the sandbox (not on the home server's plain http)
 if (location.protocol === 'https:' && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
-// On the website there is no computer to send to: the button copies the design for the chat instead, and says so
-if (location.protocol === 'https:') {
-  $('sendDesign').textContent = '📤 Copy for Claude';
-  $('sendDesign').title = 'Copies this design: paste it to Claude in the chat (sending works only from the home computer\'s address)';
-}
+// On the website there is no computer to send to: the button sends the design through a GitHub issue instead
+if (location.protocol === 'https:') $('sendDesign').title = 'Send this design to Claude: a GitHub page opens with it filled in; tap Create';

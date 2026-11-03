@@ -6,6 +6,21 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**WHEN THE AUTHOR SAYS THEY SENT A DESIGN: run `node tools/inbox.mjs`** (2026-11-03). On the website 📤 Send to Claude
+packs the design ("TG1." + base64url of the deflated JSON, numbers to 2 decimals: ~2.8k characters for a 27-part design,
+was 10k of JSON) and opens a pre-filled GitHub issue "Design: <name>" on vitorhugo1992/tinygod (public, like the repo);
+the author taps Create. tools/inbox.mjs (gh) unpacks every open "Design:" issue into designs/<name>.json, comments and
+closes it; `node tools/inbox.mjs TG1.…` unpacks a code pasted in the chat. Over ~7,500 characters the issue opens empty
+and the code is copied to paste. At home the old POST to the server still works; 📋 Paste takes a TG1 code too.
+**Deaths are told** (author: "when it sinks to the bottom it disappears??"): a red message over the tank (#toast, 12 s,
+tap to close) when the followed cell or one of this design's cells dies: why, when, how deep, how many of its kind are
+left; a corpse now lies on the floor PARAMS.grow.gone (30) s after landing instead of vanishing on contact (death.js
+landedAt). **The author's first species** (2026-11-03, "Round cell", a 31 × 92 µm rod: a buoyancy chamber floating
+while the nutrient sensor tastes rich water holds it at the nutricline, ~1,000 µm, light ~20%; two tails on eight
+stranger-only feelers; no rest rule): lives the day at 75-80% energy, starves at ~01:00 (its body is 15× a r 10 cell:
+61,600 of its 70,800 pJ/s upkeep; plastid 4.6%, starch 6.3%), dies on the floor at 03:24. Its feelers feel strangers
+only, so alone its tails never run. Told the author; fixes are theirs.
+
 **2026-11-03 (new chat).** (1) **Contest rerun with chains counting as one** (tools/contest.mjs now kept in the repo:
 `node tools/contest.mjs [names] [days]`, one cell each from the floor, cap 200, ~36 min for 8 species): **day 10:
 Scalella 20, Bathyscapha 8, Noctilla 5, Gula 4, Raptilla 2 3, Trochilla 1, Caecella 1 (alive for once), Saltella 0**

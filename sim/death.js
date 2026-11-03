@@ -1,7 +1,7 @@
 // Death (step 1, author 2026-11-01): a cell whose energy pool has been empty PARAMS.grow.die seconds in a row dies
 // (sim/metab.js marks it: cell.dead, diedAt, diedWhy); dead, it earns and spends nothing, its parts are still and its
-// buoyancy chambers drift neutral, so it sinks. It is removed on reaching the floor or PARAMS.grow.gone seconds after
-// dying, and its nitrogen (its body's share and what its meter held) goes back into the water where it is.
+// buoyancy chambers drift neutral, so it sinks. It is removed PARAMS.grow.gone seconds after dying, or, if it reaches the
+// floor, that long after landing (author, 2026-11-03: it lies there, grey, instead of vanishing on contact), and its nitrogen (its body's share and what its meter held) goes back into the water where it is.
 import { PARAMS } from './params.js';
 import { takeNitrogen } from './nutrient.js';
 
@@ -10,8 +10,9 @@ const G = PARAMS.grow, DT = PARAMS.time.dt;
 export function removeDead(world) {
   if (world.steps % G.every) return;
   const old = world.cells;
-  // the dead go after G.gone s or on the floor; one eaten whole at once (it is inside its predator)
-  const goes = (c) => c.dead && (c.eatenBy || (world.steps - c.diedAt) * DT >= G.gone || c.q[1] < c.reach + 1);
+  // the dead go G.gone s after dying, or after landing on the floor; one eaten whole at once (it is inside its predator)
+  for (const c of old) if (c.dead && c.landedAt === undefined && c.q[1] < c.reach + 1) c.landedAt = world.steps;
+  const goes = (c) => c.dead && (c.eatenBy || (world.steps - (c.landedAt ?? c.diedAt)) * DT >= G.gone);
   if (!old.some(goes)) return;
   const keep = [];
   for (const c of old) {

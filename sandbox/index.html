@@ -41,6 +41,10 @@
   .sec h2 { color: var(--hue); }
   .sec > button { align-self: flex-start; }
   #panelTop { display: flex; flex-direction: column; gap: 6px; }
+  #toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); max-width: min(92%, 460px); z-index: 6;
+    background: rgba(40,14,18,.92); border: 1px solid #a9444f; color: #ffd9dc; border-radius: 10px; padding: 8px 12px;
+    font-size: 13px; line-height: 1.35; box-shadow: 0 4px 18px rgba(0,0,0,.45); cursor: pointer; }
+  #toast b { color: #fff; }
   #stats { position: absolute; top: 52px; left: 8px; font: 11.5px/1.45 ui-monospace, Consolas, monospace; white-space: pre;
     background: rgba(8,14,26,.78); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; pointer-events: none; }
 
@@ -364,6 +368,7 @@
     </div>
   </div>
   <div id="stats"></div>
+  <div id="toast" hidden></div>
 </div>
 </section>
 <div class="split" data-i="0" title="Drag to share the room between the tank and the cell; past a window's smallest size it folds to a strip. Double-click: usual sizes"></div>
