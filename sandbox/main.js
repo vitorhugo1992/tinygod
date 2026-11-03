@@ -13,7 +13,7 @@ import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus } from './journal.js';
-import { drawWater, drawDrift, drawVignette, speciesTint } from './scene.js';
+import { drawWater, drawDrift, drawVignette, speciesTint, twilight } from './scene.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
@@ -2368,7 +2368,7 @@ function taper(P, w0, w1, style) {
 function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the cell itself
   ctx.lineCap = 'round';
   const t = (performance.now() - CELL_T0) / 1000, b = c.pieces[0], xf = bodyXf(c, X, Y), now = performance.now();
-  const lit = world.light ? Math.min(1, Math.sqrt(lightAt(world, c.cy[0])) * 1.25) : 0.6;
+  const lit = world.light ? Math.max(Math.min(1, Math.sqrt(lightAt(world, c.cy[0])) * 1.25), 0.3 * twilight(world)) : 0.6;
   const tint = real.dead ? '#8a8f98' : speciesTint(real.species), small = b.a * s < 7;
   const glowing = (part) => real === cell && glow && glow.until > now && glow.parts.has(part);
   const seed = ((real.uid || 1) * 7.31) % 100;

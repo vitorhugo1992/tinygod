@@ -4,7 +4,7 @@
 // surface, marine snow and specks drifting with the moving water (and sinking), out-of-focus cells far away, a lit
 // surface, a sediment floor, and a soft vignette.
 import { PARAMS } from '../sim/params.js';
-import { daylight, lightAt } from '../sim/light.js';
+import { daylight, lightAt, clock } from '../sim/light.js';
 import { flowState, flowAt } from '../sim/flow.js';
 
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -25,12 +25,22 @@ export function speciesTint(name) {
 // the water's colour at depth fraction z (0 surface, 1 floor): teal near the top, ink-blue deep; lit by the sun there,
 // warm at dawn and dusk, moonlit at night
 const SURF = [38, 128, 150], MID = [14, 58, 96], DEEP = [6, 20, 42], NIGHT = [3, 8, 18], MOON = [12, 22, 44], WARM = [255, 130, 80];
+// Twilight, 0 (night) to 1 (day): eases over about an hour either side of sunrise and sunset (author, 2026-11-03: "the
+// sunset to night colour is abrupt"), where the game's sun itself drops to nothing at once. Drawing only.
+export function twilight(world) {
+  if (!world.light) return 0;
+  if (!world.day) return 1;
+  const s = Math.sin(2 * Math.PI * (clock(world) - 6) / 24), u = clamp((s + 0.26) / 0.52, 0, 1);   // ±1 hour
+  return u * u * (3 - 2 * u);
+}
 export function waterColor(world, z) {
   const base = z < 0.5 ? mix(SURF, MID, z / 0.5) : mix(MID, DEEP, (z - 0.5) / 0.5);
-  const sun = world.light ? daylight(world) : 0, L = world.light ? lightAt(world, TH * (1 - z)) : 0;
-  let c = mix(mix(NIGHT, MOON, 0.6 * (1 - z)), base, sun > 0 ? clamp(0.25 + 1.4 * Math.sqrt(L), 0, 1) : 0);
-  const glow = sun > 0 && sun < 0.55 ? (0.55 - sun) / 0.55 : 0;
-  return mix(c, WARM, 0.45 * glow * (1 - z));
+  const L = world.light ? lightAt(world, TH * (1 - z)) : 0, tw = twilight(world);
+  const s = world.day ? Math.sin(2 * Math.PI * (clock(world) - 6) / 24) : 1, ease = clamp(s / 0.3, 0, 1);   // the sun's share eases in its last hour
+  const c = mix(mix(NIGHT, MOON, 0.6 * (1 - z)), base, clamp(0.25 * tw + 1.4 * Math.sqrt(L) * ease * (2 - ease), 0, 1));
+  // the warm glow of dawn and dusk: strongest as the sun touches the horizon, fading into the night and into the day
+  const glow = world.light ? clamp(1 - Math.abs(s) / 0.45, 0, 1) : 0;
+  return mix(c, WARM, 0.45 * glow * glow * (1 - z));
 }
 
 // sprites, made once
