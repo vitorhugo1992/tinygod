@@ -1925,9 +1925,6 @@ function draw() {
     for (let k = 0; k <= 40; k++) g.addColorStop(k / 40, `rgba(200,178,106,${(0.05 * nitrogenAt(world, TH * (1 - k / 40))).toFixed(3)})`);
     ctx.fillStyle = g; ctx.fillRect(X(0), Y(TH), TW * s, TH * s);
   }
-  // depth, faintly, every 100 µm along the left
-  ctx.fillStyle = 'rgba(190,220,240,.28)'; ctx.font = '11px system-ui';
-  for (let gy = Math.ceil(Math.max(y0, 0) / 100) * 100; gy <= Math.min(y1, TH); gy += 100) ctx.fillText(`${TH - gy} µm deep`, X(Math.max(x0, 0)) + 4, Y(gy) - 3);
   drawToxins(ctx, world, v);   // toxin clouds: a haze in each toxic species' tint
   drawDrift(ctx, world, v, worldTime(world), now);   // marine snow and specks, carried by the water
   if (trailOn) {   // the path the selected cell has taken (hidden unless ⋰ Trail is on; author)
