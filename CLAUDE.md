@@ -58,6 +58,25 @@ its plan (slimmer, + a toxin sac). **So from round 3 opponents are described, no
 also apply to human competition": players see what beat them, not the blueprint): their note, body size and a list of
 the parts they carry; only your own design in full.
 
+**BALANCE FROM THE TOURNAMENT (2026-11-03, author: "balance is key"; Claude's analysis, the author: "implement them"):**
+every AI (and all my own contests) built a rod with a buoyancy chamber and no tail: the chamber was strong, fast and
+free at neutral; the nutrient sensor a perfect orientation-free depth gauge; one depth (~1,000-1,300 µm) good for both
+light and nitrogen; nothing to find sideways. Swimming's cost judged fair (holding depth by swimming ~310 pJ/s vs a
+chamber ~450): the problem was no payoff. **Changed:** (1) chamber light 500 -> **800** kg/m³, rate 25 -> **2.5** kg/m³/s
+(neutral to light ~90 s, ~3.5 h of the day), holdLight 0.5 -> 0.25 (same cost per pN of lift); MATERIALS.chamber.min
+800; check 14 runs 120 s. (2) nutricline 0.5 -> **0.7** (~1,400 µm, noon light ~12% there; 13% richness at 1 mm).
+(3) **patchy nitrogen**: sim/nutrient.js is a grid of 40 layers × 16 columns (100 µm), PARAMS.nutrient.columns, spreadX,
+patches { count 2, width 150 (σ), base 0.3, wander 1800 s, reach 0.7 }: the profile × a richness across the tank
+(0.3× to 2-3× where patches overlap, mean 1) that wanders over days (patchAt, seeded); nitrogenAt / takeNitrogen take
+x; the chem sensor tops out at 1; the sandbox draws the haze per column. **Measured alone 3 days from the floor:**
+Deepdweller 26 -> 3, Deepdweller II 5, Noctilla 2 (migrates daily ~200-500 / ~1,800 µm), Trochilla 1, Saltella 1;
+**Bathyscapha, Pendulina, Scalella, Caecella now die** (tuned to the old numbers; retune if wanted). Everything grows
+slower: run tournaments 5+ days. Mixed contest (3 days): Deepdweller II 6, Noctilla 2, Saltella 1, Trochilla 0.
+**Blind designers on the new brief made three strategies**: Opus a swimmer (Lanternfall, 2), Opus a **floor-dweller**
+(Benthic Mat Rod: heavy, shade plastid, the richest water; 6 cells: the best), Sonnet a drifter (1). **Floor-dwellers
+kept as a niche** (author: "interesting, i like it"; microphytobenthos); watch whether they dominate a full tournament
+(levers: a darker floor, a weaker shade plastid).
+
 **State at handoff:** all pushed, 64 checks pass. Built on 2026-11-03 (entries below): the stirred bottom, the harpoon
 (Spine Kind), the moving-water Feeler, toxins leaked into water (toxin sac Kind Leak), the living-microscope look
 (sandbox/scene.js, drawCell), tank controls (Remove cell, saved designs list, rotate on the rail), twilight, README with

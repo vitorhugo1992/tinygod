@@ -851,7 +851,7 @@ function dayTrace(id) {
   if (!field || !live.journal || live.journal.s.length < 2) return null;
   const from = worldTime(world) - PARAMS.metab.day;
   const pts = live.journal.s.filter((x) => x.t > from && x[field] !== null && x[field] !== undefined)
-    .map((x) => [hourOf(x.t), kind === 'chem' ? nitrogenAt(world, TH - x.depth) : x[field]]);
+    .map((x) => [hourOf(x.t), kind === 'chem' ? Math.min(1, nitrogenAt(world, TH - x.depth, live.q[0])) : x[field]]);
   return pts.length > 1 ? { pts, where: 'its last day', span: (live.journal.s[live.journal.s.length - 1].t - Math.max(from, live.journal.s[0].t)) / PARAMS.metab.day } : null;
 }
 function traceSVG(id, test, colour) {
@@ -1037,7 +1037,7 @@ function mapReader(live) {
       const sun = world.day ? Math.sqrt(Math.max(0, Math.sin(2 * Math.PI * (h - 6) / 24))) : 1;
       return L.strength * sun * Math.exp(-L.attenuation * dz) * (facing[id] ?? 1);
     }
-    if (kind === 'chem') return nitrogenAt(world, TH - dz);
+    if (kind === 'chem') return Math.min(1, nitrogenAt(world, TH - dz, cell ? cell.q[0] : undefined));
     const b = byHour[id] && byHour[id][Math.floor(h) % 24];
     if (b && b[1]) return b[0] / b[1];
     const r = live && liveReading(live, id);
@@ -1853,7 +1853,7 @@ function budget(lines) {
   lines.push(`net       ${net >= 0 ? "+" : ""}${net.toFixed(0)} pJ/s: ${net >= 0 ? "gaining energy" : "losing energy"}`);
   for (const inc of cell.pieces[0].inclusions) if (inc.store) lines.push(`store     ${inc.store} ${(100 * inc.fill).toFixed(0)}% full`);
   if (world.grow) {
-    const g = cell.grow, n = nitrogenAt(world, cell.q[1]);
+    const g = cell.grow, n = nitrogenAt(world, cell.q[1], cell.q[0]);
     const stolen = cell.pieces[0].inclusions.filter((x) => x.stolen);
     {   // its chain: kin joined by pads
       const seen = new Set([cell]), todo = [cell];
@@ -1920,10 +1920,14 @@ function draw() {
   const x0 = cam.x - W / 2 / s, x1 = cam.x + W / 2 / s, y0 = cam.y - H / 2 / s, y1 = cam.y + H / 2 / s;
   const v = { W, H, X, Y, s, x0, x1, y0, y1 }, now = performance.now() / 1000;
   drawWater(ctx, world, v, now);   // the living water (sandbox/scene.js): colour, light, the surface and the floor
-  {   // nitrogen: a faint tan haze, rich deep, thinner where cells have used it up
-    const g = ctx.createLinearGradient(0, Y(TH), 0, Y(0));
-    for (let k = 0; k <= 40; k++) g.addColorStop(k / 40, `rgba(200,178,106,${(0.05 * nitrogenAt(world, TH * (1 - k / 40))).toFixed(3)})`);
-    ctx.fillStyle = g; ctx.fillRect(X(0), Y(TH), TW * s, TH * s);
+  {   // nitrogen: a faint tan haze, rich deep, thinner where cells have used it up; a strip per column, so the patches show
+    const NC = PARAMS.nutrient.columns, cw = TW / NC;
+    for (let j = 0; j < NC; j++) {
+      if (X((j + 1) * cw) < 0 || X(j * cw) > W) continue;
+      const g = ctx.createLinearGradient(0, Y(TH), 0, Y(0)), xm = (j + 0.5) * cw;
+      for (let k = 0; k <= 40; k++) g.addColorStop(k / 40, `rgba(200,178,106,${Math.min(0.1, 0.05 * nitrogenAt(world, TH * (1 - k / 40), xm)).toFixed(3)})`);
+      ctx.fillStyle = g; ctx.fillRect(X(j * cw), Y(TH), cw * s + 1, TH * s);
+    }
   }
   drawToxins(ctx, world, v);   // toxin clouds: a haze in each toxic species' tint
   drawDrift(ctx, world, v, worldTime(world), now);   // marine snow and specks, carried by the water

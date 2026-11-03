@@ -245,22 +245,22 @@ const copy = (name) => JSON.parse(JSON.stringify(PRESETS[name]));
 }
 
 // 14. A buoyancy chamber: neutral (no rule) the cell sinks as it would and the chamber costs nothing; FLOAT when its rule
-// holds, it pumps itself light over some seconds and the cell rises; SINK if (which wins) heavy, it sinks faster; held
+// holds, it pumps itself light over a minute or two (slow since 2026-11-03) and the cell rises; SINK if (which wins) heavy, it sinks faster; held
 // light or heavy it costs energy every second
 {
   const always = { sensor: 'energy', min: 0, max: 1 };
-  const go = (rule) => {
+  const go = (rule, y = 1000) => {   // where it starts: room to rise or sink for the 2 minutes it runs
     const w = makeWorld(1, { metab: true });
     const c = addCell(w, { body: { radius: 10 }, parts: [{ type: 'inclusion', at: [0, 0], radius: 6.5, material: 'chamber',
-      ...(rule ? { joint: { type: 'chamber', controls: rule } } : {}) }] }, 300, 1000, 0);
+      ...(rule ? { joint: { type: 'chamber', controls: rule } } : {}) }] }, 300, y, 0);
     c.metab.C = c.metab.E = 1e12;
     let tTurn = null;
-    for (let i = 0; i < 30000; i++) { const y = c.q[1]; stepWorld(w); if (tTurn === null && i > 10 && c.q[1] > y) tTurn = (i + 1) * DT; }
+    for (let i = 0; i < 120000; i++) { const y = c.q[1]; stepWorld(w); if (tTurn === null && i > 10 && c.q[1] > y) tTurn = (i + 1) * DT; }
     const y0 = c.q[1];
     for (let i = 0; i < 1000; i++) stepWorld(w);
     return { v: c.q[1] - y0, hold: c.metab.chamber, rho: c.pieces[0].inclusions[0].density, tTurn };
   };
-  const neutral = go(null), up = go([always]), down = go([always, { ...always, stop: true }]);
+  const neutral = go(null, 1900), up = go([always], 300), down = go([always, { ...always, stop: true }], 1900);
   check('a buoyancy chamber: neutral it costs nothing; FLOAT pumps it light and the cell rises; SINK (winning) sinks it faster; held, it costs',
     neutral.v < 0 && neutral.hold === 0 && up.v > 0 && up.tTurn > 1 && up.hold > 0 && down.v < neutral.v && down.hold > 0 && down.rho === PARAMS.chamber.heavy,
     `neutral: ${fmt(neutral.v)} µm/s, holding ${fmt(neutral.hold, 0)} pJ/s; FLOAT: rises ${fmt(up.v)} µm/s (turned after ${fmt(up.tTurn, 1)} s), ` +
@@ -649,12 +649,12 @@ const runDay = (design, y, seconds, opts = {}) => {
     stepWorld(w);
     return c.sensors[0].value;
   };
-  const n = [chem(PARAMS.tank.h - 50), chem(PARAMS.tank.h / 2), chem(50)];
+  const n = [chem(PARAMS.tank.h - 50), chem(PARAMS.tank.h * (1 - PARAMS.nutrient.cline)), chem(50)];   // surface, at the nutricline, deep
   check('a statolith reads which way is up; a nutrient sensor reads poor water above the nutricline, rich below',
     Math.abs(r[0] - 1) < 1e-6 && Math.abs(r[1] - 0.5) < 1e-6 && Math.abs(r[2]) < 1e-6 && Math.abs(r[3]) < 1e-6 && r[4] === 0.5
-      && Math.abs(n[0] - PARAMS.nutrient.surface) < 0.01 && Math.abs(n[1] - (1 + PARAMS.nutrient.surface) / 2) < 0.02 && n[2] > 0.99,
+      && Math.abs(n[0] - PARAMS.nutrient.surface) < 0.01 && Math.abs(n[1] - (1 + PARAMS.nutrient.surface) / 2) < 0.02 && n[2] > 0.95,
     `statolith facing the front: front up ${fmt(r[0])}, level ${fmt(r[1])}, down ${fmt(r[2])}; facing back, front up ` +
-    `${fmt(r[3])}; no gravity ${fmt(r[4])}. Nutrients near the surface ${fmt(n[0])}, mid-tank ${fmt(n[1])}, near the floor ${fmt(n[2])}`);
+    `${fmt(r[3])}; no gravity ${fmt(r[4])}. Nutrients near the surface ${fmt(n[0])}, at the nutricline ${fmt(n[1])}, near the floor ${fmt(n[2])}`);
 }
 
 // 28j. A compare condition: a part runs while one sensor reads more than another (here two statoliths facing opposite

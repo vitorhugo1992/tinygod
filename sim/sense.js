@@ -158,7 +158,7 @@ export function sense(world, cell) {
     const i = s.piece, c = cell.cs[i], n = cell.sn[i];
     const x = cell.cx[i] + c * s.x - n * s.y, y = cell.cy[i] + n * s.x + c * s.y;
     if (s.kind === 'hunger') { s.value = energyLevel(world, cell); continue; }   // old designs: same as the built-in
-    if (s.kind === 'chem') { s.value = nitrogenAt(world, y); continue; }
+    if (s.kind === 'chem') { s.value = Math.min(1, nitrogenAt(world, y, x)); continue; }
     if (s.kind === 'flow') { s.value = flowFelt(world, cell, x, y, s.range); continue; }
     if (s.kind === 'statolith') {   // the grain lies on the lower wall: how far its direction points up (no weight: 0.5)
       s.value = world.gravity ? (1 + dsin(cell.phi[i] + s.facing)) / 2 : 0.5;

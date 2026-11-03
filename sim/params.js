@@ -104,11 +104,12 @@ export const PARAMS = {
   // The buoyancy chamber (made playable): an ion vacuole pumped light, neutral or heavy by its rule (author, 2026-10-28)
   chamber: {
     neutral: 1025,          // kg/m³: seawater, no lift and no cost
-    light: 500,             // FLOAT: far lighter than seawater (made playable, author 2026-10-29: at 900 a chamber had to
-                            // be a third of the cell's volume; at 500 one about half the cell's width floats a typical cell)...
+    // balance (author, 2026-11-03, from the AI tournament: every AI built a chamber drifter, none swam): less lift and slow
+    // pumping, so a drifter can't hold a depth precisely (real buoyancy regulation takes hours) and a swimmer's precision pays
+    light: 800,             // FLOAT: lighter than seawater (was 500, 2026-10-29 to 11-03; 900 before that)...
     heavy: 1100,            // ...SINK: heavier (to sink on purpose)
-    rate: 25,               // kg/m³ per s it can change (neutral to light ~21 s, light to heavy ~24 s)
-    holdLight: 0.5,         // pJ/s per µm³ held fully light (r 5.5: ~350 pJ/s, ~5% of income), in proportion on the way
+    rate: 2.5,              // kg/m³ per s it can change (neutral to light ~90 s, about 3.5 game hours; light to heavy 120 s; was 25)
+    holdLight: 0.25,        // pJ/s per µm³ held fully light, in proportion on the way (was 0.5 at light 500: the same cost per pN of lift)
     holdHeavy: 0.3,         // pJ/s per µm³ held fully heavy, the same
   },
   // The peduncle (step 1, author 2026-11-02): a feeding tube; latched on another species' body it drains energy (what the
@@ -128,13 +129,21 @@ export const PARAMS = {
   },
   // Nitrogen (sim/nutrient.js): poor at the surface, rich deep, a nutricline between; with world.grow a field cells use up
   nutrient: {
-    cline: 0.5,             // depth of the nutricline (share of the tank)
+    // balance (author, 2026-11-03, from the AI tournament): the nutricline deeper, so no depth is good for both light and
+    // nitrogen (at 1 mm the light at noon is 22%, at 1.4 mm 12%): moving between them pays (was 0.5)
+    cline: 0.7,             // depth of the nutricline (share of the tank: ~1,400 µm)
     width: 0.08,            // how sharp it is (share of the tank)
     surface: 0.06,          // the surface water's richness against the deep's (1)
-    layers: 40,             // horizontal layers of the field (50 µm each)
+    layers: 40,             // horizontal layers of the field (50 µm each)...
+    columns: 16,            // ...and columns across it (100 µm each)
     water: 600,             // N units the water holds per µm of the tank's height at richness 1 (a layer: 30,000)
     resupply: 600,          // s: a used-up layer eases back toward the usual profile on this time (a day)
-    spread: 0.002,          // share per s a layer evens out with each neighbour
+    spread: 0.002,          // share per s a layer evens out with each neighbour above and below...
+    spreadX: 0.002,         // ...and each column with its neighbours across
+    // patches (balance, author 2026-11-03: nothing was worth moving sideways for): the water's richness varies across the
+    // tank, `count` rich patches `width` µm wide (a Gaussian) on a `base` share of the mean, each wandering across
+    // `reach` of the tank over about `wander` s (each a little slower than the last); mean richness across stays 1
+    patches: { count: 2, width: 150, base: 0.3, wander: 1800, reach: 0.7 },
     every: 100,             // steps between mixings
   },
   // The armoured wall (author, 2026-11-02): cellulose thecal plates, body.wall 'plates', body.plates µm thick. A peduncle

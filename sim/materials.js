@@ -4,7 +4,7 @@
 export const MATERIALS = {
   protein: { density: 1100, label: 'protein', note: 'flexible, cheap: thecal plates, flagella' },
   plates:  { density: 1150, label: 'plates',  note: 'armour: cellulose thecal plates (armoured dinoflagellates); dearer to pierce, heavy, built at each division' },
-  chamber: { density: 1025, min: 500, max: 1100, label: 'buoyancy chamber', note: 'an ion vacuole pumped lighter or heavier than seawater (Pyrocystis, Ethmodiscus)' },
+  chamber: { density: 1025, min: 800, max: 1100, label: 'buoyancy chamber', note: 'an ion vacuole pumped lighter or heavier than seawater (Pyrocystis, Ethmodiscus)' },
   oil:     { density: 920,  label: 'oil',     note: 'light: lipid droplets; an energy store, compact and slow', store: 'oil' },
   toxin:   { density: 1060, label: 'toxin sac', note: 'a sac of toxin (Alexandrium, Karenia): burst, it poisons other species close by', toxin: true },
   starch:  { density: 1500, label: 'starch',  note: 'heavy: starch or chrysolaminarin; an energy store, quick', store: 'starch' },

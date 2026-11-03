@@ -21,9 +21,13 @@ traps earlier designers fell into, and the answer format. Read all of it before 
   22% at 1,000 µm, 10% at 1,500 µm, 5% at the floor.
 - **Too much light hurts**: above 40% of full sun (shallower than ~600 µm at noon) a plastid takes damage and earns
   less, and repairing it costs energy. The surface is a worse place to be than ~500 µm down.
-- **Nitrogen is deep**: the water is poor in the upper half (6% of the deep's richness at the surface) and rich below
-  a sharp nutricline at ~1,000 µm. Cells use it up where they feed, and it is slowly mixed back.
+- **Nitrogen is deep**: the water is poor down to ~1,100 µm (6% of the deep's richness at the surface, 13% at 1,000 µm)
+  and rich below a nutricline at ~1,400 µm, where the noon light is only ~12%. No depth is good for both. Cells use
+  the nitrogen up where they feed (a crowd empties its water), and it is slowly mixed back over about a day.
   **So light is up and food for growth is down.** That tension is the game.
+- **Nitrogen is patchy across the tank**: the deep water's richness varies from side to side, from ~0.3× its usual
+  value to 2-3× in two rich patches, each about 300 µm wide, that wander slowly across the tank over a few days. A cell
+  in a rich patch fills its nitrogen several times faster than one in a poor stretch at the same depth.
 - **The water moves**: slow convection loops up to 10 µm/s at night, 2 µm/s by day. A cell that sinks slower than the
   water is carried around; the loops also turn cells. Now and then the water at the floor is stirred and lifts light,
   slow-sinking cells off it.
@@ -35,7 +39,7 @@ traps earlier designers fell into, and the answer format. Read all of it before 
   growth meter. The cell grows in 10% steps, and once it has doubled its volume it divides into two copies of your
   design (newborn size), each with half of everything. Doubling costs 300 pJ per µm³ of the newborn cell, plus
   1 nitrogen unit per µm³. Nitrogen uptake is up to 0.022 units per µm² of surface per second, times n/(n+1) where n is
-  the water's richness (1 deep, ~0.06 at the surface). A radius-10 cell fills its nitrogen in ~300 s in the rich deep,
+  the water's richness (1 deep, ~0.06 at the surface). A radius-10 cell fills its nitrogen in ~300 s in the rich deep (faster in a patch, slower outside one),
   or ~5 days at the surface. Uptake runs at 40% while resting and stops while starving. **Smaller cells fill faster**:
   surface over volume. As it grows toward 2×, its body, outside parts and organelles all grow with it (stores hold
   more; a store keeps its energy, so it is emptier once grown). A cell that never divides can grow on to 8×, but beyond
@@ -114,13 +118,13 @@ must stay inside the wall, and together may fill at most 90% of the body. Inside
 | `plastid` | 1100 | **Makes energy from light**: up to 55 pJ/s per µm³ in full light, half of that at 20% light (saturating). Damaged above 40% light. `"pigment": "shade"` (phycobilins): up to 33, half at 4% light, damaged above 15% light and twice as fast, 2.5× the upkeep. |
 | `starch` | 1500 full | **Quick energy store**, 6,000 pJ per µm³. Fills at up to 1/200 of its full capacity a second, burns at up to 1/150. Its weight follows its fill: the part not yet filled counts as cytoplasm (1060), so a full one is heavy ballast and an empty one weighs like cytoplasm. |
 | `oil` | 920 full | **Slow energy store**, 9,000 pJ per µm³. Fills at 1/400, burns at 1/300 of its full capacity a second. Its weight follows its fill the same way: full, it is lighter than water and floats the cell a little. |
-| `chamber` | 500 / 1025 / 1100 | **Buoyancy chamber**, pumped by its rule (section 4): light 500 (lifts), neutral 1025 (no effect, free), heavy 1100 (sinks). Changes at 25 kg/m³ per s (neutral to light ~21 s). Holding it light costs 0.5 pJ/s per µm³, heavy 0.3. Starving, it drifts neutral. |
+| `chamber` | 800 / 1025 / 1100 | **Buoyancy chamber**, pumped by its rule (section 4): light 800 (lifts), neutral 1025 (no effect, free), heavy 1100 (sinks). **Slow**: it changes at 2.5 kg/m³ per s, so neutral to light takes ~90 s (about 3.5 hours of the day), light to heavy ~120 s; a cell steered by a chamber overshoots and lags. Holding it light costs 0.25 pJ/s per µm³, heavy 0.3. Starving, it drifts neutral. |
 | `statolith` | 1400 | **Gravity sensor** (counts as a sensor). Round only. `"angle": 0` is the direction it reads: 1 while that direction points straight up, 0 straight down, 0.5 level. |
 | `toxin` | 1060 | **Toxin sac**, two kinds by its joint: `{"type":"lyse"}` bursts when its rule holds (no rule: never): the cell dies and other species within 30 µm lose up to 5,000 pJ per µm³ of sac and plastid health. `{"type":"leak"}` leaks while its rule holds (no rule: always) a toxin cloud into the water that drifts, spreads and fades (half-life 60 s); other species in it lose energy and plastid health. Leaking costs ~3.7 pJ/s and some nitrogen per µm³ of sac. Kin immune. Each division needs 2 extra nitrogen per µm³ of sac. |
 
 How weight works: every piece's buoyant weight is (its density − 1025) × its volume. Inclusions replace cytoplasm
-(1060), so a chamber held light adds a lift of (1060 − 500) = 560 per µm³ against the cytoplasm's 35 per µm³ of excess.
-Ignoring everything else, a light chamber of 6.3% of the volume makes a plain cell neutral. But plastids, a nucleus
+(1060), so a chamber held light adds a lift of (1060 − 800) = 260 per µm³ against the cytoplasm's 35 per µm³ of excess.
+Ignoring everything else, a light chamber of 13.5% of the volume makes a plain cell neutral. But plastids, a nucleus
 (1100) and a full starch store (1500) all add weight, and starch's weight changes through the day.
 
 ### 3.2 Sensors
@@ -138,7 +142,7 @@ formulas: e.g. a rod's front tip is (L/2 + radius, 0)); `at` is where it senses.
 | `touch` | 1 while another species' cell is within 2 µm of it. |
 | `near` | How close the nearest other-species cell is: 1 touching, 0 at `range` µm (up to 200). `"feels": "anything"` also feels kin, walls, floor and surface. |
 | `flow` | How rough the water is there, plus the wakes of cells swimming through the water within `range` µm (20-200), any species: the water alone reads up to ~0.2-0.3 (night loops, a stirred floor), a swimmer passing close up to ~0.8. A still or drifting cell makes no wake. |
-| `chem` (nutrient sensor) | The nitrogen in the water there (less where cells used it up). Untouched water by depth: 0 µm 0.06 · 500 0.10 · 750 0.22 · 900 0.39 · 1,000 0.53 · 1,100 0.67 · 1,250 0.84 · 1,500 0.96 · floor 1.00. A depth gauge for the lower half. |
+| `chem` (nutrient sensor) | The nitrogen in the water there (less where cells used it up). Untouched water by depth (the tank's mean across): 0 µm 0.06 · 500 0.06 · 1,000 0.13 · 1,100 0.18 · 1,200 0.27 · 1,300 0.39 · 1,400 0.53 · 1,500 0.67 · 1,600 0.79 · 1,750 0.91 · floor 0.98; in a rich patch up to 2-3× that, but the reading tops out at 1. A depth gauge for the lower half, and a way to tell a rich patch from a poor one. |
 
 **Built-in readings** need no part; each takes one slot once you use it in a rule. Name them as the sensor:
 
@@ -330,8 +334,9 @@ These are physics, not fixes. Work out your own answers.
 6. **Small thresholds near zero.** A condition switches a little past its edge: tiny light thresholds like "more than
    1%" behave poorly in dim water.
 7. **Swimming while feeding** tears a feeding tube's latch off.
-8. **The floor.** Most deaths in earlier contests were cells sinking to the floor at night and starving there by day.
-   The stirred bottom sometimes rescues light, slow-sinking cells, never heavy ones.
+8. **The floor.** Most deaths in earlier contests were cells sinking to the floor at night and starving there by day:
+   the floor gets 5% of the light at noon, and a cell built for brighter water can't live on it. The stirred bottom
+   sometimes rescues light, slow-sinking cells, never heavy ones. (The floor's water is the richest in nitrogen.)
 9. **Encounters.** Drifters mostly move up and down; hunters only meet prey that shares their water, and moving water
    helps that. Defences matter only if someone hunts; growth matters always.
 

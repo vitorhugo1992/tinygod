@@ -226,9 +226,9 @@ export function metabolize(world, cell) {
     const g = cell.grow, R = P.grow;
     g.uptake = 0;
     if (!m.starving && g.N < g.Nneed) {
-      const n = nitrogenAt(world, cell.q[1]);
+      const n = nitrogenAt(world, cell.q[1], cell.q[0]);
       const want = Math.min(slow * R.uptake * body.area * n / (n + R.half) * DT, g.Nneed - g.N);
-      const got = takeNitrogen(world, cell.q[1], want);
+      const got = takeNitrogen(world, cell.q[1], want, cell.q[0]);
       g.N += got; g.uptake = got / DT;
     }
     if (m.E > M.fillAbove * m.C && g.E < g.Eneed) {

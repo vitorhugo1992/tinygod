@@ -17,7 +17,7 @@ export function removeDead(world) {
   const keep = [];
   for (const c of old) {
     if (goes(c)) {
-      if (world.nitro && !c.eatenBy) takeNitrogen(world, c.q[1], -(c.grow.Nbody + c.grow.N));   // rotting: its nitrogen back to the water
+      if (world.nitro && !c.eatenBy) takeNitrogen(world, c.q[1], -(c.grow.Nbody + c.grow.N), c.q[0]);   // rotting: its nitrogen back to the water
       for (const p of c.pads) p.link = null;
       world.deaths = (world.deaths || 0) + 1;
       (world.gone ||= []).push(c);   // for the viewer; it empties the list
