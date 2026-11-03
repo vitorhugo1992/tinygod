@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TinyGod · a living microscope (mock-up)</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #04080f; color: #d6e4ee; font: 14px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body { display: flex; flex-direction: column; }
+  #tank { position: relative; flex: 1 1 auto; min-height: 52vh; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #hud { position: absolute; left: 10px; top: 10px; padding: 5px 10px; border-radius: 999px; background: rgba(4, 10, 18, .55);
+    backdrop-filter: blur(4px); font-size: 13px; letter-spacing: .02em; pointer-events: none; }
+  #panel { flex: 0 0 auto; padding: 10px 14px calc(12px + env(safe-area-inset-bottom)); background: #08111c; border-top: 1px solid #16273a; }
+  h1 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #8fb3c9; letter-spacing: .08em; text-transform: uppercase; }
+  .row { display: flex; align-items: center; gap: 10px; margin: 7px 0; }
+  .row label { width: 52px; color: #8fa6b8; font-size: 13px; }
+  .row input[type=range] { flex: 1; accent-color: #6fd3b5; }
+  .row output { width: 74px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  button { font: inherit; color: #d6e4ee; background: #10202f; border: 1px solid #22394f; border-radius: 9px; padding: 7px 12px; }
+  button.on { background: #1d4a43; border-color: #3aa58d; }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; }
+  .seg button:first-child { border-radius: 9px 0 0 9px; }
+  .seg button:last-child { border-radius: 0 9px 9px 0; border-left: 0; }
+  .note { color: #7890a3; font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="tank"><canvas id="cv"></canvas><div id="hud"></div></div>
+<div id="panel">
+  <h1>TinyGod · a living microscope · mock-up</h1>
+  <div class="row"><label>Hour</label><input id="hour" type="range" min="0" max="24" step="0.05" value="10.5"><output id="hourOut"></output></div>
+  <div class="row"><label>Depth</label><input id="depth" type="range" min="0" max="1" step="0.005" value="0.3"><output id="depthOut"></output></div>
+  <div class="row"><label>Zoom</label><input id="zoom" type="range" min="90" max="420" step="5" value="200"><output id="zoomOut"></output></div>
+  <div class="btns">
+    <button id="run" class="on" title="Let the hours run (a day in a minute)">▶ Day runs</button>
+    <span class="seg"><button id="lookNew" class="on">New look</button><button id="lookOld">Old look</button></span>
+    <button id="names" class="on">Names</button>
+  </div>
+  <div class="note">Drawing only: the physics underneath stays exactly as it is. Our species, drawn from their designs.</div>
+</div>
+<script>
+'use strict';
+// ---------- the species, from designs/*.json (body, organelles, outside parts) ----------
+const SP = {"Noctilla":{"body":{"r":10,"L":0},"inc":[{"m":"nucleus","at":[-5.3,0],"r":4.3,"L":0,"angle":0},{"m":"plastid","at":[0,6.3],"r":3.3,"L":0,"angle":0},{"m":"plastid","at":[0,-6.3],"r":3.3,"L":0,"angle":0},{"m":"oil","at":[6,0],"r":3.7,"L":0,"angle":0}],"out":[{"at":[10,0],"angle":0,"L":48,"kind":"tail","pull":true}],"eyes":[{"at":[9.4,3.4],"angle":20},{"at":[0,10],"angle":90},{"at":[0,-10],"angle":270}],"feelers":[],"pads":[],"mouths":[]},"Bathyscapha":{"body":{"r":10,"L":34},"inc":[{"m":"chamber","at":[18.4,0],"r":8.1,"L":0,"angle":0},{"m":"nucleus","at":[-22.3,0],"r":4.3,"L":0,"angle":0},{"m":"plastid","at":[3.3,0],"r":6.8,"L":0,"angle":0},{"m":"starch","at":[-8.9,0],"r":5.2,"L":0,"angle":0}],"out":[],"eyes":[{"at":[27,0],"angle":0}],"feelers":[],"pads":[],"mouths":[]},"Scalella":{"body":{"r":7,"L":23.8},"inc":[{"m":"chamber","at":[12.9,0],"r":5.7,"L":0,"angle":0},{"m":"nucleus","at":[-14.3,0],"r":4.3,"L":0,"angle":0},{"m":"plastid","at":[2.3,0],"r":4.8,"L":0,"angle":0},{"m":"starch","at":[-6.2,0],"r":3.6,"L":0,"angle":0}],"out":[],"eyes":[{"at":[18.9,0],"angle":0}],"feelers":[],"pads":[{"at":[0,7]},{"at":[0,-7]}],"mouths":[]},"Gula":{"body":{"r":15,"L":51},"inc":[{"m":"chamber","at":[27.6,0],"r":12.1,"L":0,"angle":0},{"m":"nucleus","at":[-34.7,0],"r":4.3,"L":0,"angle":0},{"m":"plastid","at":[4.9,0],"r":10.2,"L":0,"angle":0},{"m":"starch","at":[-13.4,0],"r":7.8,"L":0,"angle":0}],"out":[],"eyes":[{"at":[40.5,0],"angle":0}],"feelers":[],"pads":[],"mouths":[{"at":[30.4,14.2]},{"at":[0,15]},{"at":[0,-15]},{"at":[-40.5,0]}]},"Trochilla":{"body":{"r":10,"L":0},"inc":[{"m":"nucleus","at":[5.3,0],"r":4.3,"L":0,"angle":0},{"m":"statolith","at":[6,6],"r":1.1,"L":0,"angle":0},{"m":"statolith","at":[6,-6],"r":1.1,"L":0,"angle":90},{"m":"plastid","at":[0,6.2],"r":3.5,"L":0,"angle":0},{"m":"plastid","at":[0,-6.2],"r":3.5,"L":0,"angle":0},{"m":"starch","at":[-6,0],"r":3.7,"L":0,"angle":0}],"out":[{"at":[10,0],"angle":0,"L":40,"kind":"oar"},{"at":[-10,0],"angle":180,"L":40,"kind":"oar"},{"at":[0,10],"angle":90,"L":40,"kind":"oar"},{"at":[0,-10],"angle":270,"L":40,"kind":"oar"}],"eyes":[{"at":[7.1,7.1],"angle":45},{"at":[-7.1,7.1],"angle":135},{"at":[-7.1,-7.1],"angle":225},{"at":[7.1,-7.1],"angle":315}],"feelers":[],"pads":[],"mouths":[]},"Saltella":{"body":{"r":10,"L":0},"inc":[{"m":"nucleus","at":[-3.8,-3.8],"r":4.3,"L":0,"angle":0},{"m":"plastid","at":[4,4.7],"r":3.5,"L":0,"angle":0},{"m":"plastid","at":[4,-4.7],"r":3.5,"L":0,"angle":0},{"m":"starch","at":[-4.2,4.2],"r":3.7,"L":0,"angle":0}],"out":[{"at":[-9.7,2.6],"angle":180,"L":20,"kind":"spring"},{"at":[-9.7,-2.6],"angle":-180,"L":20,"kind":"spring"},{"at":[10,0],"angle":0,"L":60,"kind":"spine"}],"eyes":[{"at":[10,0],"angle":0},{"at":[0,10],"angle":90},{"at":[0,-10],"angle":270}],"feelers":[],"pads":[],"mouths":[]},"Pendulina":{"body":{"r":10,"L":34},"inc":[{"m":"nucleus","at":[22.3,0],"r":4.3,"L":0,"angle":0},{"m":"chamber","at":[-18.4,0],"r":8.1,"L":0,"angle":0},{"m":"starch","at":[8.9,0],"r":5.2,"L":0,"angle":0},{"m":"plastid","at":[-3.3,0],"r":6.8,"L":0,"angle":0}],"out":[{"at":[-27,0],"angle":180,"L":48,"kind":"tail"},{"at":[27,0],"angle":0,"L":48,"kind":"tail"}],"eyes":[{"at":[-27,0],"angle":180}],"feelers":[{"at":[0,-10]},{"at":[-18.5,-9.9]},{"at":[-27,0]},{"at":[-15,10]},{"at":[-6,10]},{"at":[18.5,9.9]},{"at":[27,0]},{"at":[18.5,-9.9]}],"pads":[],"mouths":[]},"Raptilla 2":{"body":{"r":10,"L":0},"inc":[{"m":"nucleus","at":[-5.3,0],"r":4.3,"L":0,"angle":0},{"m":"plastid","at":[0,6.3],"r":3.3,"L":0,"angle":0},{"m":"plastid","at":[0,-6.3],"r":3.3,"L":0,"angle":0},{"m":"oil","at":[6,0],"r":3.7,"L":0,"angle":0}],"out":[{"at":[10,0],"angle":0,"L":48,"kind":"tail","pull":true},{"at":[7.7,6.4],"angle":20,"L":20,"kind":"peduncle"}],"eyes":[{"at":[9.4,3.4],"angle":20},{"at":[0,10],"angle":90},{"at":[0,-10],"angle":270}],"feelers":[],"pads":[],"mouths":[]}};
+// each species its own tint (its membrane, its glow)
+const TINT = { Noctilla: '#7fe0c8', Bathyscapha: '#8fb7ff', Scalella: '#bfe57e', Gula: '#f0a77a', Trochilla: '#f5d36a', Saltella: '#ff9fbd', Pendulina: '#c7a2ff', 'Raptilla 2': '#ff7d6b' };
+
+// ---------- the scene: where each cell sits (µm, y up, the view's centre at 0, 0) ----------
+const CELLS = [
+  { sp: 'Noctilla', x: -55, y: 75, a: 90, swim: 1 },
+  { sp: 'Bathyscapha', x: 52, y: 92, a: 78 },
+  { sp: 'Scalella', x: -2, y: 22, a: 12, chain: 4 },
+  { sp: 'Gula', x: -58, y: -52, a: 96 },
+  { sp: 'Trochilla', x: 62, y: 4, a: 0, spin: 18, swim: 1 },
+  { sp: 'Saltella', x: 18, y: -92, a: 70 },
+  { sp: 'Raptilla 2', x: -14, y: -122, a: 40, swim: 0.4, latch: 'Saltella' },
+  { sp: 'Pendulina', x: 72, y: -78, a: -90, swim: 0.3 },
+];
+CELLS.forEach((c, i) => { c.seed = i * 7.31 + 1.7; c.grains = Array.from({ length: 34 }, (_, k) => ({ p: rnd(i * 100 + k) * 6.283, q: 0.25 + 0.7 * rnd(i * 100 + k + 50), w: 0.3 + 0.5 * rnd(i * 100 + k + 77) })); });
+
+function rnd(n) { const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }
+const hexRGB = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+// ---------- state, controls ----------
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const $ = (id) => document.getElementById(id);
+let W = 0, H = 0, DPR = 1, k = 2, look = 'new', names = true, running = true;
+let hour = +$('hour').value, depth = +$('depth').value;
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  const r = cv.getBoundingClientRect(); W = r.width; H = r.height;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+}
+new ResizeObserver(resize).observe($('tank')); resize();
+const fmtH = (h) => `${String(Math.floor(h) % 24).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`;
+function syncOut() {
+  $('hourOut').textContent = fmtH(hour);
+  $('depthOut').textContent = depth < 0.04 ? 'surface' : depth > 0.96 ? 'floor' : `${Math.round(depth * 2000)} µm`;
+  $('zoomOut').textContent = `${$('zoom').value} µm`;
+}
+$('hour').oninput = () => { hour = +$('hour').value; syncOut(); };
+$('depth').oninput = () => { depth = +$('depth').value; syncOut(); };
+$('zoom').oninput = syncOut;
+$('run').onclick = () => { running = !running; $('run').classList.toggle('on', running); $('run').textContent = running ? '▶ Day runs' : '⏸ Day paused'; };
+$('lookNew').onclick = () => { look = 'new'; $('lookNew').classList.add('on'); $('lookOld').classList.remove('on'); };
+$('lookOld').onclick = () => { look = 'old'; $('lookOld').classList.add('on'); $('lookNew').classList.remove('on'); };
+$('names').onclick = () => { names = !names; $('names').classList.toggle('on', names); };
+syncOut();
+
+// ---------- the light: sun by hour, fading with depth (5% at the floor, as in the game) ----------
+const sunAt = (h) => { const s = Math.sin(Math.PI * (h - 6) / 12); return s > 0 ? Math.sqrt(s) : 0; };
+const lightAt = (h, z) => sunAt(h) * Math.pow(0.05, z);
+// the water's colour: by depth (teal near the top, ink-blue deep), lit by the sun, warm at dawn and dusk, moonlit at night
+const SURF = [38, 128, 150], MID = [14, 58, 96], DEEP = [6, 20, 42], NIGHT = [3, 8, 18], MOON = [12, 22, 44], WARM = [255, 130, 80];
+function waterColor(h, z) {
+  const base = z < 0.5 ? mix(SURF, MID, z / 0.5) : mix(MID, DEEP, (z - 0.5) / 0.5);
+  const sun = sunAt(h), L = lightAt(h, z);
+  let c = mix(mix(NIGHT, MOON, 0.6 * (1 - z)), base, clamp(0.25 + 1.4 * Math.sqrt(L), 0, 1) * (sun > 0 ? 1 : 0));
+  const glow = sun > 0 && sun < 0.55 ? (0.55 - sun) / 0.55 : 0;   // dawn, dusk
+  c = mix(c, WARM, 0.45 * glow * (1 - z));
+  return c;
+}
+
+// ---------- pre-rendered sprites: marine snow, specks, far blurred cells, caustics ----------
+function sprite(size, draw) { const c = document.createElement('canvas'); c.width = c.height = size; draw(c.getContext('2d'), size); return c; }
+const SNOW = Array.from({ length: 6 }, (_, s) => sprite(64, (g, n) => {
+  for (let i = 0; i < 14; i++) {
+    const a = rnd(s * 50 + i) * 6.28, d = rnd(s * 50 + i + 9) * 14, r = 3 + rnd(s * 50 + i + 3) * 8;
+    const x = n / 2 + Math.cos(a) * d, y = n / 2 + Math.sin(a) * d;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(225,230,215,.32)'); gr.addColorStop(1, 'rgba(225,230,215,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 6.28); g.fill();
+  }
+  for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(160,150,120,.5)'; g.beginPath(); g.arc(n / 2 + (rnd(s * 9 + i) - .5) * 20, n / 2 + (rnd(s * 9 + i + 4) - .5) * 20, 1 + rnd(i + s) * 1.5, 0, 6.28); g.fill(); }
+}));
+const BLUR = Object.fromEntries(Object.entries(TINT).map(([n, t]) => [n, sprite(96, (g, s) => {
+  const c = hexRGB(t), gr = g.createRadialGradient(s / 2, s / 2, s * 0.1, s / 2, s / 2, s / 2);
+  gr.addColorStop(0, rgba(c, 0.10)); gr.addColorStop(0.55, rgba(c, 0.16)); gr.addColorStop(0.8, rgba(c, 0.07)); gr.addColorStop(1, rgba(c, 0));
+  g.fillStyle = gr; g.fillRect(0, 0, s, s);
+  g.fillStyle = 'rgba(120,190,90,.10)'; g.beginPath(); g.arc(s * 0.45, s * 0.5, s * 0.12, 0, 6.28); g.fill();
+})]));
+const CAUSTIC = sprite(256, (g, n) => {   // bright wavy lines, like sunlight focused by ripples, tiling
+  const img = g.createImageData(n, n), d = img.data;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const u = x / n * 6.283, v = y / n * 6.283;
+    const f = Math.sin(u * 2 + Math.sin(v * 3) * 1.3) + Math.sin(v * 2 + Math.sin(u * 3 + 1) * 1.3) + Math.sin((u + v) * 3 + Math.sin(u - v) * 2) * 0.6;
+    const b = Math.max(0, 1 - Math.abs(f) * 1.6), a = Math.pow(b, 3) * 255;
+    const i = (y * n + x) * 4; d[i] = 220; d[i + 1] = 245; d[i + 2] = 255; d[i + 3] = a;
+  }
+  g.putImageData(img, 0, 0);
+});
+// drifting things, in µm round the camera, on two depths of field
+const SNOWS = Array.from({ length: 26 }, (_, i) => ({ x: (rnd(i + 300) - 0.5) * 600, y: (rnd(i + 400) - 0.5) * 900, s: 6 + rnd(i + 500) * 12, k: i % 6, far: i % 3 === 0, r: rnd(i + 9) * 6 }));
+const SPECKS = Array.from({ length: 110 }, (_, i) => ({ x: (rnd(i + 700) - 0.5) * 600, y: (rnd(i + 800) - 0.5) * 900, p: rnd(i + 900) * 6.28 }));
+const FARS = Array.from({ length: 7 }, (_, i) => ({ sp: Object.keys(TINT)[i % 8], x: (rnd(i + 1000) - 0.5) * 500, y: (rnd(i + 1100) - 0.5) * 700, s: 40 + rnd(i + 1200) * 50 }));
+
+// ---------- drawing helpers (a cell's own frame: µm, x along its axis, y to its left) ----------
+// a capsule's outline as points, wobbling a little (the membrane is never still)
+function outline(r, L, wob, t, seed) {
+  const h = L / 2, per = 2 * L + 2 * Math.PI * r, n = Math.max(40, Math.round(per / 1.6)), pts = [];
+  for (let i = 0; i < n; i++) {
+    let s = i / n * per, x, y, nx, ny;
+    if (s < L) { x = -h + s; y = r; nx = 0; ny = 1; }
+    else if ((s -= L) < Math.PI * r) { const a = Math.PI / 2 - s / r; x = h + r * Math.cos(a); y = r * Math.sin(a); nx = Math.cos(a); ny = Math.sin(a); }
+    else if ((s -= Math.PI * r) < L) { x = h - s; y = -r; nx = 0; ny = -1; }
+    else { s -= L; const a = -Math.PI / 2 - s / r; x = -h + r * Math.cos(a); y = r * Math.sin(a); nx = Math.cos(a); ny = Math.sin(a); }
+    const u = i / n * 6.283, w = wob * (0.6 * Math.sin(3 * u + t * 1.3 + seed) + 0.4 * Math.sin(7 * u - t * 2.1 + seed * 2));
+    pts.push([x + nx * w, y + ny * w]);
+  }
+  return pts;
+}
+function smooth(pts) {   // a closed smooth curve through the points' middles
+  ctx.beginPath();
+  const n = pts.length, m = (i) => [(pts[i][0] + pts[(i + 1) % n][0]) / 2, (pts[i][1] + pts[(i + 1) % n][1]) / 2];
+  let p = m(n - 1); ctx.moveTo(p[0], p[1]);
+  for (let i = 0; i < n; i++) { const q = m(i); ctx.quadraticCurveTo(pts[i][0], pts[i][1], q[0], q[1]); }
+  ctx.closePath();
+}
+const cap = (r, L) => smooth(outline(r, L, 0, 0, 0));
+
+// one organelle, in the cell's frame; lit: 0 (night) .. 1 (bright)
+function organelle(o, t, lit, seed) {
+  ctx.save(); ctx.translate(o.at[0], o.at[1]); ctx.rotate((o.angle || 0) * Math.PI / 180);
+  const r = o.r, L = o.L || 0, dim = 0.55 + 0.45 * lit;
+  if (o.m === 'plastid') {
+    const pink = o.pig === 'shade';
+    cap(r, L);
+    const g = ctx.createLinearGradient(0, r, 0, -r);
+    g.addColorStop(0, pink ? `rgba(240,140,160,${0.95 * dim})` : `rgba(168,222,96,${0.95 * dim})`);
+    g.addColorStop(1, pink ? `rgba(130,40,70,${0.95 * dim})` : `rgba(36,110,40,${0.95 * dim})`);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.save(); cap(r, L); ctx.clip();   // thylakoid stacks: fine dark bands along its length
+    ctx.strokeStyle = pink ? 'rgba(90,20,50,.22)' : 'rgba(20,70,25,.24)'; ctx.lineWidth = r * 0.06;
+    for (let y = -r * 0.7; y <= r * 0.71; y += r * 0.35) { ctx.beginPath(); ctx.moveTo(-L / 2 - r, y + Math.sin(y + seed) * 0.3); ctx.lineTo(L / 2 + r, y - Math.sin(y + seed) * 0.3); ctx.stroke(); }
+    const hl = ctx.createRadialGradient(-r * 0.35, r * 0.45, 0, -r * 0.35, r * 0.45, r * 0.8);
+    hl.addColorStop(0, `rgba(255,255,230,${0.35 * dim})`); hl.addColorStop(1, 'rgba(255,255,230,0)');
+    ctx.fillStyle = hl; ctx.fillRect(-L / 2 - r, -r, L + 2 * r, 2 * r);
+    ctx.restore();
+    cap(r, L); ctx.strokeStyle = `rgba(200,255,150,${0.35 * dim})`; ctx.lineWidth = 0.35; ctx.stroke();
+  } else if (o.m === 'nucleus') {
+    cap(r, L);
+    const g = ctx.createRadialGradient(-r * 0.3, r * 0.3, r * 0.1, 0, 0, r * 1.05);
+    g.addColorStop(0, `rgba(214,200,255,${0.9 * dim})`); g.addColorStop(1, `rgba(104,84,170,${0.85 * dim})`);
+    ctx.fillStyle = g; ctx.fill();
+    for (let i = 0; i < 14; i++) {   // chromatin, gently moving
+      const a = rnd(seed * 31 + i) * 6.28 + Math.sin(t * 0.4 + i) * 0.15, d = Math.sqrt(rnd(seed * 17 + i)) * r * 0.75;
+      ctx.fillStyle = `rgba(70,50,130,${0.45 * dim})`; ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, r * (0.06 + 0.06 * rnd(i + seed)), 0, 6.28); ctx.fill();
+    }
+    ctx.fillStyle = `rgba(80,48,140,${0.85 * dim})`; ctx.beginPath(); ctx.arc(r * 0.22, -r * 0.15, r * 0.27, 0, 6.28); ctx.fill();   // nucleolus
+    cap(r, L); ctx.strokeStyle = `rgba(235,225,255,${0.55 * dim})`; ctx.lineWidth = 0.45; ctx.stroke();   // envelope
+  } else if (o.m === 'starch') {
+    cap(r, L);
+    const g = ctx.createRadialGradient(-r * 0.35, r * 0.35, r * 0.05, 0, 0, r);
+    g.addColorStop(0, `rgba(255,252,240,${0.95 * dim})`); g.addColorStop(1, `rgba(214,200,160,${0.9 * dim})`);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = `rgba(170,150,105,${0.4 * dim})`; ctx.lineWidth = 0.3;
+    for (const f of [0.35, 0.6, 0.82]) { ctx.beginPath(); ctx.arc(r * 0.08, -r * 0.05, r * f, 0, 6.28); ctx.stroke(); }   // growth rings
+  } else if (o.m === 'oil') {
+    cap(r, L);
+    const g = ctx.createRadialGradient(-r * 0.3, r * 0.3, r * 0.05, 0, 0, r);
+    g.addColorStop(0, `rgba(255,244,190,${0.95 * dim})`); g.addColorStop(0.6, `rgba(244,196,70,${0.9 * dim})`); g.addColorStop(1, `rgba(200,130,20,${0.9 * dim})`);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = `rgba(255,236,170,${0.8 * dim})`; ctx.lineWidth = 0.4; ctx.stroke();
+    ctx.fillStyle = `rgba(255,255,255,${0.8 * dim})`; ctx.beginPath(); ctx.ellipse(-r * 0.35, r * 0.4, r * 0.22, r * 0.13, -0.6, 0, 6.28); ctx.fill();
+  } else if (o.m === 'chamber') {
+    cap(r, L);
+    const g = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
+    g.addColorStop(0, `rgba(160,215,255,${0.06 * dim})`); g.addColorStop(0.85, `rgba(160,215,255,${0.14 * dim})`); g.addColorStop(1, `rgba(200,235,255,${0.32 * dim})`);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = `rgba(210,240,255,${0.55 * dim})`; ctx.lineWidth = 0.4; ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${0.55 * dim})`; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.arc(0, 0, r * 0.78, 1.9, 2.7); ctx.stroke();
+  } else if (o.m === 'statolith') {
+    ctx.strokeStyle = `rgba(190,210,230,${0.35 * dim})`; ctx.lineWidth = 0.3; ctx.beginPath(); ctx.arc(0, 0, r * 1.9, 0, 6.28); ctx.stroke();
+    ctx.fillStyle = `rgba(80,64,52,${0.95})`; ctx.beginPath(); ctx.arc(0, -r * 0.9, r, 0, 6.28); ctx.fill();
+    ctx.fillStyle = `rgba(255,255,255,${0.7 * dim})`; ctx.beginPath(); ctx.arc(-r * 0.3, -r * 0.6, r * 0.25, 0, 6.28); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// a flagellum, an oar, a spine… from its base along its angle, in the cell's frame
+function appendage(o, t, i, lit, tint, extra) {
+  const a = o.angle * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux, L = o.L;
+  const line = `rgba(225,242,236,${0.5 + 0.4 * lit})`;
+  if (o.kind === 'tail' || o.kind === 'oar') {
+    // a wave travelling along it (a puller's runs tip to base); drawn twice: now, and a faint moment before (motion)
+    const draw = (tt, alpha) => {
+      const pts = [];
+      for (let s = 0; s <= L; s += 1.5) {
+        let lat;
+        if (o.kind === 'tail') { const env = Math.pow(s / L, 0.8), lam = L * 0.55, ph = 2 * Math.PI * (s / lam) * (o.pull ? -1 : 1) - tt * 2 * Math.PI * 2.4;
+          lat = Math.min(7, L * 0.13) * env * Math.sin(ph); }
+        else { const sw = 0.3 * Math.sin(tt * 2 * Math.PI * 1.1 + i * 1.6), lag = 0.3 * Math.sin(tt * 2 * Math.PI * 1.1 + i * 1.6 - 1.2);
+          lat = s * Math.sin(sw) + (s * s / L) * Math.sin(lag) * 0.6; }
+        pts.push([o.at[0] + ux * s + nx * lat, o.at[1] + uy * s + ny * lat]);
+      }
+      for (let j = 1; j < pts.length; j++) {
+        const f = j / pts.length;
+        ctx.strokeStyle = alpha < 1 ? `rgba(225,242,236,${0.12 * alpha})` : line;
+        ctx.lineWidth = (o.kind === 'oar' ? 1.3 : 0.9) * (1 - 0.65 * f);
+        ctx.beginPath(); ctx.moveTo(pts[j - 1][0], pts[j - 1][1]); ctx.lineTo(pts[j][0], pts[j][1]); ctx.stroke();
+      }
+    };
+    ctx.lineCap = 'round';
+    draw(t - 0.06, 0.9); draw(t - 0.03, 1.4); draw(t, 1);
+  } else if (o.kind === 'spine') {
+    for (let j = 0; j < 12; j++) {
+      const s0 = j / 12 * L, s1 = (j + 1) / 12 * L;
+      ctx.strokeStyle = `rgba(215,238,255,${0.55 + 0.3 * lit})`; ctx.lineWidth = 1.1 * (1 - j / 13);
+      ctx.beginPath(); ctx.moveTo(o.at[0] + ux * s0, o.at[1] + uy * s0); ctx.lineTo(o.at[0] + ux * s1, o.at[1] + uy * s1); ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 0.25;
+    ctx.beginPath(); ctx.moveTo(o.at[0] + nx * 0.3, o.at[1] + ny * 0.3); ctx.lineTo(o.at[0] + ux * L * 0.8, o.at[1] + uy * L * 0.8); ctx.stroke();
+  } else if (o.kind === 'spring') {
+    ctx.strokeStyle = `rgba(250,215,120,${0.55 + 0.35 * lit})`; ctx.lineWidth = 0.6; ctx.beginPath();
+    for (let s = 0; s <= L; s += 0.5) { const lat = 1.6 * Math.sin(s * 1.25 + t * 0.6) * (1 - 0.3 * s / L); const x = o.at[0] + ux * s + nx * lat, y = o.at[1] + uy * s + ny * lat; s ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+  } else if (o.kind === 'peduncle') {
+    const end = extra || [o.at[0] + ux * L, o.at[1] + uy * L];
+    ctx.strokeStyle = `rgba(255,150,170,${0.6 + 0.3 * lit})`; ctx.lineWidth = 1.3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(o.at[0], o.at[1]); ctx.lineTo(end[0], end[1]); ctx.stroke();
+    if (extra) {   // latched: beads of the prey's energy flowing up the tube
+      for (let b = 0; b < 4; b++) {
+        const f = (t * 0.6 + b / 4) % 1, x = end[0] + (o.at[0] - end[0]) * f, y = end[1] + (o.at[1] - end[1]) * f;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, 1.6); g.addColorStop(0, 'rgba(255,230,160,.95)'); g.addColorStop(1, 'rgba(255,200,120,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 1.6, 0, 6.28); ctx.fill();
+      }
+    }
+  }
+}
+
+// one whole cell in the new look, in its own frame (already transformed); lit 0..1
+function cellNew(c, sp, t, lit, up) {
+  const tint = hexRGB(TINT[c.sp]), r = sp.body.r, L = sp.body.L;
+  const pts = outline(r, L, 0.35, t * (c.swim ? 1.6 : 1), c.seed);
+  // outside parts first (behind the body)
+  sp.out.forEach((o, i) => appendage(o, t + c.seed, i, lit, tint, o.kind === 'peduncle' ? c.latchEnd : null));
+  // a soft halo in the water round it
+  ctx.save();
+  const halo = ctx.createRadialGradient(0, 0, r * 0.6, 0, 0, r + L / 2 + 6);
+  halo.addColorStop(0, rgba(tint, 0)); halo.addColorStop(0.75, rgba(tint, 0.05 + 0.05 * lit)); halo.addColorStop(1, rgba(tint, 0));
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, 0, r + L / 2 + 6, 0, 6.28); ctx.fill();
+  // the body: see-through, deeper at the rim, lit from above
+  smooth(pts);
+  const g = ctx.createRadialGradient(up[0] * r * 0.35, up[1] * r * 0.35, r * 0.15, 0, 0, r + L / 2);
+  g.addColorStop(0, rgba(mix(tint, [255, 255, 255], 0.35), 0.10 + 0.08 * lit));
+  g.addColorStop(0.7, rgba(tint, 0.14 + 0.08 * lit));
+  g.addColorStop(1, rgba(tint, 0.30 + 0.12 * lit));
+  ctx.fillStyle = g; ctx.fill();
+  ctx.clip();
+  // cytoplasm streaming: fine granules circling slowly
+  for (const q of c.grains) {
+    const a = q.p + t * 0.25 * q.w, x = Math.cos(a) * (L / 2 + r * 0.8) * q.q, y = Math.sin(a) * r * 0.78 * q.q;
+    ctx.fillStyle = `rgba(230,240,225,${0.18 + 0.15 * lit})`; ctx.beginPath(); ctx.arc(x, y, 0.28 + 0.25 * q.w, 0, 6.28); ctx.fill();
+  }
+  // organelles
+  sp.inc.forEach((o, i) => organelle(o, t, lit, c.seed + i));
+  // light from above: a soft sheen on the upper side, shade below
+  const sh = ctx.createLinearGradient(up[0] * (r + L / 2), up[1] * (r + L / 2), -up[0] * (r + L / 2), -up[1] * (r + L / 2));
+  sh.addColorStop(0, `rgba(255,255,240,${0.12 + 0.16 * lit})`); sh.addColorStop(0.45, 'rgba(255,255,255,0)'); sh.addColorStop(1, `rgba(0,10,25,${0.25})`);
+  ctx.fillStyle = sh; ctx.fillRect(-L / 2 - r - 2, -r - 2, L + 2 * r + 4, 2 * r + 4);
+  ctx.restore();
+  // the membrane: a bright thin rim and a soft inner glow
+  smooth(pts);
+  ctx.strokeStyle = rgba(tint, 0.18 + 0.1 * lit); ctx.lineWidth = 2.2; ctx.stroke();
+  ctx.strokeStyle = rgba(mix(tint, [255, 255, 255], 0.45), 0.65 + 0.3 * lit); ctx.lineWidth = 0.55; ctx.stroke();
+  // pads, mouths, eyespots, feelers on the rim
+  for (const p of sp.pads) {
+    const gr = ctx.createRadialGradient(p.at[0], p.at[1], 0, p.at[0], p.at[1], 2.2);
+    gr.addColorStop(0, 'rgba(255,240,170,.9)'); gr.addColorStop(1, 'rgba(230,190,90,0)'); ctx.fillStyle = gr;
+    ctx.beginPath(); ctx.arc(p.at[0], p.at[1], 2.2, 0, 6.28); ctx.fill();
+  }
+  for (const m of sp.mouths) {
+    const a = Math.atan2(m.at[1], m.at[0]);
+    ctx.fillStyle = 'rgba(40,12,20,.75)'; ctx.beginPath(); ctx.ellipse(m.at[0], m.at[1], 2.6, 1.2, a + Math.PI / 2, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,190,200,.75)'; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.ellipse(m.at[0], m.at[1], 2.9, 1.5, a + Math.PI / 2, 0, 6.28); ctx.stroke();
+  }
+  for (const e of sp.eyes) {
+    const ex = e.at[0] * 0.9, ey = e.at[1] * 0.9;   // just inside the membrane: a small red-orange pigment spot
+    const gr = ctx.createRadialGradient(ex, ey, 0, ex, ey, 1.6);
+    gr.addColorStop(0, 'rgba(255,130,70,.95)'); gr.addColorStop(0.6, 'rgba(200,60,30,.8)'); gr.addColorStop(1, 'rgba(200,60,30,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(ex, ey, 1.6, 0, 6.28); ctx.fill();
+  }
+  for (const f of sp.feelers) {
+    const a = Math.atan2(f.at[1], f.at[0]);
+    ctx.strokeStyle = 'rgba(160,225,255,.6)'; ctx.lineWidth = 0.22;
+    for (let j = -1; j <= 1; j++) { const b = a + j * 0.35 + 0.08 * Math.sin(t * 3 + j); ctx.beginPath(); ctx.moveTo(f.at[0], f.at[1]); ctx.lineTo(f.at[0] + Math.cos(b) * 3.5, f.at[1] + Math.sin(b) * 3.5); ctx.stroke(); }
+  }
+}
+
+// the same cell in today's look (flat shapes), for comparison
+const OLD = { plastid: '#8fc94a', nucleus: '#9a86d8', starch: '#ece3c4', oil: '#f2c94c', chamber: '#3a5f8a', statolith: '#cccccc' };
+function cellOld(c, sp, t) {
+  const r = sp.body.r, L = sp.body.L;
+  sp.out.forEach((o, i) => {
+    const a = o.angle * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
+    ctx.strokeStyle = o.kind === 'spine' ? '#a8d8a0' : o.kind === 'peduncle' ? '#ff4d6d' : '#cfe8df'; ctx.lineWidth = o.kind === 'spine' ? 1 : 0.6;
+    ctx.beginPath(); ctx.moveTo(o.at[0], o.at[1]);
+    for (let s = 2; s <= o.L; s += 2) { const lat = (o.kind === 'tail' ? 4 * Math.sin(s / 6 - t * 6) * s / o.L : 0); ctx.lineTo(o.at[0] + ux * s - uy * lat, o.at[1] + uy * s + ux * lat); }
+    ctx.stroke();
+  });
+  cap(r, L); ctx.fillStyle = '#2f6d58'; ctx.fill(); ctx.strokeStyle = '#d7efe6'; ctx.lineWidth = 0.9; ctx.stroke();
+  for (const o of sp.inc) { ctx.save(); ctx.translate(o.at[0], o.at[1]); cap(o.r, o.L || 0); ctx.fillStyle = OLD[o.m] || '#888'; ctx.fill(); ctx.restore(); }
+  for (const e of sp.eyes) { ctx.fillStyle = '#ff8a3c'; ctx.beginPath(); ctx.arc(e.at[0], e.at[1], 1.5, 0, 6.28); ctx.fill(); }
+}
+
+// ---------- the frame ----------
+let t0 = performance.now(), last = t0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const t = (now - t0) / 1000;
+  if (running) { hour = (hour + dt * 24 / 60) % 24; $('hour').value = hour; syncOut(); }
+  const viewW = +$('zoom').value; k = W / viewW;
+  const camY = 0, X = (x) => W / 2 + x * k, Y = (y) => H / 2 - (y - camY) * k;
+  const viewH = H / k, zTop = clamp(depth - viewH / 2 / 2000, 0, 1), zBot = clamp(depth + viewH / 2 / 2000, 0, 1);
+  const L = lightAt(hour, depth), sun = sunAt(hour), lit = clamp(Math.sqrt(L) * 1.25, 0, 1);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+  if (look === 'old') {
+    ctx.fillStyle = '#0b1622'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(120,160,190,.08)'; ctx.lineWidth = 1;
+    for (let x = ((W / 2) % (50 * k)); x < W; x += 50 * k) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = ((H / 2) % (50 * k)); y < H; y += 50 * k) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  } else {
+    // the water: its colour above and below the view, lit from the top
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, rgba(waterColor(hour, zTop), 1)); g.addColorStop(1, rgba(waterColor(hour, zBot), 1));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // caustics: sunlight focused by the ripples, only near the surface
+    const ca = sun * clamp(1 - depth / 0.18, 0, 1);
+    if (ca > 0.01) {
+      ctx.save(); ctx.globalAlpha = 0.11 * ca; ctx.globalCompositeOperation = 'lighter';
+      const sz = 256 * Math.max(0.9, k * 0.9), ox = (t * 6) % sz, oy = (t * 3.5) % sz;
+      for (let x = -ox - sz; x < W; x += sz) for (let y = -oy - sz; y < H; y += sz) ctx.drawImage(CAUSTIC, x, y, sz, sz);
+      ctx.globalAlpha = 0.07 * ca; const ox2 = (-t * 4) % sz;
+      for (let x = ox2 - sz; x < W; x += sz) for (let y = -sz + (t * 2) % sz; y < H; y += sz) ctx.drawImage(CAUSTIC, x, y, sz * 1.3, sz * 1.3);
+      ctx.restore();
+    }
+    // shafts of light from above, slanting and swaying, fading with depth
+    if (L > 0.003) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 6; i++) {
+        const x0 = W * (0.05 + 0.18 * i) + Math.sin(t * 0.13 + i * 1.7) * W * 0.05, w = W * (0.06 + 0.05 * rnd(i + 3)), slant = W * 0.18;
+        const sg = ctx.createLinearGradient(0, 0, 0, H);
+        const a = clamp(0.10 * Math.sqrt(L) * (0.6 + 0.4 * Math.sin(t * 0.21 + i * 2.3)), 0, 0.12);
+        sg.addColorStop(0, `rgba(210,240,255,${a})`); sg.addColorStop(1, `rgba(210,240,255,${a * clamp(1 - (zBot - zTop) * 4, 0.15, 1)})`);
+        ctx.fillStyle = sg; ctx.beginPath();
+        ctx.moveTo(x0, 0); ctx.lineTo(x0 + w, 0); ctx.lineTo(x0 + w * 1.8 + slant, H); ctx.lineTo(x0 + slant - w * 0.4, H); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+    // far away, out of focus: other cells drifting (depth of field)
+    for (const f of FARS) {
+      const x = X((f.x + t * 1.5) % 500 - 250) , y = Y(((f.y + Math.sin(t * 0.1 + f.x) * 20) % 700 + 1050) % 700 - 350), s = f.s * k * 0.9;
+      ctx.globalAlpha = 0.55 + 0.45 * lit; ctx.drawImage(BLUR[f.sp], x - s / 2, y - s / 2, s, s); ctx.globalAlpha = 1;
+    }
+    // marine snow, sinking slowly; the far flakes smaller and softer
+    for (const s of SNOWS) {
+      const yy = ((s.y - t * (s.far ? 1.2 : 2.4)) % 900 + 1350) % 900 - 450, xx = s.x + Math.sin(t * 0.3 + s.r) * 6;
+      const sz = s.s * k * (s.far ? 0.6 : 1);
+      ctx.globalAlpha = (s.far ? 0.35 : 0.75) * (0.35 + 0.65 * lit);
+      ctx.drawImage(SNOW[s.k], X(xx) - sz / 2, Y(yy) - sz / 2, sz, sz);
+    }
+    ctx.globalAlpha = 1;
+    // specks: bacteria and bits, jiggling (Brownian)
+    ctx.fillStyle = `rgba(220,235,240,${0.18 + 0.25 * lit})`;
+    for (const p of SPECKS) {
+      const x = X(((p.x + Math.sin(t * 2.3 + p.p) * 1.2 + t * 0.8) % 600 + 900) % 600 - 300), y = Y(p.y + Math.cos(t * 1.9 + p.p * 2) * 1.2);
+      if (x < -5 || x > W + 5 || y < -5 || y > H + 5) continue;
+      ctx.beginPath(); ctx.arc(x, y, Math.max(0.6, 0.35 * k), 0, 6.28); ctx.fill();
+    }
+  }
+
+  // the cells
+  const pos = {};
+  for (const c of CELLS) {
+    const bob = Math.sin(t * 0.35 + c.seed) * 6, sway = Math.sin(t * 0.21 + c.seed * 2) * 5;
+    const a = (c.a + (c.spin ? t * c.spin : Math.sin(t * 0.3 + c.seed) * 5)) * Math.PI / 180;
+    pos[c.sp] = { x: c.x + sway, y: c.y + bob, a };
+  }
+  for (const c of CELLS) {
+    const sp = SP[c.sp], p = pos[c.sp], n = c.chain || 1;
+    const up = [Math.sin(p.a), Math.cos(p.a)];
+    if (c.latch) {   // the peduncle reaches its prey's body: its end in this cell's frame
+      const q = pos[c.latch], dx = q.x - p.x, dy = q.y - p.y, ca = Math.cos(-p.a), sa = Math.sin(-p.a);
+      const lx = dx * ca - dy * sa, ly = dx * sa + dy * ca, d = Math.hypot(lx, ly);
+      c.latchEnd = [lx - lx / d * 9.5, ly - ly / d * 9.5];
+    }
+    for (let j = 0; j < n; j++) {   // a chain: cells side by side, pad to pad (a ladder)
+      ctx.save();
+      ctx.translate(X(p.x), Y(p.y)); ctx.rotate(-p.a); ctx.scale(k, -k);
+      if (n > 1) ctx.translate(0, (j - (n - 1) / 2) * (2 * sp.body.r + 0.6) + Math.sin(t * 0.8 + j) * 0.3);
+      if (look === 'old') cellOld(c, sp, t); else cellNew({ ...c, seed: c.seed + j * 3.1, grains: c.grains }, sp, t, lit, up);
+      ctx.restore();
+    }
+    if (names) {
+      ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center';
+      const ext = (sp.body.L / 2 + sp.body.r) * Math.abs(Math.sin(p.a)) + sp.body.r * Math.abs(Math.cos(p.a)) + (n > 1 ? (n - 1) * sp.body.r : 0);
+      const ty = Y(p.y) - ext * k - 8;
+      ctx.fillStyle = 'rgba(2,8,16,.55)'; const w = ctx.measureText(c.sp).width + 12;
+      ctx.beginPath(); ctx.roundRect(X(p.x) - w / 2, ty - 12, w, 17, 8); ctx.fill();
+      ctx.fillStyle = look === 'old' ? '#cfe' : TINT[c.sp]; ctx.fillText(c.sp, X(p.x), ty + 1);
+    }
+  }
+
+  if (look === 'new') {
+    // the microscope: a soft vignette, and a touch of chromatic edge
+    const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.6);
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,4,10,.62)');
+    ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  }
+  const phase = sun <= 0 ? 'night' : sun < 0.55 ? (hour < 12 ? 'dawn' : 'dusk') : 'day';
+  $('hud').textContent = `${phase === 'night' ? '☾' : '☀'} ${fmtH(hour)} · ${phase} · light ${Math.round(L * 100)}%`;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
