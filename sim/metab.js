@@ -109,6 +109,19 @@ function feed(world, cell, l) {
   return e * F.keep;
 }
 
+// Energy taken from a cell by a poison: its pool first, then its stores (their weight follows); returns how much
+export function drainEnergy(o, amount) {
+  let hurt = amount, lost = 0;
+  const take = Math.min(hurt, o.metab.E); o.metab.E -= take; hurt -= take; lost += take;
+  for (const s of o.pieces[0].inclusions) {
+    if (!s.store || hurt <= 0) continue;
+    const cap = capacity(s), t = Math.min(hurt, s.fill * cap);
+    s.fill -= t / cap; hurt -= t; lost += t;
+    s.wpt.w = (s.density - CYTO) * s.v * s.fill * G;
+  }
+  return lost;
+}
+
 // Kamikaze: the cell dies and poisons other species close by (PARAMS.toxin; kin immune)
 function burst(world, cell) {
   const T = P.toxin, body = cell.pieces[0], sac = body.inclusions.reduce((a, i) => a + (i.toxin ? i.v : 0), 0);
@@ -119,15 +132,7 @@ function burst(world, cell) {
     const ob = o.pieces[0], gap = Math.hypot(o.q[0] - cell.q[0], o.q[1] - cell.q[1]) - body.a - ob.a - (body.L + ob.L) / 2;
     const f = 1 - Math.max(gap, 0) / T.range;
     if (f <= 0) continue;
-    const dose = sac * f;
-    let hurt = dose * T.energy, lost = 0;
-    const take = Math.min(hurt, o.metab.E); o.metab.E -= take; hurt -= take; lost += take;
-    for (const s of ob.inclusions) {
-      if (!s.store || hurt <= 0) continue;
-      const cap = capacity(s), t = Math.min(hurt, s.fill * cap);
-      s.fill -= t / cap; hurt -= t; lost += t;
-      s.wpt.w = (s.density - CYTO) * s.v * s.fill * G;
-    }
+    const dose = sac * f, lost = drainEnergy(o, dose * T.energy);
     for (const s of ob.inclusions) if (s.material === 'plastid') s.damage = Math.min(1, (s.damage || 0) + T.damage * dose / ob.volume);
     o.poisoned = { by: cell.species, lost, step: world.steps };
     cell.burst.hit++;
@@ -155,7 +160,7 @@ export function metabolize(world, cell) {
   }
   // resting: flagella stop, plastids earn less and aren't repaired, upkeep falls (PARAMS.metab.rest)
   const slow = cell.resting ? M.rest : 1;
-  if (cell.resting) for (const j of cell.joints) if (j.type === 'motor' && !j.burst) j.on = false;
+  if (cell.resting) for (const j of cell.joints) if (j.type === 'motor' && !j.burst && j.on) { j.on = false; j.offBy = 'rest'; }
   // income: each plastid by the light where it is, less its damage; too much light damages it, repair costs energy
   let income = 0, repair = 0;
   for (const inc of body.inclusions) {

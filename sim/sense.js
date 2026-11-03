@@ -23,6 +23,7 @@ import { dcos, dsin } from './dmath.js';
 import { fire } from './physics.js';
 import { lightAt } from './light.js';
 import { nitrogenAt } from './nutrient.js';
+import { setSegmentLength } from './build.js';
 
 const S = PARAMS.sensor, CH = PARAMS.chamber;
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
@@ -155,9 +156,9 @@ export function sense(world, cell) {
       g = g < 0 ? 0 : g > 1 ? 1 : g;
       j.gain = j.speed.down ? 1 - g : g;   // down: full speed at the low end, stopped at the high end
     }
-    if (!j.controls) continue;
+    if (!j.controls) { if (j.offBy) { j.on = true; j.offBy = null; } continue; }   // back on after a rest or a stun stopped it
     const all = holdsAll(world, cell, j.controls);
-    if (j.burst) { if (all) fire(cell, j.burst.group); }   // a burst organ fires when its sensors say so
+    if (j.burst) { if (all && !(cell.stunT > 0)) fire(cell, j.burst.group); }   // a burst organ fires when its sensors say so
     else if (j.type === 'motor') j.on = all;
     else if (j.latched && all) j.latched = false;   // a trigger: released once, the first time they all hold
   }
@@ -173,6 +174,20 @@ export function sense(world, cell) {
   if (cell.rest) { const r = cell.rest.controls ? ruleState(world, cell, cell.rest.controls) : null; cell.resting = !!r && r.go && !r.stop; }
   // a toxin sac: BURSTS when… (no rule: never)
   for (const inc of cell.pieces[0].inclusions) if (inc.toxin) inc.go = !!inc.controls && holdsAll(world, cell, inc.controls);
+  // harpoons: a thrown spine grows back over PARAMS.harpoon.reload; FIRES when… (no rule: never)
+  for (const h of cell.harpoons || []) if (h.t > 0) {
+    h.t = Math.max(0, h.t - PARAMS.time.dt);
+    setSegmentLength(cell.pieces[h.piece], h.full * (1 - h.t / PARAMS.harpoon.reload));
+  }
+  for (const h of cell.harpoons || []) h.go = !!h.controls && holdsAll(world, cell, h.controls);
+  // stunned by a harpoon (PARAMS.harpoon.stun): everything that moves or grabs stops (a latched tube lets go)
+  if (cell.stunT > 0) {
+    cell.stunT -= PARAMS.time.dt;
+    for (const j of cell.joints) if (j.type === 'motor' && !j.burst && j.on) { j.on = false; j.offBy = 'stun'; }
+    for (const f of cell.feeders) f.go = false;
+    for (const mo of cell.mouths || []) mo.go = false;
+    for (const h of cell.harpoons || []) h.go = false;
+  }
   // buoyancy chambers: SINK if wins, then FLOAT when; neither: neutral
   for (const inc of cell.pieces[0].inclusions) {
     if (inc.material !== 'chamber') continue;

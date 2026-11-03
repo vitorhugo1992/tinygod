@@ -167,6 +167,19 @@ export const PARAMS = {
     keepN: 0.5,             // share of its nitrogen kept
     upkeep: 100,            // pJ/s per mouth (author, 2026-11-03: a mouth costs; as much as 20 µm of an outside part)
   },
+  // The harpoon (author, 2026-11-03; Polykrikos, Nematodinium): a spine set to fire shoots a dart straight out along
+  // itself, blind (author: it must not "know magically where the enemy is"); the spine IS the dart: thrown, it is gone
+  // and grows back over `reload` (author). The first thing in its line takes it: any cell's body, kin too (the wound is
+  // mechanical, author), is stunned (its flagella, springs, tubes, mouths and harpoons stop: a hunter lets go) and loses
+  // energy; a spine or a flagellum catches the dart harmlessly. A miss wastes the shot.
+  harpoon: {
+    range: 40,              // µm the dart flies past the spine's tip
+    cost: 3000,             // pJ per µm of spine, each shot (regrowing it; the pool must hold it): 20 µm, 60k (author:
+                            // "make it costly, as it can severely damage bigger predators")
+    reload: 20,             // s to grow the spine back; it can't fire until it has
+    venom: 60000,           // pJ the stricken cell loses (its pool, then its stores)
+    stun: 8,                // s it stays stunned
+  },
   // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): every `every` s a peduncle stays latched,
   // the prey's biggest plastid that fits in the thief moves through the tube (the prey lives on without it, and rebuilds
   // it from its growth meter before growing further); a prey drained to death gives up the rest that fit (round, at

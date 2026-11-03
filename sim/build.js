@@ -84,6 +84,13 @@ const capsuleVolume = (L, a) => PI * a * a * L + (4 / 3) * PI * a * a * a;
 
 const capsuleArea = (L, a) => 2 * PI * a * L + 4 * PI * a * a;
 
+// A segment grown or cut to length L (a harpoon thrown and growing back): its drag, volume and weight follow
+export function setSegmentLength(p, L) {
+  p.L = L; p.offset = L / 2; p.volume = capsuleVolume(L, p.a);
+  Object.assign(p, capsuleDrag(L, p.a));
+  p.wpts[0].w = weight(material(p.material).density, p.volume);
+}
+
 // Drag of a capsule about its centre, in its own frame: along the axis (xt), across it (xn), turning (xr).
 // A sphere's exact Stokes drag plus resistive force theory for the straight part (a thin rod drags about twice as
 // hard broadside as end-on). Exact for a sphere, an approximation for everything longer.
@@ -99,7 +106,7 @@ function capsuleDrag(L, a) {
 }
 
 function parseJoint(j, pieceIndex) {
-  if (!j || j.type === 'fixed' || j.type === 'feed' || j.type === 'hold') return null;   // a peduncle is rigid: its 'joint' only holds its rule
+  if (!j || j.type === 'fixed' || j.type === 'feed' || j.type === 'hold' || j.type === 'fire') return null;   // a peduncle is rigid: its 'joint' only holds its rule
   if (j.type === 'hinge') {
     return { type: 'hinge', piece: pieceIndex, stiffness: j.stiffness || 0, rest: (j.rest || 0) * DEG,
       latched: !!j.latched };
@@ -175,6 +182,9 @@ export function rewire(cell, partIndex, controls) {
   for (const f of cell.feeders) if (f.part === partIndex) {
     if (controls.length) f.controls = controls.map((c) => resolveControl(cell.sensors, c)); else { delete f.controls; f.go = true; }
   }
+  for (const h of cell.harpoons || []) if (h.part === partIndex) {
+    if (controls.length) h.controls = controls.map((c) => resolveControl(cell.sensors, c)); else { delete h.controls; h.go = false; }
+  }
   for (const inc of cell.pieces[0].inclusions) if (inc.part === partIndex && inc.material === 'chamber') {
     if (controls.length) inc.controls = controls.map((c) => resolveControl(cell.sensors, c)); else delete inc.controls;
   }
@@ -207,6 +217,7 @@ export function buildCell(design, opts = {}) {
   const joints = [];
   const pads = [];
   const feeders = [];
+  const harpoons = [];   // { piece, x (its tip), y, part, controls, go, t (reload left), shot }
   const mouths = [];     // engulfing: { piece, x, y, part, controls, go }    // peduncles: { piece, x (its tip), y, r (mouth), part, controls, go, link }
   const sensors = [];
   const controls = [];   // [joint, control] pairs, resolved once every sensor is known
@@ -267,6 +278,11 @@ export function buildCell(design, opts = {}) {
           cost: PARAMS.feed.pierce * L };   // what each latch costs: longer tubes cost more to use
         feeders.push(f);
         if (controlsOf(part.joint).length) controls.push([f, controlsOf(part.joint)]);
+      }
+      if (part.joint && part.joint.type === 'fire') {   // a harpoon: FIRES when… (no rule: never); t: seconds to reload
+        const h = { piece: pieces.length - 1, x: L / 2, y: 0, full: L, cost: PARAMS.harpoon.cost * L, part: piece.part, go: false, t: 0, shot: null };
+        harpoons.push(h);
+        if (controlsOf(part.joint).length) controls.push([h, controlsOf(part.joint)]);
       }
       if (part.id) ids.set(part.id, pieces.length - 1);
     } else if (part.type === 'inclusion') {
@@ -373,7 +389,7 @@ export function buildCell(design, opts = {}) {
 
   const np = pieces.length;
   return {
-    design, pieces, joints, pads, feeders, mouths, sensors, n, colTurn, reach, rest, resting: false, divideRule, divideOk: true,
+    design, pieces, joints, pads, feeders, mouths, harpoons, sensors, n, colTurn, reach, rest, resting: false, divideRule, divideOk: true,
     species: design.species || design.name || 'A',
     ext: [],                 // this step's contacts and pad pulls from other cells (interact.js)
     jointPiece: Int32Array.from(joints.map((j) => j.piece)),

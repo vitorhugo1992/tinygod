@@ -127,10 +127,10 @@ export const PART_TEMPLATES = {
   'Feeler': (body, deg, id, size, tilt, depth, feels) => (size <= 0.1
     ? [{ type: 'sensor', id, label: 'Feeler', at: surfacePoint(body, deg), kind: 'touch', feels }]
     : [{ type: 'sensor', id, label: 'Feeler', at: surfacePoint(body, deg), kind: 'near', range: Math.round(200 * size), feels }]),
-  // one spine, protein (glass was removed, author 2026-11-02)
-  'Spine': (body, deg, id, size, tilt) => [
-    { type: 'segment', id, label: 'Spine', at: surfacePoint(body, deg), angle: deg + tilt,
-      length: Math.round(100 * size), radius: 0.5, material: 'protein' }],
+  // one spine, protein (glass was removed, author 2026-11-02); Kind Harpoon (author, 2026-11-03): it fires a dart
+  'Spine': (body, deg, id, size, tilt, depth, feels, len, strength, kind) => [
+    { type: 'segment', id, label: kind === 'harpoon' ? 'Harpoon' : 'Spine', at: surfacePoint(body, deg), angle: deg + tilt,
+      length: Math.round(100 * size), radius: 0.5, material: 'protein', ...(kind === 'harpoon' ? { joint: { type: 'fire' } } : {}) }],
   // the peduncle (author, 2026-11-02): a feeding tube; its tip latches on another species' body and drains it (PARAMS.feed)
   'Peduncle (feeds on others)': (body, deg, id, size, tilt, depth, feels, len = PARAMS.feed.length) => [
     { type: 'segment', id, label: 'Peduncle', at: surfacePoint(body, deg), angle: deg + tilt, length: len,
@@ -236,7 +236,8 @@ export const CONTROLS = {
   'Oil droplet': { size: (s) => `${Math.round(100 * s)}% of room`, inside: true },
   'Kin pad': {}, 'Mucus pad': {},
   'Feeler': { size: (s) => (s <= 0.1 ? 'touch only' : `feels within ${Math.round(200 * s)} µm`), sizeLabel: 'Sensitivity', feels: true, sizeDefault: 10 },
-  'Spine': { tilt: true, size: (s) => `${Math.round(100 * s)} µm long` },
+  'Spine': { tilt: true, material: true, size: (s) => `${Math.round(100 * s)} µm long`,
+    tip: () => `A harpoon throws itself straight out, blind: the first thing within ${PARAMS.harpoon.range} µm of its tip takes it. A cell's body, kin too, is stunned ${PARAMS.harpoon.stun} s (its tails, springs, tubes and mouths stop: a hunter lets go) and loses ${PARAMS.harpoon.venom / 1000}k pJ; a spine or flagellum catches it. The spine grows back in ${PARAMS.harpoon.reload} s, for ${PARAMS.harpoon.cost / 1000}k pJ per µm of it. Its rule: FIRES when…` },
   'Pad': { sticks: true },
   'Mouth (engulfs)': { tip: () => `Swallows another species' cell touching it whole, if that cell is at most half as wide as this one and fits in its free room (a packed cell can't eat; spines, chains, plates and size protect prey). It digests it over a minute, keeping ${Math.round(100 * PARAMS.engulf.keep)}% of its energy and half its nitrogen; it can't swallow again meanwhile. Its rule: ENGULFS when…` },
   'Peduncle (feeds on others)': { tilt: true, length: { min: 10, max: 80, step: 5, def: PARAMS.feed.length },

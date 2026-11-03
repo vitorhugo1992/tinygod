@@ -1381,6 +1381,40 @@ const runDay = (design, y, seconds, opts = {}) => {
     `${spells} of 300 stretches stir (chance ${S.chance}); a weightless cell 30 µm up rises ${fmt(up, 1)} µm/s in a spell, ${fmt(still, 2)} in a calm`);
 }
 
+// 28ah. The harpoon (author, 2026-11-03; PARAMS.harpoon): a spine set to fire is thrown straight out, blind. A body in
+// its line, kin too, is stunned (its tail stops) and loses energy; the shooter pays and its spine is gone, grown back after
+// the reload; a spine in the way catches the dart; nothing in line: a wasted shot
+{
+  const HP = PARAMS.harpoon;
+  const shooter = (name) => ({ name, body: { radius: 10 }, parts: [
+    { type: 'segment', id: 'h', at: [10, 0], angle: 0, length: 20, radius: 0.5, material: 'protein',
+      joint: { type: 'fire', controls: [{ sensor: 'energy', min: 0, max: 1 }] } }] });
+  const tailed = (name, spine) => ({ name, body: { radius: 10 }, parts: [
+    ...PRESETS['Wave tail'].parts.filter((p) => p.type === 'segment').map((p) => (p.parent === 'body' ? { ...p, at: [-10, 0] } : p)),
+    ...(spine ? [{ type: 'segment', id: 'sp', at: [10, 0], angle: 0, length: 30, radius: 0.5, material: 'protein' }] : []) ] });
+  const shoot = (target, gap) => {
+    const w = makeWorld(1, { gravity: false, metab: true });
+    const A = addCell(w, shooter('Hunter'), 500, 1000, 0);
+    const B = addCell(w, target, 500 + 30 + gap + 10, 1000, 180);   // its body's near edge `gap` µm past the spine's tip, its tail away
+    const eA = A.metab.E, eB = B.metab.E;
+    w.gravity = false;
+    stepWorld(w); stepWorld(w);
+    const tailOn = B.joints.some((j) => j.type === 'motor' && j.on), L1 = A.pieces[A.harpoons[0].piece].L;
+    const shot = A.lastShot, paid = eA - A.metab.E, lost = eB - B.metab.E, stun = B.stunT || 0;
+    for (let i = 0; i < Math.round((HP.reload - 1) / DT); i++) stepWorld(w);   // a second before it has grown back
+    return { shot, paid, lost, stun, tailOn, L1, L2: A.pieces[A.harpoons[0].piece].L };
+  };
+  const hit = shoot(tailed('Prey'), 20), kin = shoot(tailed('Hunter'), 20), far = shoot(tailed('Prey'), HP.range + 10);
+  const shielded = shoot(tailed('Prey', true), 20);
+  check('a harpoon throws its spine straight out, blind: a body in line (kin too) is stunned and wounded; the spine grows back; a spine catches it; a miss wastes it',
+    hit.shot && hit.shot.hit === 'Prey' && hit.stun > HP.stun - 0.1 && !hit.tailOn && hit.lost > 0 && hit.paid >= HP.cost * 20 - 1 && hit.L1 < 0.01 && Math.abs(hit.L2 - 20 * (1 - 1 / HP.reload)) < 0.05 &&
+    kin.shot && kin.shot.hit === 'Hunter' && kin.shot.kin && !kin.tailOn &&
+    far.shot && !far.shot.hit && !far.shot.caught &&
+    shielded.shot && !shielded.shot.hit && shielded.shot.caught === 'a spine or flagellum' && shielded.stun === 0,
+    `hit: tail ${hit.tailOn ? 'ON' : 'off'}, lost ${Math.round(hit.lost / 1000)}k pJ, shooter paid ${Math.round(hit.paid / 1000)}k (with upkeep), stunned ${fmt(hit.stun, 1)} s, spine ${fmt(hit.L1, 3)} µm then ${fmt(hit.L2, 1)} µm ${HP.reload - 1} s later; ` +
+    `kin: ${kin.shot && kin.shot.kin ? 'wounded' : 'spared'}; out of range: ${far.shot && far.shot.hit ? 'hit' : 'missed'}; behind a spine: ${shielded.shot && shielded.shot.caught}`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

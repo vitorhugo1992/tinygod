@@ -575,7 +575,7 @@ function sentence(targets, tappable, where) {
   const stWords = () => st.map((c, i) => (i ? ' or ' : '') + term(c, 'stop', i)).join('');
   const add = (list, label, title) => (tappable ? ` <button class="add" data-add="${list}" title="${title}">${label}</button>` : '');
   const never = (t) => `<span class="never">${t}</span>`;
-  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'holds' ? 'Always holds' : verb === 'bursts' ? 'Never bursts' : verb === 'engulfs' ? 'Engulfs whenever it touches a small enough cell' : verb === 'divides' ? 'Divides as soon as it has doubled' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
+  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'holds' ? 'Always holds' : verb === 'bursts' ? 'Never bursts' : verb === 'shoots' ? 'Never fires' : verb === 'engulfs' ? 'Engulfs whenever it touches a small enough cell' : verb === 'divides' ? 'Divides as soon as it has doubled' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
   if (verb === 'floats') return `<div class="line">Floats ${go.length ? `when ${goWords()}` : never('never')}.${add('go', go.length ? '+ and…' : '+ when…', 'A condition that floats it')}</div>
     <div class="line">Sinks ${st.length ? `when ${stWords()}` : never('never')}.${add('stop', st.length ? '+ or…' : '+ when…', 'A condition that sinks it (sinking wins)')}</div>
     <div class="line small">Sinking wins; neither: neutral, no cost.</div>`;
@@ -584,8 +584,8 @@ function sentence(targets, tappable, where) {
     if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
     return `<div class="line">${s}.${add('go', '+ and…', 'Wait to divide until this holds too (e.g. after dawn)')}${add('stop', '+ unless…', 'Never divide while this holds')}</div>`;
   }
-  const V = { runs: 'Runs', fires: 'Fires', rests: 'Rests', feeds: 'Feeds', holds: 'Holds', bursts: 'Bursts', engulfs: 'Engulfs' }[verb];
-  const none = verb === 'runs' ? never('all the time') : verb === 'holds' ? never('always') : verb === 'bursts' ? never('never') : verb === 'engulfs' ? never('whenever it touches a small enough cell') : verb === 'feeds' ? never('whenever it touches another species') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
+  const V = { runs: 'Runs', fires: 'Fires', shoots: 'Fires', rests: 'Rests', feeds: 'Feeds', holds: 'Holds', bursts: 'Bursts', engulfs: 'Engulfs' }[verb];
+  const none = verb === 'runs' ? never('all the time') : verb === 'holds' ? never('always') : verb === 'bursts' || verb === 'shoots' ? never('never') : verb === 'engulfs' ? never('whenever it touches a small enough cell') : verb === 'feeds' ? never('whenever it touches another species') : verb === 'rests' ? never('never') : never('only by hand (⚡ Release)');
   let s = `${V} ${go.length ? `${verb === 'holds' ? 'while' : 'when'} ${goWords()}` : none}`;
   if (st.length) s += `, <span class="unl">unless</span> ${stWords()}`;
   if (verb === 'runs') {
@@ -596,6 +596,7 @@ function sentence(targets, tappable, where) {
   s += '.';
   if (verb === 'rests') s += ' <span class="small">(upkeep and income at 40%, flagella stop)</span>';
   if (verb === 'engulfs') s += ` <span class="small">(swallows another species' cell touching its mouth whole, if it is at most half as wide as this one and fits in its free room; digests it over a minute)</span>`;
+  if (verb === 'shoots') s += ` <span class="small">(throws the spine straight out ${PARAMS.harpoon.range} µm, blind: a cell's body in its line, kin too, is stunned ${PARAMS.harpoon.stun} s and loses ${PARAMS.harpoon.venom / 1000}k pJ; it grows back in ${PARAMS.harpoon.reload} s, ${PARAMS.harpoon.cost / 1000}k pJ per µm)</span>`;
   if (verb === 'bursts') s += ` <span class="small">(dies, poisoning other species within ${PARAMS.toxin.range} µm: kin are immune)</span>`;
   if (verb === 'holds') s += ` <span class="small">(${m.kind === 'mucus' ? 'sticks to anything it touches, weakly' : 'joins a kin pad it touches, and its daughter at division: chains'}; while this fails it lets go and won't stick)</span>`;
   if (verb === 'feeds') s += ` <span class="small">(latches on another species' body it touches: ${PARAMS.feed.pierce * m.length / 1000}k pJ to pierce; lets go when this stops holding)</span>`;
@@ -641,9 +642,9 @@ function sensorList(except) {
     list.push({ id: 'feeding', name: 'feeding (its peduncle latched on prey)', short: 'Feeding', kind: 'feeding' });
   return list;
 }
-const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.type === 'divide' || m.joint.type === 'hold' || m.joint.type === 'lyse' || m.joint.type === 'engulf' || m.joint.latched));
+const targetsOf = (g) => g.members.filter((m) => m.joint && (m.joint.type === 'motor' || m.joint.type === 'chamber' || m.joint.type === 'rest' || m.joint.type === 'feed' || m.joint.type === 'divide' || m.joint.type === 'hold' || m.joint.type === 'lyse' || m.joint.type === 'engulf' || m.joint.type === 'fire' || m.joint.latched));
 // how a target acts: 'runs' (a motor), 'fires' (a burst organ, a latched part)
-const verbOf = (m) => (m.joint.type === 'divide' ? 'divides' : m.joint.type === 'engulf' ? 'engulfs' : m.joint.type === 'lyse' ? 'bursts' : m.joint.type === 'hold' ? 'holds' : m.joint.type === 'feed' ? 'feeds' : m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
+const verbOf = (m) => (m.joint.type === 'divide' ? 'divides' : m.joint.type === 'fire' ? 'shoots' : m.joint.type === 'engulf' ? 'engulfs' : m.joint.type === 'lyse' ? 'bursts' : m.joint.type === 'hold' ? 'holds' : m.joint.type === 'feed' ? 'feeds' : m.joint.type === 'rest' ? 'rests' : m.joint.type === 'chamber' ? 'floats' : m.joint.type === 'motor' && !m.joint.burst ? 'runs' : 'fires');
 // A part's rule as the card shows it: GO groups (all of a group must hold: AND; any group will do: OR) and STOP
 // conditions (any one stops the part, whatever the GO groups say: the override). Stored as one list: GO conditions in
 // their groups (or: true starts a group), then STOP ones (stop: true).
@@ -1058,9 +1059,9 @@ function ruleAt(R, read) {
 // noon fading with depth: the day's shape shows by itself); where the part acts is its colour laid over it in stripes,
 // with a bright edge where it changes (author, 2026-11-03: the flat blocks read as abstract)
 const MAP_LEGEND = { runs: ['runs', 'still'], fires: ['fires', 'waits'], rests: ['rests', 'awake'], feeds: ['would feed', "doesn't"],
-  holds: ['holds', 'lets go'], bursts: ['would burst', 'waits'], engulfs: ['would engulf', "doesn't"], divides: ['would divide', 'waits'] };
+  holds: ['holds', 'lets go'], bursts: ['would burst', 'waits'], shoots: ['would fire', 'waits'], engulfs: ['would engulf', "doesn't"], divides: ['would divide', 'waits'] };
 const MAP_Q = { runs: 'When does it run?', fires: 'When does it fire?', rests: 'When does it rest?', feeds: 'When would it feed?',
-  holds: 'When does it hold?', bursts: 'When would it burst?', engulfs: 'When would it engulf?', divides: 'When would it divide?',
+  holds: 'When does it hold?', bursts: 'When would it burst?', shoots: 'When would it fire?', engulfs: 'When would it engulf?', divides: 'When would it divide?',
   floats: 'When does it float, when does it sink?' };
 const MAP_FLOAT = [205, 238, 255], MAP_SINK = [45, 91, 209];
 const hexRGB = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
@@ -1115,7 +1116,7 @@ function runMapEl(targets, R) {
   const m = targets[0], k0 = design.parts.indexOf(m), verb = verbOf(m);
   if (!(R || canon(m)).length) {
     const box = document.createElement('div'); box.className = 'rmapnone';
-    const what = verb === 'floats' ? 'it stays neutral' : verb === 'rests' ? 'it never rests' : verb === 'bursts' ? 'it never bursts'
+    const what = verb === 'floats' ? 'it stays neutral' : verb === 'rests' ? 'it never rests' : verb === 'bursts' ? 'it never bursts' : verb === 'shoots' ? 'it never fires'
       : verb === 'fires' ? 'it fires only by hand' : `it ${MAP_LEGEND[verb][0]} at every hour and depth`;
     box.innerHTML = `◷ No map: ${what}. Add a <b>${verb === 'divides' ? '+ and…' : '+ when…'}</b> or <b>+ unless…</b> to see one.`;
     return box;
@@ -1197,6 +1198,8 @@ function liveRule(live, k) {
   const pd = live.pads && live.pads.find((x) => x.part === k);   // a pad: joined, free, or letting go (its rule fails)
   if (pd) return { ctls: pd.controls || null, state: pd.link ? 'JOINED' : pd.go ? 'FREE' : 'LETS GO', cls: pd.link ? 'on' : '' };
   if (fd) return { ctls: fd.controls || null, state: fd.link ? 'FEEDING' : fd.go && live.cantPierce ? 'TOO DEAR' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
+  const hp = live.harpoons && live.harpoons.find((x) => x.part === k);   // a harpoon: loaded, reloading, or off
+  if (hp) return { ctls: hp.controls || null, state: hp.t > 0 ? `REGROWING ${Math.ceil(hp.t)} s` : hp.controls ? 'LOADED' : 'OFF', cls: hp.t > PARAMS.harpoon.reload - 1 ? 'on' : '' };
   const mo = live.mouths && live.mouths.find((x) => x.part === k);   // a mouth: digesting, ready, or off
   if (mo) return { ctls: mo.controls || null, state: live.meal ? 'DIGESTING' : mo.go ? 'READY' : 'OFF', cls: live.meal ? 'on' : '' };
   const tx = live.pieces[0].inclusions.find((x) => x.part === k && x.toxin);   // a toxin sac: armed, or burst
@@ -1802,6 +1805,8 @@ function budget(lines) {
   if (m.motors > 0) lines.push(`          flagella beating ${show(m.motors)}`);
   if (m.pumps > 0) lines.push(`          pumping ${show(m.pumps)}`);
   if (cell.resting) lines.push('resting   upkeep and income at 40%, flagella stopped');
+  if (cell.stunT > 0) lines.push(`STUNNED   ${cell.stunT.toFixed(1)} s more (a ${cell.harpooned ? cell.harpooned.by : '?'}'s harpoon)`);
+  for (const h of cell.harpoons || []) lines.push(`harpoon   ${h.t > 0 ? `thrown, growing back: ${Math.ceil(h.t)} s` : h.controls ? 'loaded' : 'no rule: never fires'}`);
   for (const f of cell.feeders || []) if (f.link) lines.push(`feeding   on a ${world.cells[f.link.b] ? world.cells[f.link.b].species : '?'}: +${m.feeding.toFixed(0)} pJ/s kept (half of what it sucks)`);
   const by = world.links.filter((l) => l.feed && world.cells[l.b] === cell);
   if (by.length) lines.push(`DRAINED   by ${by.map((l) => `a ${world.cells[l.a].species}`).join(', ')}: its pool and nitrogen are being sucked out`);
@@ -2323,7 +2328,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     const fill = p.kind === 'body' ? COLOR.body[p.material] : tag || COLOR[p.material];
     const w = Math.max(2 * p.a * s, 1.5);
     if (p.kind === 'body') {   // outline (red while starving)
-      ctx.strokeStyle = real.dead ? '#8a8f98' : world.metab && c.metab.starving ? COLOR.starving : real.resting ? COLOR.resting : COLOR.outline; ctx.lineWidth = w + 2;
+      ctx.strokeStyle = real.dead ? '#8a8f98' : real.stunT > 0 ? '#ffe066' : world.metab && c.metab.starving ? COLOR.starving : real.resting ? COLOR.resting : COLOR.outline; ctx.lineWidth = w + 2;
       ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     }
     const jt = p.joint >= 0 ? c.joints[p.joint] : null;
@@ -2466,6 +2471,15 @@ function drawLinks(X, Y, s) {
     if (l.feed) { ctx.save(); ctx.strokeStyle = '#ff4d6d'; ctx.lineWidth = Math.max(1.2 * s, 2.5); }
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     if (l.feed) { ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(X(bx), Y(by), Math.max(1.5 * s, 3), 0, 2 * Math.PI); ctx.fill(); ctx.restore(); }
+  }
+  // harpoon darts: a bright line from the spine's tip for a moment after each shot, a star where it struck
+  for (const c of world.cells) for (const h of c.harpoons || []) {
+    const sh = h.shot, age = sh ? (world.steps - sh.step) * PARAMS.time.dt : Infinity;
+    if (age > 0.6) continue;
+    ctx.save(); ctx.globalAlpha = 1 - age / 0.6; ctx.strokeStyle = '#ffe066'; ctx.lineWidth = Math.max(0.8 * s, 2);
+    ctx.beginPath(); ctx.moveTo(X(sh.x0), Y(sh.y0)); ctx.lineTo(X(sh.x1) + 0.01, Y(sh.y1)); ctx.stroke();
+    if (sh.hit) { ctx.fillStyle = '#ffe066'; ctx.beginPath(); ctx.arc(X(sh.x1), Y(sh.y1), Math.max(2 * s, 4), 0, 2 * Math.PI); ctx.fill(); }
+    ctx.restore();
   }
 }
 
@@ -3016,7 +3030,7 @@ for (const [cat, names] of Object.entries(SHOWN)) {
 
 // Light up the buttons that match the current state (cheap; once a frame)
 function syncButtons() {
-  for (const [boxId, selId] of [['speedSeg', 'speed'], ['viewSeg', 'viewMode'], ['wallSeg', 'bodyWall'], ['chips', 'partWhat'], ['feelsSeg', 'partFeels'], ['contentSeg', 'partContent'], ['pigmentSeg', 'partPigment']]) {
+  for (const [boxId, selId] of [['speedSeg', 'speed'], ['viewSeg', 'viewMode'], ['wallSeg', 'bodyWall'], ['chips', 'partWhat'], ['feelsSeg', 'partFeels'], ['contentSeg', 'partContent'], ['pigmentSeg', 'partPigment'], ['materialSeg', 'partMaterial'], ['sticksSeg', 'partSticks']]) {
     const v = $(selId).value;
     for (const b of $(boxId).querySelectorAll('button')) b.classList.toggle('on', b.dataset.v === v);
   }

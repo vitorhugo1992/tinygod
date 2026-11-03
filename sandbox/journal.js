@@ -70,6 +70,11 @@ export function note(world, c) {
   if (c.dead && !w.dead) say(c.burst ? `burst itself: its toxin poisoned ${c.burst.hit} cell${c.burst.hit === 1 ? '' : 's'} of other species close by` : `died: ${c.diedWhy || 'starved'} (${Math.round(depth)} µm deep, ${Math.round(PARAMS.grow.die)} s without energy)`, true);
   if (c.poisoned && c.poisoned !== w.poisoned) say(`poisoned by a ${c.poisoned.by} bursting close by: lost ${Math.round(c.poisoned.lost / 1000)}k pJ, its plastids damaged`, true);
   w.poisoned = c.poisoned;
+  if (c.lastShot && c.lastShot !== w.shot) { const sh = c.lastShot;
+    say(sh.hit ? `threw its harpoon: hit a ${sh.kin ? 'kin cell' : sh.hit} (stunned ${PARAMS.harpoon.stun} s)` : sh.caught ? `threw its harpoon: caught by ${sh.caught}` : 'threw its harpoon: missed (nothing in its line)'); }
+  w.shot = c.lastShot;
+  if (c.harpooned && c.harpooned !== w.harpooned) say(`hit by a ${c.harpooned.by}'s harpoon: stunned ${PARAMS.harpoon.stun} s, lost ${Math.round(c.harpooned.lost / 1000)}k pJ`, true);
+  w.harpooned = c.harpooned;
   if (c.lastSwallow && c.lastSwallow !== w.swallow) say(c.lastSwallow.n > 1 ? `swallowed a chain of ${c.lastSwallow.n} ${c.lastSwallow.prey} whole: digesting it` : `swallowed a ${c.lastSwallow.prey} whole: digesting it`);
   w.swallow = c.lastSwallow;
   if (c.lastMeal2 && c.lastMeal2 !== w.meal2) say(`digested a ${c.lastMeal2.prey}: kept ${Math.round(c.lastMeal2.energy / 1000)}k pJ`);

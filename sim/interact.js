@@ -8,6 +8,8 @@
 // - groups: cells joined by pads. No chain rule: chains come from pads meeting. A hidden backstop
 //   (PARAMS.pads.maxChain) only blocks a new link that would make a group bigger than that.
 import { PARAMS } from './params.js';
+import { drainEnergy } from './metab.js';
+import { setSegmentLength } from './build.js';
 
 const KCC = PARAMS.contact.cells;
 const PAD = PARAMS.pads, FEED = PARAMS.feed;
@@ -189,6 +191,39 @@ export function interact(world) {
         if (world.metab) A.metab.E -= price;
         break;
       }
+    }
+  }
+
+  // harpoons (PARAMS.harpoon): a grown one whose rule holds throws its spine straight out, blind; the first piece of any
+  // cell in its line takes it: a body (kin too) is stunned and wounded, a spine or flagellum catches it
+  const HP = PARAMS.harpoon;
+  for (const A of cells) {
+    for (const h of A.harpoons || []) {
+      if (A.dead || !h.go || h.t > 0 || (world.metab && A.metab.E < h.cost)) continue;
+      if (world.metab) A.metab.E -= h.cost;
+      const [x0, y0] = padWorld(A, h), ux = A.cs[h.piece], uy = A.sn[h.piece];
+      h.t = HP.reload; setSegmentLength(A.pieces[h.piece], 0);   // thrown: it grows back (sense.js)
+      let best = null;
+      for (const B of cells) {
+        if (B === A) continue;
+        const dx = B.q[0] - x0, dy = B.q[1] - y0, r = HP.range + B.reach;
+        if (dx * dx + dy * dy > r * r) continue;
+        for (let k = 0; k < B.pieces.length; k++) {
+          const [ax, ay, bx, by] = ends(B, k), a = B.pieces[k].a;
+          for (let s = 0; s <= HP.range && (!best || s < best.s); s += 0.5) {   // walk along the dart's line
+            const px = x0 + ux * s, py = y0 + uy * s, ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey;
+            let t = l2 > 0 ? ((px - ax) * ex + (py - ay) * ey) / l2 : 0;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            const qx = ax + ex * t - px, qy = ay + ey * t - py;
+            if (qx * qx + qy * qy <= a * a) { best = { s, B, k }; break; }
+          }
+        }
+      }
+      const B = best && best.B, hit = B && best.k === 0 && !B.dead ? B : null, len = best ? best.s : HP.range;
+      h.shot = { step: world.steps, x0, y0, x1: x0 + ux * len, y1: y0 + uy * len, hit: hit ? hit.species : null,
+        caught: !B || hit ? null : B.dead ? 'a dead cell' : 'a spine or flagellum', kin: !!hit && hit.species === A.species };
+      A.lastShot = h.shot;
+      if (hit) { const lost = world.metab ? drainEnergy(hit, HP.venom) : 0; hit.stunT = HP.stun; hit.harpooned = { by: A.species, lost, step: world.steps }; }
     }
   }
 
