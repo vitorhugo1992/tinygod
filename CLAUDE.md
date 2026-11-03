@@ -6,7 +6,17 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
-**NEXT CHAT STARTS HERE (handoff, 2026-11-03 evening): the AI TOURNAMENT, step 1, THE BRIEF.** The author's idea: "make
+**NEXT CHAT STARTS HERE (handoff, 2026-11-03 night).** Built today (entries below: "STEP 1 DONE", "ROUNDS 1-2",
+"BALANCE FROM THE TOURNAMENT"): the brief, the entry page (https://vitorhugo1992.github.io/tinygod/enter/), the
+tournament (two rounds), and a rebalance (slow chamber, deeper nutricline, nitrogen patches). **Next, agreed (author:
+"maybe tomorrow we bring some of these unique species back tuned"):** retune the deleted species with unique mechanics
+to the new balance, in git history before commit 0204c98: **Gula** (the only swallower), **Jaculella** (the only
+harpooner), **Miasmella** (the only toxin leaker); maybe Scalella (chains) and the author's Pendulina. They died alone
+from the floor: built on Bathyscapha's body, whose chamber no longer lifts it (light 800, slow) and whose depth (~1 mm)
+is now nitrogen-poor. Then: a 5-day tournament round with fresh blind entries on the new brief (do the swimmer,
+drifter and floor-dweller hold up together?).
+
+**Earlier handoff (2026-11-03 evening): the AI TOURNAMENT, step 1, THE BRIEF.** The author's idea: "make
 different AI compete with each other" (ChatGPT, Gemini, Claude…): each designs a species from the same brief, and the
 designs fight in one tank. Agreed outline (Claude's proposal; author: "maybe we do that brief in a fresh chat"):
 (1) **the brief**, docs/DESIGN-A-SPECIES.md: written for an AI that knows nothing about TinyGod, self-contained (pasted
