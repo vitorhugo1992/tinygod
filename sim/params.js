@@ -183,7 +183,7 @@ export const PARAMS = {
     range: 40,              // µm the dart flies past the spine's tip
     cost: 3000,             // pJ per µm of spine, each shot (regrowing it; the pool must hold it): 20 µm, 60k (author:
                             // "make it costly, as it can severely damage bigger predators")
-    reload: 20,             // s to grow the spine back; it can't fire until it has
+    reload: 150,            // s to grow the spine back (a quarter of a day; author: "needs considerable time"); it can't fire until it has
     // the wound (author: "a smaller cell will hurt more or die, but a larger cell will also suffer damage"): a fixed
     // part, heavy for a small or hungry cell, and a share of all it holds, felt by a big fed one; more than it holds kills it
     venom: 400000,          // pJ every wound takes (an r 10 swimmer late at night holds ~500k)
