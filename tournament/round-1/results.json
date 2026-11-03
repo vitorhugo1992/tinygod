@@ -1,0 +1,696 @@
+{
+  "round": 1,
+  "seeds": 3,
+  "days": 3,
+  "cap": 40,
+  "run": "2026-11-03T21:50:11.451Z",
+  "scores": [
+    {
+      "ai": "Claude",
+      "name": "Deepdweller",
+      "refused": null,
+      "mean": 25.3,
+      "finals": [
+        26,
+        18,
+        32
+      ],
+      "deaths": 0,
+      "causes": {},
+      "kills": {
+        "ChatGPT": 2
+      },
+      "firstDeath": null,
+      "dayDepth": 1306,
+      "nightDepth": 1287
+    },
+    {
+      "ai": "ChatGPT",
+      "name": "Pelagolux equilibrans",
+      "refused": null,
+      "mean": 2.7,
+      "finals": [
+        0,
+        4,
+        4
+      ],
+      "deaths": 2,
+      "causes": {
+        "drained by a Claude": 2
+      },
+      "kills": {},
+      "firstDeath": 2.52,
+      "dayDepth": 1076,
+      "nightDepth": 996
+    },
+    {
+      "ai": "Gemini",
+      "name": "Heliosphaera ascensus",
+      "refused": null,
+      "mean": 0,
+      "finals": [
+        0,
+        0,
+        0
+      ],
+      "deaths": 3,
+      "causes": {
+        "starved": 3
+      },
+      "kills": {},
+      "firstDeath": 0.51,
+      "dayDepth": 1985,
+      "nightDepth": 1962
+    }
+  ],
+  "entries": [
+    {
+      "file": "ChatGPT.json",
+      "ai": "ChatGPT",
+      "name": "Pelagolux equilibrans",
+      "note": "A buoyancy-regulating phototroph designed to exploit the boundary between nutrient-rich deep water and the illuminated upper water column. Its chloroplast supports photosynthetic growth, while a buoyancy chamber helps maintain its position near the nutricline. A chemical sensor activates buoyancy when nutrient conditions indicate deeper water. At night, a light sensor triggers metabolic rest, reducing energy consumption, while starch reserves sustain the cell through darkness. Its relatively small radius favours nutrient uptake, and its elongated body accommodates its internal organelles.",
+      "problem": "",
+      "design": {
+        "body": {
+          "radius": 6,
+          "length": 50
+        },
+        "parts": [
+          {
+            "type": "inclusion",
+            "id": "nucleus",
+            "material": "nucleus",
+            "at": [
+              -18,
+              0
+            ],
+            "radius": 4.3,
+            "joint": {
+              "type": "rest",
+              "controls": [
+                {
+                  "sensor": "eye",
+                  "min": 0,
+                  "max": 0.025
+                }
+              ]
+            }
+          },
+          {
+            "type": "inclusion",
+            "id": "plastid",
+            "material": "plastid",
+            "at": [
+              10,
+              0
+            ],
+            "radius": 5.6
+          },
+          {
+            "type": "inclusion",
+            "id": "buoyancy",
+            "material": "chamber",
+            "at": [
+              -5,
+              0
+            ],
+            "radius": 5.6,
+            "joint": {
+              "type": "chamber",
+              "controls": [
+                {
+                  "sensor": "chem",
+                  "min": 0.25,
+                  "max": 1
+                }
+              ]
+            }
+          },
+          {
+            "type": "inclusion",
+            "id": "starch",
+            "material": "starch",
+            "at": [
+              23,
+              0
+            ],
+            "radius": 3.4
+          },
+          {
+            "type": "sensor",
+            "id": "eye",
+            "kind": "light",
+            "at": [
+              0,
+              6
+            ],
+            "angle": 90,
+            "cone": 180
+          },
+          {
+            "type": "sensor",
+            "id": "chem",
+            "kind": "chem",
+            "at": [
+              0,
+              -6
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "file": "Claude.json",
+      "ai": "Claude",
+      "name": "Deepdweller",
+      "note": "A long, swimmerless rod (radius 6, length 66) that steers only with a large buoyancy chamber. It uses its nitrogen sensor as a depth gauge: the chamber floats it whenever nitrogen reads 0.85 or more (about 1,250 µm deep or below), or whenever it is within ~45 µm of the floor, a wall or a crowd of kin while deeper than ~800 µm. Otherwise the chamber goes neutral and the cell sinks slowly, so it bobs just under the nutricline, where nitrogen (the real growth limit) is rich and light is still fine. It never goes shallow enough for light damage. The plastid is a 32%-of-body rod, so the cell earns more than its upkeep even lying on the floor. It stays awake all night so nitrogen uptake never drops to the resting rate. Starch plus oil (6.3M pJ, releasing about 26k pJ/s) cover a night of about 3.2M pJ, and the cell rests only as an emergency if its pool drops below 18%. On day 0 the floor reads nitrogen at about 1.0, so it pumps light and lifts off whatever way it lies, with a net lift of about 2.4 pN even with full stores. It has no divide rule, so it splits as soon as it has doubled, roughly twice a day while the water stays rich. Side spines keep attackers' tubes and mouths off its body, and its size makes it hard to swallow. Feeding tubes at each end drain any other species that drifts into them, for extra energy and nitrogen.",
+      "problem": "",
+      "design": {
+        "body": {
+          "radius": 6,
+          "length": 66
+        },
+        "parts": [
+          {
+            "type": "inclusion",
+            "id": "nucleus",
+            "material": "nucleus",
+            "at": [
+              -34.3,
+              0
+            ],
+            "radius": 4.3,
+            "joint": {
+              "type": "rest",
+              "controls": [
+                {
+                  "sensor": "energy",
+                  "min": 0,
+                  "max": 0.18
+                }
+              ]
+            }
+          },
+          {
+            "type": "inclusion",
+            "id": "starch1",
+            "material": "starch",
+            "at": [
+              -25.9,
+              0
+            ],
+            "radius": 4
+          },
+          {
+            "type": "inclusion",
+            "id": "oil1",
+            "material": "oil",
+            "at": [
+              -16.8,
+              0
+            ],
+            "radius": 5
+          },
+          {
+            "type": "inclusion",
+            "id": "float",
+            "material": "chamber",
+            "at": [
+              -3.05,
+              0
+            ],
+            "radius": 5.4,
+            "length": 6.5,
+            "joint": {
+              "type": "chamber",
+              "controls": [
+                {
+                  "sensor": "chem",
+                  "min": 0.85,
+                  "max": 1
+                },
+                {
+                  "sensor": "near",
+                  "min": 0.7,
+                  "max": 1,
+                  "or": true
+                },
+                {
+                  "sensor": "chem",
+                  "min": 0.3,
+                  "max": 1
+                }
+              ]
+            }
+          },
+          {
+            "type": "inclusion",
+            "id": "plastid1",
+            "material": "plastid",
+            "at": [
+              22.05,
+              0
+            ],
+            "radius": 5.4,
+            "length": 21.9
+          },
+          {
+            "type": "sensor",
+            "id": "chem",
+            "kind": "chem",
+            "at": [
+              0,
+              6
+            ],
+            "angle": 90
+          },
+          {
+            "type": "sensor",
+            "id": "near",
+            "kind": "near",
+            "at": [
+              0,
+              -6
+            ],
+            "angle": 270,
+            "range": 150,
+            "feels": "anything"
+          },
+          {
+            "type": "segment",
+            "id": "spA",
+            "at": [
+              18,
+              6
+            ],
+            "angle": 90,
+            "length": 12,
+            "radius": 0.5
+          },
+          {
+            "type": "segment",
+            "id": "spB",
+            "at": [
+              -18,
+              6
+            ],
+            "angle": 90,
+            "length": 12,
+            "radius": 0.5
+          },
+          {
+            "type": "segment",
+            "id": "spC",
+            "at": [
+              18,
+              -6
+            ],
+            "angle": 270,
+            "length": 12,
+            "radius": 0.5
+          },
+          {
+            "type": "segment",
+            "id": "spD",
+            "at": [
+              -18,
+              -6
+            ],
+            "angle": 270,
+            "length": 12,
+            "radius": 0.5
+          },
+          {
+            "type": "segment",
+            "id": "pedF",
+            "at": [
+              39,
+              0
+            ],
+            "angle": 0,
+            "length": 20,
+            "radius": 0.6,
+            "joint": {
+              "type": "feed"
+            }
+          },
+          {
+            "type": "segment",
+            "id": "pedB",
+            "at": [
+              -39,
+              0
+            ],
+            "angle": 180,
+            "length": 20,
+            "radius": 0.6,
+            "joint": {
+              "type": "feed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "file": "Gemini.json",
+      "ai": "Gemini",
+      "name": "Heliosphaera ascensus",
+      "note": "A compact spherical alga engineered for vertical migration and metabolic endurance. It utilizes a neutral buoyancy chamber and a low-maintenance starch store to survive the night while resting. During the day, it positions itself near mid-depth where light is optimal, using an upward-facing light sensor to regulate its vertical position and avoid surface damage, while managing internal energy pools efficiently.",
+      "problem": "",
+      "design": {
+        "body": {
+          "radius": 10,
+          "length": 0
+        },
+        "parts": [
+          {
+            "type": "inclusion",
+            "id": "nucleus",
+            "material": "nucleus",
+            "at": [
+              0,
+              -2
+            ],
+            "radius": 4.3,
+            "joint": {
+              "type": "rest",
+              "controls": [
+                {
+                  "sensor": "energy",
+                  "min": 0,
+                  "max": 0.35
+                }
+              ]
+            }
+          },
+          {
+            "type": "inclusion",
+            "id": "plastid1",
+            "material": "plastid",
+            "at": [
+              5,
+              4
+            ],
+            "radius": 2.5
+          },
+          {
+            "type": "inclusion",
+            "id": "plastid2",
+            "material": "plastid",
+            "at": [
+              -5,
+              4
+            ],
+            "radius": 2.5
+          },
+          {
+            "type": "inclusion",
+            "id": "starch1",
+            "material": "starch",
+            "at": [
+              0,
+              6
+            ],
+            "radius": 2
+          },
+          {
+            "type": "inclusion",
+            "id": "chamber1",
+            "material": "chamber",
+            "at": [
+              -6,
+              -4
+            ],
+            "radius": 1.8,
+            "joint": {
+              "type": "chamber",
+              "controls": [
+                {
+                  "sensor": "energy",
+                  "min": 0,
+                  "max": 0.5
+                },
+                {
+                  "sensor": "eye",
+                  "min": 0.4,
+                  "max": 1,
+                  "or": true
+                }
+              ]
+            }
+          },
+          {
+            "type": "sensor",
+            "id": "eye",
+            "kind": "light",
+            "at": [
+              0,
+              10
+            ],
+            "angle": 90,
+            "cone": 90
+          }
+        ]
+      }
+    }
+  ],
+  "runs": [
+    {
+      "seed": 1,
+      "reached": 3,
+      "final": {
+        "ChatGPT": 0,
+        "Claude": 26,
+        "Gemini": 0
+      },
+      "census": [
+        {
+          "day": 0,
+          "ChatGPT": 1,
+          "Claude": 1,
+          "Gemini": 1
+        },
+        {
+          "day": 0.5,
+          "ChatGPT": 1,
+          "Claude": 2,
+          "Gemini": 1
+        },
+        {
+          "day": 1,
+          "ChatGPT": 1,
+          "Claude": 2,
+          "Gemini": 0
+        },
+        {
+          "day": 1.5,
+          "ChatGPT": 2,
+          "Claude": 8,
+          "Gemini": 0
+        },
+        {
+          "day": 2,
+          "ChatGPT": 2,
+          "Claude": 9,
+          "Gemini": 0
+        },
+        {
+          "day": 2.5,
+          "ChatGPT": 2,
+          "Claude": 21,
+          "Gemini": 0
+        },
+        {
+          "day": 3,
+          "ChatGPT": 0,
+          "Claude": 26,
+          "Gemini": 0
+        }
+      ],
+      "deaths": [
+        {
+          "day": 0.51,
+          "species": "Gemini",
+          "why": "starved",
+          "depth": 1853
+        },
+        {
+          "day": 2.52,
+          "species": "ChatGPT",
+          "why": "drained by a Claude",
+          "depth": 1754
+        },
+        {
+          "day": 2.65,
+          "species": "ChatGPT",
+          "why": "drained by a Claude",
+          "depth": 1914
+        }
+      ],
+      "where": {
+        "ChatGPT": {
+          "day": 1121,
+          "night": 1138
+        },
+        "Claude": {
+          "day": 1287,
+          "night": 1265
+        },
+        "Gemini": {
+          "day": 1988,
+          "night": 1906
+        }
+      }
+    },
+    {
+      "seed": 2,
+      "reached": 3,
+      "final": {
+        "ChatGPT": 4,
+        "Claude": 18,
+        "Gemini": 0
+      },
+      "census": [
+        {
+          "day": 0,
+          "ChatGPT": 1,
+          "Claude": 1,
+          "Gemini": 1
+        },
+        {
+          "day": 0.5,
+          "ChatGPT": 1,
+          "Claude": 2,
+          "Gemini": 1
+        },
+        {
+          "day": 1,
+          "ChatGPT": 1,
+          "Claude": 2,
+          "Gemini": 0
+        },
+        {
+          "day": 1.5,
+          "ChatGPT": 2,
+          "Claude": 8,
+          "Gemini": 0
+        },
+        {
+          "day": 2,
+          "ChatGPT": 2,
+          "Claude": 9,
+          "Gemini": 0
+        },
+        {
+          "day": 2.5,
+          "ChatGPT": 4,
+          "Claude": 12,
+          "Gemini": 0
+        },
+        {
+          "day": 3,
+          "ChatGPT": 4,
+          "Claude": 18,
+          "Gemini": 0
+        }
+      ],
+      "deaths": [
+        {
+          "day": 0.51,
+          "species": "Gemini",
+          "why": "starved",
+          "depth": 1990
+        }
+      ],
+      "where": {
+        "ChatGPT": {
+          "day": 1049,
+          "night": 930
+        },
+        "Claude": {
+          "day": 1410,
+          "night": 1307
+        },
+        "Gemini": {
+          "day": 1988,
+          "night": 1990
+        }
+      }
+    },
+    {
+      "seed": 3,
+      "reached": 3,
+      "final": {
+        "ChatGPT": 4,
+        "Claude": 32,
+        "Gemini": 0
+      },
+      "census": [
+        {
+          "day": 0,
+          "ChatGPT": 1,
+          "Claude": 1,
+          "Gemini": 1
+        },
+        {
+          "day": 0.5,
+          "ChatGPT": 1,
+          "Claude": 2,
+          "Gemini": 1
+        },
+        {
+          "day": 1,
+          "ChatGPT": 1,
+          "Claude": 3,
+          "Gemini": 0
+        },
+        {
+          "day": 1.5,
+          "ChatGPT": 2,
+          "Claude": 6,
+          "Gemini": 0
+        },
+        {
+          "day": 2,
+          "ChatGPT": 2,
+          "Claude": 8,
+          "Gemini": 0
+        },
+        {
+          "day": 2.5,
+          "ChatGPT": 4,
+          "Claude": 16,
+          "Gemini": 0
+        },
+        {
+          "day": 3,
+          "ChatGPT": 4,
+          "Claude": 32,
+          "Gemini": 0
+        }
+      ],
+      "deaths": [
+        {
+          "day": 0.52,
+          "species": "Gemini",
+          "why": "starved",
+          "depth": 1990
+        }
+      ],
+      "where": {
+        "ChatGPT": {
+          "day": 1057,
+          "night": 921
+        },
+        "Claude": {
+          "day": 1220,
+          "night": 1289
+        },
+        "Gemini": {
+          "day": 1980,
+          "night": 1990
+        }
+      }
+    }
+  ]
+}

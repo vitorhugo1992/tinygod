@@ -68,12 +68,20 @@
     <p class="note">📤 Enter opens a GitHub page with the entry filled in: tap <b>Create</b> and Claude collects it.</p>
   </section>
 
+  <section id="r2" hidden style="border-left-color:#e0b050">
+    <h2>3 · Round 2: improve to beat the others</h2>
+    <p class="note" style="margin-top:0">Each AI gets the round-1 results, how its own species did and every opponent's design.
+      Copy its message, paste it <b>in the same chat as its round-1 entry</b>, then bring the new answer back in box 2.</p>
+    <div class="row" id="r2buttons" style="margin-top:10px"></div>
+    <div class="msg" id="msg3"></div>
+  </section>
+
   <section>
     <h2>Fair play</h2>
     <ol>
       <li>A <b>new chat</b> for each AI, so it knows nothing of TinyGod but the rules.</li>
       <li><b>No hints.</b> If its design is refused, you may send the red message back to it <b>once</b> to fix it.</li>
-      <li>Round 2 comes later: each AI sees how its species did and revises it once.</li>
+      <li>Round 2: each AI sees the results and every species, and revises its own once (the same one fix allowed).</li>
     </ol>
   </section>
 </main>
@@ -108,6 +116,48 @@ $('copyTask').onclick = async () => {
   const ok = await copy(TASK);
   say($('msg1'), ok ? 'The message is copied: paste it into a new chat and send.' : 'Could not copy here.', ok ? 'ok' : 'bad');
 };
+
+// Round 2 (author, 2026-11-03: "all AI see the opponent species alongside their species performance, their job is to
+// improve them to beat the competition"): a message per AI from the last round's results
+const NL = String.fromCharCode(10);
+function round2Message(R, me) {
+  const mine = R.scores.find((s) => s.ai === me.ai);
+  const at = (r, day) => { const c = r.census.find((x) => x.day >= day) || r.census[r.census.length - 1]; return c; };
+  const growth = (ai) => [1, 2, 5, 10].filter((d) => d < R.days).concat(R.days).map((d) => `day ${d}: ${(R.runs.reduce((a, r) => a + (at(r, d)[ai] ?? 0), 0) / R.runs.length).toFixed(1)}`).join(', ');
+  const table = R.scores.map((s, i) => `${i + 1}. ${s.ai} (${s.name}): ${s.refused ? 'refused (' + s.refused + ')' : `${s.mean} cells on average (runs: ${s.finals.join(', ')}); lives ~${s.dayDepth ?? '?'} µm deep by day, ~${s.nightDepth ?? '?'} µm by night`}`).join(NL);
+  const story = (s) => s.refused ? `refused: ${s.refused}` : [`cells over time (mean of the runs): ${growth(s.ai)}`,
+    s.deaths ? `deaths: ${Object.entries(s.causes).map(([k, v]) => `${v}× ${k}`).join('; ')} (first on day ${s.firstDeath})` : 'no deaths',
+    Object.keys(s.kills).length ? `it killed: ${Object.entries(s.kills).map(([k, v]) => `${v} ${k}`).join(', ')}` : ''].filter(Boolean).join(NL);
+  const designs = R.entries.map((e) => `--- ${e.ai}${e.ai === me.ai ? ' (yours)' : ''}: ${e.name}
+Its note: ${e.note || '(none)'}
+${JSON.stringify({ name: e.name, design: e.design })}`).join(NL + NL);
+  return `TinyGod AI tournament, round ${R.round + 1}. In round ${R.round} you entered "${me.name}" (as ${me.ai}). The same brief applies: ${RAW} (or ${SITE}).
+
+Round ${R.round} results (all species in one tank holding at most ${R.cap || 200} cells in all, one cell each from the floor, moving water, ${R.days} days, ${R.seeds} runs with different starting spots; score: mean living cells at day ${R.days}):
+${table}
+
+Your species, ${mine.name}:
+${story(mine)}
+
+The others:
+${R.scores.filter((s) => s.ai !== me.ai).map((s) => `${s.ai} (${s.name}):
+${story(s)}`).join(NL + NL)}
+
+Every species' design, yours and your opponents':
+
+${designs}
+
+Your task: revise your species to beat the competition in round ${R.round + 1} (all of these designs' new versions will be in the tank). You may change anything, borrow ideas, or start again. Reply with the single JSON object the brief asks for in its section 8.`;
+}
+fetch(`../tournament/round-1/results.json?t=${Date.now()}`).then((r) => (r.ok ? r.json() : null)).then((R) => {
+  if (!R) return;
+  $('r2').hidden = false;
+  for (const e of R.entries) {
+    const b = document.createElement('button'); b.textContent = `📋 ${e.ai}'s message`;
+    b.onclick = async () => { const ok = await copy(round2Message(R, e)); say($('msg3'), ok ? `${e.ai}'s round-2 message is copied: paste it in its chat and send.` : 'Could not copy here.', ok ? 'ok' : 'bad'); };
+    $('r2buttons').appendChild(b);
+  }
+}).catch(() => {});
 
 $('copyAll').onclick = async (e) => {
   e.preventDefault();
