@@ -1,11 +1,13 @@
 // Contest: one cell of each design from the floor, N sandbox days (default 10), cap 200; prints the census every half
-// day and every death. node tools/contest.mjs [bathyscapha,noctilla,...] [days] [--still] (moving water unless --still)
+// day and every death. node tools/contest.mjs [bathyscapha,noctilla,...] [days] [--still] [--seed=N]
+// (moving water unless --still; a seed shuffles which species starts where along the floor: seed 1 keeps the list's order)
 import { readFileSync } from 'fs';
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 
 const ROOT = new URL('../designs/', import.meta.url);
-const still = process.argv.includes('--still'), args = process.argv.slice(2).filter((a) => a !== '--still');
+const still = process.argv.includes('--still'), seedArg = process.argv.find((a) => a.startsWith('--seed='));
+const seed = seedArg ? +seedArg.slice(7) : 1, args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const names = (args[0] || 'bathyscapha,noctilla,saltella,trochilla,caecella,raptilla2,scalella,gula').split(',');
 const days = +(args[1] || 10);
 PARAMS.grow.cap = 200;
@@ -20,13 +22,15 @@ function prep(d) {   // the sandbox's withoutTimers stubs
   return d;
 }
 
-const w = makeWorld(1, { day: true, metab: true, grow: true, flow: !still });
+const w = makeWorld(seed, { day: true, metab: true, grow: true, flow: !still });
 const species = [];
+const spot = names.map((_, i) => i);
+if (seed !== 1) { let r = seed; const rnd = () => ((r = (r * 1103515245 + 12345) % 2147483648) / 2147483648); for (let i = spot.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [spot[i], spot[j]] = [spot[j], spot[i]]; } }
 names.forEach((n, i) => {
   const f = JSON.parse(readFileSync(new URL(n + '.json', ROOT), 'utf8'));
   const d = prep({ ...f.design, name: f.name.replace(/ \(.*/, '') });
   species.push(d.name);
-  addCell(w, d, 100 + i * (1400 / Math.max(1, names.length - 1)), 60, 0);
+  addCell(w, d, 100 + spot[i] * (1400 / Math.max(1, names.length - 1)), 60, 0);
 });
 const DAY = PARAMS.metab.day, T0 = Date.now();
 const deaths = [];

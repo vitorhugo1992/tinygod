@@ -34,6 +34,12 @@ Saltella 10, Gula 7, Noctilla 2, Raptilla 2 2, Trochilla 1, Scalella 0, Caecella
 Scalella on day 2.05, before it ever divided (still water: one swallow in 10 days, on day 7.2): moving water makes
 meetings happen. Saltella did far better (10, was 0-11). Caecella starved day 3.9 (909 µm), one Bathyscapha day 7.9,
 one Saltella on the floor day 9.3. One run is one seed: contests are chaotic, score over several seeds before tuning.
+**Five starts in moving water** (tools/contest.mjs --seed=N shuffles who starts where; seeds 1-5), day 10, mean (range):
+Bathyscapha 10.8 (8-14), Scalella 12 (0-22), Gula 5 (4-7), Saltella 4.8 (0-10), Noctilla 3.4 (2-4), Raptilla 2 1.6 (0-3),
+Trochilla 1.4 (0-2), **Caecella 0 in all five** (starves day 3.9-6.9: its oil-clock rest rule, a design weakness). Gula
+swallowed 19 Scalellas over the five (1, 6, 6, 2, 4), mostly days 5-10 as both multiply; Scalella still ends near the
+top (kill-the-winner, mild). **Raptilla 2 drained nothing to death in any run.** Most other deaths are starving on the
+floor (Saltella 7 times, Raptilla 2 twice, Trochilla once). Drifters still lead (~23 of ~40 cells).
 
 **NEWEST HANDOFF (2026-11-02, end of a very long chat; the author starts a new chat).** Built today, all pushed, 59
 checks pass (details in the entries below, search for the names): the population graph (tap the graph strip); the
