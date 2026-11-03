@@ -1506,8 +1506,9 @@ $('add').onclick = () => {
   const v = addSelect.value;
   addToTank(v.startsWith('saved:') ? savedDesign(v.slice(6)) : v ? preset(v) : design);
 };
-// remove the selected cell from the tank (author, 2026-11-03: "where is the delete button"); the last cell stays
-$('removeCell').onclick = () => {
+// remove the selected cell from the tank (author, 2026-11-03: "where is the delete button"; also in the top bar on a computer,
+// in ⋯ More on a phone); the last cell stays
+const removeSelected = () => {
   if (world.cells.length < 2) { $('buildErr').textContent = 'the last cell stays: load another design instead'; return; }
   const gone = cell, old = world.cells, keep = old.filter((x) => x !== gone);
   const at = new Map(keep.map((c, i) => [c, i]));   // links name cells by their place in the list: renumber them
@@ -1522,6 +1523,8 @@ $('removeCell').onclick = () => {
   if (next.design !== design) { design = next.design; $('json').value = JSON.stringify(design, null, 2); listParts(); }   // none of its kind left: edit the next one's
   $('buildErr').textContent = `removed a ${gone.species} (${keep.length} cell${keep.length === 1 ? '' : 's'} left)`;
 };
+$('removeCell').onclick = removeSelected;
+$('removeCellBar').onclick = removeSelected;
 
 // The capsules of a cell, as they are now
 function outline(c) {
