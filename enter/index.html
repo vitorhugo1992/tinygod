@@ -74,7 +74,8 @@
   </section>
 </main>
 <script type="module">
-import { entryProblem, readAnswer } from '../sim/entry.js';
+// the checks always fresh (the website lets a browser keep a file 10 minutes; a stale check gave a stale error)
+const { entryProblem, readAnswer } = await import(`../sim/entry.js?t=${Date.now()}`);
 
 const $ = (id) => document.getElementById(id);
 const RAW = 'https://raw.githubusercontent.com/vitorhugo1992/tinygod/main/docs/DESIGN-A-SPECIES.md';
