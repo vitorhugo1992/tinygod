@@ -29,7 +29,11 @@ flow }) (checks: off; sandbox, Test a day and tools/contest.mjs: on, `--still` f
 to 1 + mix 4 times faster as it moves (nutrient.js). Page: faint streaks drifting with it (drawMotes, ~70 in view at any
 zoom), ≋ Water in ⋯ More. Check 28af (60 checks). Measured: all eight of Claude's species alone, 3 days from the floor in
 moving water: alive (Bathyscapha 2, Gula 2, Scalella 2, the rest 1). A loop takes about a day; ~1.3 ms per sim s for the
-water's cost on a 1-piece cell.
+water's cost on a 1-piece cell. **First contest in moving water** (8 species, 10 days): **day 10: Bathyscapha 12,
+Saltella 10, Gula 7, Noctilla 2, Raptilla 2 2, Trochilla 1, Scalella 0, Caecella 0.** Gula met and swallowed the lone
+Scalella on day 2.05, before it ever divided (still water: one swallow in 10 days, on day 7.2): moving water makes
+meetings happen. Saltella did far better (10, was 0-11). Caecella starved day 3.9 (909 µm), one Bathyscapha day 7.9,
+one Saltella on the floor day 9.3. One run is one seed: contests are chaotic, score over several seeds before tuning.
 
 **NEWEST HANDOFF (2026-11-02, end of a very long chat; the author starts a new chat).** Built today, all pushed, 59
 checks pass (details in the entries below, search for the names): the population graph (tap the graph strip); the
