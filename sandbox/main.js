@@ -1001,7 +1001,7 @@ function speedEditor(targets, box) {
 // ----- the map of when it runs (author's mock-up, 2026-11-01): time of day across, depth down, coloured where the rule
 // would make the part act. A guess from the rule alone: light sensors read the light at that hour and depth (facing as
 // they face now), energy and stores as they were at that hour over the last day (or as now), anything else as now. -----
-const MAP_W = 96, MAP_H = 40;
+const MAP_W = 192, MAP_H = 64;
 // what each reading would be at hour h, depth dz (µm): a function (id) => value
 function mapReader(live) {
   const L = PARAMS.light, facing = {}, byHour = {};
@@ -1053,44 +1053,85 @@ function ruleAt(R, read) {
   }
   return { any, go: any && (all || group), stop };
 }
-// draw the map of rule R for part m on canvas cv; returns the caption
+// draw the map of rule R for part m on canvas cv; returns the caption. The water is drawn as it is (dark nights, a bright
+// noon fading with depth: the day's shape shows by itself); where the part acts is its colour laid over it in stripes,
+// with a bright edge where it changes (author, 2026-11-03: the flat blocks read as abstract)
+const MAP_LEGEND = { runs: ['runs', 'still'], fires: ['fires', 'waits'], rests: ['rests', 'awake'], feeds: ['would feed', "doesn't"],
+  holds: ['holds', 'lets go'], bursts: ['would burst', 'waits'], engulfs: ['would engulf', "doesn't"], divides: ['would divide', 'waits'] };
+const MAP_Q = { runs: 'When does it run?', fires: 'When does it fire?', rests: 'When does it rest?', feeds: 'When would it feed?',
+  holds: 'When does it hold?', bursts: 'When would it burst?', engulfs: 'When would it engulf?', divides: 'When would it divide?',
+  floats: 'When does it float, when does it sink?' };
+const MAP_FLOAT = [205, 238, 255], MAP_SINK = [45, 91, 209];
+const hexRGB = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+// the water at hour h, depth dz: black at night and deep down, bright teal near the surface at noon
+function mapWater(h, dz) {
+  const sun = !world.light ? 0 : world.day ? Math.max(0, Math.sin(2 * Math.PI * (h - 6) / 24)) : 1;
+  const t = Math.pow(Math.min(1, sun * Math.exp(-PARAMS.light.attenuation * dz)), 0.45);
+  return [8 + t * 62, 13 + t * 137, 26 + t * 144];
+}
+const mapCol = (m) => { const g = groupOfPart(m); return (g && colourOf(g)) || '#6fd3b5'; };
 function drawRunMap(cv, m, R) {
   const verb = verbOf(m), live = cell && cell.design === design ? cell : null, reader = mapReader(live);
-  const g = groupOfPart(m), col = (g && colourOf(g)) || '#6fd3b5';
-  const ctx2 = cv.getContext('2d'), img = ctx2.createImageData(MAP_W, MAP_H);
-  const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
-  const ON = hex(col), FLOAT = [205, 238, 255], SINK = [45, 91, 209], REST = [159, 208, 255];
+  const ctx2 = cv.getContext('2d'), img = ctx2.createImageData(MAP_W, MAP_H), ON = hexRGB(mapCol(m));
+  const state = new Uint8Array(MAP_W * MAP_H);   // 0 off, 1 on (or floats), 2 sinks
   let on = 0, fl = 0, sk = 0;
   for (let x = 0; x < MAP_W; x++) {
-    const h = (x + 0.5) / MAP_W * 24, night = world.day && Math.sin(2 * Math.PI * (h - 6) / 24) <= 0;
+    const h = (x + 0.5) / MAP_W * 24;
     for (let y = 0; y < MAP_H; y++) {
       const dz = (y + 0.5) / MAP_H * TH, r = ruleAt(R, reader(h, dz));
-      let c = null;
-      if (verb === 'floats') { if (r.stop) { c = SINK; sk++; } else if (r.go) { c = FLOAT; fl++; } }
-      else if (verb === 'rests') { if (r.go && !r.stop) { c = REST; on++; } }
-      else if ((r.any ? r.go : true) && !r.stop) { c = ON; on++; }
-      const i = (y * MAP_W + x) * 4, base = night ? [9, 14, 24] : [17, 28, 46];
-      const v = c || base;
-      img.data[i] = v[0]; img.data[i + 1] = v[1]; img.data[i + 2] = v[2]; img.data[i + 3] = c ? 210 : 255;
+      let k = 0;
+      if (verb === 'floats') { if (r.stop) { k = 2; sk++; } else if (r.go) { k = 1; fl++; } }
+      else if (verb === 'rests') { if (r.go && !r.stop) { k = 1; on++; } }
+      else if ((r.any ? r.go : true) && !r.stop) { k = 1; on++; }
+      state[y * MAP_W + x] = k;
+      let v = mapWater(h, dz);
+      if (k) {
+        const c = k === 2 ? MAP_SINK : verb === 'floats' ? MAP_FLOAT : ON, al = (x + y) % 6 < 3 ? 0.78 : 0.5;
+        v = v.map((w, i) => w * (1 - al) + c[i] * al);
+      }
+      const i = (y * MAP_W + x) * 4;
+      img.data[i] = v[0]; img.data[i + 1] = v[1]; img.data[i + 2] = v[2]; img.data[i + 3] = 255;
     }
+  }
+  for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) {   // the edge
+    const k = state[y * MAP_W + x];
+    if ((x && state[y * MAP_W + x - 1] !== k) || (y && state[(y - 1) * MAP_W + x] !== k)) { const i = (y * MAP_W + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 235; }
   }
   ctx2.putImageData(img, 0, 0);
   const n = MAP_W * MAP_H, pc2 = (v) => `<b>${Math.round(v / n * 100)}%</b>`;
-  const what = verb === 'floats' ? `Floats in ${pc2(fl)}, sinks in ${pc2(sk)} of the map; neutral elsewhere`
-    : verb === 'rests' ? `Rests in ${pc2(on)} of the map` : `${verb === 'runs' ? 'Runs' : verb === 'feeds' ? 'Would feed' : verb === 'holds' ? 'Holds' : verb === 'bursts' ? 'Would burst' : verb === 'engulfs' ? 'Would engulf' : verb === 'divides' ? 'Would divide (meter full)' : 'Fires'} in ${pc2(on)} of the map`;
-  return `${what}${live ? '' : ' (select a cell of this design for its eyespots\' facing and its day)'}.`;
+  const what = verb === 'floats' ? `Floats ${pc2(fl)} of the day and depths, sinks ${pc2(sk)}; neutral elsewhere`
+    : `${MAP_LEGEND[verb][0][0].toUpperCase() + MAP_LEGEND[verb][0].slice(1)} ${pc2(on)} of the day and depths`;
+  return `${what}${live ? '' : " (select a cell of this design for its eyespots' facing and its day)"}.`;
 }
-// the map under a card's sentence: a canvas, the axes, a dot for the selected cell now (moved every frame)
+// a legend swatch: a state's colour in stripes, or the water for "off"
+function mapSwatch(c) {
+  if (!c) return `background:linear-gradient(90deg, rgb(${mapWater(12, 300)}), rgb(${mapWater(0, 0)}))`;
+  return `background:repeating-linear-gradient(135deg, rgb(${c}) 0 3px, rgba(${c},.55) 3px 6px)`;
+}
+// the map under a card's sentence: a question, hours across, surface and floor, a canvas, a legend, a dot for the
+// selected cell now (moved every frame). A rule with no condition gets a line, not a map (it would be one block).
 function runMapEl(targets, R) {
-  const m = targets[0], k0 = design.parts.indexOf(m);
+  const m = targets[0], k0 = design.parts.indexOf(m), verb = verbOf(m);
+  if (!(R || canon(m)).length) {
+    const box = document.createElement('div'); box.className = 'rmapnone';
+    const what = verb === 'floats' ? 'it stays neutral' : verb === 'rests' ? 'it never rests' : verb === 'bursts' ? 'it never bursts'
+      : verb === 'fires' ? 'it fires only by hand' : `it ${MAP_LEGEND[verb][0]} at every hour and depth`;
+    box.innerHTML = `◷ No map: ${what}. Add a <b>${verb === 'divides' ? '+ and…' : '+ when…'}</b> or <b>+ unless…</b> to see one.`;
+    return box;
+  }
   const box = document.createElement('div'); box.className = 'rmap';
-  box.innerHTML = `<div class="mh"><span>WHEN IT ${verbOf(m) === 'floats' ? 'FLOATS AND SINKS' : verbOf(m) === 'rests' ? 'RESTS' : verbOf(m) === 'fires' ? 'FIRES' : verbOf(m) === 'feeds' ? 'WOULD FEED' : verbOf(m) === 'holds' ? 'HOLDS' : verbOf(m) === 'bursts' ? 'WOULD BURST' : verbOf(m) === 'engulfs' ? 'WOULD ENGULF' : verbOf(m) === 'divides' ? 'WOULD DIVIDE' : 'RUNS'} · time across, depth down</span><span>now ●</span></div>
-    <div class="mbox"><canvas width="${MAP_W}" height="${MAP_H}"></canvas><span class="ml t">surface</span><span class="ml b">2 mm</span>
-    <span class="mx" style="left:25%">06</span><span class="mx" style="left:50%">12</span><span class="mx" style="left:75%">18</span><i class="mdot" data-mapdot="${k0}"></i></div><div class="cap"></div>`;
+  const hours = [0, 3, 6, 9, 12, 15, 18, 21, 24].map((h) => `<span style="left:${h / 24 * 100}%${h === 0 ? ';transform:none' : h === 24 ? ';transform:translateX(-100%)' : ''}">${String(h).padStart(2, '0')}h</span>`).join('');
+  const col = hexRGB(mapCol(m)), keys = verb === 'floats' ? [['floats', MAP_FLOAT], ['sinks', MAP_SINK], ['neutral', null]] : [[MAP_LEGEND[verb][0], col], [MAP_LEGEND[verb][1], null]];
+  box.innerHTML = `<div class="mq">${MAP_Q[verb]} <span>· one day, surface to floor</span></div>
+    <div class="mgrid"><div class="mxl">${hours}</div><div class="myl"><span style="top:0">surface</span><span style="bottom:0">floor</span></div>
+    <div class="mbox"><canvas width="${MAP_W}" height="${MAP_H}"></canvas><i class="mdot" data-mapdot="${k0}"></i></div>
+    <div class="mxd"><span style="left:25%">dawn</span><span style="left:50%">noon</span><span style="left:75%">dusk</span></div></div>
+    <div class="mleg">${keys.map(([t, c]) => `<span><i style="${mapSwatch(c)}"></i>${t}</span>`).join('')}<span><i class="now"></i>your cell now</span></div><div class="cap"></div>`;
   box.redraw = () => { box.querySelector('.cap').innerHTML = drawRunMap(box.querySelector('canvas'), m, R || canon(m)); };
   box.redraw();
   return box;
 }
+
 
 // ----- the rule's links on the cell (author's mock-up, 2026-11-01): the card last tapped (or opened) has its sensors
 // joined to the part it drives by dashed lines in each sensor's colour on the selected cell (red for an "unless") -----

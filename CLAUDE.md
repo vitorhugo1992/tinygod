@@ -6,6 +6,19 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**2026-11-03 (new chat).** (1) **Contest rerun with chains counting as one** (tools/contest.mjs now kept in the repo:
+`node tools/contest.mjs [names] [days]`, one cell each from the floor, cap 200, ~36 min for 8 species): **day 10:
+Scalella 20, Bathyscapha 8, Noctilla 5, Gula 4, Raptilla 2 3, Trochilla 1, Caecella 1 (alive for once), Saltella 0**
+(starved day 0.43 on the floor: it tipped front-down at the start, its known weakness, not the contest's story). **Gula
+swallowed ONE Scalella in 10 days** (day 7.2): chains protect, and drifters still only meet in shared columns (moving
+water). Drifters lead again. (2) **Rule maps redrawn** (author: "confusing… looks abstract"; mock-up
+design/maps-mockup.html, approved with hours added and no µm on the depth axis): the water drawn as it is (dark
+nights, a bright noon fading with depth), where the part acts in its colour laid over it in stripes with a bright edge
+(chamber: pale floats, deep blue sinks), a question as the title ("When does it rest?"), hours 00h-24h every 3 h with
+dawn / noon / dusk under, surface / floor on the side, a legend (runs / still, floats / sinks / neutral, rests / awake,
+your cell now), caption "Runs 82% of the day and depths"; a rule with no condition gets a line, not a map ("◷ No map: it
+holds at every hour and depth…"). main.js drawRunMap / runMapEl (MAP_W 192 × MAP_H 64), CSS .rmap / .rmapnone.
+
 **NEWEST HANDOFF (2026-11-02, end of a very long chat; the author starts a new chat).** Built today, all pushed, 59
 checks pass (details in the entries below, search for the names): the population graph (tap the graph strip); the
 armoured wall (cellulose plates; glass removed); the Feeding reading; hunters keep 20%; **growing cells** (the design is
