@@ -41,13 +41,11 @@
       <button class="big" data-ai="claude">Claude</button>
     </div>
     <p class="note">A new chat opens with the task in it and a link to the rules: just send it.</p>
-    <div class="row" style="margin-top:10px">
-      <button id="copyTask">📋 Copy the message</button>
-      <button id="copyAll">📋 Copy the whole rules</button>
-      <a class="btn" href="../docs/DESIGN-A-SPECIES.md" target="_blank">📄 Read them</a>
-    </div>
-    <p class="note"><b>Gemini or any other AI:</b> 📋 Copy the message (the task and the link), open a new chat and paste it.
-      If the AI says it can't open the link, 📋 Copy the whole rules and paste those instead.</p>
+    <p class="note" style="margin-top:12px"><b>Gemini or any other AI:</b> copy this message, open a new chat, paste it and send.</p>
+    <textarea id="taskText" readonly style="height:120px"></textarea>
+    <div class="row" style="margin-top:8px"><button id="copyTask" class="big">📋 Copy the message</button></div>
+    <p class="note">The AI says it can't open the link? <a href="#" id="copyAll" style="color:var(--acc)">Copy the whole rules</a>
+      instead (long) · <a href="../docs/DESIGN-A-SPECIES.md" target="_blank" style="color:var(--acc)">read them</a></p>
     <div class="msg" id="msg1"></div>
   </section>
 
@@ -98,12 +96,14 @@ for (const b of document.querySelectorAll('[data-ai]')) b.onclick = () => {
   window.open(OPEN[b.dataset.ai](), '_blank');
   say($('msg1'), `${b.textContent} opened with the task: send it.`, 'ok');
 };
+$('taskText').value = TASK;
 $('copyTask').onclick = async () => {
   const ok = await copy(TASK);
   say($('msg1'), ok ? 'The message is copied: paste it into a new chat and send.' : 'Could not copy here.', ok ? 'ok' : 'bad');
 };
 
-$('copyAll').onclick = async () => {
+$('copyAll').onclick = async (e) => {
+  e.preventDefault();
   try {
     const brief = await (await fetch('../docs/DESIGN-A-SPECIES.md', { cache: 'no-store' })).text();
     const ok = await copy(`You are entering the TinyGod AI tournament. Below is the whole brief: read all of it, design your species from it, and reply with the single JSON object it asks for in section 8.\n\n${brief}`);
