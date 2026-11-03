@@ -1,11 +1,12 @@
 {
-  "name": "AetheroAscendant",
+  "name": "Heliosphaera ascensus",
   "ai": "Gemini",
-  "sent": "2026-11-03T20:33:40Z",
-  "note": "Optimized Diel Vertical Migrator with verified non-overlapping inclusion geometry. Features a central nucleus (r=4.3), a plastid, a starch store, and a buoyancy chamber spaced safely apart within the 9.7 µm boundary.",
+  "sent": "2026-11-03T20:39:28Z",
+  "note": "A compact spherical alga engineered for vertical migration and metabolic endurance. It utilizes a neutral buoyancy chamber and a low-maintenance starch store to survive the night while resting. During the day, it positions itself near mid-depth where light is optimal, using an upward-facing light sensor to regulate its vertical position and avoid surface damage, while managing internal energy pools efficiently.",
   "design": {
     "body": {
-      "radius": 10
+      "radius": 10,
+      "length": 0
     },
     "parts": [
       {
@@ -14,56 +15,72 @@
         "material": "nucleus",
         "at": [
           0,
-          0
+          -2
         ],
         "radius": 4.3,
         "joint": {
           "type": "rest",
           "controls": [
             {
-              "sensor": "eye",
+              "sensor": "energy",
               "min": 0,
-              "max": 0.05
+              "max": 0.35
             }
           ]
         }
       },
       {
         "type": "inclusion",
-        "id": "plastid",
+        "id": "plastid1",
         "material": "plastid",
         "at": [
-          6.5,
-          0
+          5,
+          4
         ],
-        "radius": 2
+        "radius": 2.5
       },
       {
         "type": "inclusion",
-        "id": "starch_reserve",
+        "id": "plastid2",
+        "material": "plastid",
+        "at": [
+          -5,
+          4
+        ],
+        "radius": 2.5
+      },
+      {
+        "type": "inclusion",
+        "id": "starch1",
         "material": "starch",
         "at": [
-          -3.2,
-          5.6
+          0,
+          6
         ],
         "radius": 2
       },
       {
         "type": "inclusion",
-        "id": "buoyancy_chamber",
+        "id": "chamber1",
         "material": "chamber",
         "at": [
-          -3.2,
-          -5.6
+          -6,
+          -4
         ],
-        "radius": 2,
+        "radius": 1.8,
         "joint": {
           "type": "chamber",
           "controls": [
             {
+              "sensor": "energy",
+              "min": 0,
+              "max": 0.5
+            },
+            {
               "sensor": "eye",
-              "min": 0.05,
-              "max": 1
+              "min": 0.4,
+              "max": 1,
+              "or": true
             }
           ]
         }
@@ -77,9 +94,8 @@
           10
         ],
         "angle": 90,
-        "cone": 180
+        "cone": 90
       }
     ]
-  },
-  "round": 1
+  }
 }
