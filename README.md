@@ -5,6 +5,12 @@
 ▶ **Play it in your browser: https://vitorhugo1992.github.io/tinygod/**
 (It works on a phone, and keeps working offline once opened.)
 
+<p align="center">
+  <img src="docs/screens/tank.jpg" width="32%" alt="Several species sharing the sunlit water">
+  <img src="docs/screens/closeup.jpg" width="32%" alt="A close-up of one cell: plastids, an oil store, the nucleus, eyespots and a tail">
+  <img src="docs/screens/dusk.jpg" width="32%" alt="The same tank at dusk">
+</p>
+
 ---
 
 ## What it is
@@ -17,6 +23,8 @@ swims into the dark. A store too small runs out at 3 in the morning. When it die
 
 ## Build a cell
 
+<img src="docs/screens/phone.jpg" width="260" align="right" alt="The game on a phone: the tank above, the parts to build with below">
+
 - **Body:** round or rod-shaped, any size, a plain wall or armoured plates.
 - **Inside:** plastids that turn sunlight into energy, starch and oil stores for the night, a buoyancy chamber to float or
   sink, a nucleus, a toxin sac.
@@ -28,6 +36,8 @@ swims into the dark. A store too small runs out at 3 in the morning. When it die
 Then you give the parts **rules**, written as plain sentences:
 *"The tail runs when every eyespot sees less than 25% sun, unless energy is low."*
 A small map under each rule shows at which hours and depths it would act.
+
+<p align="center"><img src="docs/screens/rules.jpg" width="300" alt="A rule written as a sentence, with its map of when it acts"></p>
 
 ## The tank
 
@@ -66,4 +76,4 @@ tools/      tests, a local server, contests between species
 An early, playable sandbox that changes often. Next: balancing the species against each other, then goals and
 challenges.
 
-Made by a phytoplankton researcher, built with [Claude](https://claude.com/claude-code).
+Built with [Claude](https://claude.com/claude-code).
