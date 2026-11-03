@@ -55,6 +55,10 @@
     <input id="ai" placeholder="e.g. ChatGPT, GPT-5 Thinking">
     <label for="answer">Its answer (paste all of it: the JSON is found inside)</label>
     <textarea id="answer" placeholder='{ "name": "…", "note": "…", "design": { … } }'></textarea>
+    <div class="row" style="margin-top:8px">
+      <button id="pasteAns">📋 Paste</button>
+      <button id="clearAns">✕ Clear</button>
+    </div>
     <div class="msg" id="msg2"></div>
     <div class="row" style="margin-bottom:8px"><button id="copyErr" hidden>📋 Copy the error for the AI</button></div>
     <div class="row">
@@ -136,6 +140,11 @@ function check() {
   $('watch').disabled = false; $('enter').disabled = !$('ai').value.trim();
 }
 $('answer').oninput = check;
+$('clearAns').onclick = () => { $('answer').value = ''; check(); $('answer').focus(); };
+$('pasteAns').onclick = async () => {
+  try { $('answer').value = await navigator.clipboard.readText(); check(); }
+  catch { say($('msg2'), 'This browser won't let the page paste: tap the box and paste (Ctrl+V).', 'bad'); $('answer').focus(); }
+};
 $('copyErr').onclick = async () => {
   const ok = await copy(`The game refused your design: ${why}. Fix it and send the whole JSON object again.`);
   say($('msg2'), ok ? 'Copied: paste it to the AI and send. (Fair play: one fix.)' : 'Could not copy here.', ok ? 'ok' : 'bad');
