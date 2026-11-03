@@ -8,7 +8,7 @@ import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 const ROOT = new URL('../designs/', import.meta.url);
 const still = process.argv.includes('--still'), seedArg = process.argv.find((a) => a.startsWith('--seed='));
 const seed = seedArg ? +seedArg.slice(7) : 1, args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-const names = (args[0] || 'bathyscapha,noctilla,saltella,trochilla,caecella,raptilla2,scalella,gula').split(',');
+const names = (args[0] || 'deepdweller2,noctilla,saltella,trochilla,raptilla2').split(',');
 const days = +(args[1] || 10);
 PARAMS.grow.cap = 200;
 

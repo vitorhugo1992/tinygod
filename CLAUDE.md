@@ -76,6 +76,11 @@ slower: run tournaments 5+ days. Mixed contest (3 days): Deepdweller II 6, Nocti
 (Benthic Mat Rod: heavy, shade plastid, the richest water; 6 cells: the best), Sonnet a drifter (1). **Floor-dwellers
 kept as a niche** (author: "interesting, i like it"; microphytobenthos); watch whether they dominate a full tournament
 (levers: a darker floor, a weaker shade plastid).
+**Deleted (author: "delete old non surviving species")**, all dying alone from the floor under the new balance:
+Bathyscapha, Pendulina, Scalella, Caecella, Gula, Jaculella, Miasmella (the last three on Bathyscapha's body; with them
+went the only example swallower, harpooner and leaker; in git history). Left in From Claude: Deepdweller, Deepdweller II
+(claude.ai), Noctilla, Trochilla, Saltella, Raptilla, Raptilla 2 (each alive alone 3 days). contest.mjs's default list
+follows.
 
 **State at handoff:** all pushed, 64 checks pass. Built on 2026-11-03 (entries below): the stirred bottom, the harpoon
 (Spine Kind), the moving-water Feeler, toxins leaked into water (toxin sac Kind Leak), the living-microscope look
