@@ -10,10 +10,10 @@ import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWal
 import { lightAt, daylight, clock } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel, neighboursLevel, padLevel, alarmLevel } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
-import { flowState, flowAt } from '../sim/flow.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus } from './journal.js';
+import { drawWater, drawDrift, drawVignette } from './scene.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
@@ -1868,36 +1868,6 @@ function resize() {
 window.addEventListener('resize', resize);
 if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);   // the tank's own size changes too (the phone's rail steps aside while arranging)
 
-// Moving water drawn as faint motes drifting with it, each a short streak along the flow, always about as many in view
-// whatever the zoom (they live in the view, not the tank). Still water: none.
-let motes = [], moteT = null, moteView = null;
-const MOTE_FLOW = new Float64Array(3);
-function drawMotes(X, Y, s, x0, x1, y0, y1) {
-  const fs = flowState(world);
-  if (!fs) { motes = []; return; }
-  const t = worldTime(world), dt = moteT === null ? 0 : Math.max(0, Math.min(1, t - moteT));
-  moteT = t;
-  const lx = Math.max(0, x0), hx = Math.min(TW, x1), ly = Math.max(0, y0), hy = Math.min(TH, y1);
-  if (hx <= lx || hy <= ly) return;
-  // the view jumped or was resized (a zoom, a new camera): new motes all over it, not a clump where the old view was
-  const vw = hx - lx, vh = hy - ly, mv = moteView;
-  if (!mv || Math.abs(vw - mv.w) > 0.15 * mv.w || Math.abs(vh - mv.h) > 0.15 * mv.h || Math.abs(lx - mv.x) > 0.5 * vw || Math.abs(ly - mv.y) > 0.5 * vh) motes = [];
-  moteView = { x: lx, y: ly, w: vw, h: vh };
-  const fresh = () => ({ x: lx + Math.random() * (hx - lx), y: ly + Math.random() * (hy - ly), age: 0, life: 4 + Math.random() * 6 });
-  while (motes.length < 70) motes.push(fresh());
-  ctx.lineCap = 'round'; ctx.lineWidth = 1.5;
-  for (let i = 0; i < motes.length; i++) {
-    let m = motes[i];
-    const f = flowAt(fs, m.x, m.y, MOTE_FLOW);
-    m.x += f[0] * dt; m.y += f[1] * dt; m.age += dt;
-    if (m.age > m.life || m.x < lx || m.x > hx || m.y < ly || m.y > hy) { m = motes[i] = fresh(); continue; }
-    const sp = Math.hypot(f[0], f[1]);
-    if (sp < 0.05) continue;
-    const len = Math.min(14, 3 + sp * 1.2), a = 0.28 * Math.min(1, sp / 4) * Math.min(1, m.age / 0.8, (m.life - m.age) / 0.8);
-    ctx.strokeStyle = `rgba(170,215,235,${a.toFixed(3)})`;
-    ctx.beginPath(); ctx.moveTo(X(m.x), Y(m.y)); ctx.lineTo(X(m.x) - f[0] / sp * len, Y(m.y) + f[1] / sp * len); ctx.stroke();
-  }
-}
 function draw() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
   const view = $('viewMode').value;
@@ -1912,34 +1882,18 @@ function draw() {
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
 
   ctx.fillStyle = COLOR.outside; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = COLOR.water; ctx.fillRect(X(0), Y(TH), TW * s, TH * s);
-
-  // grid (fine every 10 µm, bold every 100 µm) so movement shows while following
   const x0 = cam.x - W / 2 / s, x1 = cam.x + W / 2 / s, y0 = cam.y - H / 2 / s, y1 = cam.y + H / 2 / s;
-  for (const [step, color] of [[10, COLOR.grid], [100, COLOR.gridMajor]]) {
-    if (step * s < 6) continue;
-    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.beginPath();
-    for (let gx = Math.ceil(Math.max(x0, 0) / step) * step; gx <= Math.min(x1, TW); gx += step) { ctx.moveTo(X(gx), Y(Math.max(y0, 0))); ctx.lineTo(X(gx), Y(Math.min(y1, TH))); }
-    for (let gy = Math.ceil(Math.max(y0, 0) / step) * step; gy <= Math.min(y1, TH); gy += step) { ctx.moveTo(X(Math.max(x0, 0)), Y(gy)); ctx.lineTo(X(Math.min(x1, TW)), Y(gy)); }
-    ctx.stroke();
-  }
-  ctx.fillStyle = COLOR.label; ctx.font = '11px system-ui';
-  for (let gy = Math.ceil(Math.max(y0, 0) / 100) * 100; gy <= Math.min(y1, TH); gy += 100) ctx.fillText(`${TH - gy} µm deep`, X(Math.max(x0, 0)) + 4, Y(gy) - 3);
-
-  const sun = world.light ? daylight(world) : 0;
-  if (sun > 0) {   // light from above, fading with depth over the tank, as bright as the sun is now
-    const top = Y(TH), g = ctx.createLinearGradient(0, top, 0, Y(0));
-    for (let k = 0; k <= 4; k++) g.addColorStop(k / 4, COLOR.light + (0.16 * sun * Math.exp(-PARAMS.light.attenuation * TH * k / 4)).toFixed(3) + ')');
-    ctx.fillStyle = g; ctx.fillRect(X(0), top, TW * s, TH * s);
-    if (top > 0) { ctx.fillStyle = COLOR.light + (0.8 * sun).toFixed(2) + ')'; ctx.fillRect(X(0), top - 2, TW * s, 3); }
-  }
-  if (sun < 1) { ctx.fillStyle = `rgba(2,4,10,${(0.45 * (1 - sun)).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }   // night
+  const v = { W, H, X, Y, s, x0, x1, y0, y1 }, now = performance.now() / 1000;
+  drawWater(ctx, world, v, now);   // the living water (sandbox/scene.js): colour, light, the surface and the floor
   {   // nitrogen: a faint tan haze, rich deep, thinner where cells have used it up
     const g = ctx.createLinearGradient(0, Y(TH), 0, Y(0));
-    for (let k = 0; k <= 40; k++) g.addColorStop(k / 40, `rgba(200,178,106,${(0.09 * nitrogenAt(world, TH * (1 - k / 40))).toFixed(3)})`);
+    for (let k = 0; k <= 40; k++) g.addColorStop(k / 40, `rgba(200,178,106,${(0.05 * nitrogenAt(world, TH * (1 - k / 40))).toFixed(3)})`);
     ctx.fillStyle = g; ctx.fillRect(X(0), Y(TH), TW * s, TH * s);
   }
-  drawMotes(X, Y, s, x0, x1, y0, y1);
+  // depth, faintly, every 100 µm along the left
+  ctx.fillStyle = 'rgba(190,220,240,.28)'; ctx.font = '11px system-ui';
+  for (let gy = Math.ceil(Math.max(y0, 0) / 100) * 100; gy <= Math.min(y1, TH); gy += 100) ctx.fillText(`${TH - gy} µm deep`, X(Math.max(x0, 0)) + 4, Y(gy) - 3);
+  drawDrift(ctx, world, v, worldTime(world), now);   // marine snow and specks, carried by the water
   // trail
   ctx.fillStyle = COLOR.trail;
   for (const [tx, ty] of trail) ctx.fillRect(X(tx) - 1, Y(ty) - 1, 2, 2);
@@ -1987,6 +1941,7 @@ function draw() {
   drawLinks(X, Y, s);
   drawRuleLinks(X, Y, s);
   drawForces(X, Y, s);
+  if (!arrange) drawVignette(ctx, W, H);
   let bottom = H;   // the day graph sits along the bottom; the scale and the clock above it
   graphBox = null;
   if (graphOn) {
