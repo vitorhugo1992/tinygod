@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TinyGod · AI tournament</title>
+<link rel="icon" href="../sandbox/icon-192.png">
+<style>
+  :root { color-scheme: dark; --bg: #0b1a24; --card: #12293a; --ink: #e4eef4; --dim: #8fb0c2; --ok: #7ad69a; --bad: #ff8a7a; --acc: #5fc3d8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 18px 14px 40px; }
+  h1 { font-size: 22px; margin: 4px 0 2px; }
+  .sub { color: var(--dim); margin: 0 0 16px; }
+  section { background: var(--card); border-radius: 12px; padding: 14px; margin: 12px 0; border-left: 4px solid var(--acc); }
+  h2 { font-size: 17px; margin: 0 0 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  button, a.btn { font: inherit; padding: 10px 14px; border-radius: 9px; border: 0; background: #1f4a63; color: var(--ink); cursor: pointer; text-decoration: none; }
+  button:hover, a.btn:hover { background: #2a5f7d; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .big { font-weight: 600; background: #26607f; }
+  input, textarea { width: 100%; font: inherit; background: #0b1a24; color: var(--ink); border: 1px solid #2d5068; border-radius: 8px; padding: 9px; }
+  textarea { height: 150px; font: 13px/1.35 ui-monospace, monospace; }
+  label { display: block; color: var(--dim); font-size: 14px; margin: 8px 0 4px; }
+  .msg { min-height: 1.4em; margin: 8px 0; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+  .note { color: var(--dim); font-size: 14px; margin: 8px 0 0; }
+  ol { margin: 4px 0 0; padding-left: 20px; } li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🏆 TinyGod AI tournament</h1>
+  <p class="sub">Every AI designs a phytoplankton species from the same rules. All the designs go into one tank, and
+    the one with the most cells after 10 days wins.</p>
+
+  <section>
+    <h2>1 · Give an AI the rules</h2>
+    <div class="row">
+      <button class="big" data-ai="chatgpt">ChatGPT</button>
+      <button class="big" data-ai="claude">Claude</button>
+      <button class="big" data-ai="gemini">Gemini</button>
+    </div>
+    <p class="note">A new chat opens with the task in it and a link to the rules: just send it. Gemini: the message is
+      copied, so paste it there and send.</p>
+    <div class="row" style="margin-top:10px">
+      <button id="copyAll">📋 Copy the whole rules</button>
+      <a class="btn" href="../docs/DESIGN-A-SPECIES.md" target="_blank">📄 Read them</a>
+    </div>
+    <p class="note">For any other AI, or if one says it can't open the link: paste the whole rules into the chat instead.</p>
+    <div class="msg" id="msg1"></div>
+  </section>
+
+  <section>
+    <h2>2 · Bring its answer back</h2>
+    <label for="ai">Which AI (and model, if you know it)</label>
+    <input id="ai" placeholder="e.g. ChatGPT, GPT-5 Thinking">
+    <label for="answer">Its answer (paste all of it: the JSON is found inside)</label>
+    <textarea id="answer" placeholder='{ "name": "…", "note": "…", "design": { … } }'></textarea>
+    <div class="msg" id="msg2"></div>
+    <div class="row">
+      <button id="watch" disabled>▶ Watch it in the tank</button>
+      <button id="enter" class="big" disabled>📤 Enter it</button>
+    </div>
+    <p class="note">📤 Enter opens a GitHub page with the entry filled in: tap <b>Create</b> and Claude collects it.</p>
+  </section>
+
+  <section>
+    <h2>Fair play</h2>
+    <ol>
+      <li>A <b>new chat</b> for each AI, so it knows nothing of TinyGod but the rules.</li>
+      <li><b>No hints.</b> If its design is refused, you may send the red message back to it <b>once</b> to fix it.</li>
+      <li>Round 2 comes later: each AI sees how its species did and revises it once.</li>
+    </ol>
+  </section>
+</main>
+<script type="module">
+import { entryProblem, readAnswer } from '../sim/entry.js';
+
+const $ = (id) => document.getElementById(id);
+const RAW = 'https://raw.githubusercontent.com/vitorhugo1992/tinygod/main/docs/DESIGN-A-SPECIES.md';
+const ISSUES = 'https://github.com/vitorhugo1992/tinygod/issues/new';
+const TASK = `You are entering the TinyGod AI tournament: AIs each design a species of single-celled alga, and all the designs compete in one simulated tank. Open and read the whole brief at ${RAW} (plain text, long: read all of it before designing; it is all you get, you can't run the game). Design your species from it. Reply with the single JSON object the brief asks for in its section 8.`;
+const OPEN = {
+  chatgpt: () => `https://chatgpt.com/?q=${encodeURIComponent(TASK)}`,
+  claude: () => `https://claude.ai/new?q=${encodeURIComponent(TASK)}`,
+};
+
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {
+    const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select();
+    const ok = document.execCommand('copy'); t.remove(); return ok;
+  }
+}
+const say = (el, text, cls = '') => { el.textContent = text; el.className = 'msg ' + cls; };
+
+for (const b of document.querySelectorAll('[data-ai]')) b.onclick = async () => {
+  const ai = b.dataset.ai;
+  if (OPEN[ai]) { window.open(OPEN[ai](), '_blank'); say($('msg1'), `${b.textContent} opened with the task: send it.`, 'ok'); return; }
+  const tab = window.open('https://gemini.google.com/app', '_blank');   // opened while the tap still counts
+  const ok = await copy(TASK);
+  say($('msg1'), ok ? 'The message is copied: paste it into Gemini and send.' : 'Could not copy: use 📋 Copy the whole rules.', ok ? 'ok' : 'bad');
+  if (!tab) say($('msg1'), 'Open gemini.google.com and paste the copied message.', 'ok');
+};
+
+$('copyAll').onclick = async () => {
+  try {
+    const brief = await (await fetch('../docs/DESIGN-A-SPECIES.md', { cache: 'no-store' })).text();
+    const ok = await copy(`You are entering the TinyGod AI tournament. Below is the whole brief: read all of it, design your species from it, and reply with the single JSON object it asks for in section 8.\n\n${brief}`);
+    say($('msg1'), ok ? 'The whole rules are copied: paste them into a new chat and send.' : 'Could not copy here.', ok ? 'ok' : 'bad');
+  } catch { say($('msg1'), 'Could not load the rules (no connection?).', 'bad'); }
+};
+
+// A design packed short, as the sandbox does: numbers to two decimals, deflated, base64url, "TG1." in front
+async function pack(obj) {
+  const json = JSON.stringify(obj, (k, v) => (typeof v === 'number' ? Math.round(v * 100) / 100 : v));
+  const buf = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
+  let bin = ''; for (const b of new Uint8Array(buf)) bin += String.fromCharCode(b);
+  return 'TG1.' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+let entry = null;   // { name, note, design } once the answer builds
+function check() {
+  entry = null; $('watch').disabled = $('enter').disabled = true;
+  const text = $('answer').value.trim();
+  if (!text) { say($('msg2'), ''); return; }
+  let got;
+  try { got = readAnswer(text); } catch (e) { say($('msg2'), `✗ Not readable: ${e.message}. Ask the AI for its answer as one JSON object.`, 'bad'); return; }
+  const why = entryProblem(got.design);
+  if (why) { say($('msg2'), `✗ Refused: ${why}`, 'bad'); return; }
+  entry = got;
+  say($('msg2'), `✓ “${got.name}” builds (${got.design.parts.length} parts). Watch it, or enter it.`, 'ok');
+  $('watch').disabled = false; $('enter').disabled = !$('ai').value.trim();
+}
+$('answer').oninput = check;
+$('ai').oninput = () => { if (entry) $('enter').disabled = !$('ai').value.trim(); };
+
+$('watch').onclick = async () => {
+  if (!entry) return;
+  const code = await pack({ name: entry.name, design: entry.design });
+  window.open(`../sandbox/?design=${code}`, '_blank');
+};
+
+$('enter').onclick = async () => {
+  if (!entry) return;
+  const ai = $('ai').value.trim().slice(0, 60);
+  const tab = window.open('', '_blank');   // opened now, while the tap still counts (a phone blocks it later)
+  const code = await pack({ name: entry.name, ai, note: entry.note, design: entry.design });
+  const title = `Entry: ${ai}: ${entry.name}`;
+  const body = `AI: ${ai}\nSpecies: ${entry.name}\n\n${entry.note}\n\n${code}`;
+  let url = `${ISSUES}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  if (url.length > 7500) {   // too long for a link: open it empty and copy the code to paste
+    await copy(code);
+    url = `${ISSUES}?title=${encodeURIComponent(title)}`;
+    say($('msg2'), 'The entry is copied: paste it into the GitHub page, then tap Create.', 'ok');
+  } else say($('msg2'), 'GitHub opened with the entry: tap Create.', 'ok');
+  if (tab) tab.location = url; else location.href = url;
+};
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 // Tiny static server for the sandbox (ES modules need http, not file://).
 //   node tools/serve.mjs [port]          this computer only: http://localhost:5180/sandbox/
 //   node tools/serve.mjs --lan [port]    also phones and other devices on the same Wi-Fi (prints the address)
-// It serves only sandbox/ and sim/, never the rest of the project (notes, git history). The one thing it writes:
+// It serves only sandbox/, sim/, enter/ (the AI tournament's entry page) and docs/, never the rest of the project (notes, git history). The one thing it writes:
 // POST /design?name=... (the sandbox's Send to Claude) saves a design as designs/<name>.json, JSON only, at most 256 KB;
 // GET /designs lists the designs Claude wrote there (marked from: 'Claude'), for the sandbox's From Claude.
 import { createServer } from 'node:http';
@@ -14,12 +14,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const LAN = args.includes('--lan');
 const PORT = Number(args.find((a) => /^\d+$/.test(a))) || 5180;
-const SHARED = ['sandbox', 'sim'].map((d) => join(ROOT, d) + sep);
+const SHARED = ['sandbox', 'sim', 'enter', 'docs'].map((d) => join(ROOT, d) + sep);
 // the addresses a phone on the same Wi-Fi can use (empty without --lan)
 const lanUrls = () => !LAN ? [] : Object.values(networkInterfaces()).flat()
   .filter((i) => i && i.family === 'IPv4' && !i.internal).map((i) => `http://${i.address}:${PORT}/sandbox/`);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
-  '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json' };
+  '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.webmanifest': 'application/manifest+json', '.md': 'text/plain; charset=utf-8' };
 
 // A design sent from the sandbox, kept in designs/ so Claude can read it (a file name from its letters and digits only)
 async function saveDesign(req, res) {

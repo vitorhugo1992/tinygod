@@ -3287,6 +3287,16 @@ const asked = new URLSearchParams(location.search).get('preset');   // ?preset=W
 load(preset(asked && PRESETS[asked] ? asked : 'Round cell'));   // an empty cell to build on (Claude's species is in the Add-cell menu)
 placeLayout();   // after the first design: the docked patch view draws it
 requestAnimationFrame(frame);
+// ?design=TG1.… (the AI tournament's entry page, enter/): opens that design and keeps it in the saved designs
+const linked = new URLSearchParams(location.search).get('design');
+if (linked && linked.startsWith('TG1.')) unpackDesign(linked).then((got) => {
+  const d = got.design || got, name = String(got.name || 'Linked design').trim().slice(0, 60);
+  if (!d.body) throw new Error('not a design');
+  writeSaved([...savedList().filter((x) => x.name !== name), { name, design: d, saved: Date.now() }]);
+  showSaved();
+  load(Object.assign(JSON.parse(JSON.stringify(d)), { species: name }));
+  $('buildErr').textContent = `opened "${name}": it is in your saved designs (▶ to start)`;
+}).catch(() => { $('buildErr').textContent = 'the design in this link is broken'; });
 
 // Offline on the website: a service worker keeps a copy of the sandbox (not on the home server's plain http)
 if (location.protocol === 'https:' && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

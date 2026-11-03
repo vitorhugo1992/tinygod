@@ -25,6 +25,27 @@ validate, run 5-10 seeds free-for-all (contest.mjs runs one), score by mean cell
 write results. (3) **a leaderboard page** on the website with ▶ Watch (all entries into the tank). Rounds: 1 blind,
 2 informed (each AI gets its own results and revises once). Claude enters too, as "Claude (with the simulator)", a
 benchmark.
+**STEP 1 DONE (2026-11-03, next chat): the brief, docs/DESIGN-A-SPECIES.md, and the entry page.** **No example
+species in it** (author: "wouldn't that make the AI have a tendency to copy these?"; chose no species over round-2-only
+or keeping them): part snippets (each checked to build), one skeleton that builds and starves by noon, the traps as
+physics, a budget table (daily-average plastid income per µm³ by depth, damage included: Chl a 16.5 at 500 µm, 12 at
+1 mm, 4.6 at the floor; shade peaks ~12 at 1-1.25 mm), the nitrogen reading by depth, a sinking-speed estimate.
+**Tested:** two subagents (Opus, Sonnet) and one truly blind `claude -p` run (Sonnet, from an empty folder outside the
+project, brief piped in, no tools; **subagents load this CLAUDE.md, so they are not blind**): all three entries built
+first time and lived alone 3 days from the floor (5, 6, 8 cells, never starving). All three were nutricline drifters
+with a front chamber (the brief's "light up, nitrogen down" may steer them; watch for sameness in real entries).
+Their unclear points were fixed in the brief. **sim/entry.js** (prepEntry, entryProblem: nucleus exactly r 4.3 and
+round, no rules without a nucleus, body r 1-50 / L 0-200, unique ids, then buildCell; readAnswer: the first {...} in a
+reply). **tools/trial.mjs** <file> [days] [--seed]: checks and runs an entry alone from the floor. **The entry page**
+https://vitorhugo1992.github.io/tinygod/enter/ (enter/index.html; author: "a link or something with all the rules"):
+ChatGPT / Claude buttons open a new chat with the task and the brief's raw GitHub link (chatgpt.com/?q=,
+claude.ai/new?q=), Gemini copies it; 📋 Copy the whole rules for AIs that can't open links; paste the answer back: it
+is checked in the page (the sim's own errors), ▶ Watch opens it in the sandbox (**sandbox/?design=TG1.…** now opens and
+saves any packed design), 📤 Enter opens a GitHub issue "Entry: <AI>: <species>"; **tools/inbox.mjs saves those as
+designs/entries/<AI>.json**. Fair play on the page: a new chat per AI, no hints, a refused design may be sent its error
+back once (Claude's proposal; the author may change it). tools/serve.mjs also serves enter/ and docs/. Seen in headless
+Edge at phone size. **Next: step 2, tools/tournament.mjs** (entries from designs/entries/, 5 seeds, mean cells at day 10).
+
 **State at handoff:** all pushed, 64 checks pass. Built on 2026-11-03 (entries below): the stirred bottom, the harpoon
 (Spine Kind), the moving-water Feeler, toxins leaked into water (toxin sac Kind Leak), the living-microscope look
 (sandbox/scene.js, drawCell), tank controls (Remove cell, saved designs list, rotate on the rail), twilight, README with
