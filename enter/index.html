@@ -56,6 +56,7 @@
     <label for="answer">Its answer (paste all of it: the JSON is found inside)</label>
     <textarea id="answer" placeholder='{ "name": "…", "note": "…", "design": { … } }'></textarea>
     <div class="msg" id="msg2"></div>
+    <div class="row" style="margin-bottom:8px"><button id="copyErr" hidden>📋 Copy the error for the AI</button></div>
     <div class="row">
       <button id="watch" disabled>▶ Watch it in the tank</button>
       <button id="enter" class="big" disabled>📤 Enter it</button>
@@ -120,20 +121,24 @@ async function pack(obj) {
   return 'TG1.' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-let entry = null;   // { name, note, design } once the answer builds
+let entry = null, why = '';   // { name, note, design } once the answer builds; why: the latest refusal
 function check() {
-  entry = null; $('watch').disabled = $('enter').disabled = true;
+  entry = null; $('watch').disabled = $('enter').disabled = true; $('copyErr').hidden = true;
   const text = $('answer').value.trim();
   if (!text) { say($('msg2'), ''); return; }
   let got;
-  try { got = readAnswer(text); } catch (e) { say($('msg2'), `✗ Not readable: ${e.message}. Ask the AI for its answer as one JSON object.`, 'bad'); return; }
-  const why = entryProblem(got.design);
-  if (why) { say($('msg2'), `✗ Refused: ${why}`, 'bad'); return; }
+  try { got = readAnswer(text); } catch (e) { why = `not readable: ${e.message}`; say($('msg2'), `✗ Not readable: ${e.message}. Ask the AI for its answer as one JSON object.`, 'bad'); $('copyErr').hidden = false; return; }
+  why = entryProblem(got.design);
+  if (why) { say($('msg2'), `✗ Refused: ${why}`, 'bad'); $('copyErr').hidden = false; return; }
   entry = got;
   say($('msg2'), `✓ “${got.name}” builds (${got.design.parts.length} parts). Watch it, or enter it.`, 'ok');
   $('watch').disabled = false; $('enter').disabled = !$('ai').value.trim();
 }
 $('answer').oninput = check;
+$('copyErr').onclick = async () => {
+  const ok = await copy(`The game refused your design: ${why}. Fix it and send the whole JSON object again.`);
+  say($('msg2'), ok ? 'Copied: paste it to the AI and send. (Fair play: one fix.)' : 'Could not copy here.', ok ? 'ok' : 'bad');
+};
 $('ai').oninput = () => { if (entry) $('enter').disabled = !$('ai').value.trim(); };
 
 $('watch').onclick = async () => {
