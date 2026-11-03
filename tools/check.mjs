@@ -1331,7 +1331,7 @@ const runDay = (design, y, seconds, opts = {}) => {
   night.steps = Math.round(0.75 * PARAMS.metab.day / PARAMS.time.dt);
   for (let k = 0; k < 8; k++) {
     night.steps += Math.round(PARAMS.flow.shift / 8 / PARAMS.time.dt);
-    const fs = flowState(night);
+    const fs = { ...flowState(night), stir: 0 };   // the loops (the stirred bottom lifts on purpose: 28ag)
     for (let x = 0; x <= PARAMS.tank.w; x += 100) leak = Math.max(leak, Math.abs(flowAt(fs, x, 0, [0, 0, 0])[1]), Math.abs(flowAt(fs, x, PARAMS.tank.h, [0, 0, 0])[1]));
     for (let y = 0; y <= PARAMS.tank.h; y += 100) leak = Math.max(leak, Math.abs(flowAt(fs, 0, y, [0, 0, 0])[0]), Math.abs(flowAt(fs, PARAMS.tank.w, y, [0, 0, 0])[0]));
   }
@@ -1352,6 +1352,33 @@ const runDay = (design, y, seconds, opts = {}) => {
     Math.abs(sNight - PARAMS.flow.night) < 0.01 && Math.abs(sNoon - PARAMS.flow.day) < 0.01 && up2 - up0 === 2 * PARAMS.engulf.upkeep && A.every((x, i) => x === B[i]),
     `water ${fmt(f[1], 2)} µm/s up, the cell ${fmt(vy, 2)}; curl/2 ${spin.toExponential(2)}, the cell turns ${turn.toExponential(2)} rad/s; ` +
     `most through a wall ${leak.toExponential(1)} µm/s; night ${fmt(sNight, 1)}, noon ${fmt(sNoon, 1)} µm/s; two mouths +${up2 - up0} pJ/s`);
+}
+
+// 28ag. The stirred bottom (author, 2026-11-03: "sometimes the bottom doesn't stir, sometimes it does"): about
+// PARAMS.flow.stir.chance of the stretches have a spell, the same ones for the same seed; during one a weightless cell
+// near the floor rises with the water; in a calm stretch the floor's water is still
+{
+  const { stirNow, flowAt } = await import('../sim/flow.js');
+  const S = PARAMS.flow.stir, per = Math.round(S.every / PARAMS.time.dt);
+  const w = makeWorld(1, { flow: true });
+  let spells = 0, calm = -1, spell = -1;
+  for (let k = 0; k < 300; k++) {
+    w.steps = k * per + per / 2;
+    if (stirNow(w).stir > 0) { spells++; if (spell < 0) spell = k; } else if (calm < 0) calm = k;
+  }
+  const same = (() => { const a = makeWorld(1, { flow: true }), b = makeWorld(1, { flow: true }), c = makeWorld(2, { flow: true }); let eq = true, diff = false;
+    for (let k = 0; k < 50; k++) { a.steps = b.steps = c.steps = k * per + per / 2; const x = stirNow(a).stir, y = stirNow(b).stir; if (x !== y) eq = false; if (x !== stirNow(c).stir) diff = true; } return eq && diff; })();
+  const rise = (k) => {
+    const ww = makeWorld(1, { gravity: false, flow: true, day: true });
+    ww.steps = k * per + Math.round(per * 0.45);
+    const c = addCell(ww, { name: 'drifter', body: { radius: 10 }, parts: [] }, 800, 30, 0), y0 = c.q[1];
+    for (let i = 0; i < 2000; i++) stepWorld(ww);
+    return (c.q[1] - y0) / 2;
+  };
+  const up = rise(spell), still = rise(calm);
+  check('the bottom stirs now and then (seeded): a cell near the floor rises with it in a spell, not in a calm',
+    Math.abs(spells / 300 - S.chance) < 0.08 && same && up > 3 && Math.abs(still) < 0.5,
+    `${spells} of 300 stretches stir (chance ${S.chance}); a weightless cell 30 µm up rises ${fmt(up, 1)} µm/s in a spell, ${fmt(still, 2)} in a calm`);
 }
 
 // 29. Determinism with day, metabolism and stores

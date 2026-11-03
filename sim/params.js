@@ -16,6 +16,15 @@ export const PARAMS = {
     night: 10,              // µm/s: the fastest the water moves at night
     day: 2,                 // µm/s: by day (in between at dawn and dusk, with the light)
     shift: 1800,            // s: the loops' blend turns over in this time (three sandbox days)
+    // The stirred bottom (author, 2026-11-03: "sometimes the bottom doesn't stir, sometimes it does"): now and then the
+    // water near the floor is stirred and lifts what lies there; light, slow-sinking cells are carried up, heavy ones stay.
+    stir: {
+      lift: 20,             // µm/s: the stirred water rises this fast at the floor at its strongest
+      layer: 300,           // µm: thinning to nothing this high above the floor
+      every: 200,           // s: one chance of a stirring spell in each stretch this long (a third of a day)
+      chance: 0.4,          // of a stretch having one (from the world's seed: same seed, same spells)
+      patch: 0.5,           // stronger in some places along the floor than others, by this share (it turns the cells)
+    },
     mix: 4,                 // nitrogen layers even out up to 1 + this many times faster, as the water moves (night mixing)
   },
   time: {

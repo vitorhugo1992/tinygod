@@ -46,6 +46,7 @@ export function note(world, c) {
   if (!starving && w.starving) say('has energy again');
   const floor = depth > TH - c.reach - 1, top = depth < c.reach + 1;
   if (floor && !w.floor) say('reached the floor', true);
+  if (!floor && w.floor && world.flowNow && world.flowNow.stir > 0) say('the stirred bottom lifted it off the floor');
   if (top && !w.top) say('reached the surface');
   if (up < -0.5 && w.upright === true) say(c.v[1] < -0.5 ? 'tipped over while sinking: its front points down' : 'turned front-down', true);
   if (up > 0.5) w.upright = true; else if (up < -0.5) w.upright = false;
