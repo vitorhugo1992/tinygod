@@ -23,19 +23,20 @@ function prep(d) {   // the sandbox's withoutTimers stubs
 }
 
 const w = makeWorld(seed, { day: true, metab: true, grow: true, flow: !still });
-const species = [];
+const species = [], bio0 = {};   // the biomass each species started with
 const spot = names.map((_, i) => i);
 if (seed !== 1) { let r = seed; const rnd = () => ((r = (r * 1103515245 + 12345) % 2147483648) / 2147483648); for (let i = spot.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [spot[i], spot[j]] = [spot[j], spot[i]]; } }
 names.forEach((n, i) => {
   const f = JSON.parse(readFileSync(new URL(n + '.json', ROOT), 'utf8'));
   const d = prep({ ...f.design, name: f.name.replace(/ \(.*/, '') });
   species.push(d.name);
-  addCell(w, d, 100 + spot[i] * (1400 / Math.max(1, names.length - 1)), 60, 0);
+  const c0 = addCell(w, d, 100 + spot[i] * (1400 / Math.max(1, names.length - 1)), 60, 0);
+  bio0[d.name] = (bio0[d.name] || 0) + c0.pieces[0].volume;
 });
 const DAY = PARAMS.metab.day, T0 = Date.now();
 const deaths = [];
 let nextCensus = 0;
-const shareSum = {}, kills = {};   // biomass share summed at every census; kills by killer: { cells, biomass }
+const shareSum = {}, growSum = {}, kills = {};   // biomass share summed at every census; kills by killer: { cells, biomass }
 let censuses = 0;
 const vol = (c) => c.pieces[0].volume;
 const shots = {};   // harpoons: shooter -> { shots, hits: { target: n } }
@@ -58,16 +59,17 @@ while (worldTime(w) < days * DAY) {
   }
   if (worldTime(w) >= nextCensus) {
     const live = w.cells.filter((c) => !c.dead), all = live.reduce((a, c) => a + vol(c), 0);
-    if (all > 0) { censuses++; for (const s of species) shareSum[s] = (shareSum[s] || 0) + live.filter((c) => c.species === s).reduce((a, c) => a + vol(c), 0) / all; }
+    if (all > 0) { censuses++; for (const s of species) { const b = live.filter((c) => c.species === s).reduce((a, c) => a + vol(c), 0); shareSum[s] = (shareSum[s] || 0) + b / all; growSum[s] = (growSum[s] || 0) + b / bio0[s]; } }
     console.log(`day ${(worldTime(w) / DAY).toFixed(1)} [${Math.round((Date.now() - T0) / 1000)} s]: ${census()} (cells ${w.cells.length})`);
     nextCensus += DAY / 2;
   }
 }
 console.log('FINAL', census());
-console.log('SCORES (biomass share: of all living cell volume, averaged over every half-day census)');
-for (const s of species) {
+console.log('SCORES, best first. Score: mean growth = its living biomass (cell volume) ÷ what it started with, averaged over every half-day census; biomass share: of all living cell volume, averaged the same way');
+for (const s of [...species].sort((a, b) => (growSum[b] || 0) - (growSum[a] || 0))) {
   const live = w.cells.filter((c) => c.species === s && !c.dead), k = kills[s] || { cells: 0, biomass: 0 };
-  console.log(`  ${s}: cells ${live.length}, biomass ${Math.round(live.reduce((a, c) => a + vol(c), 0) / 1000)}k µm³, mean biomass share ${(100 * (shareSum[s] || 0) / Math.max(1, censuses)).toFixed(1)}%, kills ${k.cells} (${Math.round(k.biomass / 1000)}k µm³)`);
+    const now = live.reduce((a, c) => a + vol(c), 0);
+  console.log(`  ${s}: SCORE ${((growSum[s] || 0) / Math.max(1, censuses)).toFixed(2)}× (now ${(now / bio0[s]).toFixed(2)}×), cells ${live.length}, biomass ${Math.round(live.reduce((a, c) => a + vol(c), 0) / 1000)}k µm³, mean biomass share ${(100 * (shareSum[s] || 0) / Math.max(1, censuses)).toFixed(1)}%, kills ${k.cells} (${Math.round(k.biomass / 1000)}k µm³)`);
 }
 for (const [s, t] of Object.entries(shots)) console.log('  harpoons', s, t.shots, 'shots, hits', JSON.stringify(t.hits));
 for (const s of species) {

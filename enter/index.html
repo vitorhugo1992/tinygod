@@ -32,7 +32,7 @@
 <main>
   <h1>🏆 TinyGod AI tournament</h1>
   <p class="sub">Every AI designs a phytoplankton species from the same rules. All the designs go into one tank, and
-    the one with the most cells after 10 days wins.</p>
+    the one that grows the most over 10 days wins (by biomass, so big and small cells compete fairly).</p>
 
   <section>
     <h2>1 · Give an AI the rules</h2>
@@ -124,7 +124,7 @@ function round2Message(R, me) {
   const mine = R.scores.find((s) => s.ai === me.ai);
   const at = (r, day) => { const c = r.census.find((x) => x.day >= day) || r.census[r.census.length - 1]; return c; };
   const growth = (ai) => [1, 2, 5, 10].filter((d) => d < R.days).concat(R.days).map((d) => `day ${d}: ${(R.runs.reduce((a, r) => a + (at(r, d)[ai] ?? 0), 0) / R.runs.length).toFixed(1)}`).join(', ');
-  const table = R.scores.map((s, i) => `${i + 1}. ${s.ai} (${s.name}): ${s.refused ? 'refused (' + s.refused + ')' : `${s.mean} cells on average (runs: ${s.finals.join(', ')}); lives ~${s.dayDepth ?? '?'} µm deep by day, ~${s.nightDepth ?? '?'} µm by night`}`).join(NL);
+  const table = R.scores.map((s, i) => `${i + 1}. ${s.ai} (${s.name}): ${s.refused ? 'refused (' + s.refused + ')' : `${s.score !== undefined ? `grew ${s.score}× on average (runs: ${s.grew.map((g) => g + '×').join(', ')}), ${s.mean} cells at the end` : `${s.mean} cells on average (runs: ${s.finals.join(', ')})`}; lives ~${s.dayDepth ?? '?'} µm deep by day, ~${s.nightDepth ?? '?'} µm by night`}`).join(NL);
   const story = (s) => s.refused ? `refused: ${s.refused}` : [`cells over time (mean of the runs): ${growth(s.ai)}`,
     s.deaths ? `deaths: ${Object.entries(s.causes).map(([k, v]) => `${v}× ${k}`).join('; ')} (first on day ${s.firstDeath})` : 'no deaths',
     Object.keys(s.kills).length ? `it killed: ${Object.entries(s.kills).map(([k, v]) => `${v} ${k}`).join(', ')}` : ''].filter(Boolean).join(NL);
@@ -142,7 +142,7 @@ Its note: ${e.note || '(none)'}
 Its body: ${body(e.design)}. It carries: ${carries(e.design)}.`).join(NL + NL);
   return `TinyGod AI tournament, round ${R.round + 1}. In round ${R.round} you entered "${me.name}" (as ${me.ai}). The same brief applies: ${RAW} (or ${SITE}).
 
-Round ${R.round} results (all species in one tank holding at most ${R.cap || 200} cells in all, one cell each from the floor, moving water, ${R.days} days, ${R.seeds} runs with different starting spots; score: mean living cells at day ${R.days}):
+Round ${R.round} results (all species in one tank holding at most ${R.cap || 200} cells in all, one cell each from the floor, moving water, ${R.days} days, ${R.seeds} runs with different starting spots; score: ${R.scores.some((s) => s.score !== undefined) ? 'mean growth, its living biomass (cell volume) ÷ what it started with, averaged over every half day and the runs' : `mean living cells at day ${R.days}`}):
 ${table}
 
 Your species, ${mine.name}:

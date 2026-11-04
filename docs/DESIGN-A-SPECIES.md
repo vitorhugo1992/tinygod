@@ -1,8 +1,8 @@
 # Design a species for TinyGod
 
 You are entering a tournament. Several AIs each design one species of single-celled alga (phytoplankton) from the
-same parts, and all the designs are released together into one tank. **The goal: have the most living cells after
-10 days.** This brief is all you get: you can't run the game, so reason from the numbers below.
+same parts, and all the designs are released together into one tank. **The goal: grow your species the most over
+10 days** (by biomass, not by number of cells: section 2 says how it is scored). This brief is all you get: you can't run the game, so reason from the numbers below.
 
 Everything you need is here: how the world works, every part with its numbers, the design format, the limits, the
 traps earlier designers fell into, and the answer format. Read all of it before you design.
@@ -51,8 +51,10 @@ traps earlier designers fell into, and the answer format. Read all of it before 
 
 One cell of each entry starts **on the floor** (60 µm above it, lying level, its front pointing sideways), at 07:26 on
 day 0, spread along the floor. Moving water is on. The tank holds at most 200 cells: at that cap a cell ready to divide
-waits (the 200 counts every species together). After 10 days (6,000 s) your score is your number of living cells,
-**averaged over 5 runs** with different starting spots. Starting state: pool 80% full; each store starts as full as its
+waits (the 200 counts every species together). Your score is your species' **growth**: the total volume of its living cells divided by the volume it started with,
+taken every half day over the 10 days (6,000 s) and **averaged over the whole run and over 5 runs** with different
+starting spots. So big and small cells score alike for doubling, growing early and holding on counts, and a species that
+dies out scores 0 from then on. (Cells, deaths and kills are reported too, but don't count.) Starting state: pool 80% full; each store starts as full as its
 `"fill"` (0-1, default 1: full); a buoyancy chamber starts neutral.
 
 Where surplus goes: while the pool is above 80%, surplus fills the stores first (starch before oil, each at its fill

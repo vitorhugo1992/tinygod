@@ -1,5 +1,7 @@
 // The AI tournament (docs/DESIGN-A-SPECIES.md): every entry in designs/entries/ (or a round's folder) in one tank, one
-// cell each from the floor, moving water, several seeds in parallel; score: mean living cells at the end.
+// cell each from the floor, moving water, several seeds in parallel; score: mean growth (author, 2026-11-04: "counting only
+// cells is unfair"): its living biomass (cell volume) ÷ what it started with, averaged over every half-day census and the
+// runs, so a species of giants and one of tiny cells score alike for doubling; cells, deaths and kills beside it.
 //   node tools/tournament.mjs [--round=1] [--seeds=3] [--days=5] [--cap=40] [--dir=designs/entries]
 //   node tools/tournament.mjs --round=1 --report    (the results so far, from the runs' saved state, while or after they run)
 // Sized to take ~30 minutes (author, 2026-11-03: "30 mins max"; a tank of 200 cells simulates ~17 s per sim second).
@@ -39,12 +41,14 @@ function runOne(seed) {
   const w = makeWorld(seed, { day: true, metab: true, grow: true, flow: true });
   const spot = list.map((_, i) => i);
   if (seed !== 1) { let r = seed; const rnd = () => ((r = (r * 1103515245 + 12345) % 2147483648) / 2147483648); for (let i = spot.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [spot[i], spot[j]] = [spot[j], spot[i]]; } }
+  const bio0 = {};
   list.forEach((e, i) => {
     const d = prepEntry(e.design); d.name = speciesOf(e);
-    addCell(w, d, 100 + spot[i] * (1400 / Math.max(1, list.length - 1)), 60, 0);
+    const c0 = addCell(w, d, 100 + spot[i] * (1400 / Math.max(1, list.length - 1)), 60, 0);
+    bio0[d.name] = c0.pieces[0].volume;
   });
   const sp = list.map(speciesOf);
-  const census = [], deaths = [], depth = Object.fromEntries(sp.map((s) => [s, { day: 0, dayN: 0, night: 0, nightN: 0 }]));
+  const census = [], growth = [], deaths = [], depth = Object.fromEntries(sp.map((s) => [s, { day: 0, dayN: 0, night: 0, nightN: 0 }]));
   const count = () => { const n = Object.fromEntries(sp.map((s) => [s, 0])); for (const c of w.cells) if (!c.dead) n[c.species]++; return n; };
   let nextCensus = 0, nextDepth = 0;
   while (worldTime(w) < days * DAY) {
@@ -60,7 +64,10 @@ function runOne(seed) {
       nextDepth += 10;
     }
     if (t >= nextCensus) {
-      census.push({ day: +(t / DAY).toFixed(1), ...count() }); nextCensus += DAY / 2;
+      census.push({ day: +(t / DAY).toFixed(1), ...count() });
+      const bio = Object.fromEntries(sp.map((s) => [s, 0])); for (const c of w.cells) if (!c.dead && c.species in bio) bio[c.species] += c.pieces[0].volume;
+      growth.push({ day: +(t / DAY).toFixed(1), ...Object.fromEntries(sp.map((s) => [s, bio0[s] ? +(bio[s] / bio0[s]).toFixed(3) : 0])) });
+      nextCensus += DAY / 2;
       writeFileSync(join(out, `run-${seed}.json`), JSON.stringify(state()));
       process.stderr.write(`  seed ${seed}: day ${(t / DAY).toFixed(1)}, ${w.cells.filter((c) => !c.dead).length} cells
 `);
@@ -68,7 +75,7 @@ function runOne(seed) {
   }
   function state() {
     const where = Object.fromEntries(sp.map((s) => { const d = depth[s]; return [s, { day: d.dayN ? Math.round(d.day / d.dayN) : null, night: d.nightN ? Math.round(d.night / d.nightN) : null }]; }));
-    return { seed, reached: +(worldTime(w) / DAY).toFixed(1), final: count(), census, deaths, where };
+    return { seed, reached: +(worldTime(w) / DAY).toFixed(1), final: count(), census, growth, deaths, where };
   }
   const st = state();
   writeFileSync(join(out, `run-${seed}.json`), JSON.stringify(st));
@@ -96,23 +103,26 @@ if (process.argv.includes('--report')) {   // the results so far: whatever the r
 }
 const reached = Math.min(...runs.map((r) => r.reached));
 
-// Scores: mean living cells at the end; deaths by cause; where they lived
+// Scores: mean growth (biomass ÷ start, averaged over the censuses, then the runs); mean living cells at the end; deaths
+// by cause; kills; where they lived
 const scores = list.map((e) => {
   const s = speciesOf(e), finals = runs.map((r) => (r.final[s] ?? 0));
+  const grew = runs.map((r) => (r.growth && r.growth.length ? r.growth.reduce((a, g) => a + (g[s] ?? 0), 0) / r.growth.length : 0));
   const died = runs.flatMap((r) => r.deaths.filter((d) => d.species === s));
   const causes = {}; for (const d of died) causes[d.why] = (causes[d.why] || 0) + 1;
   const kills = {}; for (const r of runs) for (const d of r.deaths) { const m = d.why.match(/by a (.+?)(?:'s|$)/); if (m && m[1] === s) kills[d.species] = (kills[d.species] || 0) + 1; }
   const wd = runs.map((r) => r.where[s]).filter(Boolean);
   const avg = (k) => { const v = wd.map((x) => x[k]).filter((x) => x !== null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
-  return { ai: e.ai, name: e.name, refused: e.problem || null, mean: e.problem ? 0 : +(finals.reduce((a, b) => a + b, 0) / runs.length).toFixed(1),
+  return { ai: e.ai, name: e.name, refused: e.problem || null, score: e.problem ? 0 : +(grew.reduce((a, b) => a + b, 0) / runs.length).toFixed(2), grew: e.problem ? [] : grew.map((g) => +g.toFixed(2)),
+    mean: e.problem ? 0 : +(finals.reduce((a, b) => a + b, 0) / runs.length).toFixed(1),
     finals: e.problem ? [] : finals, deaths: died.length, causes, kills, firstDeath: died.length ? Math.min(...died.map((d) => d.day)) : null,
     dayDepth: avg('day'), nightDepth: avg('night') };
-}).sort((a, b) => b.mean - a.mean);
+}).sort((a, b) => b.score - a.score || b.mean - a.mean);
 
 writeFileSync(join(out, 'results.json'), JSON.stringify({ round, seeds: runs.length, days: reached, cap, run: new Date().toISOString(), scores, entries: list.map(({ file, ai, name, note, design, problem }) => ({ file, ai, name, note, problem, design })), runs }, null, 2));
-const md = [`# TinyGod AI tournament, round ${round}`, '', `All entries in one tank (at most ${cap} cells in all), one cell each from the floor, moving water, ${reached} days${reached < days ? ` (stopped early; planned ${days})` : ''}; ${runs.length} runs with different starting spots. Score: mean living cells at day ${reached}.`, '',
-  '| # | AI | Species | Score | Each run | Deaths | Lives by day / night (µm deep) |', '|---|---|---|---|---|---|---|',
-  ...scores.map((s, i) => `| ${i + 1} | ${s.ai} | ${s.name} | ${s.refused ? 'refused' : s.mean} | ${s.finals.join(', ')} | ${s.deaths}${s.deaths ? ` (first day ${s.firstDeath})` : ''} | ${s.dayDepth ?? '-'} / ${s.nightDepth ?? '-'} |`),
+const md = [`# TinyGod AI tournament, round ${round}`, '', `All entries in one tank (at most ${cap} cells in all), one cell each from the floor, moving water, ${reached} days${reached < days ? ` (stopped early; planned ${days})` : ''}; ${runs.length} runs with different starting spots. Score: mean growth, its living biomass (cell volume) ÷ what it started with, averaged over every half day and the runs.`, '',
+  '| # | AI | Species | Score (growth) | Each run | Cells at the end (mean; each run) | Deaths | Lives by day / night (µm deep) |', '|---|---|---|---|---|---|---|---|',
+  ...scores.map((s, i) => `| ${i + 1} | ${s.ai} | ${s.name} | ${s.refused ? 'refused' : s.score + '×'} | ${s.grew.map((g) => g + '×').join(', ')} | ${s.refused ? '-' : s.mean}; ${s.finals.join(', ')} | ${s.deaths}${s.deaths ? ` (first day ${s.firstDeath})` : ''} | ${s.dayDepth ?? '-'} / ${s.nightDepth ?? '-'} |`),
   '', '## How they died', '',
   ...scores.map((s) => `- **${s.ai}** (${s.name}): ${s.refused ? `refused: ${s.refused}` : s.deaths ? Object.entries(s.causes).map(([k, v]) => `${v}× ${k}`).join('; ') : 'no deaths'}${Object.keys(s.kills).length ? `. Killed: ${Object.entries(s.kills).map(([k, v]) => `${v} ${k}`).join(', ')}` : ''}`),
   ''].join('\n');

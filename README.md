@@ -69,7 +69,7 @@ tools/      tests, a local server, contests between species
 
 **Run it yourself:** `node tools/serve.mjs`, then open http://localhost:5180/sandbox/
 **Test the physics:** `node tools/check.mjs`
-**A contest:** `node tools/contest.mjs bathyscapha,noctilla,gula 10` (who has the most cells after 10 days)
+**A contest:** `node tools/contest.mjs bathyscapha,noctilla,gula 10` (scores: mean biomass growth over the run, cells, biomass share, kills)
 
 ## Status
 
