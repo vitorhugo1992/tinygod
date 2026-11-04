@@ -97,7 +97,7 @@ function chainOf(world, c) {
   while (todo.length) {
     const x = todo.pop();
     for (const l of world.links || []) {
-      if (l.feed) continue;
+      if (l.feed || l.tether) continue;
       const A = world.cells[l.a], B = world.cells[l.b], o = A === x ? B : B === x ? A : null;
       if (o && !seen.has(o)) { seen.add(o); todo.push(o); }
     }

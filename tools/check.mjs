@@ -1508,6 +1508,40 @@ const runDay = (design, y, seconds, opts = {}) => {
     `thickest allowed: r 10 ${thick(10, 5)} µm, r 25 ${thick(25, 5)}, r 50 ${thick(50, 8)}`);
 }
 
+// 28al. The tether (author, 2026-11-04): a spine of Kind Tether fires blind like a harpoon but ties what it hits on a
+// line (no wound); its rules reel the line in or let it out, and let go; the line snaps under a sustained pull; the Tied
+// reading is 1 while it holds something
+{
+  const { tiedLevel } = await import('../sim/sense.js');
+  const all = [{ sensor: 'energy', min: 0, max: 1 }];
+  const roper = (reel, release) => ({ name: 'Roper', body: { radius: 10 }, parts: [
+    { type: 'inclusion', id: 'nuc', material: 'nucleus', at: [-4, 0], radius: 4.3, joint: { type: 'rest' } },
+    { type: 'segment', id: 't', at: [10, 0], angle: 0, length: 20, radius: 0.5, material: 'protein', joint: { type: 'tether', controls: all } },
+    { type: 'rule', id: 't-reel', of: 't', joint: { type: 'reel', controls: reel } },
+    { type: 'rule', id: 't-go', of: 't', joint: { type: 'release', controls: release } }] });
+  const run = (reel, release, secs, prey = { name: 'Prey', body: { radius: 10 }, parts: [] }, preyAngle = 0) => {
+    const w = makeWorld(1, { gravity: false, metab: true });
+    const A = addCell(w, roper(reel, release), 500, 1000, 0), B = addCell(w, prey, 560, 1000, preyAngle);
+    const e0 = B.metab.E; let tied = 0, read = 0;
+    for (let i = 0; i < secs / DT; i++) { stepWorld(w); if (A.tethers[0].link) { tied++; read = Math.max(read, tiedLevel(A)); } }
+    const t = A.tethers[0];
+    return { gap: B.q[0] - A.q[0], tied: !!t.link, len: t.link ? t.link.len : null, last: A.lastTie, lost: e0 - B.metab.E, stun: B.stunT || 0, read, t: t.t };
+  };
+  const hold = run([], [], 3), reelIn = run(all, [], 4), out = run([{ ...all[0], stop: true }], [], 3), free = run(all, all, 1);
+  const towed = run([], [], 6, { name: 'Swim', ...PRESETS['Wave tail'] }, 0);   // steady swimming (a few pN) tows the roper along
+  const hold0 = PARAMS.tether.hold; PARAMS.tether.hold = 2;   // a line weaker than that pull snaps
+  const away = run([], [], 6, { name: 'Swim', ...PRESETS['Wave tail'] }, 0);
+  PARAMS.tether.hold = hold0;
+  check('a tether ties what its dart hits (no wound), reels in, lets out, lets go and winds back; a strong pull snaps it',
+    hold.tied && Math.abs(hold.gap - 60) < 1 && Math.abs(hold.len - 20.5) < 0.6 && hold.stun === 0 && hold.read === 1 &&
+    reelIn.tied && reelIn.len === 0 && reelIn.gap < 41 &&
+    out.tied && out.len > 45 &&
+    !free.tied && free.last.why === 'let go' && free.t > PARAMS.tether.reload - 1.5 &&
+    towed.tied && !away.tied && away.last && away.last.why === 'snapped',
+    `held: line ${fmt(hold.len, 1)} µm, centres ${fmt(hold.gap, 1)} µm apart, prey stunned ${fmt(hold.stun, 1)} s, Tied read ${hold.read}; reeled in: line ${fmt(reelIn.len, 1)} µm, centres ${fmt(reelIn.gap, 1)} µm; ` +
+    `let out: line ${out.len && fmt(out.len, 1)} µm; let go: ${free.last && free.last.why}, winding back ${fmt(free.t, 1)} s; a swimmer pulling away: ${towed.tied ? 'towed it along' : 'broke free'}, on a 2 pN line ${away.last ? away.last.why : 'still tied'}`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

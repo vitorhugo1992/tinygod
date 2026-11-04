@@ -219,6 +219,22 @@ export const PARAMS = {
     wound: 0.1,             // plus this share of all its energy (pool and stores)
     stun: 8,                // s it stays stunned
   },
+  // The tether (author, 2026-11-04: "a whip that latches on the prey", "reels in and out as a way to maintain distance or
+  // shorten as wished", and released by choice): a spine of Kind Tether is fired blind like a harpoon (FIRES when…), but
+  // its dart stays on a line: it sticks to whatever it hits (a body, spine or flagellum, kin too), no wound, no stun. The
+  // line is a rope: slack until pulled tight, then a spring; REELS IN when… / LETS OUT when… (reeling in wins; neither:
+  // it holds its length); LETS GO when…; it also lets go when either cell dies, and snaps under a sustained pull. A miss
+  // or a release winds the dart back for reload.
+  tether: {
+    range: 40,              // µm the dart flies past the spine's tip (as the harpoon)
+    cost: 1000,             // pJ per µm of spine, each shot (a third of a harpoon's: the dart isn't lost)
+    reload: 20,             // s to wind the dart back after a miss or a release
+    hold: 40,               // pN the line holds, its pull averaged over loadTime (a kin pad's strength; a mucus pad's ×10)
+    loadTime: 0.1,          // s (a swimming stroke's jerk doesn't snap it; a jump or a strong swimmer does)
+    stiffness: 5,           // pN/µm once the line is tight (as a pad)
+    reel: 10,               // µm/s it reels in or lets out
+    max: 100,               // µm: the longest the line can be let out
+  },
   // Stolen plastids (kleptoplasty, author 2026-11-02; Dinophysis, Mesodinium): every `every` s a peduncle stays latched,
   // the prey's biggest plastid that fits in the thief moves through the tube (the prey lives on without it, and rebuilds
   // it from its growth meter before growing further); a prey drained to death gives up the rest that fit (round, at

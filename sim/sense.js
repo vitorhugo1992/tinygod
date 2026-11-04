@@ -82,11 +82,12 @@ export function padLevel(world, cell, pad) {
 // Alarm: how near a kin being drained is (interact.js keeps cell.alarm: 1 touching, 0 at PARAMS.alarm.range, fading)
 export const alarmLevel = (cell) => cell.alarm || 0;
 // Poisoned: how strong the other species' toxin clouds are where it is (sim/toxin.js; 1 at PARAMS.toxin.leak.full)
+export const tiedLevel = (cell) => ((cell.tethers || []).some((t) => t.link) ? 1 : 0);   // 1 while a tether's line holds something
 export const poisonedLevel = (cell) => (cell.poison ? Math.min(1, cell.poison.level / PARAMS.toxin.leak.full) : 0);
 export const sizeLevel = (cell) => ((cell.size || 1) - 1) / (PARAMS.grow.max - 1);
 // A reading by index: a sensor part, or one built in (-1 energy, -2 starch, -3 oil, -4 plastid health, -5 feeding)
 const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ? energyLevel(world, cell)
-  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : k === -7 ? drainedLevel(world, cell) : k === -8 ? neighboursLevel(cell) : k === -9 ? alarmLevel(cell) : k === -10 ? poisonedLevel(cell) : k <= -100 ? padLevel(world, cell, cell.pads[-100 - k]) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
+  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : k === -7 ? drainedLevel(world, cell) : k === -8 ? neighboursLevel(cell) : k === -9 ? alarmLevel(cell) : k === -10 ? poisonedLevel(cell) : k === -11 ? tiedLevel(cell) : k <= -100 ? padLevel(world, cell, cell.pads[-100 - k]) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
 
 // One condition: is the reading inside its range? (with a little hysteresis)
 function holds(ctl, v) {
@@ -210,6 +211,15 @@ export function sense(world, cell) {
     setSegmentLength(cell.pieces[h.piece], h.full * (1 - h.t / PARAMS.harpoon.reload));
   }
   for (const h of cell.harpoons || []) h.go = !!h.controls && holdsAll(world, cell, h.controls);
+  // tethers (PARAMS.tether): the dart winds back after a miss or a release; FIRES when… (no rule: never); REELS IN when…
+  // (its rule's GO) / LETS OUT when… (its STOP; reeling in wins; neither: holds); LETS GO when… (no rule: never by choice)
+  for (const t of cell.tethers || []) {
+    if (t.t > 0) t.t = Math.max(0, t.t - PARAMS.time.dt);
+    t.go = !!t.controls && holdsAll(world, cell, t.controls);
+    const r = t.reel.controls ? ruleState(world, cell, t.reel.controls) : null;
+    t.reelIn = !!r && r.go; t.reelOut = !!r && !r.go && r.stop;
+    t.letGo = !!t.release.controls && holdsAll(world, cell, t.release.controls);
+  }
   // stunned by a harpoon (PARAMS.harpoon.stun): everything that moves or grabs stops (a latched tube lets go)
   if (cell.stunT > 0) {
     cell.stunT -= PARAMS.time.dt;
@@ -217,6 +227,7 @@ export function sense(world, cell) {
     for (const f of cell.feeders) f.go = false;
     for (const mo of cell.mouths || []) mo.go = false;
     for (const h of cell.harpoons || []) h.go = false;
+    for (const t of cell.tethers || []) { t.go = false; t.reelIn = t.reelOut = false; }
   }
   // buoyancy chambers: SINK if wins, then FLOAT when; neither: neutral
   for (const inc of cell.pieces[0].inclusions) {

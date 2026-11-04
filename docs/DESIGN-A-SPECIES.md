@@ -160,6 +160,7 @@ formulas: e.g. a rod's front tip is (L/2 + radius, 0)); `at` is where it senses.
 | `neighbours` | kin joined to it by pads: 0, 0.25, 0.5, 0.75, 1 (4 or more) |
 | `alarm` | a kin cell within 60 µm is being drained: 1 touching, 0 at 60 µm, fades over 3 s |
 | `poisoned` | how thick other species' toxin clouds are here (1 at a heavy dose) |
+| `tied` | 1 while one of its tethers holds something on its line |
 | a pad's id | that pad: 0 free, 0.5 joined to kin, 1 stuck to another species |
 
 ### 3.3 Flagella (swimming)
@@ -221,6 +222,16 @@ All cost 5 pJ/s per µm of length.
   stunned 8 s (its flagella, springs, tubes and mouths stop) and loses 400,000 pJ plus 10% of all the energy it holds
   (more than it holds kills it; plates divide the wound by 1 + 2 × their thickness). A spine or flagellum catches it harmlessly. A shot costs 3,000 pJ per µm of spine
   (20 µm: 60,000) from the pool, and the spine takes 150 s to grow back. No rule: never fires.
+- **Tether**: a spine with `"joint": { "type": "tether", "controls": [...] }` (its id is needed). Fired like a harpoon
+  (blind, straight out, 40 µm past its tip), but the dart stays on a **line**: it sticks to whatever it hits first (a
+  body, spine or flagellum; kin too), with **no wound and no stun**. The line is a rope: slack until pulled tight. Two
+  more rules, each its own part naming the tether: `{ "type": "rule", "id": "t1-reel", "of": "t1", "joint": {
+  "type": "reel", "controls": [...] } }`: GO conditions **reel the line in**, `stop` conditions **let it out** (10 µm/s,
+  up to 100 µm; reeling in wins; neither: it holds its length); and `{ "type": "rule", "id": "t1-go", "of": "t1",
+  "joint": { "type": "release", "controls": [...] } }`: **lets go** when it holds (no rule: never by choice). It also
+  lets go when either cell dies, and the line **snaps** above 40 pN of sustained pull (steady swimming pulls a few pN:
+  a swimmer tows what it has tied; a spring jump snaps it). A shot costs 1,000 pJ per µm of spine; after a miss or a
+  release the dart winds back for 20 s. Reeling a small cell to a big one mostly pulls the small one.
 - **Peduncle** (feeding tube): `{ "type": "segment", "id": "ped", "at": [10, 0], "angle": 0, "length": 20, "radius": 0.6, "joint": { "type": "feed" } }`
   (10-80 µm). Its tip latches on any other species' body it touches. While latched it sucks up to 20,000 pJ/s and 50
   nitrogen/s from the prey and keeps 20%. Each latch costs 2,000 pJ per µm of tube. The link snaps if pulled harder than
@@ -280,7 +291,8 @@ What a rule does on each part:
 | spring | `motor` + `burst` | fires when they hold (if charged) | blocks firing |
 | buoyancy chamber | `{"type":"chamber"}` | **FLOAT** (pumped light) | **SINK** (heavy; sinking wins); neither: neutral |
 | nucleus | `{"type":"rest"}` | **REST**: upkeep and plastid income at 40%, flagella stop, plastids not repaired; stores and chambers keep working | don't rest |
-| harpoon, peduncle, mouth, pad, toxin sac, division | as given above | acts | blocks |
+| tether's reel rule | `{"type":"reel"}` | **REEL IN** | **LET OUT** (reeling in wins); neither: holds |
+| harpoon, tether (fires), tether's release rule, peduncle, mouth, pad, toxin sac, division | as given above | acts | blocks |
 
 **The nucleus's 16 slots.** Every sensor part takes one (including statoliths). Every built-in reading or pad used in
 any rule takes one (once, however often used). Every rule takes one slot per group, plus one if it has any `stop`

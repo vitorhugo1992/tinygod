@@ -104,6 +104,7 @@ export function regrow(world, cell, g) {
   const swap = new Map();
   old.pads.forEach((p, i) => { if (n.pads[i]) { swap.set(p, n.pads[i]); n.pads[i].link = p.link; } });
   old.feeders.forEach((f, i) => { if (n.feeders[i]) { swap.set(f, n.feeders[i]); n.feeders[i].link = f.link; } });
+  (old.tethers || []).forEach((t, i) => { const m = n.tethers && n.tethers[i]; if (m) { swap.set(t, m); m.link = t.link; m.t = t.t; } });
   for (const l of world.links || []) {
     if (swap.has(l.padA)) l.padA = swap.get(l.padA);
     if (l.padB && swap.has(l.padB)) l.padB = swap.get(l.padB);

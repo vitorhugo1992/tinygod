@@ -78,9 +78,15 @@ export function note(world, c) {
   if (hurt && !w.inToxin) say(`in a ${c.poison.by}'s toxin: losing ${(c.poison.loss / 1000).toFixed(1)}k pJ/s, plastids damaged`, true);
   if (!hurt && w.inToxin) say('out of the toxin');
   w.inToxin = hurt;
-  if (c.lastShot && c.lastShot !== w.shot) { const sh = c.lastShot;
+  if (c.lastShot && c.lastShot !== w.shot && c.lastShot.tether) { const sh = c.lastShot; if (!sh.hit) say('threw its tether: missed (nothing in its line); winding back'); }
+  else if (c.lastShot && c.lastShot !== w.shot) { const sh = c.lastShot;
     say(sh.hit ? `threw its harpoon: hit a ${sh.kin ? 'kin cell' : sh.hit} (stunned ${PARAMS.harpoon.stun} s)` : sh.caught ? `threw its harpoon: caught by ${sh.caught}` : 'threw its harpoon: missed (nothing in its line)'); }
   w.shot = c.lastShot;
+  if (c.lastTie && c.lastTie !== w.tie) { const t = c.lastTie;
+    say(t.why === 'tied' ? `tied itself to a ${t.kin ? 'kin cell' : t.what} with its tether` : t.why === 'let go' ? `let go of the ${t.what} it had tied` : t.why === 'snapped' ? `its tether's line snapped (the ${t.what} pulled too hard)` : t.why === 'its catch died' ? `its tethered ${t.what} died: the line let go` : `its tether let go (${t.why})`); }
+  w.tie = c.lastTie;
+  if (c.tiedBy && c.tiedBy !== w.tiedBy) say(`a ${c.tiedBy.species} tied itself to it with a tether`, true);
+  w.tiedBy = c.tiedBy;
   if (c.harpooned && c.harpooned !== w.harpooned) say(`hit by a ${c.harpooned.by}'s harpoon: stunned ${PARAMS.harpoon.stun} s, lost ${Math.round(c.harpooned.lost / 1000)}k pJ`, true);
   w.harpooned = c.harpooned;
   if (c.lastSwallow && c.lastSwallow !== w.swallow) say(c.lastSwallow.n > 1 ? `swallowed a chain of ${c.lastSwallow.n} ${c.lastSwallow.prey} whole: digesting it` : `swallowed a ${c.lastSwallow.prey} whole: digesting it`);

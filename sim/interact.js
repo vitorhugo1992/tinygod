@@ -81,7 +81,7 @@ function surfaceNear(cell, x, y, reach, only = -1) {
 function groups(world) {
   const parent = world.cells.map((_, i) => i);
   const find = (i) => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
-  for (const l of world.links) { if (l.feed) continue; const a = find(l.a), b = find(l.b); if (a !== b) parent[Math.max(a, b)] = Math.min(a, b); }
+  for (const l of world.links) { if (l.feed || l.tether) continue; const a = find(l.a), b = find(l.b); if (a !== b) parent[Math.max(a, b)] = Math.min(a, b); }
   const size = new Map(), vol = new Map();
   world.cells.forEach((c, i) => { c.group = find(i); size.set(c.group, (size.get(c.group) || 0) + 1); vol.set(c.group, (vol.get(c.group) || 0) + c.pieces[0].volume); });
   size.vol = vol;
@@ -145,6 +145,21 @@ export function interact(world) {
       const i = l.pieceB, c = B.cs[i], s = B.sn[i];
       return [B.cx[i] + c * l.bx - s * l.by, B.cy[i] + s * l.bx + c * l.by];
     })();
+    if (l.tether) {   // a tether's line: a rope, slack until tight, then a spring; reeled in or out by its rules
+      const T = PARAMS.tether, t = l.padA, d = Math.hypot(ax - bx, ay - by);
+      if (t.reelIn) l.len = Math.max(0, l.len - T.reel * PARAMS.time.dt); else if (t.reelOut) l.len = Math.min(T.max, l.len + T.reel * PARAMS.time.dt);
+      const pull = d > l.len ? T.stiffness * (d - l.len) : 0;
+      l.load += (pull - l.load) * Math.min(1, PARAMS.time.dt / T.loadTime);
+      const why = A.dead ? 'died' : B.dead ? 'its catch died' : t.letGo ? 'let go' : l.load > l.holds ? 'snapped' : null;
+      if (why) { t.link = null; t.t = T.reload; A.lastTie = { what: B.species, why, step: world.steps }; continue; }
+      kept.push(l);
+      if (pull > 0) {   // each end pulled toward the point the line's length away from the other
+        const ux = (ax - bx) / d, uy = (ay - by) / d, [lax, lay] = toLocal(A, t.piece, ax, ay), [lbx, lby] = toLocal(B, l.pieceB, bx, by);
+        A.ext.push({ type: 'pull', piece: t.piece, x: lax, y: lay, tx: bx + ux * l.len, ty: by + uy * l.len, k: T.stiffness });
+        B.ext.push({ type: 'pull', piece: l.pieceB, x: lbx, y: lby, tx: ax - ux * l.len, ty: ay - uy * l.len, k: T.stiffness });
+      }
+      continue;
+    }
     const force = PAD.stiffness * Math.hypot(ax - bx, ay - by);
     // a peduncle's link breaks under a sustained pull (averaged over PARAMS.feed.loadTime), not the jerk of each
     // stroke of its own tail (a swimmer's body bounces ~10 µm a stroke); a spring jump's long pull still snaps it
@@ -225,6 +240,43 @@ export function interact(world) {
       A.lastShot = h.shot;
       if (hit) { const has = world.metab ? energyOf(hit) : 0, hurt = (HP.venom + HP.wound * has) / (1 + PARAMS.plates.harpoon * (hit.pieces[0].plates || 0)), lost = world.metab ? drainEnergy(hit, hurt) : 0;
         if (world.metab && hurt >= has) { hit.dead = true; hit.diedAt = world.steps; hit.diedWhy = `killed by a ${A.species}'s harpoon`; } hit.stunT = HP.stun; hit.harpooned = { by: A.species, lost, step: world.steps }; }
+    }
+  }
+
+  // tethers (PARAMS.tether): a free one whose rule holds throws its dart straight out, blind, as a harpoon does; the
+  // first piece of any living cell in its line (a body, spine or flagellum; kin too) is tied to it on a line as long as
+  // the throw; a miss winds back
+  const TP = PARAMS.tether;
+  for (const A of cells) {
+    for (const t of A.tethers || []) {
+      if (A.dead || !t.go || t.link || t.t > 0 || (world.metab && A.metab.E < t.cost)) continue;
+      if (world.metab) A.metab.E -= t.cost;
+      const [x0, y0] = padWorld(A, t), ux = A.cs[t.piece], uy = A.sn[t.piece];
+      let best = null;
+      for (const B of cells) {
+        if (B === A || B.dead) continue;
+        const dx = B.q[0] - x0, dy = B.q[1] - y0, r = TP.range + B.reach;
+        if (dx * dx + dy * dy > r * r) continue;
+        for (let k = 0; k < B.pieces.length; k++) {
+          const [ax, ay, bx, by] = ends(B, k), a = B.pieces[k].a;
+          for (let s = 0; s <= TP.range && (!best || s < best.s); s += 0.5) {
+            const px = x0 + ux * s, py = y0 + uy * s, ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey;
+            let u = l2 > 0 ? ((px - ax) * ex + (py - ay) * ey) / l2 : 0;
+            u = u < 0 ? 0 : u > 1 ? 1 : u;
+            const qx = ax + ex * u - px, qy = ay + ey * u - py;
+            if (qx * qx + qy * qy <= a * a) { best = { s, B, k, px, py }; break; }
+          }
+        }
+      }
+      const len = best ? best.s : TP.range;
+      t.shot = { step: world.steps, x0, y0, x1: x0 + ux * len, y1: y0 + uy * len, hit: best ? best.B.species : null, kin: !!best && best.B.species === A.species, tether: true };
+      A.lastShot = t.shot;
+      if (!best) { t.t = TP.reload; continue; }
+      const [bx, by] = toLocal(best.B, best.k, best.px, best.py);
+      const link = { tether: true, a: A.index, b: best.B.index, padA: t, pieceB: best.k, bx, by, holds: TP.hold, len: Math.max(len, 0.5), load: 0, since: world.steps };
+      t.link = link; world.links.push(link);
+      A.lastTie = { what: best.B.species, why: 'tied', step: world.steps, kin: best.B.species === A.species };
+      best.B.tiedBy = { species: A.species, step: world.steps };
     }
   }
 

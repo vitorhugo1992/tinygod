@@ -106,7 +106,7 @@ function capsuleDrag(L, a) {
 }
 
 function parseJoint(j, pieceIndex) {
-  if (!j || j.type === 'fixed' || j.type === 'feed' || j.type === 'hold' || j.type === 'fire') return null;   // a peduncle is rigid: its 'joint' only holds its rule
+  if (!j || j.type === 'fixed' || j.type === 'feed' || j.type === 'hold' || j.type === 'fire' || j.type === 'tether') return null;   // a peduncle is rigid: its 'joint' only holds its rule
   if (j.type === 'hinge') {
     return { type: 'hinge', piece: pieceIndex, stiffness: j.stiffness || 0, rest: (j.rest || 0) * DEG,
       latched: !!j.latched };
@@ -132,7 +132,7 @@ function parseJoint(j, pieceIndex) {
 // healthy its plastids are; -5: feeding, 1 while a peduncle of its is latched; -6: size, how grown it is; -7: drained,
 // 1 while another's peduncle drains it; -8: neighbours, how many kin it is joined to; a pad's id: what that pad holds,
 // as PAD_READ - its place in the cell's pads; -9: alarm, a kin nearby is being drained)
-const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7, neighbours: -8, alarm: -9, poisoned: -10 };
+const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7, neighbours: -8, alarm: -9, poisoned: -10, tied: -11 };
 export const PAD_READ = -100;
 let padIds = new Map();   // the design being built: pad id -> its place among the cell's pads
 function sensorIndex(sensors, id) {
@@ -182,6 +182,12 @@ export function rewire(cell, partIndex, controls) {
   for (const f of cell.feeders) if (f.part === partIndex) {
     if (controls.length) f.controls = controls.map((c) => resolveControl(cell.sensors, c)); else { delete f.controls; f.go = true; }
   }
+  for (const t of cell.tethers || []) {   // a tether's FIRES, REELS and LETS GO rules
+    const res = controls.length ? controls.map((c) => resolveControl(cell.sensors, c)) : null;
+    if (t.part === partIndex) { if (res) t.controls = res; else { delete t.controls; t.go = false; } }
+    if (t.reel.part === partIndex) t.reel.controls = res;
+    if (t.release.part === partIndex) t.release.controls = res;
+  }
   for (const h of cell.harpoons || []) if (h.part === partIndex) {
     if (controls.length) h.controls = controls.map((c) => resolveControl(cell.sensors, c)); else { delete h.controls; h.go = false; }
   }
@@ -223,7 +229,7 @@ export function buildCell(design, opts = {}) {
   const joints = [];
   const pads = [];
   const feeders = [];
-  const harpoons = [];   // { piece, x (its tip), y, part, controls, go, t (reload left), shot }
+  const harpoons = [], tethers = [], tetherRules = [];   // tethers: { piece, x, cost, part, id, go, t, link, reel, release }   // { piece, x (its tip), y, part, controls, go, t (reload left), shot }
   const mouths = [];     // engulfing: { piece, x, y, part, controls, go }    // peduncles: { piece, x (its tip), y, r (mouth), part, controls, go, link }
   const sensors = [];
   const controls = [];   // [joint, control] pairs, resolved once every sensor is known
@@ -290,6 +296,12 @@ export function buildCell(design, opts = {}) {
         harpoons.push(h);
         if (controlsOf(part.joint).length) controls.push([h, controlsOf(part.joint)]);
       }
+      if (part.joint && part.joint.type === 'tether') {   // a tether: FIRES when… (no rule: never); its reel and release are rule parts (of: its id)
+        const t = { piece: pieces.length - 1, x: L / 2, y: 0, full: L, cost: PARAMS.tether.cost * L, part: piece.part, id: part.id, go: false, t: 0, link: null, shot: null,
+          tether: true, reelIn: false, reelOut: false, letGo: false, reel: { controls: null }, release: { controls: null } };
+        tethers.push(t);
+        if (controlsOf(part.joint).length) controls.push([t, controlsOf(part.joint)]);
+      }
       if (part.id) ids.set(part.id, pieces.length - 1);
     } else if (part.type === 'inclusion') {
       const host = pieces[parent];
@@ -348,6 +360,7 @@ export function buildCell(design, opts = {}) {
         divideRule.part = design.parts.indexOf(part);
         if (controlsOf(part.joint).length) controls.push([divideRule, controlsOf(part.joint)]);
       }
+      if (part.joint && (part.joint.type === 'reel' || part.joint.type === 'release')) tetherRules.push(part);   // a tether's REELS IN / LETS GO rule
     } else if (part.type === 'mouth') {   // a mouth (engulfing): ENGULFS when… (no rule: whenever it touches a small enough cell)
       const mo = { piece: parent, x, y, part: design.parts.indexOf(part), go: true };
       mouths.push(mo);
@@ -376,6 +389,13 @@ export function buildCell(design, opts = {}) {
     p.cols = Int32Array.from(base);
   }
 
+  for (const part of tetherRules) {   // each joins the tether it names (none: a stray rule, ignored)
+    const t = tethers.find((x) => x.id && x.id === part.of);
+    if (!t) continue;
+    const holder = part.joint.type === 'reel' ? t.reel : t.release;
+    holder.part = design.parts.indexOf(part);
+    if (controlsOf(part.joint).length) controls.push([holder, controlsOf(part.joint)]);
+  }
   for (const [joint, cs] of controls) joint.controls = cs.map((c) => resolveControl(sensors, c));
   for (const [joint, sp] of speeds) joint.speed = resolveSpeed(sensors, sp);
 
@@ -395,7 +415,7 @@ export function buildCell(design, opts = {}) {
 
   const np = pieces.length;
   return {
-    design, pieces, joints, pads, feeders, mouths, harpoons, sensors, n, colTurn, reach, rest, resting: false, divideRule, divideOk: true,
+    design, pieces, joints, pads, feeders, mouths, harpoons, tethers, sensors, n, colTurn, reach, rest, resting: false, divideRule, divideOk: true,
     species: design.species || design.name || 'A',
     ext: [],                 // this step's contacts and pad pulls from other cells (interact.js)
     jointPiece: Int32Array.from(joints.map((j) => j.piece)),
