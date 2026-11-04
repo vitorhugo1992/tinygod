@@ -6,6 +6,35 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**NEXT CHAT STARTS HERE (handoff, 2026-11-04).** Built today (all pushed, 66 checks pass):
+(1) **Gula, Jaculella, Miasmella retuned** (author: then "don't change anything in the species"): one new body, a 30 × 96 µm
+rod, chamber 22% steered by LIGHT (float when every eyespot < 12% but one sees some; at night neutral, sinking to the rich
+floor, a feeler lifting it off; patchy nitrogen fools a nitrogen gauge: the floor of a poor patch reads 0.06-0.33), shade
+plastid 22%, oil 7%, rest below 40% energy. Alive alone 3/3; in mixed tanks the Deepdwellers drain them. (2) **Plebella**
+(the author's strategy: tiny, explosive, toxic, sticky): 8 × 32 µm, NO nucleus (no rules: leaks always, divides at once),
+shade plastid 30%, oil 12%, mucus pads, kin pads. Beat Deepdweller 1 of 3, weakened Deepdweller II. **Mucus pads can't
+stick to giants**: a mucus link joins the group and the chain volume cap (8 r 10 cells) refuses it (to raise with the
+author). (3) **Giants**: every size up to the entry limit (r 50, L 200: 2.1 million µm³) survives alone; they barely grow
+(nitrogen by surface). **Pachyderma** (passive elephant: 5 µm plates, 20 spines) and **Leviathella** (8 mouths, gape 25
+µm: eats everything; 13 kills in one tank). (4) **Plates soften harpoons** (wound ÷ 1 + 2 × thickness; plates up to a
+tenth of the radius on big cells; check 28ak). (5) **Score by growth** (author: "counting only cells is unfair"): living
+biomass ÷ starting biomass, averaged over every half day and the runs: contest.mjs, tournament.mjs, the brief, the entry
+page; contest.mjs also prints cells, biomass share, kills, harpoon shots. (6) **Tubes left as they are** (measured:
+without tubes Deepdweller II dies out every run and Plebella takes the tank 21-25×: tubes are the counter to swarms).
+Size price skipped (the growth score already prices size). (7) **THE TETHER** (decided one question at a time: a harpoon
+on a line; holds only, no wound or stun; chamber-like reel rule; author: "an option for releasing it"): Spine Kind
+Tether, joint { type: 'tether', controls: FIRES }; two RULE PARTS naming it by `of`: { type: 'rule', joint: { type:
+'reel' } } (GO reels in, STOP lets out, in wins, neither holds) and { type: 'release' } (lets go); the sandbox adds them
+(withoutTimers) and shows the three cards in the tether's row. PARAMS.tether (range 40, cost 1,000 pJ/µm, reload 20 s,
+hold 40 pN averaged 0.1 s, stiffness 5, reel 10 µm/s, max 100 µm); a rope link { tether: true } skipped by chains;
+built-in reading Tied (-11). Drawn as a nematocyst-like capsule with a coiled thread, a glassy thread that sags slack and
+trembles taut, a barbed anchor; the ghost shows the capsule (author: "make sure the previews work", "looks real"). Check
+28al. A brainless cell can't fire one (no rule: never), so (author chose A) **Laqueella**: a tethered swarm WITH a
+nucleus (10 × 54 µm), 18-26 cells alone in 4 days; in a six-species tank it won 1 run of 3 and wiped itself out in two
+(its burst sac). **Next:** remove Laqueella's burst sac (suggested, not yet agreed); count tether ties in contest.mjs;
+rerun the six-species tank with 5 runs; then the balance talk (excess: giants untouchable, Leviathella strong; lacking:
+the upper water unused, every kill below 1,700 µm). The author's idea for later: reeling to keep a set distance.
+
 **NEXT CHAT STARTS HERE (handoff, 2026-11-03 night).** Built today (entries below: "STEP 1 DONE", "ROUNDS 1-2",
 "BALANCE FROM THE TOURNAMENT"): the brief, the entry page (https://vitorhugo1992.github.io/tinygod/enter/), the
 tournament (two rounds), and a rebalance (slow chamber, deeper nutricline, nitrogen patches). **Next, agreed (author:

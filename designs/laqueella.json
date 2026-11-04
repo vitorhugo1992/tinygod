@@ -1,0 +1,274 @@
+{
+ "name": "Laqueella (Claude, a lasso swarm)",
+ "from": "Claude",
+ "note": "A swarm with a brain (author, 2026-11-04: Plebella's idea, plus the tether, and a nucleus to drive it). A small rod 10 × 54 µm: a shade plastid (30%), an oil store (12%), a leaking toxin sac, a bursting toxin sac, the nucleus; two mucus pads on its flanks, kin pads at its tips (daughters chain end to end). Two 15 µm tethers on its front corners, each with a feeler beside it (strangers, 50 µm): a tether FIRES when its feeler feels a stranger within ~35 µm, nearer than the other feeler does (it shoots toward the side the stranger is on); it REELS IN whenever it holds something, and LETS GO when its energy falls below 25%. The toxin sac LEAKS while it is tied (Tied reading), so the cloud gathers on the cell it has caught; the other sac BURSTS when a tube drains it. Lives low, on the nitrogen-rich floor, as Plebella does. Alone from the floor (3 runs, 4 days): never starving, 18-26 cells by day 4. In a six-species tank (Deepdweller, Deepdweller II, Plebella, both giants; 3 runs, 5 days, growth score): won one run (11.6×, 22 cells) and died out early in two: its burst sac fires when a tube drains it, and its first cells burst themselves before the swarm had grown (9 self-bursts, no kills). Removing the burst sac is the next thing to try.",
+ "design": {
+  "body": {
+   "radius": 5,
+   "length": 44
+  },
+  "parts": [
+   {
+    "type": "inclusion",
+    "id": "plastid",
+    "material": "plastid",
+    "at": [
+     15.22,
+     0
+    ],
+    "radius": 4.4,
+    "length": 13.76,
+    "pigment": "shade"
+   },
+   {
+    "type": "inclusion",
+    "id": "oil",
+    "material": "oil",
+    "at": [
+     -1.75,
+     0
+    ],
+    "radius": 4.4,
+    "length": 1.98
+   },
+   {
+    "type": "inclusion",
+    "id": "leak",
+    "material": "toxin",
+    "at": [
+     -9.05,
+     0
+    ],
+    "radius": 1.6,
+    "joint": {
+     "type": "leak",
+     "controls": [
+      {
+       "sensor": "tied",
+       "min": 0.5,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "inclusion",
+    "id": "burst",
+    "material": "toxin",
+    "at": [
+     -12.55,
+     0
+    ],
+    "radius": 1.6,
+    "joint": {
+     "type": "lyse",
+     "controls": [
+      {
+       "sensor": "drained",
+       "min": 0.5,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "inclusion",
+    "id": "nucleus",
+    "material": "nucleus",
+    "at": [
+     -18.75,
+     0
+    ],
+    "radius": 4.3,
+    "joint": {
+     "type": "rest",
+     "controls": []
+    }
+   },
+   {
+    "type": "pad",
+    "id": "kf",
+    "at": [
+     27,
+     0
+    ],
+    "kind": "kin",
+    "joint": {
+     "type": "hold"
+    }
+   },
+   {
+    "type": "pad",
+    "id": "kb",
+    "at": [
+     -27,
+     0
+    ],
+    "kind": "kin",
+    "joint": {
+     "type": "hold"
+    }
+   },
+   {
+    "type": "pad",
+    "id": "m0",
+    "at": [
+     0,
+     5
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m1",
+    "at": [
+     0,
+     -5
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "sensor",
+    "id": "f0",
+    "kind": "near",
+    "range": 50,
+    "feels": "strangers",
+    "at": [
+     24.5,
+     4.33
+    ],
+    "angle": 45
+   },
+   {
+    "type": "segment",
+    "id": "t0",
+    "label": "Tether",
+    "at": [
+     25.54,
+     3.53
+    ],
+    "angle": 45,
+    "length": 15,
+    "radius": 0.5,
+    "material": "protein",
+    "joint": {
+     "type": "tether",
+     "controls": [
+      {
+       "sensor": "f0",
+       "min": 0.3,
+       "max": 1
+      },
+      {
+       "sensor": "f0",
+       "vs": "f1"
+      }
+     ]
+    }
+   },
+   {
+    "type": "rule",
+    "id": "t0-reel",
+    "of": "t0",
+    "label": "Reel",
+    "joint": {
+     "type": "reel",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "rule",
+    "id": "t0-release",
+    "of": "t0",
+    "label": "Release",
+    "joint": {
+     "type": "release",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 0.25
+      }
+     ]
+    }
+   },
+   {
+    "type": "sensor",
+    "id": "f1",
+    "kind": "near",
+    "range": 50,
+    "feels": "strangers",
+    "at": [
+     24.5,
+     -4.33
+    ],
+    "angle": 315
+   },
+   {
+    "type": "segment",
+    "id": "t1",
+    "label": "Tether",
+    "at": [
+     25.54,
+     -3.53
+    ],
+    "angle": 315,
+    "length": 15,
+    "radius": 0.5,
+    "material": "protein",
+    "joint": {
+     "type": "tether",
+     "controls": [
+      {
+       "sensor": "f1",
+       "min": 0.3,
+       "max": 1
+      },
+      {
+       "sensor": "f1",
+       "vs": "f0"
+      }
+     ]
+    }
+   },
+   {
+    "type": "rule",
+    "id": "t1-reel",
+    "of": "t1",
+    "label": "Reel",
+    "joint": {
+     "type": "reel",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "rule",
+    "id": "t1-release",
+    "of": "t1",
+    "label": "Release",
+    "joint": {
+     "type": "release",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 0.25
+      }
+     ]
+    }
+   }
+  ]
+ }
+}
