@@ -39,7 +39,7 @@ let nextCensus = 0;
 const shareSum = {}, growSum = {}, kills = {};   // biomass share summed at every census; kills by killer: { cells, biomass }
 let censuses = 0;
 const vol = (c) => c.pieces[0].volume;
-const shots = {};   // harpoons: shooter -> { shots, hits: { target: n } }
+const shots = {}, ties = {};   // tethers: species -> { tied: { target: n }, 'let go', snapped, … }   // harpoons: shooter -> { shots, hits: { target: n } }
 const census = () => {
   const n = {}; for (const s of species) n[s] = 0;
   for (const c of w.cells) if (!c.dead) n[c.species] = (n[c.species] || 0) + 1;
@@ -47,6 +47,10 @@ const census = () => {
 };
 while (worldTime(w) < days * DAY) {
   stepWorld(w);
+  for (const c of w.cells) if (c.lastTie && c.lastTie.step === w.steps - 1) {
+    const t = ties[c.species] || (ties[c.species] = { tied: {} }), k = c.lastTie.why;
+    if (k === 'tied') t.tied[c.lastTie.what] = (t.tied[c.lastTie.what] || 0) + 1; else t[k] = (t[k] || 0) + 1;
+  }
   for (const c of w.cells) for (const h of c.harpoons || []) if (h.shot && h.shot.step === w.steps - 1) {
     const t = shots[c.species] || (shots[c.species] = { shots: 0, hits: {} }); t.shots++;
     if (h.shot.hit) t.hits[h.shot.hit] = (t.hits[h.shot.hit] || 0) + 1;
@@ -71,6 +75,7 @@ for (const s of [...species].sort((a, b) => (growSum[b] || 0) - (growSum[a] || 0
     const now = live.reduce((a, c) => a + vol(c), 0);
   console.log(`  ${s}: SCORE ${((growSum[s] || 0) / Math.max(1, censuses)).toFixed(2)}× (now ${(now / bio0[s]).toFixed(2)}×), cells ${live.length}, biomass ${Math.round(live.reduce((a, c) => a + vol(c), 0) / 1000)}k µm³, mean biomass share ${(100 * (shareSum[s] || 0) / Math.max(1, censuses)).toFixed(1)}%, kills ${k.cells} (${Math.round(k.biomass / 1000)}k µm³)`);
 }
+for (const [s, t] of Object.entries(ties)) console.log('  tethers', s, JSON.stringify(t));
 for (const [s, t] of Object.entries(shots)) console.log('  harpoons', s, t.shots, 'shots, hits', JSON.stringify(t.hits));
 for (const s of species) {
   const live = w.cells.filter((c) => c.species === s && !c.dead);

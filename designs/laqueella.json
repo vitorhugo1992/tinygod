@@ -1,7 +1,7 @@
 {
  "name": "Laqueella (Claude, a lasso swarm)",
  "from": "Claude",
- "note": "A swarm with a brain (author, 2026-11-04: Plebella's idea, plus the tether, and a nucleus to drive it). A small rod 10 × 54 µm: a shade plastid (30%), an oil store (12%), a leaking toxin sac, a bursting toxin sac, the nucleus; two mucus pads on its flanks, kin pads at its tips (daughters chain end to end). Two 15 µm tethers on its front corners, each with a feeler beside it (strangers, 50 µm): a tether FIRES when its feeler feels a stranger within ~35 µm, nearer than the other feeler does (it shoots toward the side the stranger is on); it REELS IN whenever it holds something, and LETS GO when its energy falls below 25%. The toxin sac LEAKS while it is tied (Tied reading), so the cloud gathers on the cell it has caught; the other sac BURSTS when a tube drains it. Lives low, on the nitrogen-rich floor, as Plebella does. Alone from the floor (3 runs, 4 days): never starving, 18-26 cells by day 4. In a six-species tank (Deepdweller, Deepdweller II, Plebella, both giants; 3 runs, 5 days, growth score): won one run (11.6×, 22 cells) and died out early in two: its burst sac fires when a tube drains it, and its first cells burst themselves before the swarm had grown (9 self-bursts, no kills). Removing the burst sac is the next thing to try.",
+ "note": "A swarm with a brain (author, 2026-11-04: Plebella's idea, plus the tether, and a nucleus to drive it). A small rod 10 × 54 µm: a shade plastid (30%), an oil store (12%), a leaking toxin sac, the nucleus; two mucus pads on its flanks, kin pads at its tips (daughters chain end to end). Two 15 µm tethers on its front corners, each with a feeler beside it (strangers, 50 µm): a tether FIRES when its feeler feels a stranger within ~35 µm, nearer than the other feeler does (it shoots toward the side the stranger is on); it REELS IN whenever it holds something, and LETS GO when its energy falls below 25%. The toxin sac LEAKS while it is tied (Tied reading), so the cloud gathers on the cell it has caught. Lives low, on the nitrogen-rich floor, as Plebella does. Alone from the floor (3 runs, 4 days): never starving, 18-26 cells by day 4. In a six-species tank (Deepdweller, Deepdweller II, Plebella, both giants; 3 runs, 5 days, growth score): won one run (11.6×, 22 cells) and died out early in two: its burst sac fires when a tube drains it, and its first cells burst themselves before the swarm had grown (9 self-bursts, no kills). So the burst sac was removed (2026-11-04). Without it (same tank, 5 runs): first on average (mean growth 5.6×; Deepdweller II 3.5×, Plebella 2.7×, Deepdweller 1.8×, the giants 1.0×), winning 2 runs and dying out in 2. Its tethers tied ~120 times, mostly the giants (Leviathella 30, Pachyderma 18), and kin 14 times (they are blind); 62 lines snapped; 6 of its cells reeled themselves into Leviathella's mouths and were eaten. Its toxin killed nothing: it wins by growing.",
  "design": {
   "body": {
    "radius": 5,
@@ -45,26 +45,6 @@
      "controls": [
       {
        "sensor": "tied",
-       "min": 0.5,
-       "max": 1
-      }
-     ]
-    }
-   },
-   {
-    "type": "inclusion",
-    "id": "burst",
-    "material": "toxin",
-    "at": [
-     -12.55,
-     0
-    ],
-    "radius": 1.6,
-    "joint": {
-     "type": "lyse",
-     "controls": [
-      {
-       "sensor": "drained",
        "min": 0.5,
        "max": 1
       }
