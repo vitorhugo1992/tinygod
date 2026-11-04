@@ -1,0 +1,103 @@
+{
+ "name": "Plebella (Claude, a swarm)",
+ "from": "Claude",
+ "note": "A swarm that wins by numbers (the author's strategy, 2026-11-04: very small, explosive growth, short lives, toxins, sticking to the enemy). A tiny rod 8 × 32 µm with NO nucleus: no rules and no brain upkeep, so every part runs all the time and it divides the moment it has doubled. A shade plastid (30%, made for dim water), an oil store (12%) to carry the night, a toxin sac of Kind Leak that always leaks (kin are immune), four mucus pads on its flanks that grab any other cell they touch, and kin pads at both tips so daughters chain end to end. It lives low, near the nitrogen-rich floor. Alone from the floor: 32 cells by day 3.5, no deaths. Against one Deepdweller (3 runs, 5 days): won one outright (both Deepdwellers poisoned by day 2.9, then 60 Plebellas), lost cells to the Deepdweller's feeding tubes in the others (it drains them: 40k pJ to pierce for a small meal). Against Deepdweller II: weakened it but never took over (2-12 cells). Weaknesses: no brain, so it can't time its divisions; feeding tubes pick it off before its boom.",
+ "design": {
+  "body": {
+   "radius": 4,
+   "length": 24
+  },
+  "parts": [
+   {
+    "type": "inclusion",
+    "id": "plastid",
+    "material": "plastid",
+    "at": [
+     8.28,
+     0
+    ],
+    "radius": 3.4,
+    "length": 7.65,
+    "pigment": "shade"
+   },
+   {
+    "type": "inclusion",
+    "id": "oil",
+    "material": "oil",
+    "at": [
+     -2.82,
+     0
+    ],
+    "radius": 3.4,
+    "length": 0.34
+   },
+   {
+    "type": "inclusion",
+    "id": "leak",
+    "material": "toxin",
+    "at": [
+     -8.29,
+     0
+    ],
+    "radius": 1.6,
+    "joint": {
+     "type": "leak"
+    }
+   },
+   {
+    "type": "pad",
+    "id": "kf",
+    "at": [
+     16,
+     0
+    ],
+    "kind": "kin"
+   },
+   {
+    "type": "pad",
+    "id": "kb",
+    "at": [
+     -16,
+     0
+    ],
+    "kind": "kin"
+   },
+   {
+    "type": "pad",
+    "id": "m0",
+    "at": [
+     -6,
+     4
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m1",
+    "at": [
+     -6,
+     -4
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m2",
+    "at": [
+     0,
+     4
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m3",
+    "at": [
+     0,
+     -4
+    ],
+    "kind": "mucus"
+   }
+  ]
+ }
+}

@@ -1,0 +1,201 @@
+{
+ "name": "Gula (Claude, a swallower)",
+ "from": "Claude",
+ "note": "A swallower, retuned for the new balance (2026-11-04). A big rod 30 × 96 µm: a buoyancy chamber (22%) in front, a shade plastid (22%), an oil store (7%), the nucleus at the back; four mouths (front, back, two flanks). Its gape takes cells up to 7.5 µm in radius, and its free room (~30,000 µm³) holds a Deepdweller-sized rod: the slim tournament drifters are its food. Steered by light, not nitrogen (patchy nitrogen fools a nitrogen gauge): three eyespots; FLOATS when every eyespot sees less than 12% sun but one sees some (dim daylight: it rides ~1.2-1.5 mm by day), or when its feeler senses the floor within ~45 µm; at night its chamber goes neutral and it sinks to the nitrogen-rich floor, bouncing off it. RESTS when its energy is below 40%. Alone from the floor (3 runs, 5 days): never starving, 2 cells by day 5. In a 10-species contest it swallowed a Deepdweller once but was drained by the Deepdwellers' feeding tubes: big, rich and slow, it is a good meal.",
+ "design": {
+  "body": {
+   "radius": 15,
+   "length": 66
+  },
+  "parts": [
+   {
+    "type": "inclusion",
+    "id": "float",
+    "material": "chamber",
+    "at": [
+     32.34,
+     0
+    ],
+    "radius": 14.4,
+    "length": 1.33,
+    "joint": {
+     "type": "chamber",
+     "controls": [
+      {
+       "sensor": "e0",
+       "min": 0,
+       "max": 0.12,
+       "also": [
+        {
+         "sensor": "e1",
+         "min": 0,
+         "max": 0.12
+        },
+        {
+         "sensor": "e2",
+         "min": 0,
+         "max": 0.12
+        }
+       ],
+       "all": true
+      },
+      {
+       "sensor": "e0",
+       "min": 0.005,
+       "max": 1,
+       "also": [
+        {
+         "sensor": "e1",
+         "min": 0.005,
+         "max": 1
+        },
+        {
+         "sensor": "e2",
+         "min": 0.005,
+         "max": 1
+        }
+       ]
+      },
+      {
+       "sensor": "near",
+       "min": 0.7,
+       "max": 1,
+       "or": true
+      }
+     ]
+    }
+   },
+   {
+    "type": "inclusion",
+    "id": "plastid",
+    "material": "plastid",
+    "at": [
+     1.81,
+     0
+    ],
+    "radius": 14.4,
+    "length": 1.33,
+    "pigment": "shade"
+   },
+   {
+    "type": "inclusion",
+    "id": "oil",
+    "material": "oil",
+    "at": [
+     -23.71,
+     0
+    ],
+    "radius": 10.05
+   },
+   {
+    "type": "inclusion",
+    "id": "nucleus",
+    "material": "nucleus",
+    "at": [
+     -38.46,
+     0
+    ],
+    "radius": 4.3,
+    "joint": {
+     "type": "rest",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 0.4
+      }
+     ]
+    }
+   },
+   {
+    "type": "sensor",
+    "id": "e0",
+    "kind": "light",
+    "cone": 180,
+    "at": [
+     48,
+     0
+    ],
+    "angle": 0
+   },
+   {
+    "type": "sensor",
+    "id": "e1",
+    "kind": "light",
+    "cone": 180,
+    "at": [
+     16.5,
+     15
+    ],
+    "angle": 90
+   },
+   {
+    "type": "sensor",
+    "id": "e2",
+    "kind": "light",
+    "cone": 180,
+    "at": [
+     16.5,
+     -15
+    ],
+    "angle": 270
+   },
+   {
+    "type": "sensor",
+    "id": "near",
+    "kind": "near",
+    "at": [
+     0,
+     -15
+    ],
+    "angle": 270,
+    "range": 150,
+    "feels": "anything"
+   },
+   {
+    "type": "mouth",
+    "id": "mouthF",
+    "at": [
+     48,
+     0
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouthL",
+    "at": [
+     -16.5,
+     15
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouthR",
+    "at": [
+     -16.5,
+     -15
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouthB",
+    "at": [
+     -48,
+     0
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   }
+  ]
+ }
+}

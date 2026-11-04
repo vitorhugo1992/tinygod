@@ -35,6 +35,7 @@ names.forEach((n, i) => {
 const DAY = PARAMS.metab.day, T0 = Date.now();
 const deaths = [];
 let nextCensus = 0;
+const shots = {};   // harpoons: shooter -> { shots, hits: { target: n } }
 const census = () => {
   const n = {}; for (const s of species) n[s] = 0;
   for (const c of w.cells) if (!c.dead) n[c.species] = (n[c.species] || 0) + 1;
@@ -42,6 +43,10 @@ const census = () => {
 };
 while (worldTime(w) < days * DAY) {
   stepWorld(w);
+  for (const c of w.cells) for (const h of c.harpoons || []) if (h.shot && h.shot.step === w.steps - 1) {
+    const t = shots[c.species] || (shots[c.species] = { shots: 0, hits: {} }); t.shots++;
+    if (h.shot.hit) t.hits[h.shot.hit] = (t.hits[h.shot.hit] || 0) + 1;
+  }
   if (w.gone && w.gone.length) {
     for (const c of w.gone) deaths.push(`day ${(c.diedAt * PARAMS.time.dt / DAY).toFixed(2)}: ${c.species} ${c.diedWhy} (${Math.round(2000 - c.q[1])} µm)`);
     for (const c of w.gone) console.log('  †', deaths[deaths.length - 1]);
@@ -53,6 +58,7 @@ while (worldTime(w) < days * DAY) {
   }
 }
 console.log('FINAL', census());
+for (const [s, t] of Object.entries(shots)) console.log('  harpoons', s, t.shots, 'shots, hits', JSON.stringify(t.hits));
 for (const s of species) {
   const live = w.cells.filter((c) => c.species === s && !c.dead);
   if (live.length) console.log(' ', s, 'sizes', live.map((c) => (c.size || 1).toFixed(1)).join(' '), 'depths', live.map((c) => Math.round(2000 - c.q[1])).join(' '));
