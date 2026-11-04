@@ -388,6 +388,10 @@ function drawPreview(X, Y, s) {
   ctx.lineWidth = 1.5;
   for (const inc of c.pieces[0].inclusions) { incPath(inc, bodyXf(c, X, Y)); ctx.stroke(); }
   ctx.setLineDash([]);
+  for (const t of c.tethers || []) {   // a tether shows its loaded capsule, so it reads as a tether, not a spine
+    const i = t.piece, h = c.pieces[i].L / 2;
+    drawTetherTip([[X(c.cx[i] - c.cs[i] * h), Y(c.cy[i] - c.sn[i] * h)], [X(c.cx[i] + c.cs[i] * h), Y(c.cy[i] + c.sn[i] * h)]], s, { link: null, t: 0 }, preview.bad ? COLOR.starving : null);
+  }
   for (const d of [...c.sensors, ...c.pads]) {
     const [px, py] = pieceToWorld(c, d.piece, d.x, d.y);
     ctx.beginPath(); ctx.arc(X(px), Y(py), Math.max(1.2 * s, 3), 0, Math.PI * 2); ctx.stroke();
@@ -2400,6 +2404,55 @@ function gloss(x, y, r, a) {
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
 }
 // a smooth tapered stroke through screen points, w0 at the start to w1 at the end
+// A tether's tip (author, 2026-11-04: "nice and looks real", not a line): loaded, a nematocyst-like capsule with its
+// thread coiled inside; out on its line, an open, empty capsule; winding back, a loose curl of thread coming home
+const THREAD = '#f3ead2';
+function drawTetherTip(P, s, t, tag) {
+  const [ex, ey] = P[P.length - 1], [px, py] = P[P.length - 2], a = Math.atan2(ey - py, ex - px), ca = Math.cos(a), sa = Math.sin(a);
+  const r = Math.max(1.6 * s, 4), cx = ex + ca * r * 0.7, cy = ey + sa * r * 0.7;   // the capsule sits on the tip
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(a);
+  const g = ctx.createRadialGradient(-r * 0.3, -r * 0.35, r * 0.1, 0, 0, r * 1.1);
+  g.addColorStop(0, 'rgba(255,252,240,.85)'); g.addColorStop(0.6, rgbaOf(tag || '#d9c89a', 0.45)); g.addColorStop(1, rgbaOf(tag || '#d9c89a', 0.15));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.15, r * 0.75, 0, 0, 2 * Math.PI); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,250,230,.75)'; ctx.lineWidth = Math.max(0.25 * s, 0.8); ctx.stroke();
+  if (!t.link && !(t.t > 0)) {   // loaded: the thread coiled tight inside
+    ctx.strokeStyle = THREAD; ctx.lineWidth = Math.max(0.18 * s, 0.7); ctx.beginPath();
+    for (let k = 0; k <= 60; k++) { const u = k / 60, ang = u * Math.PI * 7, rr = r * (0.15 + 0.5 * u); const x = Math.cos(ang) * rr * 1.35, y = Math.sin(ang) * rr * 0.8; k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+  } else if (t.link) {   // fired: the capsule open at its end, the thread leaving it
+    ctx.fillStyle = 'rgba(10,20,30,.35)'; ctx.beginPath(); ctx.ellipse(r * 0.85, 0, r * 0.28, r * 0.42, 0, 0, 2 * Math.PI); ctx.fill();
+  } else {   // winding back: a loose, shrinking curl hanging from the open end
+    const left = Math.min(1, t.t / PARAMS.tether.reload), wob = Math.sin(performance.now() / 300) * 0.4;
+    ctx.strokeStyle = THREAD; ctx.globalAlpha = 0.85; ctx.lineWidth = Math.max(0.18 * s, 0.7); ctx.beginPath(); ctx.moveTo(r * 0.9, 0);
+    for (let k = 1; k <= 30; k++) { const u = k / 30, x = r * 0.9 + u * r * 3.2 * left, y = Math.sin(u * Math.PI * 3 + wob) * r * 0.9 * left * u; ctx.lineTo(x, y); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+// A tether's line: a fine glassy thread; slack, it sags in a curve; taut, it runs straight and trembles a little; a barbed
+// anchor where it holds
+function drawTetherLine(X, Y, s, A, l, ax, ay, bx, by) {
+  const tag = partColours(A.design).get(A.pieces[l.padA.piece].part) || '#d9c89a';
+  const x0 = X(ax), y0 = Y(ay), x1 = X(bx), y1 = Y(by), d = Math.hypot(bx - ax, by - ay), slack = Math.max(0, l.len - d);
+  const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, nx = -(y1 - y0), ny = x1 - x0, nl = Math.hypot(nx, ny) || 1;
+  // slack: the middle hangs down (water drag and its weight); taut: a faint tremble across it
+  const sag = slack > 0 ? Math.min(Math.sqrt(slack * (d + slack)) * 0.5 * s, 60) : Math.sin(performance.now() / 45 + l.since) * Math.min(l.load / PARAMS.tether.hold, 1) * 0.8;
+  const side = slack > 0 ? (ny / nl > 0 ? 1 : -1) : 1;   // sag toward the bottom of the screen
+  const qx = mx + nx / nl * sag * side, qy = my + ny / nl * sag * side;
+  const path = () => { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(qx, qy, x1 + 0.01, y1); };
+  ctx.save(); ctx.lineCap = 'round';
+  path(); ctx.strokeStyle = rgbaOf(tag, 0.35); ctx.lineWidth = Math.max(0.9 * s, 2.6); ctx.stroke();   // its glow
+  path(); ctx.strokeStyle = THREAD; ctx.globalAlpha = 0.95; ctx.lineWidth = Math.max(0.3 * s, 1.1); ctx.stroke();   // the thread
+  ctx.globalAlpha = 1;
+  // the anchor: a small barbed head buried in the skin, pointing along the thread's last stretch
+  const ang = Math.atan2(y1 - qy, x1 - qx), r = Math.max(1.1 * s, 3.2), c = Math.cos(ang), sn = Math.sin(ang);
+  ctx.fillStyle = THREAD; ctx.beginPath(); ctx.moveTo(x1 + c * r * 0.6, y1 + sn * r * 0.6);
+  ctx.lineTo(x1 + Math.cos(ang + 2.5) * r, y1 + Math.sin(ang + 2.5) * r); ctx.lineTo(x1 - c * r * 0.25, y1 - sn * r * 0.25);
+  ctx.lineTo(x1 + Math.cos(ang - 2.5) * r, y1 + Math.sin(ang - 2.5) * r); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = rgbaOf(tag, 0.6); ctx.lineWidth = Math.max(0.25 * s, 0.8); ctx.beginPath(); ctx.arc(x1, y1, r * 1.1, 0, 2 * Math.PI); ctx.stroke();   // the dimple in its skin
+  ctx.restore();
+}
 function taper(P, w0, w1, style) {
   if (P.length < 2) return;
   const pts = [];   // Catmull-Rom, 4 steps a piece
@@ -2445,10 +2498,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
       if (r0.L < 0.5 && harpoon) continue;   // thrown: nothing there yet
       taper(P, w * 1.2, Math.max(w * 0.2, 0.6), tag ? rgbaOf(tag, 0.9) : `rgba(215,238,255,${0.6 + 0.3 * lit})`);
       if (w > 1.6) taper(P, w * 0.35, 0.3, 'rgba(255,255,255,.45)');
-      if (tether && !tether.link) {   // a hook at the tip (gone while it is out on its line)
-        const [ex, ey] = P[P.length - 1], [px, py] = P[P.length - 2], a = Math.atan2(ey - py, ex - px), r = Math.max(1.3 * s, 3.5);
-        ctx.strokeStyle = tag || '#e8d9a8'; ctx.lineWidth = Math.max(0.4 * s, 1.2); ctx.beginPath(); ctx.arc(ex - Math.cos(a) * r * 0.2, ey - Math.sin(a) * r * 0.2, r * 0.6, a - 2.4, a + 0.6); ctx.stroke();
-      }
+      if (tether) drawTetherTip(P, s, tether, tag);
       if (harpoon) {   // a barb at the tip
         const [ex, ey] = P[P.length - 1], [px, py] = P[P.length - 2], a = Math.atan2(ey - py, ex - px), r = Math.max(1.5 * s, 4);
         ctx.fillStyle = tag || '#ffb0c8'; ctx.beginPath(); ctx.moveTo(ex + Math.cos(a) * r * 0.6, ey + Math.sin(a) * r * 0.6);
@@ -2643,12 +2693,7 @@ function drawLinks(X, Y, s) {
     let bx, by;
     if (l.padB) [bx, by] = padWorld(B, l.padB);
     else { const i = l.pieceB; bx = B.cx[i] + B.cs[i] * l.bx - B.sn[i] * l.by; by = B.cy[i] + B.sn[i] * l.bx + B.cs[i] * l.by; }
-    if (l.tether) {   // a tether's line: taut solid, slack dashed
-      const tag = partColours(A.design).get(A.pieces[l.padA.piece].part) || '#e8d9a8', taut = Math.hypot(ax - bx, ay - by) >= l.len - 0.5;
-      ctx.save(); ctx.strokeStyle = tag; ctx.globalAlpha = 0.9; ctx.lineWidth = Math.max(0.35 * s, 1.2); if (!taut) ctx.setLineDash([4, 4]);
-      ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
-      ctx.setLineDash([]); ctx.fillStyle = tag; ctx.beginPath(); ctx.arc(X(bx), Y(by), Math.max(1 * s, 2.5), 0, 2 * Math.PI); ctx.fill(); ctx.restore(); continue;
-    }
+    if (l.tether) { drawTetherLine(X, Y, s, A, l, ax, ay, bx, by); continue; }
     if (l.feed) { ctx.save(); ctx.strokeStyle = '#ff4d6d'; ctx.lineWidth = Math.max(1.2 * s, 2.5); }
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     if (l.feed) { ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(X(bx), Y(by), Math.max(1.5 * s, 3), 0, 2 * Math.PI); ctx.fill(); ctx.restore(); }
