@@ -1,0 +1,245 @@
+{
+ "name": "Leviathella (Claude, a giant hunter)",
+ "from": "Claude",
+ "note": "A predator giant (author, 2026-11-04: \"big predators that eat prey\"; Noctiluca-like): a rod 100 × 300 µm (radius 50, length 200), 2 µm plates (harpoon wounds ÷5), eight mouths round its body. Its gape takes any cell up to 25 µm in radius, and its free room (~1 million µm³) holds almost anything: every species in the tank is food, and each meal gives half the prey's nitrogen, which a giant lacks to divide. Inside: a buoyancy chamber (22%), a shade plastid (22%), oil (7%), the nucleus; steered by light like Pachyderma (dim daylight floats it; nights on the floor), rests below 40% energy. Alone from the floor (3 runs, 5 days): never starving, 1.1× in 5 days.",
+ "design": {
+  "body": {
+   "radius": 50,
+   "length": 200,
+   "wall": "plates",
+   "plates": 2
+  },
+  "parts": [
+   {
+    "type": "inclusion",
+    "id": "float",
+    "material": "chamber",
+    "at": [
+     101.49,
+     0
+    ],
+    "radius": 47.91,
+    "joint": {
+     "type": "chamber",
+     "controls": [
+      {
+       "sensor": "e0",
+       "min": 0,
+       "max": 0.12,
+       "also": [
+        {
+         "sensor": "e1",
+         "min": 0,
+         "max": 0.12
+        },
+        {
+         "sensor": "e2",
+         "min": 0,
+         "max": 0.12
+        }
+       ],
+       "all": true
+      },
+      {
+       "sensor": "e0",
+       "min": 0.005,
+       "max": 1,
+       "also": [
+        {
+         "sensor": "e1",
+         "min": 0.005,
+         "max": 1
+        },
+        {
+         "sensor": "e2",
+         "min": 0.005,
+         "max": 1
+        }
+       ]
+      },
+      {
+       "sensor": "near",
+       "min": 0.7,
+       "max": 1,
+       "or": true
+      }
+     ]
+    }
+   },
+   {
+    "type": "inclusion",
+    "id": "plastid",
+    "material": "plastid",
+    "at": [
+     5.26,
+     0
+    ],
+    "radius": 47.91,
+    "pigment": "shade"
+   },
+   {
+    "type": "inclusion",
+    "id": "oil",
+    "material": "oil",
+    "at": [
+     -75.77,
+     0
+    ],
+    "radius": 32.71
+   },
+   {
+    "type": "inclusion",
+    "id": "nucleus",
+    "material": "nucleus",
+    "at": [
+     -113.18,
+     0
+    ],
+    "radius": 4.3,
+    "joint": {
+     "type": "rest",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 0.4
+      }
+     ]
+    }
+   },
+   {
+    "type": "sensor",
+    "id": "e0",
+    "kind": "light",
+    "cone": 180,
+    "at": [
+     150,
+     0
+    ],
+    "angle": 0
+   },
+   {
+    "type": "sensor",
+    "id": "e1",
+    "kind": "light",
+    "cone": 180,
+    "at": [
+     50,
+     50
+    ],
+    "angle": 90
+   },
+   {
+    "type": "sensor",
+    "id": "e2",
+    "kind": "light",
+    "cone": 180,
+    "at": [
+     50,
+     -50
+    ],
+    "angle": 270
+   },
+   {
+    "type": "sensor",
+    "id": "near",
+    "kind": "near",
+    "at": [
+     0,
+     -50
+    ],
+    "angle": 270,
+    "range": 150,
+    "feels": "anything"
+   },
+   {
+    "type": "mouth",
+    "id": "mouthF",
+    "at": [
+     135.35,
+     35.35
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouthB",
+    "at": [
+     -150,
+     0
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouth1",
+    "at": [
+     -75,
+     50
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouth2",
+    "at": [
+     -75,
+     -50
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouth3",
+    "at": [
+     -25,
+     50
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouth4",
+    "at": [
+     -25,
+     -50
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouth5",
+    "at": [
+     25,
+     50
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   },
+   {
+    "type": "mouth",
+    "id": "mouth6",
+    "at": [
+     25,
+     -50
+    ],
+    "joint": {
+     "type": "engulf"
+    }
+   }
+  ]
+ }
+}
