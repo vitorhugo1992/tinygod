@@ -213,6 +213,9 @@ export function respeed(cell, partIndex, speed) {
 }
 
 // opts.loose: build even if organelles overlap, stick out, overfill the cell or the nucleus (only to draw while arranging)
+// the thickest plates a body of this radius may carry (PARAMS.plates: 2 µm, or a tenth of the radius for big cells)
+export const plateMax = (radius) => Math.max(PARAMS.plates.max, Math.round(PARAMS.plates.maxShare * radius * 4) / 4);
+
 export function buildCell(design, opts = {}) {
   const loose = !!opts.loose;
   padIds = new Map();
@@ -235,7 +238,7 @@ export function buildCell(design, opts = {}) {
   const bL = b.length || 0, bA = b.radius;
   const vol = capsuleVolume(bL, bA);
   const wallMat = legacyMaterial(b.wall || 'protein');
-  const plates = wallMat === 'plates' ? Math.min(Math.max(b.plates ?? PARAMS.plates.start, PARAMS.plates.min), PARAMS.plates.max) : 0;
+  const plates = wallMat === 'plates' ? Math.min(Math.max(b.plates ?? PARAMS.plates.start, PARAMS.plates.min), plateMax(bA)) : 0;
   const wallVol = Math.min(capsuleArea(bL, bA) * (plates || C.wallThickness), vol);
   pieces.push({
     kind: 'body', parent: -1, ax: 0, ay: 0, mount: 0, offset: 0, joint: -1,

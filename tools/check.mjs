@@ -1485,6 +1485,29 @@ const runDay = (design, y, seconds, opts = {}) => {
     `after ${T.half} s ${fmt(100 * tot1 / tot0, 0)}% left; in moving water its middle moved ${fmt(moved, 0)} µm in 20 s`);
 }
 
+// 28ak. Plates soften harpoons (author, 2026-11-04): the wound ÷ (1 + 2 × thickness), the stun stays; bigger cells may
+// carry thicker plates (up to a tenth of their radius, never less than 2 µm)
+{
+  const { energyOf } = await import('../sim/metab.js');
+  const wound = (wall) => {
+    const w = makeWorld(1, { gravity: false, metab: true });
+    addCell(w, { name: 'Hunter', body: { radius: 10 }, parts: [{ type: 'segment', id: 'h', at: [10, 0], angle: 0, length: 20, radius: 0.5, material: 'protein',
+      joint: { type: 'fire', controls: [{ sensor: 'energy', min: 0, max: 1 }] } }] }, 500, 1000, 0);
+    const B = addCell(w, { name: 'Big', body: { radius: 25, ...wall }, parts: [] }, 500 + 30 + 20 + 25, 1000, 0);
+    B.metab.E = B.metab.C;
+    const e0 = energyOf(B); stepWorld(w); stepWorld(w);
+    return { lost: e0 - energyOf(B), want: PARAMS.harpoon.venom + PARAMS.harpoon.wound * e0, stun: B.stunT || 0, t: B.pieces[0].plates };
+  };
+  const bare = wound({}), plated = wound({ wall: 'plates', plates: 2.5 });
+  const thick = (r, t) => build({ body: { radius: r, wall: 'plates', plates: t }, parts: [] }).pieces[0].plates;
+  const k = 1 + PARAMS.plates.harpoon * plated.t;
+  check('plates soften the wound of a harpoon (÷ 1 + 2 × thickness) but not its stun; big cells may carry thicker plates',
+    Math.abs(bare.lost / bare.want - 1) < 0.02 && Math.abs(plated.lost / (plated.want / k) - 1) < 0.02 && plated.stun > PARAMS.harpoon.stun - 0.1 &&
+    thick(10, 5) === 2 && thick(25, 5) === 2.5 && thick(50, 8) === 5,
+    `bare r 25 lost ${Math.round(bare.lost / 1000)}k pJ; with ${plated.t} µm plates ${Math.round(plated.lost / 1000)}k (÷${fmt(bare.lost / plated.lost, 1)}, want ÷${fmt(k, 1)}), stunned ${fmt(plated.stun, 1)} s; ` +
+    `thickest allowed: r 10 ${thick(10, 5)} µm, r 25 ${thick(25, 5)}, r 50 ${thick(50, 8)}`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

@@ -223,7 +223,7 @@ export function interact(world) {
       h.shot = { step: world.steps, x0, y0, x1: x0 + ux * len, y1: y0 + uy * len, hit: hit ? hit.species : null,
         caught: !B || hit ? null : B.dead ? 'a dead cell' : 'a spine or flagellum', kin: !!hit && hit.species === A.species };
       A.lastShot = h.shot;
-      if (hit) { const has = world.metab ? energyOf(hit) : 0, hurt = HP.venom + HP.wound * has, lost = world.metab ? drainEnergy(hit, hurt) : 0;
+      if (hit) { const has = world.metab ? energyOf(hit) : 0, hurt = (HP.venom + HP.wound * has) / (1 + PARAMS.plates.harpoon * (hit.pieces[0].plates || 0)), lost = world.metab ? drainEnergy(hit, hurt) : 0;
         if (world.metab && hurt >= has) { hit.dead = true; hit.diedAt = world.steps; hit.diedWhy = `killed by a ${A.species}'s harpoon`; } hit.stunT = HP.stun; hit.harpooned = { by: A.species, lost, step: world.steps }; }
     }
   }

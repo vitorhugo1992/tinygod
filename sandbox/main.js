@@ -3,7 +3,7 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
-import { rewire, respeed, controlsOf, buildCell } from '../sim/build.js';
+import { rewire, respeed, controlsOf, buildCell, plateMax } from '../sim/build.js';
 import { regrow } from '../sim/grow.js';
 import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
 import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax } from './mould.js';
@@ -133,14 +133,15 @@ function showBody() {
   $('bodyLengthOut').textContent = b.length ? `${b.length} µm (rod)` : '0 (round)';
   const plated = b.wall === 'plates';
   $('platesRow').style.display = $('platesNote').style.display = plated ? '' : 'none';
-  if (plated) { $('bodyPlates').value = b.plates ?? PARAMS.plates.start; showPlates(); }
+  $('bodyPlates').max = plateMax(b.radius);   // bigger cells may carry thicker plates
+  if (plated) { $('bodyPlates').value = Math.min(b.plates ?? PARAMS.plates.start, plateMax(b.radius)); showPlates(); }
 }
 // what the plates do and cost: the piercing price, the energy per division, how much faster it sinks (the design
 // built with and without them)
 function showPlates() {
   const t = Number($('bodyPlates').value);
   $('bodyPlatesOut').textContent = `${t} µm`;
-  let note = `pierced at ×${1 + PARAMS.plates.pierce * t}`;
+  let note = `pierced at ×${1 + PARAMS.plates.pierce * t} · harpoon wounds ÷${+(1 + PARAMS.plates.harpoon * t).toFixed(1)}`;
   try {
     const d = JSON.parse(JSON.stringify(design));
     const with_ = buildCell({ ...d, body: { ...d.body, wall: 'plates', plates: t } }), without = buildCell({ ...d, body: { ...d.body, wall: 'protein' } });

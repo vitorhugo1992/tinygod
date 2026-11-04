@@ -68,9 +68,10 @@ store's energy (in a newborn-sized store, so about as full as the mother's was a
 ```
 
 A capsule: a cylinder `length` µm long with round ends of `radius` µm (length 0 = a sphere). Radius 1-50, length
-0-200. Optional armour: `"wall": "plates", "plates": 0.5` (0.25-2 µm of cellulose plates: a feeding tube pays
-×(1 + 2 × thickness) to pierce it; +300 pJ per µm³ of plate per division; heavier: a radius-10 cell with 1 µm plates
-sinks 1.6× as fast).
+0-200. Optional armour: `"wall": "plates", "plates": 0.5` (cellulose plates, 0.25-2 µm thick, or up to a tenth of
+the radius on cells bigger than radius 20: a feeding tube pays ×(1 + 2 × thickness) to pierce it, and a harpoon's
+wound is divided by (1 + 2 × thickness); +300 pJ per µm³ of plate per division; heavier: a radius-10 cell with 1 µm
+plates sinks 1.6× as fast).
 
 The cytoplasm is 1,060 kg/m³, heavier than seawater: **a plain cell sinks**. A plain radius-10 cell sinks ~7 µm/s, the
 whole tank in about one night. Sinking speed grows with radius² and with how much heavier than seawater the cell is
@@ -216,7 +217,7 @@ All cost 5 pJ/s per µm of length.
 - **Harpoon**: a spine with `"joint": { "type": "fire", "controls": [...] }`. When its rule holds, it throws itself
   straight out along its line, **blind**: the first cell within 40 µm past its tip takes it (**kin too**). A body hit is
   stunned 8 s (its flagella, springs, tubes and mouths stop) and loses 400,000 pJ plus 10% of all the energy it holds
-  (more than it holds kills it). A spine or flagellum catches it harmlessly. A shot costs 3,000 pJ per µm of spine
+  (more than it holds kills it; plates divide the wound by 1 + 2 × their thickness). A spine or flagellum catches it harmlessly. A shot costs 3,000 pJ per µm of spine
   (20 µm: 60,000) from the pool, and the spine takes 150 s to grow back. No rule: never fires.
 - **Peduncle** (feeding tube): `{ "type": "segment", "id": "ped", "at": [10, 0], "angle": 0, "length": 20, "radius": 0.6, "joint": { "type": "feed" } }`
   (10-80 µm). Its tip latches on any other species' body it touches. While latched it sucks up to 20,000 pJ/s and 50

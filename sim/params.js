@@ -150,7 +150,11 @@ export const PARAMS = {
   // pays its piercing price × (1 + pierce × thickness); each division builds the daughter's plates (energy by their
   // volume, no nitrogen: cellulose is carbon); heavy (MATERIALS.plates). They don't take room from the organelles.
   plates: {
-    min: 0.25, max: 2,      // µm
+    min: 0.25, max: 2,      // µm (max: the most any cell may carry; bigger cells more, see maxShare)
+    maxShare: 0.1,          // ... a cell may carry up to this share of its radius (author, 2026-11-04: thick walls for giants;
+                            // a radius-50 giant up to 5 µm), never less than max
+    harpoon: 2,             // a harpoon's wound ÷ (1 + 2 × thickness) (author, 2026-11-04: plates soften harpoons too):
+                            // ÷3 at 1 µm, ÷5 at 2 µm, ÷11 at 5 µm; the stun stays (the blow still lands)
     start: 0.5,             // µm, when Plates is first picked
     pierce: 2,              // the piercing price × (1 + 2 × thickness): ×3 at 1 µm, ×5 at 2 µm
     energy: 300,            // pJ per µm³ of plate each division needs (as PARAMS.grow.energy)
