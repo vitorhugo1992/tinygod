@@ -83,7 +83,12 @@ function groups(world) {
   const find = (i) => { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; };
   for (const l of world.links) { if (l.feed || l.tether) continue; const a = find(l.a), b = find(l.b); if (a !== b) parent[Math.max(a, b)] = Math.min(a, b); }
   const size = new Map(), vol = new Map();
-  world.cells.forEach((c, i) => { c.group = find(i); size.set(c.group, (size.get(c.group) || 0) + 1); vol.set(c.group, (vol.get(c.group) || 0) + c.pieces[0].volume); });
+  // the volume cap counts kin chains only (kin pad to kin pad): mucus stuck to a stranger, even a giant, doesn't fill it
+  // (author 2026-11-05: mucus pads couldn't stick to giants)
+  const kin = world.cells.map((_, i) => i);
+  const findK = (i) => { while (kin[i] !== i) i = kin[i] = kin[kin[i]]; return i; };
+  for (const l of world.links) { if (l.feed || l.tether || !l.padB) continue; const a = findK(l.a), b = findK(l.b); if (a !== b) kin[Math.max(a, b)] = Math.min(a, b); }
+  world.cells.forEach((c, i) => { c.group = find(i); c.kinGroup = findK(i); size.set(c.group, (size.get(c.group) || 0) + 1); vol.set(c.kinGroup, (vol.get(c.kinGroup) || 0) + c.pieces[0].volume); });
   size.vol = vol;
   return size;
 }
@@ -370,7 +375,8 @@ export function interact(world) {
         if (dx * dx + dy * dy > r * r) continue;
         const joined = A.group === B.group;
         if (!joined && (size.get(A.group) + size.get(B.group) > PAD.maxChain
-          || size.vol.get(A.group) + size.vol.get(B.group) > PAD.chainVolume)) continue;   // a full chain takes no more
+          || pad.kind === 'kin' && A.kinGroup !== B.kinGroup
+             && size.vol.get(A.kinGroup) + size.vol.get(B.kinGroup) > PAD.chainVolume)) continue;   // a full chain takes no more
         let link = null;
         if (pad.kind === 'kin') {
           if (B.species !== A.species) continue;

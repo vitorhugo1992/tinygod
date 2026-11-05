@@ -22,7 +22,7 @@ log lines. Unplated prey: unchanged. Check 28am (67 checks). **SIEGE RERUN WITH 
 stopped at day 3; author: "we have enough info"):** all 20 tubes latched at once and drilled; 13 let go while the giant sank to
 ~1,840 µm early on, the rest were through by day 0.5; the giant regrew its stores to ~1,445M by day 1.25, then lost ~115M every
 eighth of a day: 1,420M -> 267M at day 3 (dying ~day 3.3; bare it died before 2.75); the swarm 20 -> 163. **Plates now delay a
-siege by ~half a day instead of stopping it.** tools/_siege.mjs deleted. **NEXT:** the rest of the balance talk: mucus pads can't stick to giants (chain volume cap), Leviathella strong, the upper water unused.
+siege by ~half a day instead of stopping it.** tools/_siege.mjs deleted. **Mucus sticks to giants now** (author: yes): the chain volume cap counts kin chains only (kin pad to kin pad links; interact.js groups() kinGroup, divide.js chainOf kinOnly); mucus links still count toward maxChain 32. Measured: 12 Plebellas beside a Pachyderma, 4 stuck in 60 s (was 0). **NEXT:** the rest of the balance talk (mucus done): mucus pads can't stick to giants (chain volume cap), Leviathella strong, the upper water unused.
 
 **NEXT CHAT STARTS HERE (handoff, 2026-11-04).** Built today (all pushed, 66 checks pass):
 (1) **Gula, Jaculella, Miasmella retuned** (author: then "don't change anything in the species"): one new body, a 30 × 96 µm

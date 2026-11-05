@@ -92,12 +92,12 @@ function posedClear(world, c, gap, skip = null) {
   return true;
 }
 // The cells joined to `c` by pads, itself included
-function chainOf(world, c) {
+function chainOf(world, c, kinOnly) {   // kinOnly: kin pad links only (the volume cap)
   const seen = new Set([c]), todo = [c];
   while (todo.length) {
     const x = todo.pop();
     for (const l of world.links || []) {
-      if (l.feed || l.tether) continue;
+      if (l.feed || l.tether || kinOnly && !l.padB) continue;
       const A = world.cells[l.a], B = world.cells[l.b], o = A === x ? B : B === x ? A : null;
       if (o && !seen.has(o)) { seen.add(o); todo.push(o); }
     }
@@ -113,7 +113,7 @@ function chainSpot(world, p, d) {
   const mine = d.pads.filter((x) => x.kind === 'kin' && x.piece === 0);
   if (!mine.length) return null;
   // a full chain takes no more (PARAMS.pads.chainVolume; at least two cells, at most maxChain): the daughter separates
-  const chain = chainOf(world, p);
+  const chain = chainOf(world, p, true);
   let vol = d.pieces[0].volume;
   for (const c of chain) vol += c.pieces[0].volume;
   if (chain.size > 1 && (vol > PARAMS.pads.chainVolume || chain.size >= PARAMS.pads.maxChain)) return null;
