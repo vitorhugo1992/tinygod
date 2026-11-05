@@ -18,9 +18,11 @@ idea parked on 2026-11-02): a tube latched on a plated prey pays its own price a
 add (f.cost × 2 × thickness) as a flow, PARAMS.feed.drill 2,000 pJ/s, only from its pool above burnBelow; it drains nothing until
 through; letting go loses it (lastMeal.drillLost). Code: link.drill / drillAll / drilled; metab.js feed() returns -pay while
 drilling (m.drilling). Page: pill DRILLING n%, a gold ring round the latch filling with progress, numbers DRILLING / DRILLED,
-log lines. Unplated prey: unchanged. Check 28am (67 checks). **NEXT: rerun the siege on the real plated Pachyderma** (author:
-"rerun the siege tomorrow if it takes too much time"; ~30 min per simulated day), then delete tools/_siege.mjs. Then the rest of
-the balance talk: mucus pads can't stick to giants (chain volume cap), Leviathella strong, the upper water unused.
+log lines. Unplated prey: unchanged. Check 28am (67 checks). **SIEGE RERUN WITH DRILLING (2026-11-05, plated Pachyderma,
+stopped at day 3; author: "we have enough info"):** all 20 tubes latched at once and drilled; 13 let go while the giant sank to
+~1,840 µm early on, the rest were through by day 0.5; the giant regrew its stores to ~1,445M by day 1.25, then lost ~115M every
+eighth of a day: 1,420M -> 267M at day 3 (dying ~day 3.3; bare it died before 2.75); the swarm 20 -> 163. **Plates now delay a
+siege by ~half a day instead of stopping it.** tools/_siege.mjs deleted. **NEXT:** the rest of the balance talk: mucus pads can't stick to giants (chain volume cap), Leviathella strong, the upper water unused.
 
 **NEXT CHAT STARTS HERE (handoff, 2026-11-04).** Built today (all pushed, 66 checks pass):
 (1) **Gula, Jaculella, Miasmella retuned** (author: then "don't change anything in the species"): one new body, a 30 × 96 µm
