@@ -1246,12 +1246,17 @@ const runDay = (design, y, seconds, opts = {}) => {
   const control = meet(pred(false), prey('p', 8)), idle = (() => { const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true }); const A = addCell(w, pred(false), 800, 1000, 0); A.metab.C = 1e7; A.metab.E = 0.5e7; const E0 = A.metab.E; for (let i = 0; i < (PARAMS.engulf.time + 1) * 1000 + 300; i++) stepWorld(w); return A.metab.E - E0; })();
   const small = control, wide = meet(pred(false), prey('p', 12)), full = meet(pred(false), prey('p', 8)), packed = meet(pred(true), prey('p', 9.5)), roomy = meet(pred(false), prey('p', 9.5)), kin = meet(pred(false), { ...prey('eater', 8) });
   const pair = meet(pred(false), prey('p', 8, true), { chain: 2 }), three = meet(pred(false), prey('p', 8, true), { chain: 3 });
+  // spines count (2026-11-05): an r 5 prey (gape 10 fits it) with one 14 µm spine still goes in; with three pointing
+  // three ways it is 12 across at its narrowest: spared
+  const spine = (deg, r) => ({ type: 'segment', at: [r * Math.cos(deg * Math.PI / 180), r * Math.sin(deg * Math.PI / 180)], angle: deg, length: 14, radius: 0.5, material: 'protein' });
+  const oneSpine = meet(pred(false), { species: 'p', body: { radius: 5 }, parts: [spine(0, 5)] });
+  const threeSpines = meet(pred(false), { species: 'p', body: { radius: 5 }, parts: [spine(0, 5), spine(90, 5), spine(270, 5)] });
   const want = PARAMS.engulf.keep * 1e6;   // the prey's pool (no stores)
-  check('engulfing: a small enough prey touching the mouth is swallowed and digested (its share kept); too wide, a packed predator, or kin: no; a chain counts as one (a pair fits, three do not)',
+  check('engulfing: a small enough prey touching the mouth is swallowed and digested (its share kept); too wide, a packed predator, or kin: no; a chain counts as one (a pair fits, three do not); spines spread three ways make a small prey too wide, one spine does not',
     small.swallowed && small.digesting && small.done && Math.abs(small.gained - idle - want) < 0.3 * want && !wide.swallowed && !packed.swallowed && roomy.swallowed && !kin.swallowed
-      && pair.swallowed && pair.n === 2 && pair.left === 0 && pair.links === 0 && !three.swallowed && three.left === 3,
+      && pair.swallowed && pair.n === 2 && pair.left === 0 && pair.links === 0 && !three.swallowed && three.left === 3 && oneSpine.swallowed && !threeSpines.swallowed,
     `r 8 prey: ${small.swallowed ? 'swallowed' : 'not'}, kept ${fmt((small.gained - idle) / 1000, 0)}k pJ over ${PARAMS.engulf.time} s (expected ~${fmt(want / 1000, 0)}k); r 12: ${wide.swallowed ? 'swallowed' : 'too wide'}; ` +
-    `r 9.5 prey: an empty predator ${roomy.swallowed ? 'swallows it' : 'no'}, a packed one ${packed.swallowed ? 'swallows it' : 'has no room'}; kin: ${kin.swallowed ? 'swallowed' : 'spared'}; a joined pair: ${pair.swallowed ? `swallowed together (${pair.n})` : 'not'}; a chain of three: ${three.swallowed ? 'swallowed' : 'safe'} (${three.left} left)`);
+    `r 9.5 prey: an empty predator ${roomy.swallowed ? 'swallows it' : 'no'}, a packed one ${packed.swallowed ? 'swallows it' : 'has no room'}; kin: ${kin.swallowed ? 'swallowed' : 'spared'}; a joined pair: ${pair.swallowed ? `swallowed together (${pair.n})` : 'not'}; a chain of three: ${three.swallowed ? 'swallowed' : 'safe'} (${three.left} left); r 5 prey with one spine: ${oneSpine.swallowed ? 'swallowed' : 'spared'}, with three: ${threeSpines.swallowed ? 'swallowed' : 'spared'}`);
 }
 
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's

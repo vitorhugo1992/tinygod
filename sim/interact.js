@@ -93,6 +93,29 @@ function groups(world) {
   return size;
 }
 
+// How big a cell is to a mouth (author 2026-11-05: spines count, the classic defence against grazers): half its
+// narrowest width, the way it would best fit through a gape, counting its body and the tips of its rigid outside parts
+// (spines, harpoons, tethers, feeding tubes). A rod goes in end-first (its body length never counted), so spines along
+// its axis don't help, nor does one spine alone; spines pointing several ways do. Flagella fold; a thrown harpoon is gone
+export function mouthSize(c) {
+  const body = c.pieces[0], a = body.a, h = (body.L || 0) / 2, tips = [];
+  for (const p of c.pieces) {
+    if (p.parent !== 0 || p.kind !== 'segment' || p.L <= 0) continue;
+    const j = p.joint >= 0 ? c.joints[p.joint] : null;
+    if (j && j.type !== 'fire' && j.type !== 'tether' && j.type !== 'feed') continue;
+    tips.push([p.ax + Math.cos(p.mount) * p.L, p.ay + Math.sin(p.mount) * p.L]);
+  }
+  if (!tips.length) return a;
+  let least = Infinity;
+  for (let k = 0; k < 90; k++) {   // every 2°: the width across that direction
+    const u = k * Math.PI / 90, nx = Math.cos(u), ny = Math.sin(u), e = Math.abs(h * nx);
+    let lo = -e - a, hi = e + a;
+    for (const [x, y] of tips) { const d = x * nx + y * ny; if (d < lo) lo = d; if (d > hi) hi = d; }
+    if (hi - lo < least) least = hi - lo;
+  }
+  return Math.max(a, least / 2);
+}
+
 // The cells joined to `c` by pads (a peduncle's latch not counted), itself included
 function chainOf(world, c) {
   const seen = new Set([c]), todo = [c];
@@ -314,7 +337,7 @@ export function interact(world) {
       for (const B of cells) {
         if (B === A || B.eatenBy || B.species === A.species || B.pieces[0].a > E.gape * A.pieces[0].a || B.pieces[0].volume > free) continue;
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach + E.reach;   // (a mouth is no piece: it adds no reach)
-        if (dx * dx + dy * dy > r * r || !surfaceNear(B, mx, my, E.reach, 0)) continue;
+        if (dx * dx + dy * dy > r * r || !surfaceNear(B, mx, my, E.reach, 0) || mouthSize(B) > E.gape * A.pieces[0].a) continue;
         // a chain counts as one (author, 2026-11-02): to swallow a joined cell the mouth takes its whole chain, which must
         // fit across the predator (its extent at most the predator's width), in its free room, and every cell the gape
         const chain = chainOf(world, B);
@@ -323,7 +346,7 @@ export function interact(world) {
           vol += c.pieces[0].volume;
           for (const o of chain) ext = Math.max(ext, Math.hypot(c.q[0] - o.q[0], c.q[1] - o.q[1]) + c.pieces[0].a + o.pieces[0].a + (c.pieces[0].L + o.pieces[0].L) / 2);
         }
-        if (chain.size > 1 && (vol > free || ext > 2 * A.pieces[0].a || [...chain].some((c) => c.pieces[0].a > E.gape * A.pieces[0].a))) continue;
+        if (chain.size > 1 && (vol > free || ext > 2 * A.pieces[0].a || [...chain].some((c) => mouthSize(c) > E.gape * A.pieces[0].a))) continue;
         let energy = 0, N = 0;
         for (const c of chain) {
           energy += c.metab ? c.metab.E : 0;

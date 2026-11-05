@@ -217,7 +217,8 @@ All cost 5 pJ/s per µm of length.
 
 - **Spine**: `{ "type": "segment", "id": "sp", "at": [10, 0], "angle": 0, "length": 40, "radius": 0.5 }` (0-100 µm).
   Rigid: it adds drag where it sits (it slows sinking and turns the cell), keeps attackers' tubes and mouths off the
-  body, and catches harpoons.
+  body, and catches harpoons. Spines pointing several ways make a cell too wide to swallow (see Mouth); one alone, or
+  spines along a rod's length, don't.
 - **Harpoon**: a spine with `"joint": { "type": "fire", "controls": [...] }`. When its rule holds, it throws itself
   straight out along its line, **blind**: the first cell within 40 µm past its tip takes it (**kin too**). A body hit is
   stunned 8 s (its flagella, springs, tubes and mouths stop) and loses 400,000 pJ plus 10% of all the energy it holds
@@ -239,8 +240,10 @@ All cost 5 pJ/s per µm of length.
   40 pN: a cell that keeps swimming while latched tears it off. Every 30 s latched it steals one of the prey's plastids,
   if one fits inside the thief; a stolen plastid works but fades by half each day. Rule: feeds when (no rule: always).
 - **Mouth**: `{ "type": "mouth", "id": "m", "at": [10, 0], "joint": { "type": "engulf" } }`, a point on the surface.
-  It swallows another species' cell that touches it (within 2 µm) whole, if that cell's body radius (a rod's: its
-  half-width) is at most half this one's and its volume fits in this cell's free room (body volume minus inclusions). Kin chains count as one, so a
+  It swallows another species' cell that touches it (within 2 µm) whole, if that cell's size at the mouth is at most
+  half this one's body radius. Size at the mouth: half its narrowest width, the way it would best go in, counting its
+  body (a rod goes in end-first: its half-width) and the tips of its spines, harpoons, tethers and feeding tubes
+  (flagella fold and don't count) and its volume fits in this cell's free room (body volume minus inclusions). Kin chains count as one, so a
   chain must fit across the predator. Digesting takes 60 s, keeps 20% of the prey's energy and half its nitrogen, and
   it can't swallow again meanwhile. Upkeep 100 pJ/s per mouth. Rule: engulfs when (no rule: always).
 - **Pad**: `{ "type": "pad", "id": "pad1", "at": [10, 0], "kind": "kin" }`. A kin pad sticks to a kin cell's kin pad,
