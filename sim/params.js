@@ -126,6 +126,10 @@ export const PARAMS = {
                             // latch without it): a longer tube reaches past spines but costs more to use (author)
     hold: 40,               // pN the link holds before it snaps (as a kin pad)
     loadTime: 0.1,          // s the pull is averaged over before it snaps (a stroke's jerk doesn't count)
+    drill: 2000,            // pJ/s a latched tube spends drilling through plates (2026-11-05, the author's parked
+                            // "drilling"): what plates add to the piercing price is paid as a flow, from the pool above
+                            // burnBelow only (never the night's stores); it drains nothing until through; letting go
+                            // loses the progress. Unplated prey: as before (the price at once)
   },
   // Nitrogen (sim/nutrient.js): poor at the surface, rich deep, a nutricline between; with world.grow a field cells use up
   nutrient: {

@@ -148,7 +148,7 @@ function showBody() {
 function showPlates() {
   const t = Number($('bodyPlates').value);
   $('bodyPlatesOut').textContent = `${t} µm`;
-  let note = `pierced at ×${1 + PARAMS.plates.pierce * t} · harpoon wounds ÷${+(1 + PARAMS.plates.harpoon * t).toFixed(1)}`;
+  let note = `a tube drills ×${PARAMS.plates.pierce * t} its price before feeding · harpoon wounds ÷${+(1 + PARAMS.plates.harpoon * t).toFixed(1)}`;
   try {
     const d = JSON.parse(JSON.stringify(design));
     const with_ = buildCell({ ...d, body: { ...d.body, wall: 'plates', plates: t } }), without = buildCell({ ...d, body: { ...d.body, wall: 'protein' } });
@@ -1229,7 +1229,7 @@ function liveRule(live, k) {
   const fd = live.feeders && live.feeders.find((x) => x.part === k);
   const pd = live.pads && live.pads.find((x) => x.part === k);   // a pad: joined, free, or letting go (its rule fails)
   if (pd) return { ctls: pd.controls || null, state: pd.link ? 'JOINED' : pd.go ? 'FREE' : 'LETS GO', cls: pd.link ? 'on' : '' };
-  if (fd) return { ctls: fd.controls || null, state: fd.link ? 'FEEDING' : fd.go && live.cantPierce ? 'TOO DEAR' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
+  if (fd) return { ctls: fd.controls || null, state: fd.link ? (fd.link.drill > 0 ? `DRILLING ${Math.round(100 * (1 - fd.link.drill / fd.link.drillAll))}%` : 'FEEDING') : fd.go && live.cantPierce ? 'TOO DEAR' : fd.go ? 'READY' : 'OFF', cls: fd.link ? 'on' : '' };
   for (const t of live.tethers || []) {   // a tether: tied, ready, winding back or off; its reel and release rules
     if (t.part === k) return { ctls: t.controls || null, state: t.link ? 'TIED' : t.t > 0 ? `WINDING BACK ${Math.ceil(t.t)} s` : t.controls ? 'READY' : 'OFF', cls: t.link ? 'on' : '' };
     if (t.reel.part === k) return { ctls: t.reel.controls, state: !t.link ? 'NOTHING HELD' : t.reelIn ? 'REELING IN' : t.reelOut ? 'LETTING OUT' : 'HOLDING', cls: t.link && (t.reelIn || t.reelOut) ? 'float' : '' };
@@ -1884,9 +1884,11 @@ function budget(lines) {
   for (const t of cell.tethers || []) lines.push(`tether    ${t.link ? `tied to a ${world.cells[t.link.b] ? world.cells[t.link.b].species : '?'}: line ${t.link.len.toFixed(0)} µm, pulling ${t.link.load.toFixed(1)} pN${t.reelIn ? ', reeling in' : t.reelOut ? ', letting out' : ''}` : t.t > 0 ? `winding back: ${Math.ceil(t.t)} s` : t.controls ? 'ready' : 'no rule: never fires'}`);
   const ties = world.links.filter((l) => l.tether && world.cells[l.b] === cell);
   if (ties.length) lines.push(`TIED      by ${ties.map((l) => `a ${world.cells[l.a].species}`).join(', ')}: a line holds it`);
-  for (const f of cell.feeders || []) if (f.link) lines.push(`feeding   on a ${world.cells[f.link.b] ? world.cells[f.link.b].species : '?'}: +${m.feeding.toFixed(0)} pJ/s kept (half of what it sucks)`);
+  for (const f of cell.feeders || []) if (f.link && f.link.drill > 0) lines.push(`DRILLING  a plated ${world.cells[f.link.b] ? world.cells[f.link.b].species : '?'}: ${Math.round(100 * (1 - f.link.drill / f.link.drillAll))}% through, ${Math.round(f.link.drill / 1000)}k pJ to go (${m.drilling.toFixed(0)} pJ/s)`);
+  for (const f of cell.feeders || []) if (f.link && !(f.link.drill > 0)) lines.push(`feeding   on a ${world.cells[f.link.b] ? world.cells[f.link.b].species : '?'}: +${m.feeding.toFixed(0)} pJ/s kept (half of what it sucks)`);
   const by = world.links.filter((l) => l.feed && world.cells[l.b] === cell);
-  if (by.length) lines.push(`DRAINED   by ${by.map((l) => `a ${world.cells[l.a].species}`).join(', ')}: its pool and nitrogen are being sucked out`);
+  if (by.some((l) => l.drill > 0)) lines.push(`DRILLED   by ${by.filter((l) => l.drill > 0).map((l) => `a ${world.cells[l.a].species}`).join(', ')}: a tube is working through its plates`);
+  if (by.some((l) => !(l.drill > 0))) lines.push(`DRAINED   by ${by.map((l) => `a ${world.cells[l.a].species}`).join(', ')}: its pool and nitrogen are being sucked out`);
   if (m.chamber > 0.5) lines.push(`          holding the buoyancy chamber ${show(m.chamber)}`);
   if (m.repair > 0.5) lines.push(`          repairing plastids (too much light) ${show(m.repair)}`);
   const net = m.income - m.upkeep * (cell.resting ? PARAMS.metab.rest : 1) - m.motors - m.pumps - m.chamber - m.repair;
@@ -2694,9 +2696,14 @@ function drawLinks(X, Y, s) {
     if (l.padB) [bx, by] = padWorld(B, l.padB);
     else { const i = l.pieceB; bx = B.cx[i] + B.cs[i] * l.bx - B.sn[i] * l.by; by = B.cy[i] + B.sn[i] * l.bx + B.cs[i] * l.by; }
     if (l.tether) { drawTetherLine(X, Y, s, A, l, ax, ay, bx, by); continue; }
-    if (l.feed) { ctx.save(); ctx.strokeStyle = '#ff4d6d'; ctx.lineWidth = Math.max(1.2 * s, 2.5); }
+    if (l.feed) { ctx.save(); ctx.strokeStyle = '#ff4d6d'; ctx.lineWidth = Math.max(1.2 * s, 2.5); if (l.drill > 0) { ctx.setLineDash([3, 3]); ctx.globalAlpha = 0.6 + 0.4 * Math.abs(Math.sin(performance.now() / 120)); } }
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
-    if (l.feed) { ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(X(bx), Y(by), Math.max(1.5 * s, 3), 0, 2 * Math.PI); ctx.fill(); ctx.restore(); }
+    if (l.feed && l.drill > 0) {   // drilling: a ring round the latch fills as it gets through the plates
+      const R = Math.max(3 * s, 7), done = 1 - l.drill / l.drillAll;
+      ctx.setLineDash([]); ctx.lineWidth = Math.max(0.5 * s, 1.5); ctx.strokeStyle = 'rgba(255,77,109,.3)'; ctx.beginPath(); ctx.arc(X(bx), Y(by), R, 0, 2 * Math.PI); ctx.stroke();
+      ctx.strokeStyle = '#ffd166'; ctx.beginPath(); ctx.arc(X(bx), Y(by), R, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * done); ctx.stroke();
+    }
+    if (l.feed) { ctx.setLineDash([]); ctx.fillStyle = '#ff4d6d'; ctx.beginPath(); ctx.arc(X(bx), Y(by), Math.max(1.5 * s, 3), 0, 2 * Math.PI); ctx.fill(); ctx.restore(); }
   }
   // harpoon darts: a bright line from the spine's tip for a moment after each shot, a star where it struck
   for (const c of world.cells) for (const h of [...(c.harpoons || []), ...(c.tethers || [])]) {

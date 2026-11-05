@@ -965,8 +965,8 @@ const runDay = (design, y, seconds, opts = {}) => {
 }
 
 // 28v. The armoured wall (author, 2026-11-02): cellulose plates make a cell sink faster, need more energy at each division
-// (their volume, no nitrogen), and multiply a peduncle's piercing price by (1 + 2 × thickness); a predator that can't pay
-// doesn't latch; an old design's glass wall loads as protein
+// (their volume, no nitrogen), and multiply a peduncle's piercing price by (1 + 2 × thickness: the tube's own price at
+// once, the rest drilled, check 28am); a predator that can't pay the tube's own price doesn't latch; an old design's glass wall loads as protein
 {
   const body = (plates) => ({ species: 'prey', body: plates ? { radius: 10, wall: 'plates', plates } : { radius: 10 }, parts: [] });
   const ped = { species: 'hunter', body: { radius: 10 }, parts: [{ type: 'segment', at: [10, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed' } }] };
@@ -980,13 +980,41 @@ const runDay = (design, y, seconds, opts = {}) => {
     stepWorld(w);
     return { paid: A.feeders[0].link ? A.feeders[0].link.price : E0 - A.metab.E, latched: !!A.feeders[0].link, cant: A.cantPierce, B };   // the price on the latch (a big pool also fills the growth meter that step)
   };
-  const p0 = meet(0), p1 = meet(1, 1e6), poor = meet(2, 150000);
+  const p0 = meet(0), p1 = meet(1, 1e6), poor = meet(2, 30000);
   const g0 = p0.B.grow, g1 = p1.B.grow, oldGlass = run({ body: { radius: 10, wall: 'glass' }, parts: [] }, 1);
-  check('plates: sink faster, cost energy at division (no nitrogen), triple the piercing price at 1 µm; a poor predator can\'t latch',
+  check('plates: sink faster, cost energy at division (no nitrogen), triple the piercing price at 1 µm; a predator short of its tube price can\'t latch',
     v1 > 1.3 * v0 && g1.Eneed > 1.25 * g0.Eneed && g1.Nneed === g0.Nneed && Math.abs(p1.paid - 3 * PARAMS.feed.pierce * 20) < 1e-6 && Math.abs(p0.paid - PARAMS.feed.pierce * 20) < 1e-6 && p1.latched
-      && !poor.latched && poor.cant && poor.cant.price === 5 * PARAMS.feed.pierce * 20 && Math.abs(sinking(oldGlass) - v0) < 1e-9,
+      && !poor.latched && poor.cant && poor.cant.price === PARAMS.feed.pierce * 20 && Math.abs(sinking(oldGlass) - v0) < 1e-9,
     `sinks ${fmt(v0)} → ${fmt(v1)} µm/s with 1 µm plates; energy per division ${fmt(g0.Eneed / 1e6)} → ${fmt(g1.Eneed / 1e6)} million pJ; ` +
-    `pierce ${fmt(p0.paid / 1000, 0)}k → ${fmt(p1.paid / 1000, 0)}k; 2 µm plates with 150k in the pool: ${poor.latched ? 'latched' : 'no latch'}; old glass wall: as protein`);
+    `pierce ${fmt(p0.paid / 1000, 0)}k → ${fmt(p1.paid / 1000, 0)}k; 2 µm plates with 30k in the pool: ${poor.latched ? 'latched' : 'no latch'}; old glass wall: as protein`);
+}
+
+// 28am. Drilling (2026-11-05): a tube latched on a plated prey pays the tube's own price at once and drills the rest
+// (what the plates add) as a flow from its pool above burnBelow, draining nothing until through; letting go loses it
+{
+  const prey = { species: 'prey', body: { radius: 10, wall: 'plates', plates: 2 }, parts: [] };
+  const ped = (rule) => ({ species: 'hunter', body: { radius: 10 }, parts: [{ type: 'segment', id: 'p', at: [10, 0], angle: 0, length: 20, radius: 0.6, joint: { type: 'feed', ...(rule ? { controls: rule } : {}) } }] });
+  const go = (design, secs, pool) => {
+    const w = makeWorld(1, { gravity: false, light: false, metab: true });
+    const A = addCell(w, design, 800, 1000, 0), B = addCell(w, prey, 841, 1000, 0);
+    A.metab.C = A.metab.E = pool; B.metab.C = B.metab.E = 1e7;   // a rich prey (dark, no plastid: it would starve first)
+    let through = null, tookWhile = 0, drillMax = 0;
+    for (let i = 0; i < secs / DT; i++) {
+      stepWorld(w); A.metab.E = Math.max(A.metab.E, pool * 0.5);   // its pool kept topped up (a fed cell), so drilling runs at full speed
+      const l = A.feeders[0].link;
+      if (l) { drillMax = Math.max(drillMax, l.drillAll); if (l.drill > 0) tookWhile = l.took; else if (through === null) through = (w.steps - l.since) * DT; }
+    }
+    return { A, B, l: A.feeders[0].link, through, tookWhile, drillMax };
+  };
+  const d = go(ped(), 150, 200000);
+  const want = 4 * PARAMS.feed.pierce * 20 / PARAMS.feed.drill;   // 2 µm plates: 160k to drill at 2,000 pJ/s = 80 s
+  // a tube that feeds while energy is above 60%: latching leaves 80%, drilling draws it down, at ~20 s it lets go
+  const torn = go(ped([{ sensor: 'energy', min: 0.6, max: 1 }]), 25, 200000);
+  check('drilling: a tube on a plated prey drills what the plates add before it drains, then feeds; letting go loses the drilling',
+    d.drillMax === 4 * PARAMS.feed.pierce * 20 && d.tookWhile === 0 && Math.abs(d.through - want) < 3 && d.l && d.l.took > 0
+      && torn.A.lastMeal && torn.A.lastMeal.drillLost > 0 && torn.A.lastMeal.took === 0,
+    `2 µm plates: drilled ${fmt(d.drillMax / 1000, 0)}k, through after ${fmt(d.through, 0)} s (expected ${fmt(want, 0)}), drained ${fmt(d.tookWhile, 0)} while drilling, ${fmt(d.l && d.l.took / 1000, 0)}k after; ` +
+    `a tube that let go early: ${torn.A.lastMeal ? fmt(torn.A.lastMeal.drillLost / 1000, 0) + 'k of drilling lost' : 'never let go'}`);
 }
 
 // 28w. The feeding reading (author, 2026-11-02): 1 while a peduncle of the cell is latched, else 0; a tail wired to stop

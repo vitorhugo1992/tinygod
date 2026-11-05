@@ -6,6 +6,22 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**NEXT CHAT STARTS HERE (handoff, 2026-11-05).** (1) **Tether snaps traced:** not the reel (a reel-stall was built,
+then undone: the reel at 0 µm held only ~3 pN); a Leviathella rising off the floor pulled the line past 40 pN while Laqueella
+stayed down (its own drag is only ~2 pN: something else, maybe its second tether, held it; not checked). (2) **Real threats to
+giants** talked over; author: no viruses or parasite infection ("invisible stuff, toxins are enough"). (3) **The siege** (scratch
+tools/_siege.mjs, uncommitted: 20 Plebellas with two 20 µm tubes, "Tubella", round one Pachyderma; run as
+node tools/_siege.mjs [bare] days): plated, at the old price (440k at once): not one latch; bare: ~24 tubes drained ~276M of its
+1,420M a day, it died (drained) before day 2.75; the swarm was stuck at 5% nitrogen while the giant floated high, then bloomed
+20 -> 132 by day 4 once it sank to the floor. Run time ~110 min for 4 days. (4) **DRILLING BUILT** (author: "yes good idea"; the
+idea parked on 2026-11-02): a tube latched on a plated prey pays its own price at once (40k for 20 µm) and DRILLS what the plates
+add (f.cost × 2 × thickness) as a flow, PARAMS.feed.drill 2,000 pJ/s, only from its pool above burnBelow; it drains nothing until
+through; letting go loses it (lastMeal.drillLost). Code: link.drill / drillAll / drilled; metab.js feed() returns -pay while
+drilling (m.drilling). Page: pill DRILLING n%, a gold ring round the latch filling with progress, numbers DRILLING / DRILLED,
+log lines. Unplated prey: unchanged. Check 28am (67 checks). **NEXT: rerun the siege on the real plated Pachyderma** (author:
+"rerun the siege tomorrow if it takes too much time"; ~30 min per simulated day), then delete tools/_siege.mjs. Then the rest of
+the balance talk: mucus pads can't stick to giants (chain volume cap), Leviathella strong, the upper water unused.
+
 **NEXT CHAT STARTS HERE (handoff, 2026-11-04).** Built today (all pushed, 66 checks pass):
 (1) **Gula, Jaculella, Miasmella retuned** (author: then "don't change anything in the species"): one new body, a 30 × 96 µm
 rod, chamber 22% steered by LIGHT (float when every eyespot < 12% but one sees some; at night neutral, sinking to the rich

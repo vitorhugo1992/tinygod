@@ -169,7 +169,7 @@ export function interact(world) {
     const graced = l.grace && world.steps < l.grace;   // a chain making room for a new cell: no snapping yet
     if (((l.feed ? l.load : force) > l.holds && !graced) || letGo) {
       l.padA.link = null; if (l.padB) l.padB.link = null;
-      if (l.feed) A.lastMeal = { prey: B.species, why: letGo ? (l.done ? 'drained' : A.dead ? 'died' : 'rule') : 'torn', took: l.took || 0, step: world.steps };
+      if (l.feed) A.lastMeal = { prey: B.species, why: letGo ? (l.done ? 'drained' : A.dead ? 'died' : 'rule') : 'torn', took: l.took || 0, step: world.steps, drillLost: l.drill > 0 ? l.drillAll - l.drill : 0 };
       continue;
     }
     kept.push(l);
@@ -198,12 +198,14 @@ export function interact(world) {
         if (dx * dx + dy * dy > r * r) continue;
         const hit = surfaceNear(B, x, y, f.r, 0);   // the body only: spines and flagella keep it off
         if (!hit) continue;
-        // plates make it dearer to pierce; a predator that can't pay doesn't latch (and says so)
-        const price = f.cost * (1 + PARAMS.plates.pierce * (B.pieces[0].plates || 0));
-        if (world.metab && A.metab.E < price) { A.cantPierce = { prey: B.species, price }; continue; }
-        const link = { a: A.index, b: B.index, padA: f, pieceB: 0, bx: hit[1], by: hit[2], holds: FEED.hold, feed: true, took: 0, tookN: 0, since: world.steps, price };
+        // the tube's own price at once (a predator that can't pay doesn't latch, and says so); what plates add is
+        // drilled afterwards as a flow (PARAMS.feed.drill, metab.js), draining nothing until it is through
+        const extra = f.cost * PARAMS.plates.pierce * (B.pieces[0].plates || 0), price = f.cost + extra;
+        if (world.metab && A.metab.E < f.cost) { A.cantPierce = { prey: B.species, price: f.cost }; continue; }
+        const link = { a: A.index, b: B.index, padA: f, pieceB: 0, bx: hit[1], by: hit[2], holds: FEED.hold, feed: true, took: 0, tookN: 0, since: world.steps, price,
+          drill: world.metab ? extra : 0, drillAll: extra };
         f.link = link; world.links.push(link);
-        if (world.metab) A.metab.E -= price;
+        if (world.metab) A.metab.E -= f.cost;
         break;
       }
     }

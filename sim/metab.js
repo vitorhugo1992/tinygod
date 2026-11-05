@@ -84,6 +84,12 @@ const capacity = (inc) => inc.v * M[inc.store].energy;
 // One step of a peduncle's drain: returns the energy the predator keeps (pJ)
 function feed(world, cell, l) {
   const F = P.feed, prey = world.cells[l.b], pm = prey.metab, most = F.rate * DT;
+  if (l.drill > 0) {   // drilling through plates: paid from the pool above burnBelow, nothing drained yet
+    const m = cell.metab, pay = Math.min(F.drill * DT, l.drill, Math.max(0, m.E - P.metab.burnBelow * m.C));
+    m.E -= pay; l.drill -= pay;
+    if (l.drill <= 1e-9) { l.drill = 0; l.drilled = world.steps; }
+    return -pay;
+  }
   let e = Math.min(most, pm.E);
   pm.E -= e;
   if (prey.dead) for (const inc of prey.pieces[0].inclusions) {   // rotting: straight from its stores
@@ -201,8 +207,8 @@ export function metabolize(world, cell) {
   }
   m.chamber = hold;
   m.E += (income - m.upkeep * slow - hold) * DT - motors - pumps - repair;
-  m.feeding = 0;
-  for (const f of cell.feeders) if (f.link) m.feeding += feed(world, cell, f.link) / DT;
+  m.feeding = 0; m.drilling = 0;
+  for (const f of cell.feeders) if (f.link) { const k = feed(world, cell, f.link); if (k > 0) m.feeding += k / DT; else m.drilling = (m.drilling || 0) - k / DT; }
   // toxins (sim/toxin.js): its sacs of Kind Leak release, other species' clouds round it harm it
   m.leak = leak(world, cell, DT);
   poison(world, cell, DT);

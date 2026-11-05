@@ -71,7 +71,8 @@ store's energy (in a newborn-sized store, so about as full as the mother's was a
 
 A capsule: a cylinder `length` µm long with round ends of `radius` µm (length 0 = a sphere). Radius 1-50, length
 0-200. Optional armour: `"wall": "plates", "plates": 0.5` (cellulose plates, 0.25-2 µm thick, or up to a tenth of
-the radius on cells bigger than radius 20: a feeding tube pays ×(1 + 2 × thickness) to pierce it, and a harpoon's
+the radius on cells bigger than radius 20: a feeding tube that latches on must first drill through them, paying 2 × thickness × its piercing price at up to
+2,000 pJ/s from its spare energy and draining nothing until through; if it lets go the drilling is lost; a harpoon's
 wound is divided by (1 + 2 × thickness); +300 pJ per µm³ of plate per division; heavier: a radius-10 cell with 1 µm
 plates sinks 1.6× as fast).
 

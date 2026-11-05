@@ -98,18 +98,20 @@ export function note(world, c) {
   const feeding = (c.feeders || []).find((f) => f.link);
   if (feeding && !w.feeding) {
     const prey = world.cells[feeding.link.b], price = feeding.link.price ?? feeding.cost;
-    say(`latched onto a ${prey.species} (${Math.round(price / 1000)}k pJ to pierce${prey.pieces[0].plates ? `: plated, ×${(price / feeding.cost).toFixed(1)}` : ''})`);
+    say(feeding.link.drillAll > 0 ? `latched onto a plated ${prey.species} (${Math.round(feeding.cost / 1000)}k pJ to pierce): drilling through its plates, ${Math.round(feeding.link.drillAll / 1000)}k pJ more` : `latched onto a ${prey.species} (${Math.round(price / 1000)}k pJ to pierce)`);
   }
   // touching a plated prey it can't afford to pierce: said once per prey species until it latches on something
   if (c.cantPierce && w.cantPierce !== c.cantPierce.prey) say(`can't afford to pierce a plated ${c.cantPierce.prey} (${Math.round(c.cantPierce.price / 1000)}k pJ; it has ${Math.round(c.metab.E / 1000)}k)`);
   if (c.cantPierce) w.cantPierce = c.cantPierce.prey; else if (feeding) w.cantPierce = null;
   if (!feeding && w.feeding && c.lastMeal) {
     const why = { drained: 'nothing left', died: 'it died', rule: 'its rule let go', torn: 'torn off' }[c.lastMeal.why];
-    say(`let go of a ${c.lastMeal.prey} (${why}): took ${Math.round(c.lastMeal.took / 1000)}k pJ, kept ${Math.round(100 * PARAMS.feed.keep)}%`);
+    if (c.lastMeal.drillLost > 0) say(`let go of a ${c.lastMeal.prey} (${why}) before drilling through its plates: ${Math.round(c.lastMeal.drillLost / 1000)}k pJ of drilling lost`);
+    else say(`let go of a ${c.lastMeal.prey} (${why}): took ${Math.round(c.lastMeal.took / 1000)}k pJ, kept ${Math.round(100 * PARAMS.feed.keep)}%`);
   }
+  if (feeding && feeding.link.drilled && w.drilled !== feeding.link) { say(`drilled through the ${world.cells[feeding.link.b].species}'s plates after ${Math.round((feeding.link.drilled - feeding.link.since) * PARAMS.time.dt)} s: feeding`); w.drilled = feeding.link; }
   w.feeding = !!feeding;
   const eaten = (world.links || []).find((l) => l.feed && world.cells[l.b] === c);
-  if (eaten && !w.eaten) say(`a ${world.cells[eaten.a].species} latched on: it is being drained`, true);
+  if (eaten && !w.eaten) say(eaten.drill > 0 ? `a ${world.cells[eaten.a].species} latched on: it is drilling through its plates` : `a ${world.cells[eaten.a].species} latched on: it is being drained`, true);
   if (!eaten && w.eaten) say('the predator let go');
   if ((c.alarm || 0) > 0.05 && !(w.alarm > 0.05)) say(`alarm: a kin nearby is being drained (~${Math.round((1 - c.alarm) * PARAMS.alarm.range)} µm away)`);
   w.alarm = c.alarm || 0;
