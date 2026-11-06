@@ -3252,7 +3252,7 @@ const SHORT = {
   'Nucleus (the brain)': 'Nucleus', 'Plastid (makes energy)': 'Plastid', 'Starch granule (quick store, heavy)': 'Starch',
   'Light sensor (eyespot)': 'Eyespot', 'Touch sensor': 'Touch', 'Proximity sensor': 'Proximity',
   'Energy store': 'Energy store', 'Buoyancy chamber': 'Buoyancy chamber', 'Statolith (which way is up)': 'Statolith',
-  'Nutrient sensor': 'Nutrients', 'Vacuole (store or float)': 'Vacuole', 'Toxin sac': 'Toxin sac', 'Mouth (engulfs)': 'Mouth',
+  'Nutrient sensor': 'Nutrients', 'Vacuole (store or float)': 'Vacuole', 'Toxin sac': 'Toxin sac', 'Mouth (engulfs)': 'Mouth', 'Nitroplast (fixes nitrogen)': 'Nitroplast',
 };
 // shown in four rows: the small categories outside the body share one
 const SHOWN = {};
