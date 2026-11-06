@@ -10,6 +10,13 @@ const G = PARAMS.grow, DT = PARAMS.time.dt;
 export function removeDead(world) {
   if (world.steps % G.every) return;
   const old = world.cells;
+  // rotting where it dies (author 2026-11-05, recycling where life happens; was: where it was removed, mostly the floor):
+  // its body's nitrogen, its meter's and what is left of a meal it was digesting go into the water at once
+  if (world.nitro) for (const c of old) if (c.dead && !c.rotted && !c.eatenBy && c.grow) {
+    const meal = c.meal ? c.meal.N * Math.max(0, 1 - c.meal.t / PARAMS.engulf.time) : 0;
+    takeNitrogen(world, c.q[1], -(c.grow.Nbody + c.grow.N + meal), c.q[0]);
+    c.rotted = true; c.grow.Nbody = 0; c.grow.N = 0; c.meal = null;
+  }
   // the dead go G.gone s after dying, or after landing on the floor; one eaten whole at once (it is inside its predator)
   for (const c of old) if (c.dead && c.landedAt === undefined && c.q[1] < c.reach + 1) c.landedAt = world.steps;
   const goes = (c) => c.dead && (c.eatenBy || (world.steps - (c.landedAt ?? c.diedAt)) * DT >= G.gone);
@@ -17,7 +24,7 @@ export function removeDead(world) {
   const keep = [];
   for (const c of old) {
     if (goes(c)) {
-      if (world.nitro && !c.eatenBy) takeNitrogen(world, c.q[1], -(c.grow.Nbody + c.grow.N), c.q[0]);   // rotting: its nitrogen back to the water
+      if (world.nitro && !c.eatenBy && !c.rotted) takeNitrogen(world, c.q[1], -(c.grow.Nbody + c.grow.N), c.q[0]);   // (rotted already, as a rule)
       for (const p of c.pads) p.link = null;
       world.deaths = (world.deaths || 0) + 1;
       (world.gone ||= []).push(c);   // for the viewer; it empties the list

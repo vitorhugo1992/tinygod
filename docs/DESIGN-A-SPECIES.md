@@ -24,6 +24,8 @@ traps earlier designers fell into, and the answer format. Read all of it before 
 - **Nitrogen is deep**: the water is poor down to ~1,100 µm (6% of the deep's richness at the surface, 13% at 1,000 µm)
   and rich below a nutricline at ~1,400 µm, where the noon light is only ~12%. No depth is good for both. Cells use
   the nitrogen up where they feed (a crowd empties its water), and it is slowly mixed back over about a day.
+  Nitrogen is also recycled where life happens: a dead cell rots where it dies, and what a hunter doesn't keep of its
+  prey goes into the water there; water made richer this way fades back over about three days.
   **So light is up and food for growth is down.** That tension is the game.
 - **Nitrogen is patchy across the tank**: the deep water's richness varies from side to side, from ~0.3× its usual
   value to 2-3× in two rich patches, each about 300 µm wide, that wander slowly across the tank over a few days. A cell

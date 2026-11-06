@@ -79,13 +79,13 @@ export function mixNitrogen(world) {
   setRef(world);
   // moving water mixes faster (night convection brings the rich deep water up and spreads it across)
   const fs = world.flowNow, stir = fs ? 1 + PARAMS.flow.mix * fs.speed / PARAMS.flow.night : 1;
-  const back = dt / N.resupply, up = dt * N.spread * stir, across = dt * N.spreadX * stir;
+  const back = dt / N.resupply, fade = dt / N.fade, up = dt * N.spread * stir, across = dt * N.spreadX * stir;
   const o = tmp.a && tmp.a.length === c.length ? tmp.a : (tmp.a = new Float64Array(c.length));
   o.set(c);
   for (let k = 0; k < NL; k++) for (let j = 0; j < NC; j++) {
     const i = k * NC + j, here = o[i];
     const below = k > 0 ? o[i - NC] : here, above = k < NL - 1 ? o[i + NC] : here;
     const left = j > 0 ? o[i - 1] : here, right = j < NC - 1 ? o[i + 1] : here;
-    c[i] = here + (f.ref[i] - here) * back + (below - here + above - here) * up + (left - here + right - here) * across;
+    c[i] = here + (f.ref[i] - here) * (here > f.ref[i] ? fade : back) + (below - here + above - here) * up + (left - here + right - here) * across;
   }
 }

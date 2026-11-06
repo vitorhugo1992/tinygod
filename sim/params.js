@@ -147,6 +147,8 @@ export const PARAMS = {
     columns: 16,            // ...and columns across it (100 µm each)
     water: 600,             // N units the water holds per µm of the tank's height at richness 1 (a layer: 30,000)
     resupply: 600,          // s: a used-up layer eases back toward the usual profile on this time (a day)
+    fade: 1800,             // s: a square richer than the profile (recycled nitrogen: sloppy feeding, the dead rotting where
+                            // they die) eases back on this slower time (3 days), so recycling feeds the water where life is
     spread: 0.002,          // share per s a layer evens out with each neighbour above and below...
     spreadX: 0.002,         // ...and each column with its neighbours across
     // patches (balance, author 2026-11-03: nothing was worth moving sideways for): the water's richness varies across the
