@@ -47,7 +47,12 @@ export const PARAMS = {
   },
   light: {
     strength: 1,            // light from above, at the surface (relative)
-    attenuation: 0.0015,    // per µm: the 2 mm tank's light is a water column squeezed (made playable): 5% at the floor
+    attenuation: 0.0015,    // per µm: the 2 mm tank's light is a water column squeezed (made playable)
+    // a darker floor (balance, author 2026-11-05: every design ended on the floor, the upper water unused): the bottom
+    // `murkBand` µm dim faster by `murk` per µm more (murky water by the sediment): noon light at the floor 2% (was 5%);
+    // a shade plastid earns there about a third of its best (was two thirds); above the band nothing changes
+    murkBand: 300,
+    murk: 0.003,
   },
   // Metabolism (made playable, numbers round and tuned for play, CLAUDE.md). Energy in pJ; flows per sandbox second.
   // A sandbox day lasts `day` seconds; every energy flow runs `speedup` times faster than real, together, so each

@@ -19,8 +19,14 @@ export function clock(world) {
   return h;
 }
 
+// How much of the surface's light reaches `dz` µm down, 0-1 (the bottom murkBand µm darker)
+export function depthLight(dz) {
+  const murky = dz - (TH - L.murkBand);
+  return dexp(-L.attenuation * dz - (murky > 0 ? L.murk * murky : 0));
+}
+
 // Light at height y (µm above the floor), 0-1
 export function lightAt(world, y) {
   if (!world.light) return 0;
-  return L.strength * daylight(world) * dexp(-L.attenuation * (TH - y));
+  return L.strength * daylight(world) * depthLight(TH - y);
 }

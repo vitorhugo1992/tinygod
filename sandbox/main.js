@@ -7,7 +7,7 @@ import { rewire, respeed, controlsOf, buildCell, plateMax } from '../sim/build.j
 import { regrow } from '../sim/grow.js';
 import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
 import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax } from './mould.js';
-import { lightAt, daylight, clock } from '../sim/light.js';
+import { lightAt, daylight, clock, depthLight } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel, neighboursLevel, padLevel, alarmLevel, poisonedLevel } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
@@ -863,7 +863,7 @@ function dayTrace(id) {
     const pts = [];
     for (let i = 0; i <= 96; i++) {
       const h = i / 4, sun = world.day ? Math.sqrt(Math.max(0, Math.sin(2 * Math.PI * (h - 6) / 24))) : 1;
-      pts.push([h, PARAMS.light.strength * sun * Math.exp(-PARAMS.light.attenuation * depth) * f]);
+      pts.push([h, PARAMS.light.strength * sun * depthLight(depth) * f]);
     }
     return { pts, where: `a day at this depth (${Math.round(depth)} µm)${f < 0.97 ? ', facing as now' : ''}` };
   }
@@ -1055,7 +1055,7 @@ function mapReader(live) {
     if (kind === 'light') {
       if (!world.light) return 0;
       const sun = world.day ? Math.sqrt(Math.max(0, Math.sin(2 * Math.PI * (h - 6) / 24))) : 1;
-      return L.strength * sun * Math.exp(-L.attenuation * dz) * (facing[id] ?? 1);
+      return L.strength * sun * depthLight(dz) * (facing[id] ?? 1);
     }
     if (kind === 'chem') return Math.min(1, nitrogenAt(world, TH - dz, cell ? cell.q[0] : undefined));
     const b = byHour[id] && byHour[id][Math.floor(h) % 24];
@@ -1098,7 +1098,7 @@ const hexRGB = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16),
 // the water at hour h, depth dz: black at night and deep down, bright teal near the surface at noon
 function mapWater(h, dz) {
   const sun = !world.light ? 0 : world.day ? Math.max(0, Math.sin(2 * Math.PI * (h - 6) / 24)) : 1;
-  const t = Math.pow(Math.min(1, sun * Math.exp(-PARAMS.light.attenuation * dz)), 0.45);
+  const t = Math.pow(Math.min(1, sun * depthLight(dz)), 0.45);
   return [8 + t * 62, 13 + t * 137, 26 + t * 144];
 }
 const mapCol = (m) => { const g = groupOfPart(m); return (g && colourOf(g)) || '#6fd3b5'; };
@@ -1733,7 +1733,7 @@ function dayBudget(d, depth) {
     const shade = inc.pigment === 'shade';
     for (let i = 0; i < steps; i++) {
       const sun = Math.sqrt(Math.max(0, Math.sin(2 * Math.PI * (i + 0.5) / steps)));
-      const L = Lp.strength * sun * Math.exp(-Lp.attenuation * depth);
+      const L = Lp.strength * sun * depthLight(depth);
       // bright light: the damage where hurting and mending balance, its lost output and the cost of mending it
       const over = L - (shade ? M.shade.safe : M.photo.safe), k = over > 0 ? M.photo.damage * (shade ? M.shade.damage : 1) * over : 0;
       const dmg = k / (k + M.photo.repair);
@@ -1750,7 +1750,7 @@ function dayBudget(d, depth) {
   // the deepest it earns its upkeep at noon: below it, a resting cell can't earn its way awake
   const noon = (dz) => {
     let e = 0;
-    const L = Lp.strength * Math.exp(-Lp.attenuation * dz);
+    const L = Lp.strength * depthLight(dz);
     for (const inc of c.pieces[0].inclusions) if (inc.material === 'plastid') {
       const shade = inc.pigment === 'shade', over = L - (shade ? M.shade.safe : M.photo.safe);
       const k = over > 0 ? M.photo.damage * (shade ? M.shade.damage : 1) * over : 0, dmg = k / (k + M.photo.repair);

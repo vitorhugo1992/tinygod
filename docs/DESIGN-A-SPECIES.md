@@ -17,8 +17,8 @@ traps earlier designers fell into, and the answer format. Read all of it before 
   end-on), weight and buoyancy at its own centre, so **where the mass and the drag sit decides which way a cell turns**.
 - **A day lasts 600 s**: sunrise at 06:00, sunset at 18:00, so one hour is 25 s. Night is 300 s of total darkness.
   Daylight rises steeply after dawn: the surface light is √(sin) of the sun's height, 0 to 1 at noon.
-- **Light fades with depth**: light = daylight × e^(−0.0015 × depth µm). At noon: 100% at the surface, 47% at 500 µm,
-  22% at 1,000 µm, 10% at 1,500 µm, 5% at the floor.
+- **Light fades with depth**: light = daylight × e^(−0.0015 × depth µm), and below 1,700 µm × e^(−0.003 × (depth − 1,700)). At noon: 100% at the surface, 47% at 500 µm,
+  22% at 1,000 µm, 10% at 1,500 µm, 7.8% at 1,700 µm; the bottom 300 µm are murkier and darker, 2% at the floor.
 - **Too much light hurts**: above 40% of full sun (shallower than ~600 µm at noon) a plastid takes damage and earns
   less, and repairing it costs energy. The surface is a worse place to be than ~500 µm down.
 - **Nitrogen is deep**: the water is poor down to ~1,100 µm (6% of the deep's richness at the surface, 13% at 1,000 µm)
@@ -310,8 +310,8 @@ Daily-average income of a plastid per µm³ of plastid, over a full day **and ni
 
 | depth µm | 0 | 250 | 500 | 750 | 1,000 | 1,250 | 1,500 | 1,750 | floor |
 |---|---|---|---|---|---|---|---|---|---|
-| Chl a (default) | 14 | 16 | 16.5 | 15 | 12 | 10 | 8 | 6 | 4.6 |
-| shade | 6 | 8 | 9 | 11 | 12 | 12 | 11 | 9 | 8 |
+| Chl a (default) | 14 | 16 | 16.5 | 15 | 12 | 10 | 8 | 5.3 | 2 |
+| shade | 6 | 8 | 9 | 11 | 12 | 12 | 11 | 8.4 | 4.4 |
 
 (A plastid's income doesn't depend on which way the cell faces, only on the light at its depth. A cell that moves gets
 the average of where it spends its daylight hours.)
@@ -339,7 +339,7 @@ These are physics, not fixes. Work out your own answers.
    tail at one end of a heavy cell drags that end up, so a cell with a pushing tail behind sinks front-down and its
    front sensors face the floor. Mass placement and drag placement decide orientation; so does the floor when the cell
    lies on it.
-2. **Lying on the floor.** All cells start on the floor in 5% light. An eyespot facing sideways or down sees only 20%
+2. **Lying on the floor.** All cells start on the floor in 2% light. An eyespot facing sideways or down sees only 20%
    of that. A cell must get off the floor on day 0 from any likely resting angle, or it starves there. Jumps and pushes
    along the floor don't turn a cell over.
 3. **Dark means night, and dark means deep.** A rule like "rest when it is dark" is also true deep down at noon. A
@@ -354,7 +354,7 @@ These are physics, not fixes. Work out your own answers.
    1%" behave poorly in dim water.
 7. **Swimming while feeding** tears a feeding tube's latch off.
 8. **The floor.** Most deaths in earlier contests were cells sinking to the floor at night and starving there by day:
-   the floor gets 5% of the light at noon, and a cell built for brighter water can't live on it. The stirred bottom
+   the floor gets 2% of the light at noon, and a cell built for brighter water can't live on it. The stirred bottom
    sometimes rescues light, slow-sinking cells, never heavy ones. (The floor's water is the richest in nitrogen.)
 9. **Encounters.** Drifters mostly move up and down; hunters only meet prey that shares their water, and moving water
    helps that. Defences matter only if someone hunts; growth matters always.
