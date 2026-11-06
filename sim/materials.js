@@ -8,6 +8,7 @@ export const MATERIALS = {
   oil:     { density: 920,  label: 'oil',     note: 'light: lipid droplets; an energy store, compact and slow', store: 'oil' },
   toxin:   { density: 1060, label: 'toxin sac', note: 'a sac of toxin (Alexandrium, Karenia): burst, it poisons other species close by', toxin: true },
   starch:  { density: 1500, label: 'starch',  note: 'heavy: starch or chrysolaminarin; an energy store, quick', store: 'starch' },
+  nitroplast: { density: 1100, label: 'nitroplast', note: 'a nitrogen-fixing organelle (the nitroplast of Braarudosphaera bigelowii): turns surplus energy into nitrogen for growth', fixer: true },
   plastid: { density: 1100, label: 'plastid', note: 'a chloroplast: makes energy from light' },
   statolith: { density: 1400, label: 'statolith', note: 'a chamber with a loose mineral grain that rolls to the lower wall (like Loxodes): it reads which way is down' },
   nucleus: { density: 1100, label: 'nucleus', note: 'the brain box: DNA and protein, a little denser than the cytoplasm' },

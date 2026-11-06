@@ -113,6 +113,9 @@ export const PART_TEMPLATES = {
   // (none: always), into the water (sim/toxin.js)
   'Toxin sac': (body, deg, id, size, tilt, depth, feels, len = 0, strength, kind) =>
     [{ type: 'inclusion', id, label: 'Toxin sac', ...inside(body, deg, size, depth, len, tilt), material: 'toxin', joint: { type: kind === 'leak' ? 'leak' : 'lyse' } }],
+  // a nitroplast (2026-11-06): surplus energy into nitrogen for growth (PARAMS.fix); works by itself
+  'Nitroplast (fixes nitrogen)': (body, deg, id, size, tilt, depth, feels, len = 0) =>
+    [{ type: 'inclusion', id, label: 'Nitroplast', ...inside(body, deg, size, depth, len, tilt), material: 'nitroplast' }],
   // a buoyancy chamber (author, 2026-10-28): its rule pumps it light (FLOAT when) or heavy (SINK if); neither: neutral
   'Buoyancy chamber': (body, deg, id, size, tilt, depth, feels, len = 0) =>
     [{ type: 'inclusion', id, label: 'Buoyancy chamber', ...inside(body, deg, size, depth, len, tilt), material: 'chamber', joint: { type: 'chamber' } }],
@@ -227,6 +230,8 @@ export const CONTROLS = {
   'Energy store': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, content: true, sizeDefault: 40, ...ROD },
   'Buoyancy chamber': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 50, ...ROD,
     tip: () => 'Pumped light, it lifts the cell; heavy, it sinks it; neutral, nothing (and free). Its rule: FLOAT when… / SINK if…. Bigger pushes harder, takes room, costs more to hold' },
+  'Nitroplast (fixes nitrogen)': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 30, ...ROD,
+    tip: () => `Makes nitrogen for growth from energy, by itself: while the cell needs nitrogen and has energy to spare, it fixes up to ${PARAMS.fix.rate} units a second per µm³ of it, for ${PARAMS.fix.cost} pJ a unit (a division's nitrogen costs as much energy again as the division). Worth it where light is plenty and nitrogen short: the upper water. Real: the nitroplast of the alga Braarudosphaera` },
   'Toxin sac': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 30, toxkind: true, ...ROD,
     tip: () => 'Burst: its rule BURSTS when… (e.g. when it is being drained); bursting kills the cell and poisons other species within 30 µm. Leak: its rule LEAKS when… (no rule: always); it releases toxin into the water, a cloud that drifts with the currents, spreads and fades; other species in it lose energy and their plastids are damaged. Kin are immune to both. Leaking costs energy and nitrogen (a bigger sac leaks more); currents carry a lone cell\'s cloud away, a crowd\'s builds up' },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
@@ -272,7 +277,7 @@ export const CATEGORIES = {
   'Flagella': ['Wave tail (swims)', 'Flexible oar (swims)'],
   'Spines & appendages': ['Spine'],
   'Escapes': ['Burst organ (escape)'],   // the spring (template name kept so old designs edit); the ejectisome was removed
-  'Inside the cell': ['Nucleus (the brain)', 'Plastid (makes energy)', 'Energy store', 'Buoyancy chamber', 'Toxin sac'],
+  'Inside the cell': ['Nucleus (the brain)', 'Plastid (makes energy)', 'Energy store', 'Buoyancy chamber', 'Nitroplast (fixes nitrogen)', 'Toxin sac'],
   'Pads': ['Pad'],
   'Hunting': ['Peduncle (feeds on others)', 'Mouth (engulfs)'],
   'Life cycle': [],   // the Division card (a rule, nothing to build: every design has one)

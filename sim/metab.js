@@ -38,7 +38,7 @@ export function initMetab(cell) {
   const add = (k, v) => byPart.set(k, (byPart.get(k) || 0) + v);
   const bodyUpkeep = body.volume * M.bodyUpkeep;
   for (const p of cell.pieces) if (p.kind === 'segment') add(p.part, (p.ext ? p.ext.max : p.L) * M.partUpkeep);
-  for (const inc of body.inclusions) if (inc.store || inc.toxin || ['plastid', 'chamber', 'statolith'].includes(inc.material)) {
+  for (const inc of body.inclusions) if (inc.store || inc.toxin || ['plastid', 'chamber', 'statolith', 'nitroplast'].includes(inc.material)) {
     add(inc.part, inc.v * M.insideUpkeep * (inc.material === 'plastid' && inc.pigment === 'shade' ? M.shade.upkeep : 1));
   } else if (inc.material === 'nucleus') add(inc.part, inc.v * P.brain.upkeep);
   for (const mo of cell.mouths || []) add(mo.part, P.engulf.upkeep);   // a mouth costs its keep (author, 2026-11-03)
@@ -244,6 +244,16 @@ export function metabolize(world, cell) {
       const want = Math.min(slow * R.uptake * body.area * n / (n + R.half) * DT, g.Nneed - g.N);
       const got = takeNitrogen(world, cell.q[1], want, cell.q[0]);
       g.N += got; g.uptake = got / DT;
+    }
+    // nitroplasts: surplus energy into nitrogen (PARAMS.fix), before the energy bar takes the surplus
+    m.fixing = 0;
+    if (!m.starving && g.N < g.Nneed && m.E > M.fillAbove * m.C) {
+      let vf = 0;
+      for (const inc of body.inclusions) if (inc.material === 'nitroplast') vf += inc.v;
+      if (vf > 0) {
+        const n = Math.min(slow * P.fix.rate * vf * DT, g.Nneed - g.N, (m.E - M.fillAbove * m.C) / P.fix.cost);
+        g.N += n; m.E -= n * P.fix.cost; m.fixing = n / DT;
+      }
     }
     if (m.E > M.fillAbove * m.C && g.E < g.Eneed) {
       const move = Math.min(m.E - M.fillAbove * m.C, g.Eneed - g.E);

@@ -1877,6 +1877,7 @@ function budget(lines) {
   if (m.motors > 0) lines.push(`          flagella beating ${show(m.motors)}`);
   if (m.pumps > 0) lines.push(`          pumping ${show(m.pumps)}`);
   if (cell.resting) lines.push('resting   upkeep and income at 40%, flagella stopped');
+  if (m.fixing > 0) lines.push(`fixing    nitrogen: +${m.fixing.toFixed(1)} N/s for −${(m.fixing * PARAMS.fix.cost).toFixed(0)} pJ/s`);
   if (m.leak > 0) lines.push(`leaking   toxin: −${m.leak.toFixed(0)} pJ/s`);
   if (cell.poison) lines.push(`POISONED  in a ${cell.poison.by}'s toxin: −${cell.poison.loss.toFixed(0)} pJ/s, plastids damaged`);
   if (cell.stunT > 0) lines.push(`STUNNED   ${cell.stunT.toFixed(1)} s more (a ${cell.harpooned ? cell.harpooned.by : '?'}'s harpoon)`);
@@ -2672,6 +2673,20 @@ function drawOrganelle(c, inc, xf, s, lit, small) {
     gloss(gx - g * s * 0.3, gy - g * s * 0.3, Math.max(g * s * 0.5, 1), 0.7);
     return;
   }
+  if (inc.material === 'nitroplast') {   // a nitroplast: a teal-blue body (cyanobacterial) with fine membranes, brighter while fixing
+    const on = c.metab && c.metab.fixing > 0;
+    ctx.save(); incPath(inc, xf);
+    const g = ctx.createRadialGradient(ix - r * 0.3, iy - r * 0.3, r * 0.1, ix, iy, r);
+    g.addColorStop(0, on ? 'rgba(150,240,220,.95)' : 'rgba(110,190,180,.85)'); g.addColorStop(1, on ? 'rgba(40,140,130,.95)' : 'rgba(40,100,100,.85)');
+    ctx.fillStyle = g; ctx.fill();
+    if (!small) {
+      ctx.clip(); ctx.strokeStyle = 'rgba(10,50,50,.3)'; ctx.lineWidth = Math.max(0.05 * r, 0.6);
+      for (const k of [0.35, 0.65]) { ctx.beginPath(); ctx.arc(ix, iy, r * k, 0, Math.PI * 2); ctx.stroke(); }
+      gloss(ix - r * 0.35, iy - r * 0.4, r * 0.6, 0.3 * dim);
+    }
+    ctx.restore(); incPath(inc, xf); ctx.strokeStyle = on ? 'rgba(170,255,235,.8)' : 'rgba(150,220,210,.45)'; ctx.lineWidth = 1; ctx.stroke();
+    return;
+  }
   if (inc.toxin) {   // a toxin sac: a glowing magenta vesicle
     incPath(inc, xf);
     const g = ctx.createRadialGradient(ix - r * 0.3, iy - r * 0.3, r * 0.1, ix, iy, r);
@@ -3206,6 +3221,7 @@ const PART_ICONS = {
   'Plastid (makes energy)': ['#8fc94a', 'E17 12 12 6*|M8 12 L26 12'],
   'Energy store': ['#ece3c4', 'C17 12 7|M11 14.5 Q17 13 23 14.5 L23 16 Q17 21 11 16 Z*'],
   'Buoyancy chamber': ['#7cb0ff', 'C17 12 8*|M13 8 l2 0|M19 9 l1 0|M15 14 l1 0'],
+  'Nitroplast (fixes nitrogen)': ['#5fc9b8', 'E17 12 10 6*|C13 12 1.5|C17 12 1.5|C21 12 1.5'],
   'Toxin sac': ['#d0508a', 'C17 12 8*|M13 9 l8 6|M21 9 l-8 6'],
   'Mouth (engulfs)': ['#e8b3c8', 'M6 12 Q17 0 28 12 Q17 24 6 12|C17 12 3*'],
   'Pad': ['#e070ff', 'M5 18 Q17 4 29 18|M8 20 L26 20'],

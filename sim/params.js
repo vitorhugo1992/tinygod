@@ -180,6 +180,11 @@ export const PARAMS = {
   // species within `range` µm (surface to surface): per µm³ of sac, at contact, `energy` pJ lost (pool, then stores) and
   // plastid damage of `damage` × the sac's share of the victim's volume; both fall to nothing at the range; kin immune.
   // The sac costs upkeep and `nitrogen` N per µm³ at each doubling (toxins are nitrogen-rich)
+  // the nitroplast (2026-11-06; plan B against the empty upper water; real: Braarudosphaera bigelowii, Coale et al. 2024):
+  // while the growth meter's nitrogen bar isn't full and the pool has a surplus (above metab.fillAbove), it turns energy
+  // into nitrogen: up to rate units/s per µm³ of it, cost pJ per unit (300: a division's nitrogen costs as much energy
+  // again as the division itself; it pays where light is plenty and nitrogen short, the upper water)
+  fix: { rate: 0.03, cost: 300 },
   toxin: {
     range: 30,
     energy: 5000,           // a sac 5% of an r 10 cell (~210 µm³) at contact: ~1 million pJ

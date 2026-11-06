@@ -42,7 +42,8 @@ traps earlier designers fell into, and the answer format. Read all of it before 
   design (newborn size), each with half of everything. Doubling costs 300 pJ per µm³ of the newborn cell, plus
   1 nitrogen unit per µm³. Nitrogen uptake is up to 0.022 units per µm² of surface per second, times n/(n+1) where n is
   the water's richness (1 deep, ~0.06 at the surface). A radius-10 cell fills its nitrogen in ~300 s in the rich deep (faster in a patch, slower outside one),
-  or ~5 days at the surface. Uptake runs at 40% while resting and stops while starving. **Smaller cells fill faster**:
+  or ~5 days at the surface. Uptake runs at 40% while resting and stops while starving. A **nitroplast** (section 3) makes
+  nitrogen from surplus energy instead, anywhere. **Smaller cells fill faster**:
   surface over volume. As it grows toward 2×, its body, outside parts and organelles all grow with it (stores hold
   more; a store keeps its energy, so it is emptier once grown). A cell that never divides can grow on to 8×, but beyond
   2× its organelles grow only half as fast as the body.
@@ -126,6 +127,7 @@ must stay inside the wall, and together may fill at most 90% of the body. Inside
 | `oil` | 920 full | **Slow energy store**, 9,000 pJ per µm³. Fills at 1/400, burns at 1/300 of its full capacity a second. Its weight follows its fill the same way: full, it is lighter than water and floats the cell a little. |
 | `chamber` | 800 / 1025 / 1100 | **Buoyancy chamber**, pumped by its rule (section 4): light 800 (lifts), neutral 1025 (no effect, free), heavy 1100 (sinks). **Slow**: it changes at 2.5 kg/m³ per s, so neutral to light takes ~90 s (about 3.5 hours of the day), light to heavy ~120 s; a cell steered by a chamber overshoots and lags. Holding it light costs 0.25 pJ/s per µm³, heavy 0.3. Starving, it drifts neutral. |
 | `statolith` | 1400 | **Gravity sensor** (counts as a sensor). Round only. `"angle": 0` is the direction it reads: 1 while that direction points straight up, 0 straight down, 0.5 level. |
+| `nitroplast` | 1100 | **Fixes nitrogen** (a nitrogen-fixing organelle, like the nitroplast of the alga *Braarudosphaera*). Works by itself, no rule: while the cell's nitrogen for its next division isn't complete and its energy pool is above 80% full (a surplus: the stores take theirs first), it turns energy into nitrogen, up to 0.03 units/s per µm³ of nitroplast, for 300 pJ a unit (the nitrogen for a division then costs as much energy again as the division itself). A nitroplast 5% of the cell fills a division's nitrogen in ~670 s of surplus, wherever the cell is. Upkeep 0.2 pJ/s per µm³. Pays where light is plenty and nitrogen short (the upper water); deep, where light is short and nitrogen plenty, uptake through the surface is cheaper. Also taken up through the surface as usual. |
 | `toxin` | 1060 | **Toxin sac**, two kinds by its joint: `{"type":"lyse"}` bursts when its rule holds (no rule: never): the cell dies and other species within 30 µm lose up to 5,000 pJ per µm³ of sac and plastid health. `{"type":"leak"}` leaks while its rule holds (no rule: always) a toxin cloud into the water that drifts, spreads and fades (half-life 60 s); other species in it lose energy and plastid health. Leaking costs ~3.7 pJ/s and some nitrogen per µm³ of sac. Kin immune. Each division needs 2 extra nitrogen per µm³ of sac. |
 
 How weight works: every piece's buoyant weight is (its density − 1025) × its volume. Inclusions replace cytoplasm
