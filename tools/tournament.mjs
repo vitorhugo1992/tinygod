@@ -1,5 +1,5 @@
 // The AI tournament (docs/DESIGN-A-SPECIES.md): every entry in designs/entries/ (or a round's folder) in one tank, one
-// cell each from the floor, moving water, several seeds in parallel; score: mean growth (author, 2026-11-04: "counting only
+// cell each at a random spot in the tank, moving water, several seeds in parallel; score: mean growth (author, 2026-11-04: "counting only
 // cells is unfair"): its living biomass (cell volume) ÷ what it started with, averaged over every half-day census and the
 // runs, so a species of giants and one of tiny cells score alike for doubling; cells, deaths and kills beside it.
 //   node tools/tournament.mjs [--round=1] [--seeds=3] [--days=5] [--cap=40] [--dir=designs/entries]
@@ -13,6 +13,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
+import { startSpots } from '../sim/start.js';
 import { daylight } from '../sim/light.js';
 import { prepEntry, entryProblem } from '../sim/entry.js';
 
@@ -34,17 +35,16 @@ function entries() {
 // A species' name in the tank: its AI's, so two AIs can't clash and the results read by AI
 const speciesOf = (e) => e.ai;
 
-// One run: every valid entry, one cell each spread along the floor (the order shuffled by the seed, as contest.mjs)
+// One run: every valid entry, one cell each at a random spot in the tank (sim/start.js, as contest.mjs)
 function runOne(seed) {
   PARAMS.grow.cap = cap;
   const list = entries().filter((e) => !e.problem);
   const w = makeWorld(seed, { day: true, metab: true, grow: true, flow: true });
-  const spot = list.map((_, i) => i);
-  if (seed !== 1) { let r = seed; const rnd = () => ((r = (r * 1103515245 + 12345) % 2147483648) / 2147483648); for (let i = spot.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [spot[i], spot[j]] = [spot[j], spot[i]]; } }
+  const spot = startSpots(seed, list.length);
   const bio0 = {};
   list.forEach((e, i) => {
     const d = prepEntry(e.design); d.name = speciesOf(e);
-    const c0 = addCell(w, d, 100 + spot[i] * (1400 / Math.max(1, list.length - 1)), 60, 0);
+    const c0 = addCell(w, d, spot[i].x, spot[i].y, 0);
     bio0[d.name] = c0.pieces[0].volume;
   });
   const sp = list.map(speciesOf);
@@ -120,7 +120,7 @@ const scores = list.map((e) => {
 }).sort((a, b) => b.score - a.score || b.mean - a.mean);
 
 writeFileSync(join(out, 'results.json'), JSON.stringify({ round, seeds: runs.length, days: reached, cap, run: new Date().toISOString(), scores, entries: list.map(({ file, ai, name, note, design, problem }) => ({ file, ai, name, note, problem, design })), runs }, null, 2));
-const md = [`# TinyGod AI tournament, round ${round}`, '', `All entries in one tank (at most ${cap} cells in all), one cell each from the floor, moving water, ${reached} days${reached < days ? ` (stopped early; planned ${days})` : ''}; ${runs.length} runs with different starting spots. Score: mean growth, its living biomass (cell volume) ÷ what it started with, averaged over every half day and the runs.`, '',
+const md = [`# TinyGod AI tournament, round ${round}`, '', `All entries in one tank (at most ${cap} cells in all), one cell each at a random spot in the tank, moving water, ${reached} days${reached < days ? ` (stopped early; planned ${days})` : ''}; ${runs.length} runs with different starting spots. Score: mean growth, its living biomass (cell volume) ÷ what it started with, averaged over every half day and the runs.`, '',
   '| # | AI | Species | Score (growth) | Each run | Cells at the end (mean; each run) | Deaths | Lives by day / night (µm deep) |', '|---|---|---|---|---|---|---|---|',
   ...scores.map((s, i) => `| ${i + 1} | ${s.ai} | ${s.name} | ${s.refused ? 'refused' : s.score + '×'} | ${s.grew.map((g) => g + '×').join(', ')} | ${s.refused ? '-' : s.mean}; ${s.finals.join(', ')} | ${s.deaths}${s.deaths ? ` (first day ${s.firstDeath})` : ''} | ${s.dayDepth ?? '-'} / ${s.nightDepth ?? '-'} |`),
   '', '## How they died', '',

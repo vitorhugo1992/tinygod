@@ -1,9 +1,10 @@
-// Contest: one cell of each design from the floor, N sandbox days (default 10), cap 200; prints the census every half
+// Contest: one cell of each design at a random spot in the tank (--floor: all from the floor, as before 2026-11-07), N sandbox days (default 10), cap 200; prints the census every half
 // day and every death. node tools/contest.mjs [bathyscapha,noctilla,...] [days] [--still] [--seed=N]
-// (moving water unless --still; a seed shuffles which species starts where along the floor: seed 1 keeps the list's order)
+// [--floor] [--noshade] (moving water unless --still; the seed picks the starting spots, sim/start.js; --noshade: no self-shading)
 import { readFileSync } from 'fs';
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
+import { startSpots } from '../sim/start.js';
 
 const ROOT = new URL('../designs/', import.meta.url);
 const still = process.argv.includes('--still'), seedArg = process.argv.find((a) => a.startsWith('--seed='));
@@ -22,15 +23,15 @@ function prep(d) {   // the sandbox's withoutTimers stubs
   return d;
 }
 
-const w = makeWorld(seed, { day: true, metab: true, grow: true, flow: !still });
+const w = makeWorld(seed, { day: true, metab: true, grow: true, flow: !still, shade: !process.argv.includes('--noshade') });
 const species = [], bio0 = {};   // the biomass each species started with
-const spot = names.map((_, i) => i);
-if (seed !== 1) { let r = seed; const rnd = () => ((r = (r * 1103515245 + 12345) % 2147483648) / 2147483648); for (let i = spot.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [spot[i], spot[j]] = [spot[j], spot[i]]; } }
+const spot = startSpots(seed, names.length, { floor: process.argv.includes('--floor') });
 names.forEach((n, i) => {
   const f = JSON.parse(readFileSync(new URL(n + '.json', ROOT), 'utf8'));
   const d = prep({ ...f.design, name: f.name.replace(/ \(.*/, '') });
   species.push(d.name);
-  const c0 = addCell(w, d, 100 + spot[i] * (1400 / Math.max(1, names.length - 1)), 60, 0);
+  const c0 = addCell(w, d, spot[i].x, spot[i].y, 0);
+  console.log(`  ${d.name} starts at ${Math.round(2000 - spot[i].y)} µm deep, ${Math.round(spot[i].x)} µm along`);
   bio0[d.name] = (bio0[d.name] || 0) + c0.pieces[0].volume;
 });
 const DAY = PARAMS.metab.day, T0 = Date.now();

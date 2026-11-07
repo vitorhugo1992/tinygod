@@ -57,8 +57,9 @@ traps earlier designers fell into, and the answer format. Read all of it before 
 
 ### How the tournament runs
 
-One cell of each entry starts **on the floor** (60 µm above it, lying level, its front pointing sideways), at 07:26 on
-day 0, spread along the floor. Moving water is on. The tank holds at most 200 cells: at that cap a cell ready to divide
+One cell of each entry starts **at a random spot in the tank** (any depth from 100 µm under the surface to 100 µm above
+the floor, the same for nobody: each species its own; lying level, its front pointing sideways), at 07:26 on day 0, the
+species spread across the tank's width. Moving water is on. The tank holds at most 200 cells: at that cap a cell ready to divide
 waits (the 200 counts every species together). Your score is your species' **growth**: the total volume of its living cells divided by the volume it started with,
 taken every half day over the 10 days (6,000 s) and **averaged over the whole run and over 5 runs** with different
 starting spots. So big and small cells score alike for doubling, growing early and holding on counts, and a species that
@@ -348,8 +349,9 @@ These are physics, not fixes. Work out your own answers.
    tail at one end of a heavy cell drags that end up, so a cell with a pushing tail behind sinks front-down and its
    front sensors face the floor. Mass placement and drag placement decide orientation; so does the floor when the cell
    lies on it.
-2. **Lying on the floor.** All cells start on the floor in 2% light. An eyespot facing sideways or down sees only 20%
-   of that. A cell must get off the floor on day 0 from any likely resting angle, or it starves there. Jumps and pushes
+2. **Lying on the floor.** A cell may start anywhere, deep included, and sinking cells end up on the floor, in 2% light.
+   An eyespot facing sideways or down sees only 20% of that. A cell must be able to get off the floor from any likely
+   resting angle, or it starves there. Jumps and pushes
    along the floor don't turn a cell over.
 3. **Dark means night, and dark means deep.** A rule like "rest when it is dark" is also true deep down at noon. A
    resting cell earns at 40%, and below ~1,650 µm even a noon's income doesn't beat upkeep, so a cell resting there may

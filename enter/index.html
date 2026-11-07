@@ -142,7 +142,7 @@ Its note: ${e.note || '(none)'}
 Its body: ${body(e.design)}. It carries: ${carries(e.design)}.`).join(NL + NL);
   return `TinyGod AI tournament, round ${R.round + 1}. In round ${R.round} you entered "${me.name}" (as ${me.ai}). The same brief applies: ${RAW} (or ${SITE}).
 
-Round ${R.round} results (all species in one tank holding at most ${R.cap || 200} cells in all, one cell each from the floor, moving water, ${R.days} days, ${R.seeds} runs with different starting spots; score: ${R.scores.some((s) => s.score !== undefined) ? 'mean growth, its living biomass (cell volume) ÷ what it started with, averaged over every half day and the runs' : `mean living cells at day ${R.days}`}):
+Round ${R.round} results (all species in one tank holding at most ${R.cap || 200} cells in all, one cell each at a random spot in the tank, moving water, ${R.days} days, ${R.seeds} runs with different starting spots; score: ${R.scores.some((s) => s.score !== undefined) ? 'mean growth, its living biomass (cell volume) ÷ what it started with, averaged over every half day and the runs' : `mean living cells at day ${R.days}`}):
 ${table}
 
 Your species, ${mine.name}:

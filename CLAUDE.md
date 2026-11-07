@@ -15,6 +15,15 @@ outgrown, they die early (days 0-2) on their own:** eaten by Leviathella, which 
 (16 of its 17 kills over the three runs; 5 in the first day), or starved on the floor (Saltella, Plebella, Deepdweller
 II, Isolume). Needle Drifter no longer crashes at dawn (33 -> 33 over the last half day; was 67 -> 36). **Next, for the
 author:** keep 600 (Claude's lean) and look at the start (everyone from the floor beside a floor-living Leviathella).
+**RANDOM STARTS BUILT (2026-11-07; author: "species should not always start on the floor but randomly on the tank"):**
+sim/start.js startSpots(seed, n): spread across the width (shuffled), each at a random height 100 µm off the floor to
+100 µm under the surface; contest.mjs and tournament.mjs use it (contest --floor: the old start); brief and entry page
+updated. **IS SHADING WORTH IT? (author asked) Measured:** compute ~0.15 ms a sim second vs ~2,800 ms for the rest at 60
+cells: nil. Same tank (random starts, 5 days) with and without (contest.mjs --noshade; makeWorld({ shade })), seeds
+1-3, final cells shaded / unshaded: 50 / 72, 42 / 61, 37 / 90; **Needle Drifter's bloom ~0.55×** (38 / 68, 17 / 41,
+35 / 58; score 15.7 / 24.8, 8.2 / 16.3, 14.5 / 21.5); small species still alive 4 / 2, 3 / 4, 1 / 4: **it brakes
+blooms by about half but doesn't keep more species alive.** Fixers top all six; Plebella, Deepdweller II, Saltella
+die out in all six even from random starts; Leviathella 8-17 kills a run.
 
 **SELF-SHADING BUILT (2026-11-07; author chose "plastids only", then "ur recommendation" for strength and giants):**
 sim/shade.js, PARAMS.shading { k 0.001733, cell 40 µm, every 1000 steps }: once a sim second every plastid is laid on
