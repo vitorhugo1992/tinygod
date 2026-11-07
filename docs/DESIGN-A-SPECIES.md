@@ -19,6 +19,11 @@ traps earlier designers fell into, and the answer format. Read all of it before 
   Daylight rises steeply after dawn: the surface light is √(sin) of the sun's height, 0 to 1 at noon.
 - **Light fades with depth**: light = daylight × e^(−0.0015 × depth µm), and below 1,700 µm × e^(−0.003 × (depth − 1,700)). At noon: 100% at the surface, 47% at 500 µm,
   22% at 1,000 µm, 10% at 1,500 µm, 7.8% at 1,700 µm; the bottom 300 µm are murkier and darker, 2% at the floor.
+- **Cells shade each other**: plastids catch light, so the water straight below other cells' plastids is darker. Light
+  there × e^(−0.0017 × the plastid volume above it in µm³ ÷ the width it is spread over in µm): about 20 cells carrying
+  2,000 µm³ of plastid each, stacked in a column 100 µm wide, halve the light below them; a giant cell with a huge
+  plastid leaves almost none under it. A cell is never shaded by its own plastids; a cell alone gets the light above.
+  So a crowd near the top starves the cells below it, and an eyespot in a shadow reads it.
 - **Too much light hurts**: above 40% of full sun (shallower than ~600 µm at noon) a plastid takes damage and earns
   less, and repairing it costs energy. The surface is a worse place to be than ~500 µm down.
 - **Nitrogen is deep**: the water is poor down to ~1,100 µm (6% of the deep's richness at the surface, 13% at 1,000 µm)
@@ -317,7 +322,7 @@ Daily-average income of a plastid per µm³ of plastid, over a full day **and ni
 | Chl a (default) | 14 | 16 | 16.5 | 15 | 12 | 10 | 8 | 5.3 | 2 |
 | shade | 6 | 8 | 9 | 11 | 12 | 12 | 11 | 8.4 | 4.4 |
 
-(A plastid's income doesn't depend on which way the cell faces, only on the light at its depth. A cell that moves gets
+(In clear water, with no other cells above. A plastid's income doesn't depend on which way the cell faces, only on the light at its depth. A cell that moves gets
 the average of where it spends its daylight hours.)
 
 Costs to cover, per second, averaged:

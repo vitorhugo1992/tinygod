@@ -187,8 +187,8 @@ export function metabolize(world, cell) {
   let income = 0, repair = 0;
   for (const inc of body.inclusions) {
     if (inc.material !== 'plastid') continue;
-    const y = cell.cy[0] + cell.sn[0] * inc.x + cell.cs[0] * inc.y;
-    const L = lightAt(world, y), shade = inc.pigment === 'shade';
+    const y = cell.cy[0] + cell.sn[0] * inc.x + cell.cs[0] * inc.y, x = cell.cx[0] + cell.cs[0] * inc.x - cell.sn[0] * inc.y;
+    const L = lightAt(world, y, x, cell), shade = inc.pigment === 'shade';
     const st = inc.stolen;   // a stolen plastid fades, and isn't repaired
     if (st) st.fade *= FADE;
     // (a squeezed stolen plastid earns for its whole volume)

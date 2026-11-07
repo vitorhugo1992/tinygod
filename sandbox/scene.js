@@ -7,6 +7,7 @@ import { PARAMS } from '../sim/params.js';
 import { daylight, lightAt, clock } from '../sim/light.js';
 import { flowState, flowAt } from '../sim/flow.js';
 import { NX, NY } from '../sim/toxin.js';
+import { NX as SX, NY as SY } from '../sim/shade.js';
 
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 const rnd = (n) => { const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
@@ -213,6 +214,30 @@ export function drawToxins(ctx, world, v) {
     ctx.drawImage(h.c, v.X(0), v.Y(NY * D), NX * D * v.s, NY * D * v.s);
     ctx.restore();
   }
+}
+
+// Self-shading (sim/shade.js): the water darker below a crowd of plastids, as much as the light it loses (by day; at
+// night there is nothing to shade). The grid stretched smooth, like the toxin haze.
+let shadeCv = null;
+export function drawShade(ctx, world, v) {
+  const sh = world.shade;
+  if (!sh || !world.light) return;
+  const sun = daylight(world);
+  if (sun <= 0.02) return;
+  if (!shadeCv) { const c = document.createElement('canvas'); c.width = SX; c.height = SY; shadeCv = { c, g: c.getContext('2d') }; shadeCv.img = shadeCv.g.createImageData(SX, SY); }
+  const d = shadeCv.img.data;
+  let any = false;
+  for (let j = 0; j < SY; j++) for (let i = 0; i < SX; i++) {
+    const k = ((SY - 1 - j) * SX + i) * 4, lost = 1 - Math.exp(-sh.above[j * SX + i]);
+    d[k] = 0; d[k + 1] = 6; d[k + 2] = 14; d[k + 3] = Math.round(170 * Math.min(1, sun * 1.5) * lost);
+    if (lost > 0.01) any = true;
+  }
+  if (!any) return;
+  shadeCv.g.putImageData(shadeCv.img, 0, 0);
+  const D = PARAMS.shading.cell;
+  ctx.save(); ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(shadeCv.c, v.X(0), v.Y(SY * D), SX * D * v.s, SY * D * v.s);
+  ctx.restore();
 }
 
 // The microscope's soft vignette, over the cells

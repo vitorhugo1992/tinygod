@@ -13,7 +13,7 @@ import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus } from './journal.js';
-import { drawWater, drawDrift, drawVignette, drawToxins, speciesTint, twilight } from './scene.js';
+import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, speciesTint, twilight } from './scene.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
@@ -1832,7 +1832,10 @@ function stats() {
     const together = world.cells.filter((c) => c.group === cell.group).length;
     lines.push(`cells     ${world.cells.length}, pad links ${world.links.length}, this one's group ${together}`);
   }
-  lines.push(`light here ${lightAt(world, cell.q[1]).toFixed(2)} (1 = full sun at the surface)`);
+  {   // the light where it is, and how much of it the plastids above take (self-shading, sim/shade.js)
+    const clear = lightAt(world, cell.q[1]), here = lightAt(world, cell.q[1], cell.q[0], cell);
+    lines.push(`light here ${here.toFixed(2)} (1 = full sun at the surface)` + (clear > 1e-6 && here < clear * 0.97 ? `, ${Math.round(100 * (1 - here / clear))}% shaded by cells above it` : ''));
+  }
   budget(lines);
   const ev = (cell.journal ? cell.journal.ev : []).slice(-6);
   if (ev.length) { lines.push('what happened (latest last):'); for (const e of ev) lines.push(`  ${e.serious ? '⚠' : '·'} ${eventText(e)}`); }
@@ -1972,6 +1975,7 @@ function draw() {
       ctx.fillStyle = g; ctx.fillRect(X(j * cw), Y(TH), cw * s + 1, TH * s);
     }
   }
+  drawShade(ctx, world, v);   // self-shading: the water darker under a crowd of plastids
   drawToxins(ctx, world, v);   // toxin clouds: a haze in each toxic species' tint
   drawDrift(ctx, world, v, worldTime(world), now);   // marine snow and specks, carried by the water
   if (trailOn) {   // the path the selected cell has taken (hidden unless ⋰ Trail is on; author)

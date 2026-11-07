@@ -6,7 +6,7 @@ import { cellWeight } from '../sim/build.js';
 import { PRESETS } from '../sim/presets.js';
 import { MATERIALS } from '../sim/materials.js';
 import { fire } from '../sim/physics.js';
-import { clock, daylight } from '../sim/light.js';
+import { clock, daylight, lightAt } from '../sim/light.js';
 import { PART_TEMPLATES, mirrorGroup } from '../sandbox/parts.js';
 import { slotsOf, brainUse, brainProblem } from '../sim/brain.js';
 import { buildCell as build } from '../sim/build.js';
@@ -1592,6 +1592,23 @@ const runDay = (design, y, seconds, opts = {}) => {
   check('a nitroplast turns surplus energy into nitrogen: its rate by its volume, 300 pJ a unit, nothing below the stores line or with the bar full',
     Math.abs(fixed - want) < 0.03 * want && Math.abs(fixer.spent - fixed * PARAMS.fix.cost) < 0.03 * fixer.spent && Math.abs(poor.N - plain.N) < 0.01 * want && full === 0,
     `r 5 nitroplast in 10 s: +${fmt(fixed, 1)} N (expected ${fmt(want, 1)}), ${fmt(fixer.spent / 1000, 1)}k pJ spent; pool at 50%: +${fmt(poor.N - plain.N, 2)} N; bar full: ${full} N/s`);
+}
+
+// 28an. Self-shading (2026-11-07, sim/shade.js): plastids darken the water below them, in their column only; a cell alone
+// (or above the crowd, or beside it) gets the clear water's light, never shaded by its own plastids
+{
+  const probe = (n, x2) => {
+    const w = makeWorld(1, { gravity: false, metab: true, grow: true });
+    const c = addCell(w, phototroph(), 820, 800, 90);
+    for (let k = 0; k < n; k++) addCell(w, phototroph(), x2, 1200 + 35 * k, 90);
+    stepWorld(w);
+    return lightAt(w, c.q[1], c.q[0], c) / lightAt(w, c.q[1]);
+  };
+  const alone = probe(0, 820), under = probe(20, 820), beside = probe(20, 1300);
+  const want = Math.exp(-20 * PARAMS.shading.k * (4 / 3 * Math.PI * 27) / PARAMS.shading.cell);
+  check('self-shading: 20 plastids above a cell darken its water as their volume says; alone or beside the crowd, clear water',
+    Math.abs(alone - 1) < 1e-9 && Math.abs(under - want) < 0.01 && Math.abs(beside - 1) < 1e-9,
+    `alone ${fmt(alone, 3)}, under 20 cells ${fmt(under, 3)} (expected ${fmt(want, 3)}), 480 µm beside them ${fmt(beside, 3)}`);
 }
 
 // 29. Determinism with day, metabolism and stores

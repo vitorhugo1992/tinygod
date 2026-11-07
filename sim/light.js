@@ -2,6 +2,7 @@
 import { PARAMS } from './params.js';
 import { dsin, dexp, TAU } from './dmath.js';
 import { worldTime } from './world.js';
+import { shadeAt } from './shade.js';
 
 const L = PARAMS.light, M = PARAMS.metab, TH = PARAMS.tank.h;
 
@@ -25,8 +26,10 @@ export function depthLight(dz) {
   return dexp(-L.attenuation * dz - (murky > 0 ? L.murk * murky : 0));
 }
 
-// Light at height y (µm above the floor), 0-1
-export function lightAt(world, y) {
+// Light at height y (µm above the floor), 0-1; given x, less the shade of the plastids above it (sim/shade.js), and
+// `cell` (the one asking) isn't shaded by its own
+export function lightAt(world, y, x, cell) {
   if (!world.light) return 0;
-  return L.strength * daylight(world) * depthLight(TH - y);
+  const clear = L.strength * daylight(world) * depthLight(TH - y);
+  return x === undefined || !world.shade ? clear : clear * shadeAt(world, x, y, cell);
 }

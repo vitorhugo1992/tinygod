@@ -174,7 +174,7 @@ export function sense(world, cell) {
       const half = s.cone / 2;
       // underwater light is also scattered, and some comes through the shield: facing away it still sees a share
       const facing = off < half ? dcos(off / half * Math.PI / 2) : 0;
-      s.value = (S.scatter + (1 - S.scatter) * facing) * lightAt(world, y);
+      s.value = (S.scatter + (1 - S.scatter) * facing) * lightAt(world, y, x, cell);
     } else {
       const d = nearest(world, cell, x, y, s.range, s.feels === 'anything');
       s.value = s.kind === 'touch' ? (d <= s.range ? 1 : 0) : (d >= s.range ? 0 : d <= 0 ? 1 : 1 - d / s.range);

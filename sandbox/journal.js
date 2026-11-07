@@ -33,7 +33,7 @@ export function note(world, c) {
   if (j.s.length > KEEP) j.s.shift();
   // how squarely each eyespot has faced the light lately (its reading against the light there; ~1 min memory), for the
   // rule maps
-  const here = lightAt(world, c.q[1]);
+  const here = lightAt(world, c.q[1], c.q[0], c);
   if (here > 0.01) for (const s of c.sensors) if (s.kind === 'light') {
     const f = Math.min(1, s.value / here), face = j.face || (j.face = {});
     face[s.id] = face[s.id] === undefined ? f : face[s.id] * 0.98 + f * 0.02;
@@ -52,7 +52,7 @@ export function note(world, c) {
   if (up > 0.5) w.upright = true; else if (up < -0.5) w.upright = false;
   if (w.sun !== undefined && sun > 0 && w.sun === 0) {   // dawn: can it see?
     const eyes = c.sensors.filter((s) => s.kind === 'light');
-    const L = lightAt(world, c.q[1]);   // facing away, an eyespot sees only the scattered share
+    const L = lightAt(world, c.q[1], c.q[0], c);   // facing away, an eyespot sees only the scattered share
     if (eyes.length && L > 0.02 && eyes.every((s) => s.value <= PARAMS.sensor.scatter * L * 1.01 + 1e-9)) say('at dawn its eyespot faced away from the light', true);
     else say('dawn');
   }

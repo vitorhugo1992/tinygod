@@ -13,6 +13,7 @@ import { divideCells } from './divide.js';
 import { growCells } from './grow.js';
 import { removeDead } from './death.js';
 import { flowState } from './flow.js';
+import { stepShade } from './shade.js';
 
 // gravity: false switches weight and buoyancy off, to watch swimming alone; light: false turns the light off;
 // day: the sun rises and sets (off: always noon); metab: cells earn and spend energy, stores fill and empty;
@@ -45,6 +46,7 @@ export function stepWorld(world) {
   const t = worldTime(world);
   world.flowNow = flowState(world);
   for (const cell of world.cells) updatePose(cell);
+  if (world.grow && world.light) stepShade(world);   // self-shading: plastids darken the water below them (sim/shade.js)
   for (const cell of world.cells) sense(world, cell);   // after every pose is current: sensors look at others
   if (world.metab) { for (const cell of world.cells) metabolize(world, cell); shareChains(world); stepToxins(world); }   // after sensing: starving overrides wiring
   if (world.grow) { mixNitrogen(world); growCells(world); divideCells(world); }

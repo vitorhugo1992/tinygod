@@ -54,6 +54,15 @@ export const PARAMS = {
     murkBand: 300,
     murk: 0.003,
   },
+  // Self-shading (author, 2026-11-07; sim/shade.js): plastids catch light, so a crowd darkens the water below it. `k` is
+  // the optical depth of 1 µm³ of plastid per µm of the column's width: a bloom of ~20 mid-size cells (40,000 µm³ of
+  // plastid) in a column 100 µm wide halves the light below it (k = ln 2 / 400); a giant (460,000 µm³ over ~100-300 µm)
+  // leaves a few percent under it. Laid on a grid of `cell` µm squares every `every` steps (1 s). On with grow.
+  shading: {
+    k: 0.001733,
+    cell: 40,
+    every: 1000,
+  },
   // Metabolism (made playable, numbers round and tuned for play, CLAUDE.md). Energy in pJ; flows per sandbox second.
   // A sandbox day lasts `day` seconds; every energy flow runs `speedup` times faster than real, together, so each
   // part's share of the budget stays honest while motion stays in real seconds.
