@@ -6,6 +6,16 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**NITROPLAST PRICE 300 -> 600 pJ a unit (2026-11-07; author: "go" on Claude's lean)** (a division's N now costs twice the
+division's energy; rate unchanged; brief, tip, check 28am follow). **Same 11-species tank rerun, 5 days, seeds 1-3:**
+seed 1: Needle Drifter 13.0× (33 cells; was 23.9×), Deepdweller II 4.9×, Bobber 3.5×; seed 2: Needle Drifter 10.1× (22),
+Lanternrod 8.1× (12), all else gone; seed 3: Lanternrod 2.4× (2 cells; was 11.3×), Noctilla 1.7×, a sparse tank
+(Leviathella 9 kills). Fixers' scores roughly halved but they still top every run. **Why the old species vanish: not
+outgrown, they die early (days 0-2) on their own:** eaten by Leviathella, which sits on the floor where everyone starts
+(16 of its 17 kills over the three runs; 5 in the first day), or starved on the floor (Saltella, Plebella, Deepdweller
+II, Isolume). Needle Drifter no longer crashes at dawn (33 -> 33 over the last half day; was 67 -> 36). **Next, for the
+author:** keep 600 (Claude's lean) and look at the start (everyone from the floor beside a floor-living Leviathella).
+
 **SELF-SHADING BUILT (2026-11-07; author chose "plastids only", then "ur recommendation" for strength and giants):**
 sim/shade.js, PARAMS.shading { k 0.001733, cell 40 µm, every 1000 steps }: once a sim second every plastid is laid on
 a 40 µm grid (its volume spread over the columns its outline covers, in the square of its centre); light at (x, y) =
