@@ -1,334 +1,334 @@
 {
- "name": "Deepline Spindle",
- "from": "Opus (blind, no nitroplast)",
- "note": "blind non-fixer entry (2026-11-07)",
- "design": {
-  "body": {
-   "radius": 5,
-   "length": 30
-  },
-  "parts": [
-   {
-    "type": "inclusion",
-    "id": "nucleus",
-    "material": "nucleus",
-    "at": [
-     -15.3,
-     0
-    ],
-    "radius": 4.3
-   },
-   {
-    "type": "inclusion",
-    "id": "starch1",
-    "material": "starch",
-    "at": [
-     -4.9,
-     0
-    ],
-    "radius": 4,
-    "length": 4,
-    "angle": 0
-   },
-   {
-    "type": "inclusion",
-    "id": "plastid",
-    "material": "plastid",
-    "pigment": "shade",
-    "at": [
-     10.3,
-     0
-    ],
-    "radius": 4.4,
-    "length": 9.4,
-    "angle": 0
-   },
-   {
-    "type": "sensor",
-    "id": "eye",
-    "kind": "light",
-    "at": [
-     18.83,
-     3.21
-    ],
-    "angle": 0,
-    "cone": 180
-   },
-   {
-    "type": "sensor",
-    "id": "chem",
-    "kind": "chem",
-    "at": [
-     0,
-     5
-    ],
-    "angle": 90
-   },
-   {
-    "type": "segment",
-    "id": "t0",
-    "at": [
-     20,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0,
-     "controls": [
+  "name": "Deepline Spindle",
+  "from": "Claude",
+  "note": "Designed blind by Opus (Claude Opus, given only the brief; no nitroplast).",
+  "design": {
+    "body": {
+      "radius": 5,
+      "length": 30
+    },
+    "parts": [
       {
-       "sensor": "chem",
-       "min": 0.85,
-       "max": 1
+        "type": "inclusion",
+        "id": "nucleus",
+        "material": "nucleus",
+        "at": [
+          -15.3,
+          0
+        ],
+        "radius": 4.3
       },
       {
-       "sensor": "eye",
-       "min": 0,
-       "max": 0.03,
-       "or": true
+        "type": "inclusion",
+        "id": "starch1",
+        "material": "starch",
+        "at": [
+          -4.9,
+          0
+        ],
+        "radius": 4,
+        "length": 4,
+        "angle": 0
       },
       {
-       "sensor": "chem",
-       "min": 0.25,
-       "max": 1
+        "type": "inclusion",
+        "id": "plastid",
+        "material": "plastid",
+        "pigment": "shade",
+        "at": [
+          10.3,
+          0
+        ],
+        "radius": 4.4,
+        "length": 9.4,
+        "angle": 0
       },
       {
-       "sensor": "eye",
-       "min": 0.12,
-       "max": 1,
-       "stop": true
+        "type": "sensor",
+        "id": "eye",
+        "kind": "light",
+        "at": [
+          18.83,
+          3.21
+        ],
+        "angle": 0,
+        "cone": 180
+      },
+      {
+        "type": "sensor",
+        "id": "chem",
+        "kind": "chem",
+        "at": [
+          0,
+          5
+        ],
+        "angle": 90
+      },
+      {
+        "type": "segment",
+        "id": "t0",
+        "at": [
+          20,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0,
+          "controls": [
+            {
+              "sensor": "chem",
+              "min": 0.85,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.03,
+              "or": true
+            },
+            {
+              "sensor": "chem",
+              "min": 0.25,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0.12,
+              "max": 1,
+              "stop": true
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "t1",
+        "parent": "t0",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.15,
+          "controls": [
+            {
+              "sensor": "chem",
+              "min": 0.85,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.03,
+              "or": true
+            },
+            {
+              "sensor": "chem",
+              "min": 0.25,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0.12,
+              "max": 1,
+              "stop": true
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "t2",
+        "parent": "t1",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.3,
+          "controls": [
+            {
+              "sensor": "chem",
+              "min": 0.85,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.03,
+              "or": true
+            },
+            {
+              "sensor": "chem",
+              "min": 0.25,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0.12,
+              "max": 1,
+              "stop": true
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "t3",
+        "parent": "t2",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.45,
+          "controls": [
+            {
+              "sensor": "chem",
+              "min": 0.85,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.03,
+              "or": true
+            },
+            {
+              "sensor": "chem",
+              "min": 0.25,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0.12,
+              "max": 1,
+              "stop": true
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "t4",
+        "parent": "t3",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.6,
+          "controls": [
+            {
+              "sensor": "chem",
+              "min": 0.85,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.03,
+              "or": true
+            },
+            {
+              "sensor": "chem",
+              "min": 0.25,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0.12,
+              "max": 1,
+              "stop": true
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "t5",
+        "parent": "t4",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.75,
+          "controls": [
+            {
+              "sensor": "chem",
+              "min": 0.85,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.03,
+              "or": true
+            },
+            {
+              "sensor": "chem",
+              "min": 0.25,
+              "max": 1
+            },
+            {
+              "sensor": "eye",
+              "min": 0.12,
+              "max": 1,
+              "stop": true
+            }
+          ]
+        }
+      },
+      {
+        "type": "rule",
+        "id": "divide",
+        "joint": {
+          "type": "divide",
+          "controls": [
+            {
+              "sensor": "starch",
+              "min": 0.6,
+              "max": 1
+            }
+          ]
+        }
       }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t1",
-    "parent": "t0",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.15,
-     "controls": [
-      {
-       "sensor": "chem",
-       "min": 0.85,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0,
-       "max": 0.03,
-       "or": true
-      },
-      {
-       "sensor": "chem",
-       "min": 0.25,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0.12,
-       "max": 1,
-       "stop": true
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t2",
-    "parent": "t1",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.3,
-     "controls": [
-      {
-       "sensor": "chem",
-       "min": 0.85,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0,
-       "max": 0.03,
-       "or": true
-      },
-      {
-       "sensor": "chem",
-       "min": 0.25,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0.12,
-       "max": 1,
-       "stop": true
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t3",
-    "parent": "t2",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.45,
-     "controls": [
-      {
-       "sensor": "chem",
-       "min": 0.85,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0,
-       "max": 0.03,
-       "or": true
-      },
-      {
-       "sensor": "chem",
-       "min": 0.25,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0.12,
-       "max": 1,
-       "stop": true
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t4",
-    "parent": "t3",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.6,
-     "controls": [
-      {
-       "sensor": "chem",
-       "min": 0.85,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0,
-       "max": 0.03,
-       "or": true
-      },
-      {
-       "sensor": "chem",
-       "min": 0.25,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0.12,
-       "max": 1,
-       "stop": true
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t5",
-    "parent": "t4",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.75,
-     "controls": [
-      {
-       "sensor": "chem",
-       "min": 0.85,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0,
-       "max": 0.03,
-       "or": true
-      },
-      {
-       "sensor": "chem",
-       "min": 0.25,
-       "max": 1
-      },
-      {
-       "sensor": "eye",
-       "min": 0.12,
-       "max": 1,
-       "stop": true
-      }
-     ]
-    }
-   },
-   {
-    "type": "rule",
-    "id": "divide",
-    "joint": {
-     "type": "divide",
-     "controls": [
-      {
-       "sensor": "starch",
-       "min": 0.6,
-       "max": 1
-      }
-     ]
-    }
-   }
-  ]
- }
+    ]
+  }
 }

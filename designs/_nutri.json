@@ -1,205 +1,205 @@
 {
- "name": "Nutricline Drifter",
- "from": "Sonnet (blind, no nitroplast)",
- "note": "blind non-fixer entry (2026-11-07)",
- "design": {
-  "body": {
-   "radius": 10,
-   "length": 24
-  },
-  "parts": [
-   {
-    "type": "inclusion",
-    "id": "nucleus",
-    "material": "nucleus",
-    "at": [
-     -16.5,
-     0
-    ],
-    "radius": 4.3
-   },
-   {
-    "type": "inclusion",
-    "id": "plastid",
-    "material": "plastid",
-    "pigment": "shade",
-    "at": [
-     0,
-     0
-    ],
-    "radius": 6,
-    "length": 10,
-    "angle": 0
-   },
-   {
-    "type": "inclusion",
-    "id": "oil1",
-    "material": "oil",
-    "at": [
-     16.5,
-     0
-    ],
-    "radius": 5
-   },
-   {
-    "type": "sensor",
-    "id": "nsens",
-    "kind": "chem",
-    "at": [
-     0,
-     10
-    ],
-    "angle": 90
-   },
-   {
-    "type": "segment",
-    "id": "t0",
-    "at": [
-     22,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0,
-     "controls": [
+  "name": "Nutricline Drifter",
+  "from": "Claude",
+  "note": "Designed blind by Sonnet (Claude Sonnet, given only the brief; no nitroplast).",
+  "design": {
+    "body": {
+      "radius": 10,
+      "length": 24
+    },
+    "parts": [
       {
-       "sensor": "nsens",
-       "min": 0.55,
-       "max": 1
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t1",
-    "parent": "t0",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.15,
-     "controls": [
+        "type": "inclusion",
+        "id": "nucleus",
+        "material": "nucleus",
+        "at": [
+          -16.5,
+          0
+        ],
+        "radius": 4.3
+      },
       {
-       "sensor": "nsens",
-       "min": 0.55,
-       "max": 1
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t2",
-    "parent": "t1",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.3,
-     "controls": [
+        "type": "inclusion",
+        "id": "plastid",
+        "material": "plastid",
+        "pigment": "shade",
+        "at": [
+          0,
+          0
+        ],
+        "radius": 6,
+        "length": 10,
+        "angle": 0
+      },
       {
-       "sensor": "nsens",
-       "min": 0.55,
-       "max": 1
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t3",
-    "parent": "t2",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.45,
-     "controls": [
+        "type": "inclusion",
+        "id": "oil1",
+        "material": "oil",
+        "at": [
+          16.5,
+          0
+        ],
+        "radius": 5
+      },
       {
-       "sensor": "nsens",
-       "min": 0.55,
-       "max": 1
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t4",
-    "parent": "t3",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.6,
-     "controls": [
+        "type": "sensor",
+        "id": "nsens",
+        "kind": "chem",
+        "at": [
+          0,
+          10
+        ],
+        "angle": 90
+      },
       {
-       "sensor": "nsens",
-       "min": 0.55,
-       "max": 1
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "t5",
-    "parent": "t4",
-    "at": [
-     4,
-     0
-    ],
-    "angle": 0,
-    "length": 8,
-    "radius": 0.25,
-    "joint": {
-     "type": "motor",
-     "rate": 30,
-     "swing": 35,
-     "phase": 0.75,
-     "controls": [
+        "type": "segment",
+        "id": "t0",
+        "at": [
+          22,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0,
+          "controls": [
+            {
+              "sensor": "nsens",
+              "min": 0.55,
+              "max": 1
+            }
+          ]
+        }
+      },
       {
-       "sensor": "nsens",
-       "min": 0.55,
-       "max": 1
+        "type": "segment",
+        "id": "t1",
+        "parent": "t0",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.15,
+          "controls": [
+            {
+              "sensor": "nsens",
+              "min": 0.55,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "t2",
+        "parent": "t1",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.3,
+          "controls": [
+            {
+              "sensor": "nsens",
+              "min": 0.55,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "t3",
+        "parent": "t2",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.45,
+          "controls": [
+            {
+              "sensor": "nsens",
+              "min": 0.55,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "t4",
+        "parent": "t3",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.6,
+          "controls": [
+            {
+              "sensor": "nsens",
+              "min": 0.55,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "t5",
+        "parent": "t4",
+        "at": [
+          4,
+          0
+        ],
+        "angle": 0,
+        "length": 8,
+        "radius": 0.25,
+        "joint": {
+          "type": "motor",
+          "rate": 30,
+          "swing": 35,
+          "phase": 0.75,
+          "controls": [
+            {
+              "sensor": "nsens",
+              "min": 0.55,
+              "max": 1
+            }
+          ]
+        }
       }
-     ]
-    }
-   }
-  ]
- }
+    ]
+  }
 }

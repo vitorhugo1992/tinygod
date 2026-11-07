@@ -1,257 +1,258 @@
 {
- "name": "Needle Drifter",
- "from": "Opus (blind)",
- "design": {
-  "body": {
-   "radius": 6,
-   "length": 184
-  },
-  "parts": [
-   {
-    "type": "inclusion",
-    "id": "nucleus",
-    "material": "nucleus",
-    "at": [
-     -93.35,
-     0
-    ],
-    "radius": 4.3,
-    "joint": {
-     "type": "rest",
-     "controls": [
+  "name": "Needle Drifter",
+  "from": "Claude",
+  "design": {
+    "body": {
+      "radius": 6,
+      "length": 184
+    },
+    "parts": [
       {
-       "sensor": "eye",
-       "min": 0,
-       "max": 0.04
-      }
-     ]
-    }
-   },
-   {
-    "type": "inclusion",
-    "id": "plastid",
-    "material": "plastid",
-    "at": [
-     -62.3,
-     0
-    ],
-    "radius": 5.65,
-    "length": 42
-   },
-   {
-    "type": "inclusion",
-    "id": "nfix",
-    "material": "nitroplast",
-    "at": [
-     -7.95,
-     0
-    ],
-    "radius": 5.65,
-    "length": 44
-   },
-   {
-    "type": "inclusion",
-    "id": "control",
-    "material": "chamber",
-    "at": [
-     31.4,
-     0
-    ],
-    "radius": 5.65,
-    "length": 12,
-    "joint": {
-     "type": "chamber",
-     "controls": [
-      {
-       "sensor": "eye",
-       "min": 0.03,
-       "max": 0.25
+        "type": "inclusion",
+        "id": "nucleus",
+        "material": "nucleus",
+        "at": [
+          -93.35,
+          0
+        ],
+        "radius": 4.3,
+        "joint": {
+          "type": "rest",
+          "controls": [
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 0.04
+            }
+          ]
+        }
       },
       {
-       "sensor": "nsense",
-       "min": 0.3,
-       "max": 1,
-       "or": true
+        "type": "inclusion",
+        "id": "plastid",
+        "material": "plastid",
+        "at": [
+          -62.3,
+          0
+        ],
+        "radius": 5.65,
+        "length": 42
       },
       {
-       "sensor": "eye",
-       "min": 0.42,
-       "max": 1,
-       "stop": true
-      }
-     ]
-    }
-   },
-   {
-    "type": "inclusion",
-    "id": "ballast",
-    "material": "chamber",
-    "at": [
-     65,
-     0
-    ],
-    "radius": 5.65,
-    "length": 32.5,
-    "joint": {
-     "type": "chamber",
-     "controls": [
+        "type": "inclusion",
+        "id": "nfix",
+        "material": "nitroplast",
+        "at": [
+          -7.95,
+          0
+        ],
+        "radius": 5.65,
+        "length": 44
+      },
       {
-       "sensor": "eye",
-       "min": 0,
-       "max": 1
+        "type": "inclusion",
+        "id": "control",
+        "material": "chamber",
+        "at": [
+          31.4,
+          0
+        ],
+        "radius": 5.65,
+        "length": 12,
+        "joint": {
+          "type": "chamber",
+          "controls": [
+            {
+              "sensor": "eye",
+              "min": 0.03,
+              "max": 0.25
+            },
+            {
+              "sensor": "nsense",
+              "min": 0.3,
+              "max": 1,
+              "or": true
+            },
+            {
+              "sensor": "eye",
+              "min": 0.42,
+              "max": 1,
+              "stop": true
+            }
+          ]
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "ballast",
+        "material": "chamber",
+        "at": [
+          65,
+          0
+        ],
+        "radius": 5.65,
+        "length": 32.5,
+        "joint": {
+          "type": "chamber",
+          "controls": [
+            {
+              "sensor": "eye",
+              "min": 0,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "inclusion",
+        "id": "oilstore",
+        "material": "oil",
+        "at": [
+          92.25,
+          0
+        ],
+        "radius": 5.3
+      },
+      {
+        "type": "sensor",
+        "id": "eye",
+        "kind": "light",
+        "at": [
+          98,
+          0
+        ],
+        "angle": 0,
+        "cone": 180
+      },
+      {
+        "type": "sensor",
+        "id": "nsense",
+        "kind": "chem",
+        "at": [
+          -96.24,
+          -4.24
+        ]
+      },
+      {
+        "type": "segment",
+        "id": "s0",
+        "at": [
+          -98,
+          0
+        ],
+        "angle": 180,
+        "length": 5,
+        "radius": 0.3,
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": 40,
+          "phase": 0,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "s"
+          },
+          "controls": [
+            {
+              "sensor": "drained",
+              "min": 0.5,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "s1",
+        "parent": "s0",
+        "at": [
+          2.5,
+          0
+        ],
+        "angle": 0,
+        "length": 5,
+        "radius": 0.3,
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": 40,
+          "phase": -0.2,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "s"
+          },
+          "controls": [
+            {
+              "sensor": "drained",
+              "min": 0.5,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "s2",
+        "parent": "s1",
+        "at": [
+          2.5,
+          0
+        ],
+        "angle": 0,
+        "length": 5,
+        "radius": 0.3,
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": 40,
+          "phase": -0.4,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "s"
+          },
+          "controls": [
+            {
+              "sensor": "drained",
+              "min": 0.5,
+              "max": 1
+            }
+          ]
+        }
+      },
+      {
+        "type": "segment",
+        "id": "s3",
+        "parent": "s2",
+        "at": [
+          2.5,
+          0
+        ],
+        "angle": 0,
+        "length": 5,
+        "radius": 0.3,
+        "joint": {
+          "type": "motor",
+          "rate": 500,
+          "swing": 40,
+          "phase": -0.6,
+          "burst": {
+            "duration": 0.8,
+            "recharge": 3,
+            "group": "s"
+          },
+          "controls": [
+            {
+              "sensor": "drained",
+              "min": 0.5,
+              "max": 1
+            }
+          ]
+        }
       }
-     ]
-    }
-   },
-   {
-    "type": "inclusion",
-    "id": "oilstore",
-    "material": "oil",
-    "at": [
-     92.25,
-     0
-    ],
-    "radius": 5.3
-   },
-   {
-    "type": "sensor",
-    "id": "eye",
-    "kind": "light",
-    "at": [
-     98,
-     0
-    ],
-    "angle": 0,
-    "cone": 180
-   },
-   {
-    "type": "sensor",
-    "id": "nsense",
-    "kind": "chem",
-    "at": [
-     -96.24,
-     -4.24
     ]
-   },
-   {
-    "type": "segment",
-    "id": "s0",
-    "at": [
-     -98,
-     0
-    ],
-    "angle": 180,
-    "length": 5,
-    "radius": 0.3,
-    "joint": {
-     "type": "motor",
-     "rate": 500,
-     "swing": 40,
-     "phase": 0,
-     "burst": {
-      "duration": 0.8,
-      "recharge": 3,
-      "group": "s"
-     },
-     "controls": [
-      {
-       "sensor": "drained",
-       "min": 0.5,
-       "max": 1
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "s1",
-    "parent": "s0",
-    "at": [
-     2.5,
-     0
-    ],
-    "angle": 0,
-    "length": 5,
-    "radius": 0.3,
-    "joint": {
-     "type": "motor",
-     "rate": 500,
-     "swing": 40,
-     "phase": -0.2,
-     "burst": {
-      "duration": 0.8,
-      "recharge": 3,
-      "group": "s"
-     },
-     "controls": [
-      {
-       "sensor": "drained",
-       "min": 0.5,
-       "max": 1
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "s2",
-    "parent": "s1",
-    "at": [
-     2.5,
-     0
-    ],
-    "angle": 0,
-    "length": 5,
-    "radius": 0.3,
-    "joint": {
-     "type": "motor",
-     "rate": 500,
-     "swing": 40,
-     "phase": -0.4,
-     "burst": {
-      "duration": 0.8,
-      "recharge": 3,
-      "group": "s"
-     },
-     "controls": [
-      {
-       "sensor": "drained",
-       "min": 0.5,
-       "max": 1
-      }
-     ]
-    }
-   },
-   {
-    "type": "segment",
-    "id": "s3",
-    "parent": "s2",
-    "at": [
-     2.5,
-     0
-    ],
-    "angle": 0,
-    "length": 5,
-    "radius": 0.3,
-    "joint": {
-     "type": "motor",
-     "rate": 500,
-     "swing": 40,
-     "phase": -0.6,
-     "burst": {
-      "duration": 0.8,
-      "recharge": 3,
-      "group": "s"
-     },
-     "controls": [
-      {
-       "sensor": "drained",
-       "min": 0.5,
-       "max": 1
-      }
-     ]
-    }
-   }
-  ]
- }
+  },
+  "note": "Designed blind by Opus (Claude Opus, given only the brief; a nitrogen fixer)."
 }

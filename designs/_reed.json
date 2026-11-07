@@ -1,127 +1,127 @@
 {
- "name": "Abyssal Reed",
- "from": "Opus (blind, no nitroplast)",
- "note": "blind non-fixer entry (2026-11-07)",
- "design": {
-  "body": {
-   "radius": 5,
-   "length": 100
-  },
-  "parts": [
-   {
-    "type": "inclusion",
-    "id": "oil",
-    "material": "oil",
-    "at": [
-     -46.25,
-     0
-    ],
-    "radius": 4.4,
-    "length": 8,
-    "angle": 0
-   },
-   {
-    "type": "inclusion",
-    "id": "nucleus",
-    "material": "nucleus",
-    "at": [
-     -33.45,
-     0
-    ],
-    "radius": 4.3
-   },
-   {
-    "type": "inclusion",
-    "id": "float",
-    "material": "chamber",
-    "at": [
-     -11.15,
-     0
-    ],
-    "radius": 4.4,
-    "length": 27,
-    "angle": 0,
-    "joint": {
-     "type": "chamber",
-     "controls": [
+  "name": "Abyssal Reed",
+  "from": "Claude",
+  "note": "Designed blind by Opus (Claude Opus, given only the brief; no nitroplast).",
+  "design": {
+    "body": {
+      "radius": 5,
+      "length": 100
+    },
+    "parts": [
       {
-       "sensor": "chem",
-       "min": 0.5,
-       "max": 1
+        "type": "inclusion",
+        "id": "oil",
+        "material": "oil",
+        "at": [
+          -46.25,
+          0
+        ],
+        "radius": 4.4,
+        "length": 8,
+        "angle": 0
       },
       {
-       "sensor": "nearA",
-       "min": 0.6,
-       "max": 1,
-       "also": [
-        {
-         "sensor": "nearB",
-         "min": 0.6,
-         "max": 1
+        "type": "inclusion",
+        "id": "nucleus",
+        "material": "nucleus",
+        "at": [
+          -33.45,
+          0
+        ],
+        "radius": 4.3
+      },
+      {
+        "type": "inclusion",
+        "id": "float",
+        "material": "chamber",
+        "at": [
+          -11.15,
+          0
+        ],
+        "radius": 4.4,
+        "length": 27,
+        "angle": 0,
+        "joint": {
+          "type": "chamber",
+          "controls": [
+            {
+              "sensor": "chem",
+              "min": 0.5,
+              "max": 1
+            },
+            {
+              "sensor": "nearA",
+              "min": 0.6,
+              "max": 1,
+              "also": [
+                {
+                  "sensor": "nearB",
+                  "min": 0.6,
+                  "max": 1
+                }
+              ],
+              "all": false,
+              "or": true
+            },
+            {
+              "sensor": "oil",
+              "min": 0,
+              "max": 0.08,
+              "or": true
+            },
+            {
+              "sensor": "energy",
+              "min": 0,
+              "max": 0.25
+            }
+          ]
         }
-       ],
-       "all": false,
-       "or": true
       },
       {
-       "sensor": "oil",
-       "min": 0,
-       "max": 0.08,
-       "or": true
+        "type": "inclusion",
+        "id": "plastid",
+        "material": "plastid",
+        "at": [
+          30.75,
+          0
+        ],
+        "radius": 4.4,
+        "length": 39,
+        "angle": 0
       },
       {
-       "sensor": "energy",
-       "min": 0,
-       "max": 0.25
+        "type": "sensor",
+        "id": "chem",
+        "kind": "chem",
+        "at": [
+          0,
+          5
+        ]
+      },
+      {
+        "type": "sensor",
+        "id": "nearA",
+        "kind": "near",
+        "at": [
+          55,
+          0
+        ],
+        "angle": 0,
+        "range": 50,
+        "feels": "anything"
+      },
+      {
+        "type": "sensor",
+        "id": "nearB",
+        "kind": "near",
+        "at": [
+          -55,
+          0
+        ],
+        "angle": 180,
+        "range": 50,
+        "feels": "anything"
       }
-     ]
-    }
-   },
-   {
-    "type": "inclusion",
-    "id": "plastid",
-    "material": "plastid",
-    "at": [
-     30.75,
-     0
-    ],
-    "radius": 4.4,
-    "length": 39,
-    "angle": 0
-   },
-   {
-    "type": "sensor",
-    "id": "chem",
-    "kind": "chem",
-    "at": [
-     0,
-     5
     ]
-   },
-   {
-    "type": "sensor",
-    "id": "nearA",
-    "kind": "near",
-    "at": [
-     55,
-     0
-    ],
-    "angle": 0,
-    "range": 50,
-    "feels": "anything"
-   },
-   {
-    "type": "sensor",
-    "id": "nearB",
-    "kind": "near",
-    "at": [
-     -55,
-     0
-    ],
-    "angle": 180,
-    "range": 50,
-    "feels": "anything"
-   }
-  ]
- }
+  }
 }
