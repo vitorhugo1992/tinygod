@@ -6,6 +6,8 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**NON-FIXERS vs FIXERS (2026-11-07; author: "why fixers always win is what I'm worried about"):** a test before any rule change: three blind non-fixer designs (claude -p, brief only: Opus Abyssal Reed, Sonnet Nutricline Drifter, Opus Deepline Spindle; all aimed deep, 1,400-1,650 µm) and Claude's Bloomeater (designs/_gulper.json: a r 12 L 90 rod, four mouths, eats Needle Drifters; surface at night, ~1,500 µm by day) against Needle Drifter, Lanternrod, Leviathella, Pachyderma; random starts, 5 days, seeds 1-3 (contest.mjs leviathella,pachyderma,_needle,_lantern,_reed,_nutri,_deep,_gulper 5). **Seed 1: Deepline Spindle 13.9× (23 cells) beat Needle Drifter 13.0× (30)**; seed 2: Needle 16.4×, Bloomeater 2.7× (6 cells, 8 kills, all but 2 Needle Drifters), Spindle eaten out by Leviathella; seed 3: Needle 9.0×, Spindle 8.4× (16), Abyssal Reed 2.3×, Bloomeater 2.1×. **Lanternrod died out in all three (eaten by Leviathella, 4-5 a run). Nutricline Drifter starved on the floor every run.** So a non-fixer can match a fixer (a slim, small deep swimmer: Spindle's growth per biomass is high) and a hunter can farm a fixer bloom; Needle Drifter still tops 2 of 3. The _reed, _nutri, _deep, _gulper designs are untracked like the other _ entries.
+
 **NITROPLAST PRICE 300 -> 600 pJ a unit (2026-11-07; author: "go" on Claude's lean)** (a division's N now costs twice the
 division's energy; rate unchanged; brief, tip, check 28am follow). **Same 11-species tank rerun, 5 days, seeds 1-3:**
 seed 1: Needle Drifter 13.0× (33 cells; was 23.9×), Deepdweller II 4.9×, Bobber 3.5×; seed 2: Needle Drifter 10.1× (22),
