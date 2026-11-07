@@ -1,0 +1,23 @@
+{
+ "name": "Bloomeater",
+ "from": "Claude",
+ "note": "A swallower without a nitroplast, built to eat Needle Drifter-sized rods: 24 µm wide (a mouth takes a 12 µm rod), plastid and float as wide as the body, free room for one meal.",
+ "design": {
+  "body": { "radius": 12, "length": 90 },
+  "parts": [
+   { "type": "inclusion", "id": "nucleus", "material": "nucleus", "at": [-52, 0], "radius": 4.3, "joint": { "type": "rest", "controls": [{ "sensor": "eye", "min": 0, "max": 0.02 }] } },
+   { "type": "inclusion", "id": "plastid", "material": "plastid", "at": [-24.35, 0], "radius": 8.5, "length": 28.3 },
+   { "type": "inclusion", "id": "float", "material": "chamber", "at": [24.15, 0], "radius": 8.5, "length": 32.7, "joint": { "type": "chamber", "controls": [{ "sensor": "eye", "min": 0, "max": 0.3 }, { "sensor": "nsense", "min": 0.3, "max": 1, "or": true }, { "sensor": "eye", "min": 0.42, "max": 1, "stop": true }] } },
+   { "type": "inclusion", "id": "stA", "material": "starch", "at": [-24.35, 10.15], "radius": 1.45, "length": 28 },
+   { "type": "inclusion", "id": "stB", "material": "starch", "at": [-24.35, -10.15], "radius": 1.45, "length": 28 },
+   { "type": "inclusion", "id": "oilA", "material": "oil", "at": [24.15, 10.15], "radius": 1.45, "length": 32 },
+   { "type": "inclusion", "id": "oilB", "material": "oil", "at": [24.15, -10.15], "radius": 1.45, "length": 32 },
+   { "type": "sensor", "id": "eye", "kind": "light", "at": [57, 0], "angle": 0, "cone": 180 },
+   { "type": "sensor", "id": "nsense", "kind": "chem", "at": [-53.49, -8.49] },
+   { "type": "mouth", "id": "mF", "at": [57, 0], "joint": { "type": "engulf" } },
+   { "type": "mouth", "id": "mB", "at": [-57, 0], "joint": { "type": "engulf" } },
+   { "type": "mouth", "id": "mT", "at": [0, 12], "joint": { "type": "engulf" } },
+   { "type": "mouth", "id": "mD", "at": [0, -12], "joint": { "type": "engulf" } }
+  ]
+ }
+}

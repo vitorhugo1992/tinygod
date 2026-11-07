@@ -1,0 +1,342 @@
+{
+ "name": "Nutricline Bobber",
+ "from": "blind claude -p (Opus), 2026-11-05",
+ "note": "A buoyant, bottom-heavy vertical rod that lives at the nutricline (nitrogen ~0.6, ~1,450 µm) around the clock, because nitrogen, not light, limits growth: a third of its body is plastid, so even 10-13% light pays upkeep plus about 3 doublings a day, while nitrogen there allows about 2. A permanently light chamber makes it float. A bottom tail only pulls it down, so any failure or starvation lets it drift up toward light and it can't get stuck on the floor. It swims down by day only while light is at least 8%. At night it swims down only while its oil store is at least 60% full, which acts as a timer that frees it from the floor in nitrogen-poor water. Side spines block mouths and catch harpoons.",
+ "design": {
+  "body": {
+   "radius": 5,
+   "length": 60
+  },
+  "parts": [
+   {
+    "type": "inclusion",
+    "id": "nucleus",
+    "material": "nucleus",
+    "at": [
+     -30.3,
+     0
+    ],
+    "radius": 4.3
+   },
+   {
+    "type": "inclusion",
+    "id": "plastid",
+    "material": "plastid",
+    "at": [
+     -11.7,
+     0
+    ],
+    "radius": 4.7,
+    "length": 19,
+    "angle": 0
+   },
+   {
+    "type": "inclusion",
+    "id": "oil",
+    "material": "oil",
+    "at": [
+     8.7275,
+     0
+    ],
+    "radius": 4.7,
+    "length": 2.955,
+    "angle": 0,
+    "fill": 0.5
+   },
+   {
+    "type": "inclusion",
+    "id": "float",
+    "material": "chamber",
+    "at": [
+     24.8,
+     0
+    ],
+    "radius": 4.7,
+    "length": 10.2,
+    "angle": 0,
+    "joint": {
+     "type": "chamber",
+     "controls": [
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "sensor",
+    "id": "eye",
+    "kind": "light",
+    "at": [
+     35,
+     0
+    ],
+    "angle": 0,
+    "cone": 160
+   },
+   {
+    "type": "sensor",
+    "id": "chem",
+    "kind": "chem",
+    "at": [
+     -20,
+     5
+    ],
+    "angle": 90
+   },
+   {
+    "type": "segment",
+    "id": "sp1",
+    "at": [
+     0,
+     5
+    ],
+    "angle": 90,
+    "length": 10,
+    "radius": 0.5
+   },
+   {
+    "type": "segment",
+    "id": "sp2",
+    "at": [
+     0,
+     -5
+    ],
+    "angle": 270,
+    "length": 10,
+    "radius": 0.5
+   },
+   {
+    "type": "segment",
+    "id": "t0",
+    "at": [
+     -35,
+     0
+    ],
+    "angle": 180,
+    "length": 8,
+    "radius": 0.25,
+    "joint": {
+     "type": "motor",
+     "rate": 30,
+     "swing": 35,
+     "phase": 0,
+     "controls": [
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6
+      },
+      {
+       "sensor": "eye",
+       "min": 0.08,
+       "max": 1
+      },
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6,
+       "or": true
+      },
+      {
+       "sensor": "eye",
+       "min": 0,
+       "max": 0.03
+      },
+      {
+       "sensor": "oil",
+       "min": 0.6,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "segment",
+    "id": "t1",
+    "parent": "t0",
+    "at": [
+     4,
+     0
+    ],
+    "angle": 0,
+    "length": 8,
+    "radius": 0.25,
+    "joint": {
+     "type": "motor",
+     "rate": 30,
+     "swing": 35,
+     "phase": 0.15,
+     "controls": [
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6
+      },
+      {
+       "sensor": "eye",
+       "min": 0.08,
+       "max": 1
+      },
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6,
+       "or": true
+      },
+      {
+       "sensor": "eye",
+       "min": 0,
+       "max": 0.03
+      },
+      {
+       "sensor": "oil",
+       "min": 0.6,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "segment",
+    "id": "t2",
+    "parent": "t1",
+    "at": [
+     4,
+     0
+    ],
+    "angle": 0,
+    "length": 8,
+    "radius": 0.25,
+    "joint": {
+     "type": "motor",
+     "rate": 30,
+     "swing": 35,
+     "phase": 0.3,
+     "controls": [
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6
+      },
+      {
+       "sensor": "eye",
+       "min": 0.08,
+       "max": 1
+      },
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6,
+       "or": true
+      },
+      {
+       "sensor": "eye",
+       "min": 0,
+       "max": 0.03
+      },
+      {
+       "sensor": "oil",
+       "min": 0.6,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "segment",
+    "id": "t3",
+    "parent": "t2",
+    "at": [
+     4,
+     0
+    ],
+    "angle": 0,
+    "length": 8,
+    "radius": 0.25,
+    "joint": {
+     "type": "motor",
+     "rate": 30,
+     "swing": 35,
+     "phase": 0.45,
+     "controls": [
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6
+      },
+      {
+       "sensor": "eye",
+       "min": 0.08,
+       "max": 1
+      },
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6,
+       "or": true
+      },
+      {
+       "sensor": "eye",
+       "min": 0,
+       "max": 0.03
+      },
+      {
+       "sensor": "oil",
+       "min": 0.6,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "segment",
+    "id": "t4",
+    "parent": "t3",
+    "at": [
+     4,
+     0
+    ],
+    "angle": 0,
+    "length": 8,
+    "radius": 0.25,
+    "joint": {
+     "type": "motor",
+     "rate": 30,
+     "swing": 35,
+     "phase": 0.6,
+     "controls": [
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6
+      },
+      {
+       "sensor": "eye",
+       "min": 0.08,
+       "max": 1
+      },
+      {
+       "sensor": "chem",
+       "min": 0,
+       "max": 0.6,
+       "or": true
+      },
+      {
+       "sensor": "eye",
+       "min": 0,
+       "max": 0.03
+      },
+      {
+       "sensor": "oil",
+       "min": 0.6,
+       "max": 1
+      }
+     ]
+    }
+   }
+  ]
+ }
+}
