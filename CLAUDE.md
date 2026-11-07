@@ -6,6 +6,28 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**SELF-SHADING BUILT (2026-11-07; author chose "plastids only", then "ur recommendation" for strength and giants):**
+sim/shade.js, PARAMS.shading { k 0.001733, cell 40 µm, every 1000 steps }: once a sim second every plastid is laid on
+a 40 µm grid (its volume spread over the columns its outline covers, in the square of its centre); light at (x, y) =
+clear light × e^(−optical depth above it in its column, half its own square), columns blended between their middles;
+a cell's own plastids are taken back out (cell.shadeLay), so a cell alone gets exactly today's light. **20 mid-size
+cells (~40,000 µm³ of plastid) in a 100 µm column halve the light**; a giant (Leviathella / Pachyderma: one 460,000
+µm³ blob ~150 µm wide) leaves ~0.02% under it (the full shadow, no package effect: the lever if giants become
+light-hogs). On with grow (world.shade); lightAt(world, y, x, cell) shades only when given x (metab plastid income,
+eyespots, the journal; the budget line and rule maps stay clear water). Page: drawShade (scene.js, darker water under
+plastids by day), the numbers' "light here … N% shaded by cells above it". Brief: a paragraph under the light. Check
+28an (70 checks). Seen in the page (a dark column under a giant, a fainter one under 24 Deepdweller IIs).
+**Then started: the 11-species tank, 5 days, 3 seeds** (contest.mjs leviathella,pachyderma,plebella,deepdweller2,
+laqueella,_bobber,noctilla,saltella,_lantern,_needle,_isolume 5 --seed=N; the _ designs are the untracked blind fixer
+entries copied from tournament/*-blind-*.json; ~2 h per seed). **Results (seed 2 stopped at day 4, author: "good
+enough"):** seed 1: Needle Drifter 23.9× (67 cells at day 4.5, 36 at day 5), Lanternrod died out, Deepdweller II 4.0×,
+the rest ≤ 1.9×; seed 3: Lanternrod 11.3× (18 cells), Laqueella 2.3×, Needle Drifter died out; seed 2 at day 4:
+Lanternrod 22, Bobber 3, Needle 3. **Fixers too strong**: one fixer takes each tank, old species mostly gone (Plebella,
+Saltella, Deepdweller II out of most); Leviathella eats them (10-12 kills) but can't keep up. **Shading is a weak brake
+when a bloom spreads across the tank** (67 Needle Drifters over 1,600 µm: ~30% loss at the bottom); it bites only in a
+crowded column. Needle Drifter's crashes are its dusk division. **NEXT, the author to choose:** raise the nitroplast's
+price (PARAMS.fix.cost 300 -> ~600 pJ a unit, Claude's lean) or slow its rate (0.03 N/s per µm³); then rerun this tank.
+
 **NEXT CHAT STARTS HERE (handoff, 2026-11-05).** (1) **Tether snaps traced:** not the reel (a reel-stall was built,
 then undone: the reel at 0 µm held only ~3 pN); a Leviathella rising off the floor pulled the line past 40 pN while Laqueella
 stayed down (its own drag is only ~2 pN: something else, maybe its second tether, held it; not checked). (2) **Real threats to
