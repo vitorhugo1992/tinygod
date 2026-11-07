@@ -1589,7 +1589,7 @@ const runDay = (design, y, seconds, opts = {}) => {
   const plain = run(false, 1), fixer = run(true, 1), poor = run(true, 0.5);
   const full = (() => { const w = makeWorld(1, { light: false, metab: true, grow: true }), c = addCell(w, design(true), 500, 1000, 0); c.grow.N = c.grow.Nneed; c.metab.E = c.metab.C; stepWorld(w); return c.metab.fixing; })();
   const fixed = fixer.N - plain.N;
-  check('a nitroplast turns surplus energy into nitrogen: its rate by its volume, 300 pJ a unit, nothing below the stores line or with the bar full',
+  check('a nitroplast turns surplus energy into nitrogen: its rate by its volume, its price a unit, nothing below the stores line or with the bar full',
     Math.abs(fixed - want) < 0.03 * want && Math.abs(fixer.spent - fixed * PARAMS.fix.cost) < 0.03 * fixer.spent && Math.abs(poor.N - plain.N) < 0.01 * want && full === 0,
     `r 5 nitroplast in 10 s: +${fmt(fixed, 1)} N (expected ${fmt(want, 1)}), ${fmt(fixer.spent / 1000, 1)}k pJ spent; pool at 50%: +${fmt(poor.N - plain.N, 2)} N; bar full: ${full} N/s`);
 }
