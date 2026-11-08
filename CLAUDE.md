@@ -6,6 +6,8 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**IDEA FOR LATER (author, 2026-11-08): symbiosis**, species in relationships with each other (not planned yet). Pieces already there: pads that hold strangers (mucus), sharing between joined kin (shareChains: energy and growth N), stolen plastids, the nitroplast (itself an endosymbiont). Possible routes to discuss: a pad that shares with a stranger it holds (a fixer feeding N to a partner that gives energy, like diatom-diazotroph associations, e.g. Richelia in Hemiaulus); hosting a partner inside (an endosymbiont that divides with the host); cleaning or riding (a swimmer carrying a drifter). Needs two players' designs to agree, so it fits matches between species.
+
 **MISSIONS BUILT, chapters 1-2 (2026-11-08; author: "yes" to the plan).** sandbox/missions.js (pure; the page and
 tools/missions-check.mjs share it): MISSIONS (id, chapter, title, teaches: Build-panel template names, story, task, design: the
 broken cell, start { hour, depth, angle }, three stars: { text, all: [conditions], hint }), startWorld (still water, its hour),
