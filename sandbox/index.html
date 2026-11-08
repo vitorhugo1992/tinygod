@@ -78,6 +78,8 @@
   #missionBar .mhint { color: #ffe3a3; }
   #missionBar .mbtns { display: flex; flex-wrap: wrap; gap: 5px; } #missionBar .mbtns button { padding: 4px 9px; }
   #missionBar.fold > :not(.mhead) { display: none; }
+  #patchBtn { display: none; }   /* a phone or a narrow screen: the rules are in the Parts tab already */
+  #partList .bslots { margin-bottom: 6px; }
   body.arranging #missionBar { display: none !important; }   /* arranging: the bar steps aside for the arrange buttons */
   #stats { position: absolute; top: 52px; left: 8px; font: 11.5px/1.45 ui-monospace, Consolas, monospace; white-space: pre;
     background: rgba(8,14,26,.78); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; pointer-events: none; }
@@ -342,6 +344,7 @@
       border-radius: 10px; min-height: 32px; white-space: nowrap; overflow: hidden; }
     #help b { color: #fff3b0; font-size: 12.5px; }
     #help span { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+    #patchBtn { display: block; }   /* a computer: it unfolds the Nucleus window */
   }
   /* a wide cell window: its sections in two columns (Body and Add on the left, Parts and Tank on the right) */
   @container (min-width: 640px) {

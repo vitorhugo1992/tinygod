@@ -1321,6 +1321,18 @@ let patchOpen = false;
 let desk = false;   // a wide screen: three windows, the patch view docked in the Nucleus one (the layout block near the end)
 $('patchBtn').onclick = () => { patchOpen = true; $('patch').hidden = false; drawPatch(); };
 $('patchClose').onclick = () => { patchOpen = false; $('patch').hidden = true; if (ruleEd && ruleEd.where === 'board') ruleEd = null; };
+// The nucleus's slots in use (author, 2026-11-08: the Nucleus board was a copy of the parts list; its slot meter now
+// tops the Parts tab too, and on a phone the board's button is gone)
+function slotMeter() {
+  const nuc = nucleiOf(design)[0];
+  if (!nuc) return null;
+  const use = brainUse(design), slots = nucleusSlots(nuc);
+  const head = document.createElement('div'); head.className = 'bslots';
+  head.title = 'The nucleus, the brain: each sensor, each wired built-in reading (energy, stores, plastid health) and each rule group takes a slot';
+  head.innerHTML = `<b>🧬 Slots</b><span class="slots${use.total >= slots ? ' full' : ''}">${Array.from({ length: slots }, (_, i) => `<i class="${i < use.total ? 'used' : ''}"></i>`).join('')}</span>
+    <span>${use.total} of ${slots}</span><span class="bnote">${use.sensors} sensor${use.sensors === 1 ? '' : 's'} · ${use.builtins.length} built-in · ${use.boxes} rule group${use.boxes === 1 ? '' : 's'}</span>`;
+  return head;
+}
 function drawPatch() {
   if (!patchOpen) return;
   const area = $('board');
@@ -1328,12 +1340,7 @@ function drawPatch() {
   $('patchHint').textContent = 'tap a coloured word to change it · + and / + unless to add';
   const nuc = nucleiOf(design)[0];
   if (!nuc) { area.innerHTML = '<p class="bnote">This cell has no nucleus, so no brain: every part runs all the time. Add a 🧬 Nucleus (Inside the cell) to give its parts rules.</p>'; return; }
-  const use = brainUse(design), slots = nucleusSlots(nuc);
-  const head = document.createElement('div'); head.className = 'bslots';
-  head.title = 'Each sensor, each wired built-in reading (energy, stores, plastid health) and each rule group takes a slot';
-  head.innerHTML = `<b>Slots</b><span class="slots${use.total >= slots ? ' full' : ''}">${Array.from({ length: slots }, (_, i) => `<i class="${i < use.total ? 'used' : ''}"></i>`).join('')}</span>
-    <span>${use.total} of ${slots} slots</span><span class="bnote">${use.sensors} sensor${use.sensors === 1 ? '' : 's'} · ${use.builtins.length} built-in · ${use.boxes} rule group${use.boxes === 1 ? '' : 's'}</span>`;
-  area.appendChild(head);
+  area.appendChild(slotMeter());
   const all = partGroups(design.parts || []);
   const groups = all.filter((g) => targetsOf(g).length);
   if (!groups.length) { const p = document.createElement('p'); p.className = 'bnote'; p.textContent = 'No parts to give rules yet: add a flagellum, a spring or a buoyancy chamber.'; area.appendChild(p); return; }
@@ -1379,6 +1386,7 @@ function listParts() {
   if (nucChip) nucChip.style.display = nucleiOf(design).length && !editing ? 'none' : '';
   const box = $('partList');
   box.innerHTML = '';
+  const meter = slotMeter(); if (meter) box.appendChild(meter);
   const groups = partGroups(design.parts || []);
   const ownRules = (g) => groups.filter((x) => x.members[0].type === 'rule' && x.members[0].of && g.members.some((m) => m.id === x.members[0].of));   // a tether's reel and release
   for (const cat of Object.keys(CATEGORIES)) groups.filter((g) => g.category === cat && !(g.members[0].type === 'rule' && g.members[0].of)).forEach((g, i) => {
@@ -3170,7 +3178,10 @@ function lift(e) {
   touches.delete(e.pointerId);
   if (touches.size < 2) pinch = null;
   if (touches.size > 0) return;
-  if (tap && tap.cell === cell && tappedNucleus(tap, e)) $('patchBtn').onclick();
+  if (tap && tap.cell === cell && tappedNucleus(tap, e)) {
+    if (desk) $('patchBtn').onclick();
+    else { showSection('parts'); const card = [...$('partList').querySelectorAll('.part')].find((r) => /Nucleus/.test(r.textContent)); if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+  }
   else if (tap && tap.cell === cell) showPartAt(tap, e);
   tap = null;
   if (drag && drag.cell) $('viewMode').value = drag.view;
@@ -3494,7 +3505,10 @@ function startMission(i) {
   past.length = 0; future.length = 0;
   missionBar(true); syncChips(); showMissions();
   if (m.teaches[0] && !m.teaches[0].startsWith('Light sensor')) {
-    showSection('add'); $('partWhat').value = m.teaches[0]; $('partWhat').dispatchEvent(new Event('change'));
+    showSection('add'); $('partWhat').value = m.teaches[0];
+    if (m.builder && m.builder.where !== undefined) { $('partAngle').value = m.builder.where; showAngle(); }
+    if (m.builder && m.builder.pull !== undefined) $('partPull').checked = m.builder.pull;
+    $('partWhat').dispatchEvent(new Event('change'));
   } else showSection('parts');
   $('buildErr').textContent = '';
 }

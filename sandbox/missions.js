@@ -102,7 +102,8 @@ export const MISSIONS = [
     ] },
   { id: 'm5', chapter: 1, title: 'Swim', teaches: ['Wave tail (swims)'],
     story: 'A round swimmer without its tail: it lies on the floor in the dark.',
-    task: 'Add a wave tail and make it run while the eyespot sees less than 25%: it swims up until the light is good.',
+    task: 'Add a wave tail at the FRONT (Where 0°) with ⇠ Pull on: it pulls the cell up after it (behind, it would push the cell over). Then make it run while the eyespot sees less than 25%.',
+    builder: { where: 0, pull: true },   // the Add panel opens set this way
     design: { body: ROUND, parts: swimmer() },
     start: { hour: 6.5, depth: 1990, angle: 90 },
     stars: [
