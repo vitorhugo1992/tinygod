@@ -6,6 +6,36 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**MISSIONS BUILT, chapters 1-2 (2026-11-08; author: "yes" to the plan).** sandbox/missions.js (pure; the page and
+tools/missions-check.mjs share it): MISSIONS (id, chapter, title, teaches: Build-panel template names, story, task, design: the
+broken cell, start { hour, depth, angle }, three stars: { text, all: [conditions], hint }), startWorld (still water, its hour),
+judge(m, world, cell) (sampled once a sim second: alive at an hour · above a depth by / at an hour · never shallower / deeper
+between hours · a part under a share of the cell; each star won / lost / pending, J.eta, J.clock), runMission, partOpen (a part
+a mission teaches opens with that mission's first star; parts no mission teaches yet open once every mission has a star;
+progress.all opens all), missionOpen (the one before has a star). **The six:** (1) Catch the light, plastid (r 10 round, 07:00,
+100 µm: ★ alive 13:00, ★★ dusk, ★★★ dusk with a plastid under 7%); (2) Survive the night, store (11:00, 50 µm: midnight / 04:00 /
+08:00, the last needs oil or a bigger store); (3) Stay off the floor, chamber (a rod r 10 L 34 with room in front, 07:00 at 800 µm:
+above 1,900 µm at noon / above 1,200 at 16:00 / alive at dawn; a default-size chamber doesn't lift, Size all the way does); (4)
+Sleep through the night, the REST rule (unlocks the eyespot; 14:00: dawn / 10:00 / noon never on the floor); (5) Swim, wave tail
+(round swimmer on the floor at 06:30: above 1,000 µm by noon / by 09:00 / again by 08:00 next day; a tail at the back pushes it
+into the floor, at the front with Pull it climbs and levels off where the light is 25%); (6) Fix the rule (its tail runs only
+above 25%: turn it round; ★★ never above 400 µm 10:00-16:00, which a 50% rule misses). **Check:** node tools/missions-check.mjs
+(17 cases: every broken cell 0 stars, each fix its stars; ~1 min). **Page:** a 🎯 Missions tab (first on a phone and the default
+section on a first visit; on a computer the section spans both columns): chapters, stars, ▶ / 🔒, ↺ Start over; playing one:
+its design loaded as species "<title>", the tank reset to its start (reset() in mission mode: no carry, still water, its hour),
+**every edit restarts the attempt**, undo history cleared; #missionBar over the tank (story, task, the three stars live with
+"in 3 h 20 min", ▶ Play, ⏩ Skip to the result (advance() flat out in 40 ms slices), ↺ Again, ✕ Leave; the verdict: stars,
+"🔓 X is open", the death and the first missed star's hint, Next mission ▶); the camera keeps the cell below the bar; death
+toasts are off in a mission; the Add panel shows only open parts (the taught one pulsing gold) and "🔒 N more parts open as you
+finish missions"; 🔓 All parts in ⋯ More. Progress in localStorage tinygod.missions { best, all }. Seen in headless Edge at
+400×860 and 1400×900 (mission 1 played: ★★☆, plastid opened, mission 2 opened). **Bug fixed on the way:** a motor with no rule
+switched off while starving stayed off for good (metab.js now marks it offBy 'starve', as rest and stun did). **Measured on the
+way:** a 25% chamber in a 20 × 54 µm rod rises only ~4 µm/s (90 s to pump light), so a floor start needs a strong plastid; a
+chamber's float threshold hardly changes a drifter's day (too slow to follow the light); glare doesn't kill a swimmer, nor does
+swimming all night with an oil store. **Next:** the author plays them; then chapters 3-5 (growing, other species, the tank).
+
+**MISSIONS, PLANNING (2026-11-07; author: "I don't make my own designs because all the functions articulations are a bit daunting, we need a system that rewards slow but steady progress"):** short missions, each teaching one tool from a prepared failing cell, judged by the sim (hints from the trouble log), 1-3 stars (goal / under a limit / harder), a chapter map. Draft chapters: staying alive (plastid, store, chamber), first rules (eyespot + chamber, rest, swimmer), growing (divide, 4 cells), other species (defend, hunt, chains, toxins, harpoons, tethers), the tank (beat a rival). **Decided: parts unlock by missions** (the free sandbox's Build panel starts small and gains each part as its mission is done; a setting can open everything); **a mission starts from a broken cell** (it almost works; you add the one missing thing; later missions hand you less); **an attempt plays live** in the tank at any speed with the goal's progress on screen, and ⏩ Skip to the result works it out in seconds and replays the deciding moment. Still to decide one at a time before building. Shelved the same day (author: "lets leave for now"): why every design is a rod (one body shape; uptake by surface; length no defence against mouths; a diffusion-limited uptake law would penalise size, not shape: a needle keeps 1.6× of its 2× edge).
+
 **NON-FIXERS vs FIXERS (2026-11-07; author: "why fixers always win is what I'm worried about"):** a test before any rule change: three blind non-fixer designs (claude -p, brief only: Opus Abyssal Reed, Sonnet Nutricline Drifter, Opus Deepline Spindle; all aimed deep, 1,400-1,650 µm) and Claude's Bloomeater (designs/_gulper.json: a r 12 L 90 rod, four mouths, eats Needle Drifters; surface at night, ~1,500 µm by day) against Needle Drifter, Lanternrod, Leviathella, Pachyderma; random starts, 5 days, seeds 1-3 (contest.mjs leviathella,pachyderma,_needle,_lantern,_reed,_nutri,_deep,_gulper 5). **Seed 1: Deepline Spindle 13.9× (23 cells) beat Needle Drifter 13.0× (30)**; seed 2: Needle 16.4×, Bloomeater 2.7× (6 cells, 8 kills, all but 2 Needle Drifters), Spindle eaten out by Leviathella; seed 3: Needle 9.0×, Spindle 8.4× (16), Abyssal Reed 2.3×, Bloomeater 2.1×. **Lanternrod died out in all three (eaten by Leviathella, 4-5 a run). Nutricline Drifter starved on the floor every run.** So a non-fixer can match a fixer (a slim, small deep swimmer: Spindle's growth per biomass is high) and a hunter can farm a fixer bloom; Needle Drifter still tops 2 of 3. The _reed, _nutri, _deep, _gulper designs are untracked like the other _ entries.
 
 **NITROPLAST PRICE 300 -> 600 pJ a unit (2026-11-07; author: "go" on Claude's lean)** (a division's N now costs twice the

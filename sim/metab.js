@@ -273,7 +273,7 @@ export function metabolize(world, cell) {
   }
   if (m.starving) {
     m.E = 0;
-    for (const j of cell.joints) if (j.type === 'motor') j.on = false;   // no energy, no beating
+    for (const j of cell.joints) if (j.type === 'motor' && j.on) { j.on = false; if (!j.burst) j.offBy = 'starve'; }   // no energy, no beating (a motor with no rule comes back on with energy, as after a rest)
     for (const inc of body.inclusions) if (inc.pumpable) inc.target = P.chamber.neutral;   // nothing holds it: it drifts neutral
   }
 }
