@@ -78,6 +78,7 @@
   #missionBar .mhint { color: #ffe3a3; }
   #missionBar .mbtns { display: flex; flex-wrap: wrap; gap: 5px; } #missionBar .mbtns button { padding: 4px 9px; }
   #missionBar.fold > :not(.mhead) { display: none; }
+  body.arranging #missionBar { display: none !important; }   /* arranging: the bar steps aside for the arrange buttons */
   #stats { position: absolute; top: 52px; left: 8px; font: 11.5px/1.45 ui-monospace, Consolas, monospace; white-space: pre;
     background: rgba(8,14,26,.78); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; pointer-events: none; }
 

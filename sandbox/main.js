@@ -1971,7 +1971,7 @@ function draw() {
   if (view === 'follow' && patchOpen && !desk && innerWidth > 760) cam = { x: cam.x, y: cam.y - H * 0.25 / s };
   // the day graph covers the bottom of the tank: keep a followed cell in the middle of what is left above it
   if (view === 'follow' && graphOn) cam = { x: cam.x, y: cam.y - ((H < 500 ? 84 : 110) + 8) / 2 / s };
-  if (view === 'follow' && mission && !$('missionBar').hidden) cam = { x: cam.x, y: cam.y + ($('missionBar').offsetHeight + 8) / 2 / s };   // the mission bar covers the top
+  if (view === 'follow' && mission && !arrange && !$('missionBar').hidden) cam = { x: cam.x, y: cam.y + ($('missionBar').offsetHeight + 8) / 2 / s };   // the mission bar covers the top
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
 
   ctx.fillStyle = COLOR.outside; ctx.fillRect(0, 0, W, H);
