@@ -2001,32 +2001,49 @@ function resize() {
 window.addEventListener('resize', resize);
 if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);   // the tank's own size changes too (the phone's rail steps aside while arranging)
 
+let nitroCv = null;   // the nitrogen haze, drawn small and stretched
 function draw() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
   const view = $('viewMode').value;
   if (view === 'follow') { const q = cell.vis ? cell.vis.q : cell.q; cam = { x: q[0], y: q[1] }; }   // the body as drawn
   if (arrange) { const [px, py] = arrange.pan; cam = { x: cell.cx[0] + cell.cs[0] * px - cell.sn[0] * py, y: cell.cy[0] + cell.sn[0] * px + cell.cs[0] * py }; }   // arranging: where the X / Y sliders look
   else if (view === 'fit') fit(W, H);
-  const s = Number($('zoom').value);                       // pixels per µm
+  let s = Number($('zoom').value);                         // pixels per µm
+  // The view stays in the tank (author, 2026-11-09: "it should lock on the bottom so u don't go further where there's
+  // nothing"): no zooming out past the tank filling the screen, no panning past its sides, the surface or the seabed (a
+  // strip of seabed shows under the floor, more when the day graph covers the bottom; the mission bar covers the top).
+  const padTop = mission && !arrange && !$('missionBar').hidden ? $('missionBar').offsetHeight + 8 : 0;
+  const padBot = 100 + (graphOn ? (H < 500 ? 84 : 110) + 8 : 0);
+  if (!arrange) {
+    const sMin = Math.max(W / TW, (H - padTop - padBot) / TH);
+    if (s < sMin) { s = sMin; $('zoom').value = s; }
+  }
   // on a computer the patch view covers the lower half of the tank: keep a followed cell in the upper part
   if (view === 'follow' && patchOpen && !desk && innerWidth > 760) cam = { x: cam.x, y: cam.y - H * 0.25 / s };
   // the day graph covers the bottom of the tank: keep a followed cell in the middle of what is left above it
   if (view === 'follow' && graphOn) cam = { x: cam.x, y: cam.y - ((H < 500 ? 84 : 110) + 8) / 2 / s };
   if (view === 'follow' && mission && !arrange && !$('missionBar').hidden) cam = { x: cam.x, y: cam.y + ($('missionBar').offsetHeight + 8) / 2 / s };   // the mission bar covers the top
+  if (!arrange) {
+    const cx0 = W / 2 / s, cx1 = TW - W / 2 / s, cy0 = (H / 2 - padBot) / s, cy1 = TH + (padTop - H / 2) / s;
+    cam = { x: cx0 <= cx1 ? Math.min(cx1, Math.max(cx0, cam.x)) : TW / 2, y: cy0 <= cy1 ? Math.min(cy1, Math.max(cy0, cam.y)) : (cy0 + cy1) / 2 };
+  }
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
 
   ctx.fillStyle = COLOR.outside; ctx.fillRect(0, 0, W, H);
   const x0 = cam.x - W / 2 / s, x1 = cam.x + W / 2 / s, y0 = cam.y - H / 2 / s, y1 = cam.y + H / 2 / s;
   const v = { W, H, X, Y, s, x0, x1, y0, y1 }, now = performance.now() / 1000;
   drawWater(ctx, world, v, now);   // the living water (sandbox/scene.js): colour, light, the surface and the floor
-  {   // nitrogen: a faint tan haze, rich deep, thinner where cells have used it up; a strip per column, so the patches show
-    const NC = PARAMS.nutrient.columns, cw = TW / NC;
-    for (let j = 0; j < NC; j++) {
-      if (X((j + 1) * cw) < 0 || X(j * cw) > W) continue;
-      const g = ctx.createLinearGradient(0, Y(TH), 0, Y(0)), xm = (j + 0.5) * cw;
-      for (let k = 0; k <= 40; k++) g.addColorStop(k / 40, `rgba(200,178,106,${Math.min(0.1, 0.05 * nitrogenAt(world, TH * (1 - k / 40), xm)).toFixed(3)})`);
-      ctx.fillStyle = g; ctx.fillRect(X(j * cw), Y(TH), cw * s + 1, TH * s);
+  {   // nitrogen: a faint tan haze, rich deep, thinner where cells have used it up; one smooth layer (was a strip per
+    // column, whose seams drew lines), so the patches show without edges
+    const NC = PARAMS.nutrient.columns, NR = 40;
+    if (!nitroCv) { nitroCv = document.createElement('canvas'); nitroCv.width = NC; nitroCv.height = NR; nitroCv.img = nitroCv.getContext('2d').createImageData(NC, NR); }
+    const d = nitroCv.img.data;
+    for (let k = 0; k < NR; k++) for (let j = 0; j < NC; j++) {
+      const i = (k * NC + j) * 4;
+      d[i] = 200; d[i + 1] = 178; d[i + 2] = 106; d[i + 3] = 255 * Math.min(0.1, 0.05 * nitrogenAt(world, TH * (1 - (k + 0.5) / NR), (j + 0.5) * TW / NC));
     }
+    nitroCv.getContext('2d').putImageData(nitroCv.img, 0, 0);
+    ctx.save(); ctx.imageSmoothingEnabled = true; ctx.drawImage(nitroCv, X(0), Y(TH), TW * s, TH * s); ctx.restore();
   }
   drawShade(ctx, world, v);   // self-shading: the water darker under a crowd of plastids
   drawToxins(ctx, world, v);   // toxin clouds: a haze in each toxic species' tint

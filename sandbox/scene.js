@@ -81,80 +81,201 @@ function blurOf(tint) {
   return BLUR.get(tint);
 }
 
-// The water behind everything: v = { W, H, X, Y, s (px per µm), x0, x1, y0, y1 (the view in µm) }, t: seconds (drawing time)
+// The water behind everything: v = { W, H, X, Y, s (px per µm), x0, x1, y0, y1 (the view in µm) }, t: seconds (drawing time).
+// Revamped (author, 2026-11-09: "the tank feels cheap, not immersive… like looking at a marine slice"): murk that gives
+// the water volume, soft light beams that belong to the water (they slide as you pan), a far layer of specks with
+// parallax, a surface seen from below, a seabed with an uneven top, layered sediment, grains, old diatom shells and fluff.
+const BED_TOP = (x) => -1.5 + 1.1 * Math.sin(x / 53 + 0.4) + 0.7 * Math.sin(x / 19 + 1.3) + 0.5 * Math.sin(x / 211);   // µm, about -3.8..0.8
+let BEAM = null, MURK_D = null, MURK_L = null, NOISE = null;
+function waterSprites() {
+  if (BEAM) return;
+  BEAM = document.createElement('canvas'); BEAM.width = 64; BEAM.height = 256;
+  { const g = BEAM.getContext('2d'), img = g.createImageData(64, 256), d = img.data;
+    for (let y = 0; y < 256; y++) for (let x = 0; x < 64; x++) {
+      const u = (x - 31.5) / 15, f = Math.exp(-u * u) * Math.pow(1 - y / 256, 1.6) * Math.min(1, y / 10), i = (y * 64 + x) * 4;
+      d[i] = 215; d[i + 1] = 240; d[i + 2] = 255; d[i + 3] = 255 * f;
+    }
+    g.putImageData(img, 0, 0); }
+  const blob = (c) => sprite(128, (g, n) => { const gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+    gr.addColorStop(0, rgba(c, 1)); gr.addColorStop(0.5, rgba(c, 0.55)); gr.addColorStop(1, rgba(c, 0)); g.fillStyle = gr; g.fillRect(0, 0, n, n); });
+  MURK_D = blob([2, 10, 18]); MURK_L = blob([120, 165, 140]);
+  NOISE = sprite(128, (g, n) => {   // sediment texture, tiles seamlessly: soft value noise in two octaves and fine grit
+    const img = g.createImageData(n, n), d = img.data, G = 8, grid = (k, i, j) => rnd(k * 997 + ((i + G) % G) * 31 + ((j + G) % G) * 7);
+    const val = (k, x, y) => { const fx = x / n * G, fy = y / n * G, i = Math.floor(fx), j = Math.floor(fy), tx = fx - i, ty = fy - j,
+      sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+      return (grid(k, i, j) * (1 - sx) + grid(k, i + 1, j) * sx) * (1 - sy) + (grid(k, i, j + 1) * (1 - sx) + grid(k, i + 1, j + 1) * sx) * sy; };
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const v = 0.6 * val(1, x, y) + 0.4 * val(2, (x * 2) % n, (y * 2) % n) + (rnd(x * 131 + y * 17) - 0.5) * 0.35, i = (y * n + x) * 4;
+      if (v > 0.55) { d[i] = 235; d[i + 1] = 215; d[i + 2] = 170; d[i + 3] = (v - 0.55) * 170; }
+      else { d[i] = 8; d[i + 1] = 6; d[i + 2] = 4; d[i + 3] = (0.55 - v) * 330; }
+    }
+    g.putImageData(img, 0, 0);
+  });
+}
+const mod = (a, b) => ((a % b) + b) % b;
+
 export function drawWater(ctx, world, v, t) {
-  sprites();
+  sprites(); waterSprites();
   const { W, H, X, Y, s } = v;
   const top = Y(TH), bot = Y(0), left = X(0), right = X(TW);
-  // the water's colour over the whole tank, a stop every tenth of its depth
   const g = ctx.createLinearGradient(0, top, 0, bot);
   for (let k = 0; k <= 10; k++) g.addColorStop(k / 10, rgba(waterColor(world, k / 10), 1));
   ctx.fillStyle = g; ctx.fillRect(left, top, right - left, bot - top);
-  const zMid = clamp(1 - (v.y0 + v.y1) / 2 / TH, 0, 1), sun = world.light ? daylight(world) : 0;
+  const sun = world.light ? daylight(world) : 0, tw = twilight(world);
   const L = world.light ? lightAt(world, (v.y0 + v.y1) / 2) : 0;
   ctx.save();
-  ctx.beginPath(); ctx.rect(left, top, right - left, bot - top); ctx.clip();   // light only in the water
-  // ripple light near the surface: only in the top RIPPLE µm, fading with depth (author, 2026-11-03: zoomed out it covered
-  // the whole tank: "too much"), its pattern sized in µm (not pixels) and softer when zoomed out
+  ctx.beginPath(); ctx.rect(left, top, right - left, bot - top); ctx.clip();   // all this only in the water
+  // murk: big soft clouds, darker and paler, fixed in the water and drifting slowly: the water reads as a volume
+  for (let i = 0; i < 30; i++) {
+    const r = 140 + rnd(i + 300) * 260, x = rnd(i + 310) * TW + Math.sin(t * 0.017 + i * 2.1) * 60, y = rnd(i + 320) * TH + Math.sin(t * 0.013 + i) * 25;
+    if (X(x + r) < 0 || X(x - r) > W || Y(y - r) < 0 || Y(y + r) > H) continue;
+    const dark = i % 3 !== 0, lit = world.light ? Math.sqrt(lightAt(world, y)) : 0;
+    ctx.globalAlpha = dark ? 0.22 : 0.025 + 0.05 * lit;
+    ctx.drawImage(dark ? MURK_D : MURK_L, X(x - r), Y(y + r * 0.6), 2 * r * s, 1.2 * r * s);
+  }
+  ctx.globalAlpha = 1;
+  // a far layer of specks, out of focus, moving at a third of the view (parallax): near and far separate
+  {
+    const lit = 0.3 + 0.7 * Math.min(1, Math.sqrt(L) * 1.3);
+    ctx.fillStyle = '#cfe2ea';
+    for (let i = 0; i < 60; i++) {
+      const sx = mod(rnd(i + 400) * W * 3 - v.x0 * s * 0.33 + t * (1 + rnd(i + 410) * 2), W + 20) - 10;
+      const sy = mod(rnd(i + 420) * H * 3 + v.y1 * s * 0.33 + t * 1.5, H + 20) - 10;
+      ctx.globalAlpha = (0.06 + 0.1 * rnd(i + 430)) * lit;
+      ctx.beginPath(); ctx.arc(sx, sy, 1 + rnd(i + 440) * 1.6, 0, 6.28); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  // ripple light near the surface, fixed to the water (its pattern in µm, softer when zoomed out)
   const RIPPLE = 200, bandTop = Math.max(top, 0), bandBot = Math.min(Y(TH - RIPPLE), H);
   if (sun > 0.01 && bandBot > bandTop) {
     const sz = Math.max(60, 320 * s), soft = clamp(s, 0.35, 1);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (let b = 0; b < 4; b++) {   // four bands, each fainter than the one above
+    for (let b = 0; b < 4; b++) {
       const y0 = Math.max(Y(TH - RIPPLE * b / 4), bandTop), y1 = Math.min(Y(TH - RIPPLE * (b + 1) / 4), bandBot);
       if (y1 <= y0) continue;
       ctx.save(); ctx.beginPath(); ctx.rect(left, y0, right - left, y1 - y0); ctx.clip();
       const a = sun * soft * [1, 0.6, 0.32, 0.12][b];
       ctx.globalAlpha = 0.11 * a;
-      const ox = (t * 6) % sz, oy = (t * 3.5) % sz;
+      const ox = mod(-left + t * 6, sz), oy = mod(-top + t * 3.5, sz);
       for (let x = -ox - sz; x < W; x += sz) for (let y = -oy - sz + Math.floor((y0 + oy) / sz) * sz; y < y1; y += sz) ctx.drawImage(CAUSTIC, x, y, sz, sz);
       ctx.globalAlpha = 0.07 * a;
-      const s2 = sz * 1.3, ox2 = (-t * 4) % s2, oy2 = (t * 2) % s2;
+      const s2 = sz * 1.3, ox2 = mod(left - t * 4, s2), oy2 = mod(top + t * 2, s2);
       for (let x = ox2 - s2; x < W; x += s2) for (let y = oy2 - s2 + Math.floor((y0 - oy2) / s2) * s2; y < y1; y += s2) ctx.drawImage(CAUSTIC, x, y, s2, s2);
       ctx.restore();
     }
     ctx.restore();
   }
-  // shafts of light from above, slanting and swaying, fainter with depth
-  if (L > 0.003) {
-    ctx.globalCompositeOperation = 'lighter';
-    const fade = clamp(lightAt(world, v.y0) / Math.max(L, 1e-6), 0.15, 1);
-    for (let i = 0; i < 6; i++) {
-      const x0 = W * (0.05 + 0.18 * i) + Math.sin(t * 0.13 + i * 1.7) * W * 0.05, w = W * (0.06 + 0.05 * rnd(i + 3)), slant = W * 0.18;
-      const a = clamp(0.10 * Math.sqrt(L) * (0.6 + 0.4 * Math.sin(t * 0.21 + i * 2.3)), 0, 0.12);
-      const sg = ctx.createLinearGradient(0, Math.max(0, top), 0, H);
-      sg.addColorStop(0, `rgba(210,240,255,${a.toFixed(3)})`); sg.addColorStop(1, `rgba(210,240,255,${(a * fade).toFixed(3)})`);
-      ctx.fillStyle = sg; ctx.beginPath();
-      const y0 = Math.max(0, top);
-      ctx.moveTo(x0, y0); ctx.lineTo(x0 + w, y0); ctx.lineTo(x0 + w * 1.8 + slant, H); ctx.lineTo(x0 + slant - w * 0.4, H); ctx.closePath(); ctx.fill();
+  // beams of light from the surface: soft-edged, slanting, swaying, fading with depth; they belong to the water
+  if (sun > 0.005) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const len = TH * 1.15;
+    for (let i = 0; i < 9; i++) {
+      const w = 50 + rnd(i + 500) * 110, x = TW * (i + 0.2 + 0.6 * rnd(i + 510)) / 9 + Math.sin(t * 0.09 + i * 1.7) * 35;
+      const ang = 0.16 + Math.sin(t * 0.05 + i) * 0.02, a = clamp(0.16 * Math.sqrt(sun) * (0.55 + 0.45 * Math.sin(t * 0.19 + i * 2.3)) * (0.5 + rnd(i + 520)), 0, 0.2);
+      if (X(x + w + len * ang) < 0 || X(x - w) > W) continue;
+      ctx.save(); ctx.translate(X(x), top); ctx.rotate(-ang); ctx.globalAlpha = a;
+      ctx.drawImage(BEAM, -w * s / 2, 0, w * s, len * s); ctx.restore();
     }
-    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
   }
-  // far away, out of focus: the species in the tank, drifting (depth of field; fixed to the view, slow parallax)
+  // far away, out of focus: the species in the tank, drifting (depth of field; slow parallax)
   const names = [...new Set(world.cells.map((c) => c.species))];
   if (names.length) for (let i = 0; i < 7; i++) {
     const tint = speciesTint(names[i % names.length]), size = (40 + rnd(i + 1200) * 50) * Math.max(s, 0.6) * 0.9;
-    const x = ((rnd(i + 1000) * W + t * 3 + (v.x0 * s) * 0.15) % (W + size) + W + size) % (W + size) - size / 2;
-    const y = ((rnd(i + 1100) * H + Math.sin(t * 0.1 + i) * 20 - (v.y0 * s) * 0.15) % (H + size) + H + size) % (H + size) - size / 2;
+    const x = ((rnd(i + 1000) * W + t * 3 - (v.x0 * s) * 0.15) % (W + size) + W + size) % (W + size) - size / 2;
+    const y = ((rnd(i + 1100) * H + Math.sin(t * 0.1 + i) * 20 + (v.y1 * s) * 0.15) % (H + size) + H + size) % (H + size) - size / 2;
     ctx.globalAlpha = 0.5 + 0.5 * Math.sqrt(L); ctx.drawImage(blurOf(tint), x - size / 2, y - size / 2, size, size); ctx.globalAlpha = 1;
   }
-  ctx.restore();
-  // the surface: a bright line where the light comes in; the floor: settled sediment
-  if (top > -4 && top < H) {
-    const sg = ctx.createLinearGradient(0, top - 6, 0, top + 10);
-    sg.addColorStop(0, 'rgba(200,235,255,0)'); sg.addColorStop(0.4, `rgba(220,245,255,${(0.25 + 0.5 * sun).toFixed(2)})`); sg.addColorStop(1, 'rgba(200,235,255,0)');
-    ctx.fillStyle = sg; ctx.fillRect(left, top - 6, right - left, 16);
+  // a haze of fine sediment just above the floor (stirred up and slowly settling)
+  if (bot > 0 && Y(80) < H) {
+    const hg = ctx.createLinearGradient(0, Y(80), 0, bot);
+    hg.addColorStop(0, 'rgba(70,60,42,0)'); hg.addColorStop(1, `rgba(70,60,42,${(0.18 + 0.2 * tw).toFixed(2)})`);
+    ctx.fillStyle = hg; ctx.fillRect(left, Y(80), right - left, bot - Y(80));
   }
-  if (bot > 0 && bot < H + 40) {
-    const fg = ctx.createLinearGradient(0, bot - 14, 0, bot + 30);
-    fg.addColorStop(0, 'rgba(60,48,34,0)'); fg.addColorStop(0.35, 'rgba(60,48,34,.75)'); fg.addColorStop(1, 'rgba(30,24,18,1)');
-    ctx.fillStyle = fg; ctx.fillRect(left, bot - 14, right - left, H - bot + 14 + 30);
-    ctx.fillStyle = 'rgba(150,130,100,.35)';
-    for (let i = 0; i < 60; i++) {   // grains on the floor, fixed to the tank
-      const gx = rnd(i + 2000) * TW, x = X(gx); if (x < -4 || x > W + 4) continue;
-      ctx.beginPath(); ctx.arc(x, bot + 2 + rnd(i + 2100) * 10, Math.max(1, (0.6 + rnd(i + 2200) * 1.4) * s), 0, 6.28); ctx.fill();
+  ctx.restore();
+  // the surface, seen from below: a silvery underside, a moving wavy line, light just under it
+  if (top > -30 && top < H) {
+    const amp = clamp(2.5 * s, 1, 5), pts = [];
+    for (let x = Math.max(left, -6); x <= Math.min(right, W + 6) + 6; x += 6) {
+      const u = (x - left) / s;
+      pts.push([x, top + amp * (1.6 + Math.sin(u / 23 + t * 1.1) * 0.8 + Math.sin(u / 9 - t * 1.7) * 0.4)]);
+    }
+    if (pts.length > 1) {
+      const sg = ctx.createLinearGradient(0, top - 30, 0, top + amp * 3);
+      sg.addColorStop(0, `rgba(150,195,215,${(0.25 + 0.35 * tw).toFixed(2)})`); sg.addColorStop(1, `rgba(200,235,250,${(0.35 + 0.45 * sun).toFixed(2)})`);
+      ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(pts[0][0], top - 40);
+      for (const [x, y] of pts) ctx.lineTo(x, y);
+      ctx.lineTo(pts[pts.length - 1][0], top - 40); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = `rgba(235,250,255,${(0.35 + 0.55 * sun).toFixed(2)})`; ctx.lineWidth = 1.2;
+      ctx.beginPath(); pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+      const ug = ctx.createLinearGradient(0, top, 0, top + 40);
+      ug.addColorStop(0, `rgba(200,235,255,${(0.04 + 0.16 * sun).toFixed(2)})`); ug.addColorStop(1, 'rgba(200,235,255,0)');
+      ctx.fillStyle = ug; ctx.fillRect(Math.max(left, 0), top, Math.min(right, W) - Math.max(left, 0), 40);
     }
   }
+  if (bot < H + 4) drawBed(ctx, world, v, t, tw);
+}
+
+// The seabed: an uneven top just at the floor, layered sediment darkening downward with a texture fixed to it, grains of
+// every size, old diatom shells, fluff (settled marine snow) on top. Cells rest on y = 0; the top wanders about it.
+function drawBed(ctx, world, v, t, tw) {
+  const { W, H, X, Y, s } = v, left = Math.max(X(0), -4), right = Math.min(X(TW), W + 4);
+  if (right <= left) return;
+  const bright = 0.4 + 0.6 * tw, step = Math.max(2, Math.min(6, 3 * s));
+  const C = (c, a = 1) => rgba(c.map((x) => x * bright), a);
+  const edge = () => { for (let x = left; x <= right + step; x += step) { const xx = Math.min(x, right), y = Y(BED_TOP((xx - X(0)) / s)); x === left ? ctx.moveTo(xx, y) : ctx.lineTo(xx, y); } };
+  ctx.save();
+  ctx.beginPath(); edge(); ctx.lineTo(right, H + 10); ctx.lineTo(left, H + 10); ctx.closePath();
+  const deep = Math.max(1, (H - Y(0)) / s), bg = ctx.createLinearGradient(0, Y(1), 0, Y(-Math.max(deep, 40)));
+  bg.addColorStop(0, C([118, 104, 78])); bg.addColorStop(0.08, C([92, 80, 60])); bg.addColorStop(0.4, C([62, 52, 40])); bg.addColorStop(1, C([30, 25, 20]));
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.clip();
+  // the texture, fixed to the bed (scaled with the zoom within limits)
+  const pat = ctx.createPattern(NOISE, 'repeat'), k = clamp(s * 1.2, 0.5, 2);
+  if (pat.setTransform) pat.setTransform(new DOMMatrix([k, 0, 0, k, X(0), Y(0)]));
+  ctx.globalAlpha = 0.55; ctx.fillStyle = pat; ctx.fillRect(left, Y(2), right - left, H - Y(2) + 10); ctx.globalAlpha = 1;
+  // grains: a few in every 25 µm square, bigger ones with a lit top
+  const G = 25, i0 = Math.floor(v.x0 / G) - 1, i1 = Math.ceil(v.x1 / G) + 1, j1 = Math.min(24, Math.ceil(deep / G) + 1);
+  const COLS = [[132, 116, 88], [92, 80, 62], [150, 138, 112], [66, 55, 44], [112, 96, 74], [78, 70, 60]];
+  for (let i = Math.max(0, i0); i <= Math.min(Math.ceil(TW / G), i1); i++) for (let j = 0; j < j1; j++) for (let n = 0; n < 3; n++) {
+    const h = i * 7.31 + j * 13.7 + n * 3.11, gx = (i + rnd(h)) * G, gy = j === 0 ? BED_TOP(gx) - rnd(h + 1) * 12 : -(j + rnd(h + 1)) * G;
+    const r = 0.6 + Math.pow(rnd(h + 2), 3) * 5, R = r * s;
+    if (R < 0.4) continue;
+    const x = X(gx), y = Y(gy); if (x < -R || x > W + R || y < -R || y > H + R) continue;
+    const c = COLS[Math.floor(rnd(h + 3) * COLS.length)], fade = Math.max(0.25, 1 - j * 0.12);
+    ctx.fillStyle = C(c.map((q) => q * fade), 0.7);
+    ctx.beginPath(); ctx.ellipse(x, y, R, R * (0.55 + 0.4 * rnd(h + 4)), rnd(h + 5) * 3.14, 0, 6.28); ctx.fill();
+    if (R > 3) { ctx.fillStyle = C([255, 245, 220], 0.18 * fade); ctx.beginPath(); ctx.ellipse(x - R * 0.2, y - R * 0.25, R * 0.5, R * 0.25, rnd(h + 5) * 3.14, 0, 6.28); ctx.fill(); }
+  }
+  // old diatom shells, lying in the top of the bed (a pennate valve with its ribs)
+  for (let i = Math.max(0, Math.floor(v.x0 / 90) - 1); i <= Math.min(Math.ceil(TW / 90), Math.ceil(v.x1 / 90) + 1); i++) {
+    if (rnd(i + 700) > 0.45) continue;
+    const gx = (i + rnd(i + 710)) * 90, gy = BED_TOP(gx) - 1 - rnd(i + 720) * 6, Lh = (8 + rnd(i + 730) * 14) * s, Wh = Lh * (0.2 + 0.1 * rnd(i + 740)), a = (rnd(i + 750) - 0.5) * 0.5;
+    if (Lh < 3) continue;
+    const x = X(gx), y = Y(gy); if (x < -Lh || x > W + Lh) continue;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    ctx.fillStyle = C([215, 220, 200], 0.28); ctx.strokeStyle = C([235, 238, 222], 0.55); ctx.lineWidth = Math.max(0.6, 0.25 * s);
+    ctx.beginPath(); ctx.ellipse(0, 0, Lh, Wh, 0, 0, 6.28); ctx.fill(); ctx.stroke();
+    if (Lh > 14) {
+      ctx.beginPath(); ctx.moveTo(-Lh * 0.85, 0); ctx.lineTo(Lh * 0.85, 0);
+      for (let q = -0.8; q <= 0.81; q += 0.1) { const yy = Wh * Math.sqrt(1 - q * q) * 0.85; ctx.moveTo(q * Lh, -yy); ctx.lineTo(q * Lh, yy); }
+      ctx.globalAlpha = 0.45; ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+  // the lit top edge and fluff (settled marine snow) on it
+  ctx.strokeStyle = C([205, 188, 150], 0.55); ctx.lineWidth = Math.max(1, Math.min(2, 0.4 * s));
+  ctx.beginPath(); edge(); ctx.stroke();
+  for (let i = Math.max(0, Math.floor(v.x0 / 30) - 1); i <= Math.min(Math.ceil(TW / 30), Math.ceil(v.x1 / 30) + 1); i++) {
+    if (rnd(i + 800) > 0.6) continue;
+    const gx = (i + rnd(i + 810)) * 30, sz = Math.min((8 + rnd(i + 820) * 16) * s, 80);
+    if (sz < 3) continue;
+    ctx.globalAlpha = 0.55 * bright;
+    ctx.drawImage(SNOW[i % SNOW.length], X(gx) - sz / 2, Y(BED_TOP(gx)) - sz * 0.62, sz, sz * 0.75);
+  }
+  ctx.globalAlpha = 1;
 }
 
 // Marine snow and specks: always about as many in view whatever the zoom (they live in the view), carried by the moving
