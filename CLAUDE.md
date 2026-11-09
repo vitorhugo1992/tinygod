@@ -6,6 +6,28 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**⚔ MATCHES BUILT (2026-11-09, the review's item 1; author: "do what u think it's best").** A Match tab (second, after
+Missions): the design being built against a house rival, a ladder of six: Noctilla, Plebella, Nutricline Bobber
+(tournament/bobber-blind-opus.json), Deepdweller II, Needle Drifter (tournament/fixer-blind-opus2.json), then Plebella +
+Deepdweller II + Needle Drifter at once; a rung opens with a star on the one before. **Format: 2 cells each (1 each in
+the tank of four), 2 days, moving water, at most 12 cells, each rung its own fixed seed** (the same design always gets
+the same match). Score as the tournament's (living biomass ÷ starting, averaged over the start and every half day);
+★ alive at the end · ★★ outscores every rival · ★★★ twice the best rival's score. **Why so small: speed.** First built
+as 4 cells each, 3 days, cap 40: 10 minutes got to day 1.5. A profile of a match: physics.js assemble 42%, velocities
+15%, flowAt 10%; 12 cells cost ~0.5 s a sim second. Rung 1 in the page with Deepline Spindle (a fast grower, the worst
+case): 289 s, ★★★ (3.6× against Noctilla's 1.2×), the page at 37 fps meanwhile. Lanternrod was left out of the ladder
+(four of them took 5 min for half a day: 12 tail pieces and springs). **The ChatGPT and Gemini entries are not rungs**:
+their round-2 designs are copies of Deepdweller. **Code:** sim/match.js (pure: newMatch, stepMatch, matchResult,
+matchStars, deathsText), sandbox/matches.js (RUNGS, the format), sandbox/match-worker.js (a module worker; where one
+can't start the match runs in the page in slices), sandbox/match.js (the tab: ladder, progress bar, population graph,
+the verdict with each side's deaths and causes; progress in localStorage tinygod.matches), tools/match.mjs
+`<design.json> [rung | all] [--days= --each= --cap=]`. Rivals' designs are fetched from designs/ and tournament/ (the
+home server shares no designs/: there the page falls back to GET /designs). sw.js lists the new files (cache v4).
+**Not built:** a replay or watching the match tank, several seeds, other players. **Not checked:** a phone's speed; the
+order of the rungs by difficulty (only rung 1 was played to the end); tools/check.mjs was not rerun (no existing sim
+file changed). **Next: the fast mode** (it decides how long and how full a match can be), then the mission design
+points below.
+
 **OUTSIDE REVIEW (2026-11-09, a fresh Claude asked to play it and be critical; author: "great insights, take first what
 u think it's best").** Main findings: the page has no game after the six missions (~20 min; contests are Node tools
 only); one winning design (a slim rod mid-water with a nitroplast: blind entries' length ÷ width 16, 10, 7 win, 2.2-2.5
