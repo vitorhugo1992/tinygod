@@ -283,6 +283,7 @@ function withPart(d, fresh) {
 $('addPart').onclick = () => {
   if (editing) { stopEditing(); return; }
   if (!partAllowed($('partWhat').value)) { $('buildErr').textContent = 'that part opens in 🎯 Missions'; return; }
+  previewOn = true; updatePreview();   // find the free spot now: with no ghost shown yet, a first tap used to add nothing
   if (nudge) {   // it goes where the ghost showed it fits
     $('partAngle').value = nudge.where; $('partInside').value = Math.round(nudge.depth * 100); showAngle(); showInside(); nudge = null;
   }
@@ -295,7 +296,13 @@ function updateEdited() {
   const d = JSON.parse(JSON.stringify(design));
   const next = withPart(d, makePart(d.body, editing));
   if (!next) { stopEditing(); return; }
-  applyDesign(next);
+  // an organelle that no longer fits where it is (made bigger, say) moves to the nearest spot where it does, as Add does
+  let fits = true;
+  try { buildCell(JSON.parse(JSON.stringify(next))); } catch (e) { fits = false; }
+  const spot = !fits && (CONTROLS[$('partWhat').value] || {}).inside ? findFit(editing) : null;
+  if (!spot) { applyDesign(next); return; }
+  $('partAngle').value = spot.where; $('partInside').value = Math.round(spot.depth * 100); showAngle(); showInside();
+  if (applyDesign(withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, editing)))) $('buildErr').textContent = `moved to where it fits: ${spot.where}°, inside ${Math.round(spot.depth * 100)}%`;
 }
 function startEditing(b) {
   editing = b.id;
@@ -343,8 +350,10 @@ let preview = null;      // { cell: the body with only the new part, built and p
 let nudge = null;
 function findFit(id) {
   const where = Number($('partAngle').value), depth = Number($('partInside').value) / 100;
-  for (let k = 0; k <= 18; k++) for (const sign of k ? [1, -1] : [1]) for (let dd = 0; dd <= 5; dd++) {   // down to the centre
-    const spot = { where: ((where + sign * k * 10) % 360 + 360) % 360, depth: Math.max(0, Math.round((depth - dd * 0.2) * 100) / 100) };
+  // the depths to try: as asked, then the nearest first, toward the centre and toward the wall
+  const depths = [...new Set([depth, ...[0, 0.2, 0.4, 0.6, 0.8, 1].sort((a, b) => Math.abs(a - depth) - Math.abs(b - depth))])];
+  for (let k = 0; k <= 18; k++) for (const sign of k ? [1, -1] : [1]) for (const dp of depths) {
+    const spot = { where: ((where + sign * k * 10) % 360 + 360) % 360, depth: dp };
     try { const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, id, spot)); if (d) { buildCell(d); return spot; } }
     catch (e) { /* not here */ }
   }
@@ -639,7 +648,7 @@ const ruleSummary = (targets) => sentence(targets, false);
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { tied: [0.5, 1], poisoned: [0.05, 1], alarm: [0.05, 1], neighbours: [0.375, 1], pad: [0.25, 1], drained: [0.5, 1], size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0.5, 1], touch: [0.5, 1], near: [0.3, 1], flow: [0.4, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
+const RANGE = { tied: [0.5, 1], poisoned: [0.05, 1], alarm: [0.05, 1], neighbours: [0.375, 1], pad: [0.25, 1], drained: [0.5, 1], size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0, 0.25], touch: [0.5, 1], near: [0.3, 1], flow: [0.4, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
 const ICON = { tied: '🪝', poisoned: '☠', alarm: '🚨', neighbours: '🔗', pad: '🧷', drained: '🩸', size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', flow: '🌊', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
@@ -723,6 +732,7 @@ function setRules(targets, next) {
     for (const c of world.cells) if (c.design === design) rewire(c, k, clean);
   }
   $('json').value = JSON.stringify(design, null, 2);
+  restartAttempt();
   listParts();
   return true;
 }
@@ -1327,8 +1337,11 @@ function setSpeed(targets, speed) {
     for (const c of world.cells) if (c.design === design) respeed(c, k, speed);
   }
   $('json').value = JSON.stringify(design, null, 2);
+  restartAttempt();
   listParts();
 }
+// In a mission a changed rule starts the attempt again, as a changed part does (the old verdict used to stay up)
+function restartAttempt() { if (mission && mission.J && world.steps !== mission.J.t0) reset(); }
 
 // A living cell's reading of a sensor ('energy', 'starch', 'oil', 'health' or an id), as { value }; undefined if there is none
 function liveReading(c, id) {
@@ -3480,7 +3493,21 @@ fetch('/lan').then((r) => r.json()).then((urls) => {
 
 resize();
 const asked = new URLSearchParams(location.search).get('preset');   // ?preset=Wave%20tail opens that design
-load(preset(asked && PRESETS[asked] ? asked : 'Round cell'));   // an empty cell to build on (Claude's species is in the Add-cell menu)
+// The design being built is kept between visits (a reload used to lose it); a mission's cell is not
+const CURRENT_KEY = 'tinygod.current';
+let keptJSON = '';
+function keepCurrent() {
+  if (mission || !design) return;
+  try { const s = JSON.stringify(design); if (s !== keptJSON) { localStorage.setItem(CURRENT_KEY, s); keptJSON = s; } } catch (e) { /* private mode: not kept */ }
+}
+const kept = (() => {
+  try { const d = JSON.parse(localStorage.getItem(CURRENT_KEY) || 'null'); if (d && d.body) { buildCell(withoutTimers(JSON.parse(JSON.stringify(d)))); return d; } } catch (e) { /* broken: start empty */ }
+  return null;
+})();
+load(asked && PRESETS[asked] ? preset(asked) : kept || preset('Round cell'));   // the design from last time, else an empty cell to build on
+setInterval(keepCurrent, 3000);
+addEventListener('pagehide', keepCurrent);
+document.addEventListener('visibilitychange', () => { if (document.hidden) keepCurrent(); });
 placeLayout();   // after the first design: the docked patch view draws it
 requestAnimationFrame(frame);
 // ?design=TG1.… (the AI tournament's entry page, enter/): opens that design and keeps it in the saved designs

@@ -6,6 +6,26 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**OUTSIDE REVIEW (2026-11-09, a fresh Claude asked to play it and be critical; author: "great insights, take first what
+u think it's best").** Main findings: the page has no game after the six missions (~20 min; contests are Node tools
+only); one winning design (a slim rod mid-water with a nitroplast: blind entries' length ÷ width 16, 10, 7 win, 2.2-2.5
+lose; a round r 9 cell can't fit its organelles); alone 3 days Lanternrod with / without its nitroplast 6.3× / 4.4×;
+speed blocks everything (6 cells at 20× = 5.7× real time); sim/ breaks its own maths rule (Math.hypot, cbrt, sin, cos,
+atan2 in ~20 places: fix before replays on other browsers). **Top 5 proposed:** (1) a match in the page (your saved
+species vs 2-3 house species, 3 days, Skip, a verdict that says why); (2) a fast mode; (3) the stuck points, then
+chapters 3-5; (4) rebalance (a division also pays for its wall by surface; fixers leak part of what they fix; one bad
+spell a match; 10+ seeds); (5) an async ladder through GitHub issues with the AI entries as house rivals.
+**Stuck points fixed the same day (sandbox/main.js only):** the first tap on ＋ Add to body adds (it used to only show
+the ghost when the asked spot was taken); an edited organelle that no longer fits moves to the nearest spot that does
+(mission 3's "Size all the way" gave "inclusion sticks out of the body"; findFit now tries depths both ways); in a
+mission a changed rule restarts the attempt (restartAttempt; the old verdict stayed up); a new light condition starts as
+"less than 25% (dim)" (was "more than 50%"); the design being built is kept between visits (localStorage
+tinygod.current, not a mission's cell). Seen in headless Edge at 400×860. **Still open, the author's call:** mission 1's
+third star rewards a plastid the budget line marks red (0.6× upkeep), and its two-star win ends starving on the floor;
+missions 4 and 6 give three stars for one tap; mission 3's third star can't be won with what was taught; the tank is a
+~150 px strip under the mission bar on a phone; 13 parts open at once after mission 6; developer words in the Tank tab
+("From Claude", "Send to Claude").
+
 **2026-11-09 (pushed):** README updated (missions, AI entries, new screenshots); the rule editor's range shows each end's
 value; its "its day" graph redone (a title in words, the range's ends dashed with values, zones up the side, dawn / noon /
 dusk, a legend); **the tank revamped** (author: "feels cheap, not immersive… like looking at a marine slice"; sandbox/scene.js
