@@ -1,6 +1,6 @@
 # TinyGod
 
-**Design your own phytoplankton species and watch it fight for a living in a sunlit water column.**
+**Build a microscopic alga from real parts, teach it when to swim, float and sleep, then release it into a drop of sea and see whether it blooms or starves.**
 
 ▶ **Play it in your browser: https://vitorhugo1992.github.io/tinygod/**
 (It works on a phone, and keeps working offline once opened.)
