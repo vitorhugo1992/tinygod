@@ -887,13 +887,25 @@ function dayTrace(id) {
     .map((x) => [hourOf(x.t), kind === 'chem' ? Math.min(1, nitrogenAt(world, TH - x.depth, live.q[0])) : x[field]]);
   return pts.length > 1 ? { pts, where: 'its last day', span: (live.journal.s[live.journal.s.length - 1].t - Math.max(from, live.journal.s[0].t)) / PARAMS.metab.day } : null;
 }
-function traceSVG(id, test, colour) {
-  const tr = dayTrace(id);
-  if (!tr) return { svg: '', note: sensorKind(id) === 'statolith' ? 'The way it points does not follow the clock: tilt the cell (⟲ ⟳) to see it count or not.'
+// the reading over a day, read like the map (author, 2026-11-09: "I don't understand that well, maybe it lacks
+// legends"): what the sensor reads (thin line), the hours it counts (thick green), the range's ends as dashed lines
+// with their values, the zones up the side, dawn / noon / dusk along the bottom
+function traceSVG(id, test, colour, ends = []) {
+  const tr = dayTrace(id), K = kindOf(id), info = sensorInfo(id);
+  const verb = K.verb === 'is' || K.verb === 'has' ? 'reads' : K.verb;
+  if (!tr) return { svg: '', title: 'Its day', note: sensorKind(id) === 'statolith' ? 'The way it points does not follow the clock: tilt the cell (⟲ ⟳) to see it count or not.'
     : cell && cell.design === design ? 'No day to show for this reading yet.' : 'Select a cell of this design in the tank to see its day.' };
-  const K = kindOf(id), T = (h) => 8 + h / 24 * 304, Y = (v) => 70 - posOf(K, Math.max(0, Math.min(1, v))) * 60;
-  let s = `<rect x="8" y="10" width="304" height="60" fill="#0c1524" stroke="#22324a"/>`;
-  for (const h of [6, 12, 18]) s += `<line x1="${T(h)}" x2="${T(h)}" y1="10" y2="70" stroke="#22324a"/><text x="${T(h)}" y="82" text-anchor="middle" fill="#5a6f84" font-size="10">${String(h).padStart(2, '0')}:00</text>`;
+  const L = 58, R = 312, TOP = 8, BOT = 78;
+  const T = (h) => L + h / 24 * (R - L), Y = (v) => BOT - posOf(K, Math.max(0, Math.min(1, v))) * (BOT - TOP);
+  let s = `<rect x="${L}" y="${TOP}" width="${R - L}" height="${BOT - TOP}" fill="#0c1524" stroke="#22324a"/>`;
+  K.zones.forEach((z, i) => {   // the zones up the side, banded
+    const y0 = Y(z[1]), y1 = Y(z[0]);
+    if (i % 2) s += `<rect x="${L}" y="${y0}" width="${R - L}" height="${y1 - y0}" fill="#111d30"/>`;
+    if (y1 - y0 >= 9) s += `<text x="${L - 5}" y="${(y0 + y1) / 2 + 3.5}" text-anchor="end" fill="#6f8599" font-size="10">${esc(z[2])}</text>`;
+  });
+  for (const h of [6, 12, 18]) s += `<line x1="${T(h)}" x2="${T(h)}" y1="${TOP}" y2="${BOT}" stroke="#22324a"/>`;
+  for (const h of [0, 6, 12, 18, 24]) s += `<text x="${T(h)}" y="${BOT + 12}" text-anchor="middle" fill="#5a6f84" font-size="10">${String(h).padStart(2, '0')}h</text>`;
+  [[6, 'dawn'], [12, 'noon'], [18, 'dusk']].forEach(([h, w]) => { s += `<text x="${T(h)}" y="${BOT + 24}" text-anchor="middle" fill="#5a6f84" font-size="10" font-style="italic">${w}</text>`; });
   let line = '', lit = '', on = 0;
   tr.pts.forEach(([h, v], i) => {
     const P = `${T(h).toFixed(1)},${Y(v).toFixed(1)}`, wrap = i && h < tr.pts[i - 1][0];
@@ -901,10 +913,19 @@ function traceSVG(id, test, colour) {
     const ok = test(v), prev = i && !wrap && test(tr.pts[i - 1][1]);
     if (ok) { lit += `${prev ? ' L' : ' M'}${P}`; on++; }
   });
-  s += `<path d="${line}" fill="none" stroke="${colour}" stroke-width="1.5" opacity=".7"/><path d="${lit}" fill="none" stroke="${colour === '#ff8a7a' ? '#ff6f6f' : '#6fe0a0'}" stroke-width="3.5" stroke-linecap="round"/>`;
-  s += `<line x1="${T(clock(world))}" x2="${T(clock(world))}" y1="10" y2="70" stroke="#ff8a3c" stroke-dasharray="3 3"/>`;
+  for (const v of ends) {   // the range's ends, where the line crosses them it starts or stops counting
+    if (v <= 0 || v >= 1) continue;
+    const w = String(K.u(v, id)).replace(/ (sun|healthy|poisoned)$/, '');
+    s += `<line x1="${L}" x2="${R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${colour}" stroke-dasharray="5 4" stroke-width="1.5"/>`
+      + `<text x="${R - 3}" y="${Y(v) - 3}" text-anchor="end" fill="#dce7ec" font-size="10.5" font-weight="600" paint-order="stroke" stroke="#0c1524" stroke-width="3">${esc(w)}</text>`;
+  }
+  s += `<path d="${line}" fill="none" stroke="#9fb3c4" stroke-width="1.5" opacity=".8"/><path d="${lit}" fill="none" stroke="#6fe0a0" stroke-width="3.5" stroke-linecap="round"/>`;
+  s += `<line x1="${T(clock(world))}" x2="${T(clock(world))}" y1="${TOP}" y2="${BOT}" stroke="#ff8a3c" stroke-dasharray="3 3"/>`;
   const hrs = on / tr.pts.length * 24 * (tr.span || 1);
-  return { svg: s, note: `Over ${tr.where}: it would count for about ${hrs.toFixed(1)} h.` };
+  const where = tr.where.replace('a day at this depth (', 'a day at ').replace(' µm)', ' µm');
+  return { svg: s, title: `What ${dot(info.colour)}${esc(info.name)} ${verb} over ${esc(where)}`,
+    legend: `<span class="tleg"><i class="tl"></i>its reading <i class="tc"></i>counts <i class="te" style="border-color:${colour}"></i>your range <i class="tn"></i>now</span>`,
+    note: `It would count for about ${hrs.toFixed(1)} h of the day.` };
 }
 function ruleEditor(targets) {
   const m = targets[0], ed = ruleEd, box = document.createElement('div');
@@ -937,7 +958,7 @@ function ruleEditor(targets) {
       <div class="note">Now: ${esc(sensorInfo(c.sensor).name)} <b data-live="${esc(c.sensor)}" data-mean="${sensorKind(c.sensor)}">–</b> · ${esc(sensorInfo(c.vs).name)} <b data-live="${esc(c.vs)}" data-mean="${sensorKind(c.vs)}">–</b></div>`;
   } else {
     h += `<div class="lab">Range · drag its ends, or tap a zone's name</div><svg class="scale" viewBox="0 0 ${SVGW} 64"></svg>
-      <div class="lab">Its day · lit where it counts</div><svg class="trace" viewBox="0 0 ${SVGW} 86"></svg><div class="note" data-tnote></div>`;
+      <div class="lab tlab" data-ttitle>Its day</div><svg class="trace" viewBox="0 0 ${SVGW} 106"></svg><div class="note" data-tnote></div>`;
   }
   h += `<div class="edfoot"><button class="del" data-del>Remove</button><button class="done" data-done>Done</button></div>`;
   box.innerHTML = h;
@@ -949,9 +970,10 @@ function ruleEditor(targets) {
     if (cmp) return;
     const r = rng();
     box.querySelector('.scale').innerHTML = scaleSVG(sid, r.min, r.max, c.not, colour);
-    const t = traceSVG(sid, (v) => inside(v, r.min, r.max) !== !!c.not, colour);
+    const t = traceSVG(sid, (v) => inside(v, r.min, r.max) !== !!c.not, colour, [r.min, r.max]);
     box.querySelector('.trace').innerHTML = t.svg; box.querySelector('.trace').style.display = t.svg ? '' : 'none';
-    box.querySelector('[data-tnote]').textContent = t.note;
+    box.querySelector('[data-ttitle]').innerHTML = t.title;
+    box.querySelector('[data-tnote]').innerHTML = (t.legend || '') + esc(t.note);
   };
   redraw();
   box.addEventListener('click', (e) => {
@@ -1021,15 +1043,16 @@ function speedEditor(targets, box) {
   let h = `<div class="edq"><span class="edh">Beat speed</span></div><div class="row"><button class="sbtn${sp ? '' : ' on'}" data-sp="">always full</button>${sensors.map((s) => `<button class="sbtn${sp && sp.sensor === s.id ? ' on' : ''}" data-sp="${esc(s.id)}" style="--c:${s.colour || '#8197a8'}"><i></i>follows ${esc(s.short)}</button>`).join('')}</div>`;
   if (sp) h += `<div class="seg"><button data-dir="up" class="${sp.down ? '' : 'on'}">faster as it reads more</button><button data-dir="down" class="${sp.down ? 'on' : ''}">faster as it reads less</button></div>
     <div class="lab">${sp.down ? 'Full speed at the left end, stopped at the right' : 'Stopped at the left end, full speed at the right'} · drag the ends</div><svg class="scale" viewBox="0 0 ${SVGW} 64"></svg>
-    <div class="lab">Its day</div><svg class="trace" viewBox="0 0 ${SVGW} 86"></svg><div class="note" data-tnote></div>`;
+    <div class="lab tlab" data-ttitle>Its day</div><svg class="trace" viewBox="0 0 ${SVGW} 106"></svg><div class="note" data-tnote></div>`;
   h += `<div class="edfoot"><button class="done" data-done>Done</button></div>`;
   box.innerHTML = h;
   if (sp) {
     const redraw = () => {
       box.querySelector('.scale').innerHTML = scaleSVG(sp.sensor, sp.min, sp.max, false, '#ffd84a', sp.down ? 'down' : 'up');
-      const t = traceSVG(sp.sensor, (v) => (sp.down ? v < sp.max : v > sp.min), '#6fd3b5');
+      const t = traceSVG(sp.sensor, (v) => (sp.down ? v < sp.max : v > sp.min), '#ffd84a', [sp.min, sp.max]);
       box.querySelector('.trace').innerHTML = t.svg; box.querySelector('.trace').style.display = t.svg ? '' : 'none';
-      box.querySelector('[data-tnote]').textContent = t.note.replace('it would count', 'it would beat');
+      box.querySelector('[data-ttitle]').innerHTML = t.title;
+      box.querySelector('[data-tnote]').innerHTML = (t.legend || '').replace('counts', 'beats') + esc(t.note.replace('It would count', 'It would beat'));
     };
     redraw();
     dragScale(box.querySelector('.scale'), sp.sensor, () => sp, redraw, () => setSpeed(targets, sp), null, 0.05);
