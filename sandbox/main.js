@@ -851,6 +851,16 @@ function scaleSVG(id, a, b, out, colour, speed) {
   for (const [l, h] of bands) if (h > l) s += `<rect x="${X(l)}" y="22" width="${X(h) - X(l)}" height="10" rx="3" fill="${speed ? 'url(#spg)' : colour}" fill-opacity="${speed ? 1 : 0.75}"/>`;
   s += `<g data-needle="${esc(id)}" style="display:none"><line x1="0" x2="0" y1="14" y2="40" stroke="#ff8a3c" stroke-width="2.5"/><text x="0" y="10" text-anchor="middle" fill="#ff8a3c" font-size="10"></text></g>`;
   for (const v of [a, b]) { const end = v <= 0 || v >= 1; s += `<circle cx="${X(v)}" cy="27" r="${end ? 6 : 8}" fill="${end ? '#16243a' : '#dce7ec'}" stroke="${colour}" stroke-width="2.5"/>`; }
+  // each end's value written above it (author, 2026-11-09: "the percentage value right in the bar"); the ends at the
+  // scale's edge (one-sided) and on/off readings (touching, feeding…) get none
+  const lab = (v) => { const w = String(K.u(v, id)).replace(/ (sun|healthy|poisoned)$/, ''); return /\d/.test(w) ? w : ''; };
+  const near = X(b) - X(a) < 40, edge = (v) => v <= 0 || v >= 1;
+  for (const [v, side] of [[a, near ? 'end' : 'middle'], [b, near ? 'start' : 'middle']]) {
+    const w = edge(v) ? '' : lab(v);
+    if (!w) continue;
+    const x = Math.max(14, Math.min(SVGW - 14, X(v) + (side === 'end' ? 4 : side === 'start' ? -4 : 0)));
+    s += `<text x="${x}" y="12" text-anchor="${side}" fill="#dce7ec" font-size="11" font-weight="600" paint-order="stroke" stroke="#0b1320" stroke-width="3">${esc(w)}</text>`;
+  }
   return s;
 }
 // the reading over a day: light at the cell's depth now (as it faces now), the stores and energy from the journal of the
