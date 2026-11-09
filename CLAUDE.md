@@ -6,6 +6,16 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**2026-11-09 (pushed):** README updated (missions, AI entries, new screenshots); the rule editor's range shows each end's
+value; its "its day" graph redone (a title in words, the range's ends dashed with values, zones up the side, dawn / noon /
+dusk, a legend); **the tank revamped** (author: "feels cheap, not immersive… like looking at a marine slice"; sandbox/scene.js
+drawWater / drawBed, main.js draw()): the view is locked to the tank (no zooming out past it filling the screen, no panning
+past the sides, surface or seabed; the seabed shows above the clock line and the day graph, the mission bar never covers
+the surface), a seabed (uneven lit top, layered textured sediment, grains, old diatom shells, fluff, a haze above it), a
+surface seen from below, murk clouds, soft light beams fixed to the water, a far parallax layer of specks, the nitrogen
+haze one smooth image (its column seams drew lines). Not yet measured: frame rate on a real phone. **Next:** the author
+plays missions 1-6; then chapter 3 (growing) as a plan.
+
 **IDEA FOR LATER (author, 2026-11-08): symbiosis**, species in relationships with each other (not planned yet). Pieces already there: pads that hold strangers (mucus), sharing between joined kin (shareChains: energy and growth N), stolen plastids, the nitroplast (itself an endosymbiont). Possible routes to discuss: a pad that shares with a stranger it holds (a fixer feeding N to a partner that gives energy, like diatom-diazotroph associations, e.g. Richelia in Hemiaulus); hosting a partner inside (an endosymbiont that divides with the host); cleaning or riding (a swimmer carrying a drifter). Needs two players' designs to agree, so it fits matches between species.
 
 **MISSIONS BUILT, chapters 1-2 (2026-11-08; author: "yes" to the plan).** sandbox/missions.js (pure; the page and
