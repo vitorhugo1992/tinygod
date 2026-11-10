@@ -14,7 +14,7 @@ const stars = (n) => '★'.repeat(n) + '<i>' + '★'.repeat(3 - n) + '</i>';
 const x1 = (v) => (v >= 10 ? v.toFixed(0) : v.toFixed(1)) + '×';
 
 // getDesign(): the design being built; inMission(): a mission is being played (its cell is not the player's)
-export function initMatch({ getDesign, inMission }) {
+export function initMatch({ getDesign, inMission, leave }) {
   let progress = (() => { try { return Object.assign({ best: {}, score: {} }, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return { best: {}, score: {} }; } })();
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(progress)); } catch (e) { /* private mode: not kept */ } };
   let run = null;   // the match running or just over: { i, rung, you, worker, result, pop, done, error, t0 }
@@ -56,7 +56,7 @@ export function initMatch({ getDesign, inMission }) {
 
   async function start(i) {
     const box = $('matchRun');
-    if (inMission()) { box.hidden = false; box.innerHTML = '<div class="mxnote">Leave the mission first (✕ Leave): a match plays your own species.</div>'; return; }
+    if (inMission()) leave();   // a match plays your own species: the mission ends and it comes back (it used to refuse, in a note easy to miss)
     stop();
     const rung = RUNGS[i], mine = JSON.parse(JSON.stringify(getDesign())), you = yourName(mine, rung);
     const me = run = { i, rung, you, result: null, pop: [], done: false, t0: performance.now() };

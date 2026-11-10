@@ -3299,6 +3299,20 @@ function showSection(name) {
   try { localStorage.setItem(SECTION_KEY, name); } catch (e) { /* private mode: not remembered */ }
 }
 for (const b of $('tabs').querySelectorAll('button')) b.onclick = () => showSection(b.dataset.sec);
+// On a computer the Missions and Matches sections fold to their heading (author, 2026-11-09: "so it doesn't take too
+// much space when not needed"); remembered. Starting a mission or a match opens its section again.
+const FOLD_KEY = 'tinygod.folded';
+const folded = (() => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) || '{}'); } catch (e) { return {}; } })();
+function foldSection(name, on) {
+  const el = document.querySelector(`.sec[data-sec="${name}"]`);
+  if (!el) return;
+  el.classList.toggle('folded', on); folded[name] = on;
+  try { localStorage.setItem(FOLD_KEY, JSON.stringify(folded)); } catch (e) { /* private mode: not remembered */ }
+}
+for (const el of document.querySelectorAll('.sec[data-fold]')) {
+  el.classList.toggle('folded', !!folded[el.dataset.sec]);
+  el.querySelector('h2').onclick = () => foldSection(el.dataset.sec, !el.classList.contains('folded'));
+}
 showSection((() => { try { return localStorage.getItem(SECTION_KEY); } catch (e) { return null; } })() || 'missions');
 
 // A small picture of each part (as in design/desk-mockup.html), in the colour it is drawn in the tank: circles C x y r,
@@ -3576,6 +3590,7 @@ function showMissions() {
 }
 function startMission(i) {
   const m = MISSIONS[i];
+  if (!mission) keepCurrent();   // your own species waits (tinygod.current) and comes back when you leave
   mission = { m, i };
   playing = false; $('play').textContent = '▶';
   if (arrange) stopArrange(true);
@@ -3593,8 +3608,12 @@ function startMission(i) {
 function leaveMission() {
   mission = null;
   $('missionBar').hidden = true;
-  reset(); syncChips(); showMissions();
-  $('buildErr').textContent = 'free building: your cell stays in the tank';
+  // back to the species you were building before the mission (it used to leave the mission's cell in its place)
+  let mine = null;
+  try { const d = JSON.parse(localStorage.getItem(CURRENT_KEY) || 'null'); if (d && d.body) { buildCell(withoutTimers(JSON.parse(JSON.stringify(d)))); mine = d; } } catch (e) { /* none kept */ }
+  if (mine) { load(mine); past.length = 0; future.length = 0; } else reset();
+  syncChips(); showMissions();
+  $('buildErr').textContent = mine ? 'free building: back to your own species' : 'free building: your cell stays in the tank';
 }
 const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor(60 * (h % 1))).padStart(2, '0')}`;
 function missionBar(build) {
@@ -3603,7 +3622,7 @@ function missionBar(build) {
   const { m, i, J } = mission;
   if (build) {
     box.hidden = false; box.classList.remove('fold');
-    box.innerHTML = `<div class="mhead"><b>Mission ${i + 1} · ${esc(m.title)}</b><button class="mfold" title="Fold or open the mission">▾</button></div>`
+    box.innerHTML = `<div class="mhead"><b>Mission ${i + 1} · ${esc(m.title)}</b><button class="mfold" title="Fold or open the mission">▾</button><button class="mclose" title="Leave the mission: back to free building">✕</button></div>`
       + `<div class="mtask">${esc(m.story)} <b>${esc(m.task)}</b></div>`
       + m.stars.map((s, k) => `<div class="mgoal" data-k="${k}"><i>☆</i>${esc(s.text)}<span></span></div>`).join('')
       + '<div class="mverdict" hidden></div>'
@@ -3615,6 +3634,7 @@ function missionBar(build) {
     box.querySelector('.mplay').onclick = () => $('play').click();
     box.querySelector('.mretry').onclick = () => { reset(); };
     box.querySelector('.mleave').onclick = leaveMission;
+    box.querySelector('.mclose').onclick = leaveMission;
     box.querySelector('.mnext').onclick = () => startMission(i + 1);
   }
   J.status.forEach((st, k) => {
@@ -3667,4 +3687,4 @@ function skipMission() {
 }
 $('openAllBtn').onclick = () => { progress.all = !progress.all; saveProgress(); syncChips(); };
 showMissions(); syncChips();
-initMatch({ getDesign: () => design, inMission: () => !!mission });   // ⚔ Matches: the design being built against the house rivals (match.js)
+initMatch({ getDesign: () => design, inMission: () => !!mission, leave: leaveMission });   // ⚔ Matches: the design being built against the house rivals (match.js)

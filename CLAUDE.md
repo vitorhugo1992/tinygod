@@ -6,6 +6,34 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**2026-11-10, after the author tried the matches (pushed).** (1) On a computer the **Missions and Matches sections fold**
+to their heading (tap it; `data-fold`, main.js foldSection, localStorage tinygod.folded; on a phone they are tabs, never
+folded). (2) **The mission bar has an ✕** beside ▾ (the author "couldn't remove" it; ✕ Leave was there but not seen).
+(3) **Leaving a mission brings your own species back** (kept in tinygod.current when the mission starts; it used to
+leave the mission's cell in its place). (4) **A match started inside a mission leaves the mission and plays your own
+species** (it used to refuse in a note under the list, which read as "nothing is happening"); the running match's box
+now sits above the ladder. Seen in headless Edge at 1400×900 and 400×860.
+**OPEN QUESTION, the nucleus's slots (author: "don't have much use… the goal was to grow the slots as the cell got more
+intelligent, not well implemented enough").** Claude agrees: 16 slots, designs use 3-11, so the limit never binds and
+the meter is noise from mission 1. Claude's lean: **slots earned by stars** (start at ~6, +1 per few mission and match
+stars up to 16+; the meter hidden until a design uses over half), which gives stars a use and is the author's "smarter
+with progress"; the other choice is to drop the limit and hide the meter. Not built: the author to choose.
+**FAST MODE, PLAN (author: "yes, plan fast mode"; not started, waits for a go).** Where the time goes (a match
+profiled): physics.js assemble 42%, velocities + solve 15%, flowAt 10%, updatePose 7%. Stages, each measured against
+the one before: **0. a yardstick first** (tools/bench.mjs: fixed tanks, seconds per sim second; and a hash of the
+tank's state after N steps, so every later change shows at once whether results moved). **1. Exact savings** (same
+numbers, bit for bit: no refilling of untouched matrix cells, no per-step allocations; expect ~1.2-1.5×). **2. Rigid
+cells as one body** (results shift slightly, once: every recorded contest and the mission and match outcomes must be
+rerun and checked): a cell with nothing moving this step (no running motor, no spring off its rest: every drifter,
+every resting swimmer, spines and tubes) has 3 unknowns, not 3 + its joints, and its drag matrix is fixed in its own
+frame (rebuilt when it grows): Deepdweller II is 9 pieces solved as 1; the water sampled once per small cell (speed and
+curl at its centre) instead of per piece; contacts found on a grid instead of every pair. Expect 3-6× on drifter
+tanks, little for cells swimming all day. **3. Only if still too slow: a measured gait** for matches and Skip (a
+beating tail replaced by its thrust and turning measured once per design; the watched tank keeps full physics):
+the old "measure each design's movement once" idea; a big change, to decide after stage 2's numbers. **Passes if:**
+tools/check.mjs and missions-check.mjs pass, the house species still live alone 3 days, and a 5-seed contest keeps
+its order of species. Then matches can go back to 3 days and more cells.
+
 **⚔ MATCHES BUILT (2026-11-09, the review's item 1; author: "do what u think it's best").** A Match tab (second, after
 Missions): the design being built against a house rival, a ladder of six: Noctilla, Plebella, Nutricline Bobber
 (tournament/bobber-blind-opus.json), Deepdweller II, Needle Drifter (tournament/fixer-blind-opus2.json), then Plebella +

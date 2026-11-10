@@ -39,6 +39,13 @@
   .sec { display: flex; flex-direction: column; gap: 8px; }
   .sec > * { flex-shrink: 0; }
   .sec h2 { color: var(--hue); }
+  /* a computer: the Missions and Matches sections fold to their heading (on a phone they are tabs already) */
+  @media (min-width: 761px) {
+    .sec[data-fold] > h2 { cursor: pointer; user-select: none; }
+    .sec[data-fold] > h2::after { content: ' ▾'; opacity: .7; }
+    .sec[data-fold].folded > h2::after { content: ' ▸'; }
+    .sec[data-fold].folded > :not(h2) { display: none !important; }
+  }
   .sec > button { align-self: flex-start; }
   #panelTop { display: flex; flex-direction: column; gap: 6px; }
   #savedList { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 10px; }
@@ -457,16 +464,16 @@
     <button data-sec="parts" style="--hue: var(--h-parts)" title="The parts on this body, their rules, arranging, the nucleus">Parts</button>
     <button data-sec="tank" style="--hue: var(--h-tank)" title="Cells in the tank, saved designs, sending to Claude">Tank</button>
   </nav>
-  <section class="sec" data-sec="missions" style="--hue: var(--h-miss)">
-    <h2>🎯 Missions</h2>
+  <section class="sec" data-sec="missions" data-fold style="--hue: var(--h-miss)">
+    <h2 title="Fold or open the missions">🎯 Missions</h2>
     <div id="missionTotal"></div>
     <div id="missionList"></div>
   </section>
-  <section class="sec" data-sec="match" style="--hue: var(--h-match)">
-    <h2>⚔ Matches</h2>
+  <section class="sec" data-sec="match" data-fold style="--hue: var(--h-match)">
+    <h2 title="Fold or open the matches">⚔ Matches</h2>
     <div id="matchTotal"></div>
-    <div id="matchList"></div>
     <div id="matchRun" hidden></div>
+    <div id="matchList"></div>
   </section>
   <section class="sec" data-sec="body" style="--hue: var(--h-body)">
     <h2>Body</h2>
