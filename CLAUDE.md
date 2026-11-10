@@ -6,6 +6,27 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**FAST MODE, option A BUILT (2026-11-10; author: "yes").** physics.js: (1) **assembleBody** (exact): a cell moving as
+one body (no joints, or every joint held still) has its balance written out term by term for its three unknowns;
+(2) **the water once per cell** (results shift): flow.js flowGradAt gives the water and its change at the body's
+centre, each piece takes u + the change over its offset (first order: keeps the stretch that turns a rod along the
+stream); (3) **fixed pieces' directions composed** from the parent's with the mount's sine and cosine worked out once
+(results shift in the last bits). 71 checks and the 17 mission cases pass. **Bench, 30 sim s, ms per sim second, at
+the start -> now:** 6 Deepdweller II 61 -> 42; 6 Noctilla 109 -> ~99; the mixed ten 148 -> ~149; 4 Lanternrod 180 ->
+~131-163 (the timings wander ±15% between runs on this computer: run the bench twice). **So: ~1.45× for drifters,
+little for cells with beating tails** (their cost is the joints' own balance, m² per piece, and the 20 sub-steps a
+beat). New fingerprints: ecafee6a, 0ab12721, 4efb85ef, 1acc15aa. **Every contest recorded before today was run on the
+old numbers.** Not rerun: the 3-day lives of the house species, a 5-seed contest. **Still open:** (B) sensing, rules and
+metabolism every 10 ms (~30% of the time is there); (C) a measured gait for matches. Matches stay at 2 days, 12 cells.
+**MORE MISSIONS (author, 2026-11-10: "we need more missions, the ones we have barely scratch all possibilities").**
+Proposed, waiting for a go on chapter 3 first: **3 Growing** (7 feed in the deep: the nutrient sensor; 8 divide at
+dawn: the DIVIDE rule, a cell that splits at dusk and starves; 9 make your own nitrogen: the nitroplast; 10 grow or
+split: the Size reading), **4 Other species** (11 too spiky to swallow: spines against a mouth; 12 jump away: the
+spring on Drained; 13 stick together: kin pads, a chain too long to swallow; 14 drain it: the peduncle; 15 poison the
+water: the leaking sac against a swarm; 16 the harpoon), **5 The tank** (17-18: plates against tubes, the oar and
+statolith; then the Matches ladder). Needs in missions.js: goals on cell count and size, a rival placed in the
+mission's tank, goals over 2-3 days, and each part opening with its own mission (not 13 at once after mission 6).
+
 **SLOTS EARNED BY STARS, BUILT (2026-11-10; author: "agree with ur take on the slots").** sandbox/main.js only (the
 simulation, rivals and AI entries keep the nucleus's own 16): 6 slots open at first, one more for every 3 stars in
 missions and matches together (SLOTS_START, SLOTS_PER, starsTotal, openSlots; 30 stars open all 16; 🔓 All parts opens

@@ -8,7 +8,7 @@
 // so two cells pushing on each other never overshoot.
 import { PARAMS } from './params.js';
 import { dsin, dcos } from './dmath.js';
-import { flowAt } from './flow.js';
+import { flowGradAt } from './flow.js';
 
 const DT = PARAMS.time.dt;
 const KC = PARAMS.contact.stiffness;
@@ -20,6 +20,7 @@ const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 let IMP = DT;
 let FLOW = null;             // the water's state this step (sim/flow.js), or null: still water
 const FU = new Float64Array(3);
+const FG = new Float64Array(7);   // the water at the body's centre and its change around it (flow.js flowGradAt), once per cell
 
 // Scratch: velocity of one point per unit rate of each of a piece's columns
 const MAXC = 64;
@@ -48,7 +49,14 @@ export function updatePose(cell) {
       p.L = e; p.offset = e / 2;
       p.xt = x.s + x.ct * e; p.xn = x.s + x.cn * e; p.xr = x.r + x.cn * e * e * e / 12;
     }
-    const c = dcos(a), s = dsin(a);
+    // a piece fixed on its parent (a spine, a tube): its direction is the parent's turned by its mount, whose sine and
+    // cosine are worked out once (fast mode, stage 2); a jointed or extending piece takes its own
+    let c, s;
+    if (p.parent >= 0 && p.joint < 0) {
+      if (p.cm === undefined) { p.cm = dcos(p.mount); p.sm = dsin(p.mount); }
+      const k = p.parent;
+      c = cs[k] * p.cm - sn[k] * p.sm; s = sn[k] * p.cm + cs[k] * p.sm;
+    } else { c = dcos(a); s = dsin(a); }
     phi[i] = a; cs[i] = c; sn[i] = s; jx[i] = px; jy[i] = py;
     cx[i] = px + c * p.offset; cy[i] = py + s * p.offset;
   }
@@ -126,6 +134,7 @@ export function motorAngle(j, t) {
 function assemble(cell, gravity) {
   const { pieces, A, f, n, cs, sn, cx, cy } = cell;
   A.fill(0); f.fill(0);
+  if (FLOW) flowGradAt(FLOW, cx[0], cy[0], FG);
   for (let i = 0; i < pieces.length; i++) {
     const p = pieces[i], cols = p.cols, m = LIM || cols.length;
     const c = cs[i], s = sn[i];
@@ -144,7 +153,8 @@ function assemble(cell, gravity) {
     }
     // moving water: the drag is against the water, so the piece is pushed along with it and turned by its curl
     if (FLOW) {
-      flowAt(FLOW, cx[i], cy[i], FU);
+      const dx = cx[i] - cx[0], dy = cy[i] - cy[0];
+      FU[0] = FG[0] + FG[3] * dx + FG[4] * dy; FU[1] = FG[1] + FG[5] * dx + FG[6] * dy; FU[2] = FG[2];
       const fx = rxx * FU[0] + rxy * FU[1], fy = rxy * FU[0] + ryy * FU[1], tq = sh * p.xr * FU[2] / 2;
       for (let k = 0; k < m; k++) f[cols[k]] += UX[k] * fx + UY[k] * fy + (cell.colTurn[cols[k]] ? tq : 0);
     }
@@ -160,6 +170,39 @@ function assemble(cell, gravity) {
     const h = p.L / 2;
     walls(cell, cols, cx[i] + c * h, cy[i] + s * h, p.a);
     if (h > 0) walls(cell, cols, cx[i] - c * h, cy[i] - s * h, p.a);
+  }
+  if (cell.ext.length) outside(cell);
+}
+
+// assemble() for a cell moving as one body (every joint held still, or none): only the body's slide and turn, written
+// out term by term in assemble()'s own order, so the sums come out the same bit for bit, without its loops and calls.
+function assembleBody(cell, gravity) {
+  const { pieces, A, f, n, cs, sn, cx, cy } = cell;
+  A.fill(0); f.fill(0);
+  const ox = cell.jx[0], oy = cell.jy[0], n2 = 2 * n;
+  if (FLOW) flowGradAt(FLOW, cx[0], cy[0], FG);
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i], c = cs[i], s = sn[i], px = cx[i], py = cy[i];
+    const sh = i === 0 ? cell.shield || 1 : 1;
+    const rxx = sh * (p.xt * c * c + p.xn * s * s), rxy = sh * (p.xt - p.xn) * c * s, ryy = sh * (p.xt * s * s + p.xn * c * c);
+    const ux = -(py - oy), uy = px - ox;   // what a turn about the body's centre does to this piece's centre
+    const ax = rxx * ux + rxy * uy, ay = rxy * ux + ryy * uy;
+    A[0] += rxx; A[1] += rxy; A[2] += ux * rxx + uy * rxy;
+    A[n] += rxy; A[n + 1] += ryy; A[n + 2] += ux * rxy + uy * ryy;
+    A[n2] += ax; A[n2 + 1] += ay; A[n2 + 2] += ux * ax + uy * ay + sh * p.xr;
+    if (FLOW) {
+      const dx = px - cx[0], dy = py - cy[0];
+      FU[0] = FG[0] + FG[3] * dx + FG[4] * dy; FU[1] = FG[1] + FG[5] * dx + FG[6] * dy; FU[2] = FG[2];
+      const fx = rxx * FU[0] + rxy * FU[1], fy = rxy * FU[0] + ryy * FU[1];
+      f[0] += fx; f[1] += fy; f[2] += ux * fx + uy * fy + sh * p.xr * FU[2] / 2;
+    }
+    if (gravity) for (const wp of p.wpts) {
+      const wx = px + c * wp.x - s * wp.y;
+      f[1] -= wp.w; f[2] -= (wx - ox) * wp.w;
+    }
+    const h = p.L / 2, a = p.a, e1x = px + c * h, e1y = py + s * h;
+    if (e1y - a < 0 || e1y + a > TH || e1x - a < 0 || e1x + a > TW) walls(cell, p.cols, e1x, e1y, a);
+    if (h > 0) { const e2x = px - c * h, e2y = py - s * h; if (e2y - a < 0 || e2y + a > TH || e2x - a < 0 || e2x + a > TW) walls(cell, p.cols, e2x, e2y, a); }
   }
   if (cell.ext.length) outside(cell);
 }
@@ -206,11 +249,11 @@ function solveBody(A, b, n, x) {
 function velocities(cell, from, ahead, h, gravity) {
   updatePose(cell);
   const { q, v, n, A, f, A0, f0, joints } = cell;
-  let held = joints.length > 0;   // every joint held still: motors off, the rest latched
+  let held = true;   // every joint held still (motors off, the rest latched), or no joints at all
   for (let j = 0; j < joints.length && held; j++) { const jt = joints[j]; if (jt.type === 'motor' ? jt.on : !jt.latched) held = false; }
   if (held) {
     LIM = 3;
-    assemble(cell, gravity);
+    assembleBody(cell, gravity);
     LIM = 0;
     solveBody(A, f, n, v);
     for (let i = 3; i < n; i++) v[i] = 0;

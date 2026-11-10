@@ -1,7 +1,7 @@
 // The fast mode's yardstick (2026-11-10): fixed small tanks, each run for a stretch; prints the computing time per
 // simulated second and a fingerprint of the tank's state at the end. The same fingerprint before and after a change
 // means the results did not move at all (bit for bit); a different one means every recorded contest may shift.
-//   node tools/bench.mjs [sim seconds = 60]
+//   node tools/bench.mjs [sim seconds = 60] [tank 1-4: only that one]
 import { readFileSync } from 'fs';
 import { newMatch, stepMatch } from '../sim/match.js';
 
@@ -28,7 +28,8 @@ function fingerprint(world) {
 }
 
 let total = 0;
-for (const [title, names, each] of TANKS) {
+const only = Number(process.argv[3] || 0);
+for (const [title, names, each] of only ? [TANKS[only - 1]] : TANKS) {
   const m = newMatch({ entries: names.map((n) => ({ name: n, design: load(D[n]) })), seed: 3, days: 100, each, cap: 12 });
   const t0 = performance.now();
   stepMatch(m, secs * 1000);

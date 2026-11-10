@@ -53,3 +53,33 @@ export function flowAt(fs, x, y, out) {
   out[0] = u; out[1] = v; out[2] = w;
   return out;
 }
+
+// The water at (x, y) and how it changes around there (fast mode, stage 2, 2026-11-10): into out[0..6] = u, v, w as
+// flowAt, then du/dx, du/dy, dv/dx, dv/dy (1/s). A cell reads this once at its body's centre and each of its pieces
+// takes the water as u + the change over its offset: one look in place of one per piece, exact to first order (the
+// loops are ~500 µm across, a cell a tenth of that), keeping the stretch that turns a rod along the stream.
+export function flowGradAt(fs, x, y, out) {
+  if (x < 0) x = 0; else if (x > W) x = W;
+  if (y < 0) y = 0; else if (y > H) y = H;
+  const sy = dsin(KY * y), cy = dcos(KY * y);
+  let u = 0, v = 0, ux = 0, uy = 0, vx = 0;
+  for (let m = 2; m <= 3; m++) {
+    const a = m === 2 ? fs.a2 : fs.a3;
+    if (a === 0) continue;
+    const kx = m * Math.PI / W, sx = dsin(kx * x), cx = dcos(kx * x);
+    u += a * sx * KY * cy;
+    v -= a * kx * cx * sy;
+    ux += a * kx * cx * KY * cy;
+    uy -= a * sx * KY * KY * sy;
+    vx += a * kx * kx * sx * sy;
+  }
+  let vy = -ux;   // the loops neither squeeze nor swell the water
+  if (fs.stir && y < S.layer) {
+    const g = 1 - y / S.layer, k = 4 * Math.PI / W, ax = k * x + fs.stirPh, lift = fs.stir * (1 + S.patch * dsin(ax));
+    v += lift * g;
+    vx += fs.stir * g * S.patch * k * dcos(ax);
+    vy -= lift / S.layer;
+  }
+  out[0] = u; out[1] = v; out[2] = vx - uy; out[3] = ux; out[4] = uy; out[5] = vx; out[6] = vy;
+  return out;
+}
