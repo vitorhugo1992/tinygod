@@ -6,6 +6,22 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**CHAPTER 3 STOPS AT TWO MISSIONS; CHAPTER 4 EXPLORED, NOT BUILT (2026-11-10, author: "keep going").** (1) **No
+"divide at dawn" mission: the lesson isn't in the simulation.** Mission 5's swimmer grown to 1.95× and ready at 16:30:
+a daughter gets half the stores and half the upkeep, so dividing at dusk costs nothing (oil, resting: 4 cells next
+morning; awake: 2); with a starch store too small for the night it starves whether it divides or not (a newborn alone
+starves at 05:24; divided, both at 06:36); the DIVIDE rule "eyespot above 25%" changed nothing. The Division rule and
+the Size reading belong with predators (grow too big to swallow). (2) **Too spiky to swallow, explored** (scratch:
+Gula scaled to r 22, gape 11, placed above mission 5's solved swimmer starting on the floor at 06:30; still water): the
+scaled Gula sinks to the floor beside the swimmer; no spines: eaten 07:24; spines at 0° and 180° (narrowest width
+still 20 µm): eaten 06:54; three spines spread (90, 210, 330) of 4-25 µm: lives, climbs to ~800-1,000 µm by 10:00;
+40 µm spines: lives but too much drag, still ~1,900 µm at 15:00. **But contact is chance:** spines at 90° and 270°
+(mouth size 10, swallowable) and four spines at 60/120/240/300 (also 10) both lived: no mouth touched them. **Decision
+for the author:** (A) start the swimmer touching a mouth, so size decides at once (deterministic: eaten unless its
+narrowest width is over the gape), then stars for climbing away (long spines drag: too long fails); or (B) a real
+meeting (more natural, but some swallowable designs survive by luck). Claude's lean: A. Missions also need rivals in
+the tank: startWorld (missions.js) and reset()'s mission branch (main.js) add the mission's cells; m.start.rivals.
+
 **MISSION 8 BUILT (2026-11-10): Make your own nitrogen** (teaches the nitroplast). Its cell (missions.js
 surfaceDrifter): a 20 × 70 µm rod (r 10, L 50), the plastid, store and nucleus as mission 4's drifter shifted back, a
 rod-shaped chamber at the front (size 1, length 4: 24% of the cell) floating below 60%, so it rides ~35-40 µm deep with
