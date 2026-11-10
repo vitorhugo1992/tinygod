@@ -6,6 +6,21 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**MISSION 9 BUILT, chapter 4 "Other species" begins (2026-11-10; author chose A: the swimmer starts touching a mouth).**
+missions.js: GULPER (Claude's Gula widened to r 22: gape 11, takes a cell 20 µm across; it sinks and lies on the floor);
+m.start.rivals [{ name, design, dx from the player's cell, y above the floor, angle }] and addRivals(world, m, cell),
+called by startWorld and by main.js reset() in a mission; a new star condition { parts: label, max } (how many of a part
+the design has). **Too spiky to swallow** (teaches the Spine): mission 5's solved swimmer starts at 06:30 on the
+swallower's upper mouth; eaten at once unless its narrowest width, spines included, is over 22 µm. ★ not eaten (alive
+08:00) · ★★ with 4 spines or fewer · ★★★ with only 3. **Measured:** eaten with none, two (front-back or sides), four at
+60/120/240/300; three at 90/210/330 (6-100 µm) safe; four on the diagonals ★★; six ★. **What did not work as a star:**
+spine length (drag and upkeep don't decide anything here: 6-100 µm all climb by ~08:00-10:30 and live two nights; 40 µm
+was the slowest, 60-80 fast, set by how the cell comes free of the swallower). 9 new check cases (38 in all). Played in
+the page at 400×860: eaten at 06:32, ★★★ with three spines. The camera follows the small cell, so the swallower shows
+only as an edge until you zoom out. **Next in chapter 4:** grow too big to swallow (the Division rule / Size reading:
+wait to divide until big), jump away (the spring on Drained), stick together (kin pads), drain it (the peduncle),
+poison the water, the harpoon.
+
 **CHAPTER 3 STOPS AT TWO MISSIONS; CHAPTER 4 EXPLORED, NOT BUILT (2026-11-10, author: "keep going").** (1) **No
 "divide at dawn" mission: the lesson isn't in the simulation.** Mission 5's swimmer grown to 1.95× and ready at 16:30:
 a daughter gets half the stores and half the upkeep, so dividing at dusk costs nothing (oil, resting: 4 cells next

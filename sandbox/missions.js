@@ -5,6 +5,7 @@
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell } from '../sim/world.js';
 import { PART_TEMPLATES } from './parts.js';
+import { prepEntry } from '../sim/entry.js';
 
 const M = PARAMS.metab, TH = PARAMS.tank.h, DT = PARAMS.time.dt;
 const HOUR = M.day / 24;   // sim seconds in an hour of the day
@@ -65,7 +66,10 @@ export const tail = (min, max, where = 0, pull = true) => {
 // cell's volume. An hour is its first time after the start; day: 1 the next time after that.
 // Chapter 3 on (2026-11-10): { grown: ×, by, day } any cell of it that many times its newborn volume by then (or already
 // divided) · { cells: n, by, day } that many living cells of it by then. `about`: what a mission with no new part teaches.
-export const CHAPTERS = ['Staying alive', 'Your first rules', 'Growing'];
+export const CHAPTERS = ['Staying alive', 'Your first rules', 'Growing', 'Other species'];
+// Chapter 4's swallower: Claude's Gula (designs/gula.json) widened to r 22, so its mouths (gape: half its radius, 11 µm)
+// take a cell 20 µm across; it sinks to the floor and lies there
+const GULPER = {"body":{"radius":22,"length":66},"parts":[{"type":"inclusion","id":"float","material":"chamber","at":[32.34,0],"radius":14.4,"length":1.33,"joint":{"type":"chamber","controls":[{"sensor":"e0","min":0,"max":0.12,"also":[{"sensor":"e1","min":0,"max":0.12},{"sensor":"e2","min":0,"max":0.12}],"all":true},{"sensor":"e0","min":0.005,"max":1,"also":[{"sensor":"e1","min":0.005,"max":1},{"sensor":"e2","min":0.005,"max":1}]},{"sensor":"near","min":0.7,"max":1,"or":true}]}},{"type":"inclusion","id":"plastid","material":"plastid","at":[1.81,0],"radius":14.4,"length":1.33,"pigment":"shade"},{"type":"inclusion","id":"oil","material":"oil","at":[-23.71,0],"radius":10.05},{"type":"inclusion","id":"nucleus","material":"nucleus","at":[-38.46,0],"radius":4.3,"joint":{"type":"rest","controls":[{"sensor":"energy","min":0,"max":0.4}]}},{"type":"sensor","id":"e0","kind":"light","cone":180,"at":[55,0],"angle":0},{"type":"sensor","id":"e1","kind":"light","cone":180,"at":[16.5,22],"angle":90},{"type":"sensor","id":"e2","kind":"light","cone":180,"at":[16.5,-22],"angle":270},{"type":"sensor","id":"near","kind":"near","at":[0,-22],"angle":270,"range":150,"feels":"anything"},{"type":"mouth","id":"mouthF","at":[55,0],"joint":{"type":"engulf"}},{"type":"mouth","id":"mouthL","at":[-16.5,22],"joint":{"type":"engulf"}},{"type":"mouth","id":"mouthR","at":[-16.5,-22],"joint":{"type":"engulf"}},{"type":"mouth","id":"mouthB","at":[-55,0],"joint":{"type":"engulf"}}]};
 export const MISSIONS = [
   { id: 'm1', chapter: 0, title: 'Catch the light', teaches: ['Plastid (makes energy)'],
     story: 'This cell has a nucleus and nothing to live on: it starves before noon.',
@@ -171,7 +175,35 @@ export const MISSIONS = [
       { text: 'Two cells by 19:00 on day 4', all: [{ cells: 2, by: 19, day: 3 }],
         hint: 'Close: find the size where both bars fill together (about 2-4% of the cell; the line under Size says how much it is).' },
     ] },
+  // Measured (2026-11-10): eaten at once with no spines, two (front and back, or the sides), or four at 60/120/240/300
+  // (a gap front and back); three spread round (90/210/330), 6-100 µm, are safe, all climb by ~08:00-10:30 and live two
+  // nights (spines' drag and upkeep don't decide anything here, so the stars count spines: spread them well).
+  // Chapter 4. The swimmer starts touching the swallower's upper mouth (author chose this over a chance meeting, so the
+  // verdict is the cell's size, not luck): a mouth takes a cell whose narrowest width, spines included, fits its gape.
+  { id: 'm9', chapter: 3, title: 'Too spiky to swallow', teaches: ['Spine'],
+    story: 'A swallower lies on the floor, and this swimmer starts right on its mouth. A mouth takes any cell that fits across it: this one, 20 µm wide, does.',
+    task: 'Add spines so it no longer fits: a mouth takes a cell if it fits across it any way round, so spread them (two leave a narrow way in).',
+    design: { body: ROUND, parts: [...swimmer(), ...tail(0, 0.25)] },
+    start: { hour: 6.5, depth: 1944.5, angle: 90, rivals: [{ name: 'Gulper', design: GULPER, dx: 16.5, y: 22.5, angle: 0 }] },
+    stars: [
+      { text: 'Not eaten: alive at 08:00', all: [{ alive: 8 }],
+        hint: 'It still fits across the mouth some way round. Add → Spine, and spread them round the cell: its narrowest width, spines included, must be over 22 µm.' },
+      { text: 'Not eaten, with 4 spines or fewer', all: [{ alive: 8 }, { parts: 'Spine', max: 4 }],
+        hint: 'Safe, but with more spines than it needs: spread fewer of them evenly round the cell.' },
+      { text: 'Not eaten, with only 3 spines', all: [{ alive: 8 }, { parts: 'Spine', max: 3 }],
+        hint: 'Three can do it, a third of the way round from each other (say 90°, 210°, 330°).' },
+    ] },
 ];
+
+// The other cells a mission puts in its tank (m.start.rivals: { name, design, dx from the player's cell, y above the
+// floor, angle }); the sandbox's reset and the check both call it
+export function addRivals(world, m, cell) {
+  for (const r of (m.start && m.start.rivals) || []) {
+    const d = prepEntry(r.design);
+    d.name = d.species = r.name;
+    addCell(world, d, cell.q[0] + (r.dx || 0), r.y, r.angle || 0);
+  }
+}
 
 // ----- time: a clock hour as sim seconds after the start -----
 function wait(m, h, day = 0, after = 0) {   // after: count only times at least this many hours after the start
@@ -187,6 +219,7 @@ export function startWorld(m, design) {
   w.steps = stepsAt(m.start.hour);
   const s = m.start;
   const c = addCell(w, design, s.x ?? PARAMS.tank.w / 2, TH - s.depth, s.angle ?? 0);
+  addRivals(w, m, c);
   return { world: w, cell: c };
 }
 
@@ -229,6 +262,7 @@ export function judge(m, world, cell) {
       return J.t >= to ? 'won' : 'pending';
     }
     if (c.share !== undefined) return shareOf(c.share) <= c.max ? 'won' : 'lost';
+    if (c.parts !== undefined) return (cell.design.parts || []).filter((p) => p.type === 'segment' && p.label === c.parts).length <= c.max ? 'won' : 'lost';
     return 'pending';
   };
   J.update = () => {

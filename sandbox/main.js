@@ -14,7 +14,7 @@ import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus } from './journal.js';
 import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, speciesTint, twilight } from './scene.js';
-import { MISSIONS, CHAPTERS, judge, stepsAt, partOpen, missionOpen, coreDone } from './missions.js';
+import { MISSIONS, CHAPTERS, judge, stepsAt, partOpen, missionOpen, coreDone, addRivals } from './missions.js';
 import { initMatch } from './match.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
@@ -1550,6 +1550,7 @@ function reset(pose, carry) {
   if (ms) w.steps = stepsAt(ms.hour);
   try {
     const next = addCell(w, design, s.x ?? TW / 2, s.y ?? TH * 0.6, s.angle ?? 0);
+    if (ms) addRivals(w, mission.m, next);   // a mission's other cells (chapter 4: a swallower)
     if (carry) {
       w.steps = carry.world.steps;
       const share = (c) => (c.metab ? c.metab.E / c.metab.C : M_START);
