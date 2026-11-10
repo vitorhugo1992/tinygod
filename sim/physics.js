@@ -23,6 +23,11 @@ const FU = new Float64Array(3);
 
 // Scratch: velocity of one point per unit rate of each of a piece's columns
 const MAXC = 64;
+// Fast mode, stage 1 (2026-11-10): while every joint of a cell is held still (motors off, hinges latched: a resting
+// swimmer, a charged spring), only the body's three unknowns can move. LIM = 3 then builds just their share of the
+// balance, and solveBody solves it: the same numbers, bit for bit, as the whole system gives (the other rows are
+// "this joint's rate is 0" and take nothing from these three), at a fraction of the work.
+let LIM = 0;
 const UX = new Float64Array(MAXC), UY = new Float64Array(MAXC);
 
 export function updatePose(cell) {
@@ -56,7 +61,8 @@ export function toWorld(cell, i, x, y) {
 }
 
 function fillCols(cell, cols, px, py) {
-  for (let k = 0; k < cols.length; k++) {
+  const m = LIM || cols.length;
+  for (let k = 0; k < m; k++) {
     const c = cols[k];
     if (c === 0) { UX[k] = 1; UY[k] = 0; }
     else if (c === 1) { UX[k] = 0; UY[k] = 1; }
@@ -75,7 +81,7 @@ function fillCols(cell, cols, px, py) {
 function contact(cell, cols, px, py, nx, ny, pen, kc = KC, imp = IMP) {
   const { A, f, n } = cell;
   fillCols(cell, cols, px, py);
-  const m = cols.length;
+  const m = LIM || cols.length;
   for (let k = 0; k < m; k++) {
     const gk = UX[k] * nx + UY[k] * ny;
     if (gk === 0) continue;
@@ -121,7 +127,7 @@ function assemble(cell, gravity) {
   const { pieces, A, f, n, cs, sn, cx, cy } = cell;
   A.fill(0); f.fill(0);
   for (let i = 0; i < pieces.length; i++) {
-    const p = pieces[i], cols = p.cols, m = cols.length;
+    const p = pieces[i], cols = p.cols, m = LIM || cols.length;
     const c = cs[i], s = sn[i];
 
     // drag about the centre (a body joined to kin in a chain is shielded a little: cell.shield, interact.js)
@@ -176,13 +182,41 @@ function solve(A, b, n, x) {
   }
 }
 
+// The body's three unknowns alone (every joint held still): solve()'s own steps on the first three rows and columns
+function solveBody(A, b, n, x) {
+  for (let k = 0; k < 3; k++) {
+    const piv = A[k * n + k];
+    for (let i = k + 1; i < 3; i++) {
+      const r = A[i * n + k] / piv;
+      if (r === 0) continue;
+      for (let j = k; j < 3; j++) A[i * n + j] -= r * A[k * n + j];
+      b[i] -= r * b[k];
+    }
+  }
+  for (let i = 2; i >= 0; i--) {
+    let s = b[i];
+    for (let j = i + 1; j < 3; j++) s -= A[i * n + j] * x[j];
+    x[i] = s / A[i * n + i];
+  }
+}
+
 // Velocities of every unknown at the cell's current pose; running motors go from their angle in `from` to their
 // angle `ahead` seconds further on their clock, in time h.
 // Returns the motors' power (only positive work costs).
 function velocities(cell, from, ahead, h, gravity) {
   updatePose(cell);
-  assemble(cell, gravity);
   const { q, v, n, A, f, A0, f0, joints } = cell;
+  let held = joints.length > 0;   // every joint held still: motors off, the rest latched
+  for (let j = 0; j < joints.length && held; j++) { const jt = joints[j]; if (jt.type === 'motor' ? jt.on : !jt.latched) held = false; }
+  if (held) {
+    LIM = 3;
+    assemble(cell, gravity);
+    LIM = 0;
+    solveBody(A, f, n, v);
+    for (let i = 3; i < n; i++) v[i] = 0;
+    return 0;
+  }
+  assemble(cell, gravity);
 
   // springy joints pull toward their rest angle (hinges) or rest length (extenders)
   for (let j = 0; j < joints.length; j++) {

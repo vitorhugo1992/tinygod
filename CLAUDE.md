@@ -6,6 +6,29 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**SLOTS EARNED BY STARS, BUILT (2026-11-10; author: "agree with ur take on the slots").** sandbox/main.js only (the
+simulation, rivals and AI entries keep the nucleus's own 16): 6 slots open at first, one more for every 3 stars in
+missions and matches together (SLOTS_START, SLOTS_PER, starsTotal, openSlots; 30 stars open all 16; 🔓 All parts opens
+them at once). slotsShort() refuses a new sensor (＋ Add, a mirror copy) or rule group that would need a shut slot and
+says how many stars open the next; a design that already uses more (saved, pasted, From Claude) loads and runs. The
+meter is hidden until a design uses over half its open slots; shut slots are drawn dashed. The stars' declaration moved
+up beside `let mission` (the meter reads it at the first load). Seen in the page: 6 stars, 8 slots, the 9th eyespot
+refused.
+**FAST MODE, stages 0 and 1 BUILT (author: "go"); stage 2 NOT started, and its gain is smaller than promised.**
+**0:** tools/bench.mjs [sim seconds]: four fixed tanks, ms per sim second and a fingerprint of the end state (same
+fingerprint = results bit for bit the same). **1 (exact):** physics.js: while every joint of a cell is held still
+(motors off, hinges latched) only the body's three unknowns are assembled and solved (LIM, solveBody). Fingerprints
+unchanged; 71 checks and the 17 mission cases pass. **Measured, 30 sim s, before -> after:** 6 Deepdweller II 61 -> 64
+ms per sim second (no gain: it has no joints), 6 Noctilla 109 -> 95, the mixed ten 148 -> 139, 4 Lanternrod 180 -> 131.
+**What the profile says now (bench tanks):** assemble 33%, flowAt 11%, velocities 7.5%, updatePose 7%; and ~30% is not
+physics at all: ruleState 7%, interact 6%, metabolize 6%, sense 4%, garbage 3.5%: **rules, sensors and metabolism run
+every millisecond.** So stage 2 as planned (rigid cells as one cached body, the water sampled once per cell) would
+give about 2× on drifters and ~1.3× on swimmers, not 3-6×. **The real lever is how often things run:** a cell with
+nothing moving doesn't need 1 ms steps, and rules and metabolism don't need 1,000 looks a second. Options for the
+author: (A) stage 2 as planned (~2×, results shift once); (B) also run sensing, rules and metabolism every 10 ms
+(another ~1.3×; every timer in sense / metab / interact must use the longer step: careful work); (C) the measured
+gait for matches and Skip (large, a different simulation for matches). Claude's lean: A then B, and measure before C.
+
 **2026-11-10, after the author tried the matches (pushed).** (1) On a computer the **Missions and Matches sections fold**
 to their heading (tap it; `data-fold`, main.js foldSection, localStorage tinygod.folded; on a phone they are tabs, never
 folded). (2) **The mission bar has an ✕** beside ▾ (the author "couldn't remove" it; ✕ Leave was there but not seen).

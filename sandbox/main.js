@@ -38,6 +38,10 @@ let trail = [], samples = [], released = null;   // released: where and when lat
 let ghosts = [];                                  // outlines of cells as they were at Release
 let cam = { x: TW / 2, y: TH / 2 };
 let mission = null;   // the mission being played: { m, i, J: its judge, cell: its cell, told: its verdict shown } (missions.js)
+// mission progress (stars): declared here, before the first design loads, because the slot meter reads it
+const MISSION_KEY = 'tinygod.missions';
+let progress = (() => { try { return Object.assign({ best: {}, all: false }, JSON.parse(localStorage.getItem(MISSION_KEY) || '{}')); } catch (e) { return { best: {}, all: false }; } })();
+const saveProgress = () => { try { localStorage.setItem(MISSION_KEY, JSON.stringify(progress)); } catch (e) { /* private mode: not kept */ } };
 // For headless page tests (CDP scripts): read the live world and the selected cell; nothing in the page uses it
 window.__tg = { get world() { return world; }, get cell() { return cell; } };
 
@@ -288,9 +292,10 @@ $('addPart').onclick = () => {
   if (nudge) {   // it goes where the ghost showed it fits
     $('partAngle').value = nudge.where; $('partInside').value = Math.round(nudge.depth * 100); showAngle(); showInside(); nudge = null;
   }
-  const d = JSON.parse(JSON.stringify(design));
+  const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, `p${Date.now() % 100000}_${++partCount}`));
+  if (slotsShort(d)) return;
   previewOn = false;
-  if (!applyDesign(withPart(d, makePart(d.body, `p${Date.now() % 100000}_${++partCount}`)))) { previewOn = true; updatePreview(); }
+  if (!applyDesign(d)) { previewOn = true; updatePreview(); }
 };
 // Replace the part being edited with one made from the controls now; keep its id and its wiring
 function updateEdited() {
@@ -742,7 +747,7 @@ function brainFits(targets, change) {
   const trial = JSON.parse(JSON.stringify(design));
   for (const m of targets) { const j = trial.parts[design.parts.indexOf(m)].joint; delete j.control; change(j); }
   const full = !nucleiOf(design).length ? 'this cell has no nucleus: add one (Inside the cell) to wire it' : brainProblem(trial);
-  if (!full) return true;
+  if (!full) return !slotsShort(trial);
   $('buildErr').textContent = full;
   if (patchOpen) $('patchHint').textContent = `🧬 ${full}`;
   return false;
@@ -1370,14 +1375,40 @@ $('patchBtn').onclick = () => { patchOpen = true; $('patch').hidden = false; dra
 $('patchClose').onclick = () => { patchOpen = false; $('patch').hidden = true; if (ruleEd && ruleEd.where === 'board') ruleEd = null; };
 // The nucleus's slots in use (author, 2026-11-08: the Nucleus board was a copy of the parts list; its slot meter now
 // tops the Parts tab too, and on a phone the board's button is gone)
+// Slots are earned (author, 2026-11-10: "the goal was to grow the slots as the cell got more intelligent"): the nucleus
+// has room for 16, and SLOTS_START of them are open at first; every SLOTS_PER stars, in missions and matches together,
+// open one more (🔓 All parts opens them all). A limit of this page only: the simulation, rivals and AI entries keep
+// the nucleus's own 16, and a design that already uses more (a saved or pasted one) still loads and runs; it just can't
+// take another sensor or rule group.
+const SLOTS_START = 6, SLOTS_PER = 3;
+function starsTotal() {
+  let n = 0;
+  for (const k in progress.best) n += progress.best[k] || 0;
+  try { const m = JSON.parse(localStorage.getItem('tinygod.matches') || '{}').best || {}; for (const k in m) n += m[k] || 0; } catch (e) { /* none */ }
+  return n;
+}
+function openSlots(d = design) {
+  const nuc = nucleiOf(d)[0], all = nuc ? nucleusSlots(nuc) : 0;
+  return progress.all ? all : Math.min(all, SLOTS_START + Math.floor(starsTotal() / SLOTS_PER));
+}
+// Would this change need a slot that isn't open yet? Says so and returns true
+function slotsShort(d) {
+  if (!d || !nucleiOf(d).length) return false;
+  const need = brainUse(d).total, open = openSlots(d);
+  if (need <= open || need <= brainUse(design).total) return false;
+  const next = SLOTS_PER - starsTotal() % SLOTS_PER;
+  $('buildErr').textContent = `🧬 its nucleus has ${open} slots open for now: ${next} more star${next === 1 ? '' : 's'} in missions or matches open${next === 1 ? 's' : ''} another (or free one: remove a sensor or a rule group)`;
+  return true;
+}
 function slotMeter() {
   const nuc = nucleiOf(design)[0];
   if (!nuc) return null;
-  const use = brainUse(design), slots = nucleusSlots(nuc);
+  const use = brainUse(design), all = nucleusSlots(nuc), slots = Math.max(openSlots(), Math.min(all, use.total));
+  if (use.total * 2 <= slots) return null;   // hidden until the design uses over half of them
   const head = document.createElement('div'); head.className = 'bslots';
-  head.title = 'The nucleus, the brain: each sensor, each wired built-in reading (energy, stores, plastid health) and each rule group takes a slot';
-  head.innerHTML = `<b>🧬 Slots</b><span class="slots${use.total >= slots ? ' full' : ''}">${Array.from({ length: slots }, (_, i) => `<i class="${i < use.total ? 'used' : ''}"></i>`).join('')}</span>
-    <span>${use.total} of ${slots}</span><span class="bnote">${use.sensors} sensor${use.sensors === 1 ? '' : 's'} · ${use.builtins.length} built-in · ${use.boxes} rule group${use.boxes === 1 ? '' : 's'}</span>`;
+  head.title = `The nucleus, the brain: each sensor, each wired built-in reading (energy, stores, plastid health) and each rule group takes a slot. ${slots} of its ${all} are open: every ${SLOTS_PER} stars in missions and matches open one more`;
+  head.innerHTML = `<b>🧬 Slots</b><span class="slots${use.total >= slots ? ' full' : ''}">${Array.from({ length: all }, (_, i) => `<i class="${i < use.total ? 'used' : i >= slots ? 'shut' : ''}"></i>`).join('')}</span>
+    <span>${use.total} of ${slots}${slots < all ? ` open (⭐ opens more)` : ''}</span><span class="bnote">${use.sensors} sensor${use.sensors === 1 ? '' : 's'} · ${use.builtins.length} built-in · ${use.boxes} rule group${use.boxes === 1 ? '' : 's'}</span>`;
   return head;
 }
 function drawPatch() {
@@ -1476,6 +1507,7 @@ function listParts() {
       d.parts.splice(k + 1, 0, ...copies);
       g.members.forEach((o, i) => { if (!(o.joint && o.joint.type === 'tether') || !copies[i] || !copies[i].id) return;
         for (const x of ownRules(g)) { const r = JSON.parse(JSON.stringify(x.members[0])); r.of = copies[i].id; r.id = `${copies[i].id}-${r.joint.type}`; d.parts.push(r); } });
+      if (slotsShort(d)) return;
       applyDesign(d);
     };
     if (targets.length && !open) {   // the rule in a sentence; tapped, it opens as the card
@@ -3548,9 +3580,6 @@ if (location.protocol === 'https:') $('sendDesign').title = 'Send this design to
 // live; every change to the design starts the attempt again. ⏩ Skip runs the tank flat out to the verdict. A first
 // star opens the part the mission taught for free building (the Add panel shows only open parts; 🔓 All parts in ⋯ More
 // opens them all).
-const MISSION_KEY = 'tinygod.missions';
-let progress = (() => { try { return Object.assign({ best: {}, all: false }, JSON.parse(localStorage.getItem(MISSION_KEY) || '{}')); } catch (e) { return { best: {}, all: false }; } })();
-const saveProgress = () => { try { localStorage.setItem(MISSION_KEY, JSON.stringify(progress)); } catch (e) { /* private mode: not kept */ } };
 function partAllowed(name) { return partOpen(name, progress.best, progress.all) || !!(mission && mission.m.teaches.includes(name)); }
 const starStr = (n) => '★'.repeat(n) + '<i>' + '★'.repeat(3 - n) + '</i>';
 function syncChips() {
