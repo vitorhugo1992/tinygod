@@ -33,7 +33,7 @@ const drifter = (rest) => [
   { type: 'inclusion', id: 'store', label: 'Energy store', at: [-5, -6.3], radius: 3, length: 14, material: 'starch' },
   ...part(ROD, 'Light sensor (eyespot)', 0, 'eye', 1),
 ];
-const chamber = () => { const c = part(ROD, 'Buoyancy chamber', 0, 'chamber', 1); c[0].joint.controls = rule('eye', 0, 0.25); return c; };
+const chamber = (below = 0.25) => { const c = part(ROD, 'Buoyancy chamber', 0, 'chamber', 1); c[0].joint.controls = rule('eye', 0, below); return c; };
 // chapter 2's swimmer: round, plastids on both sides, an oil store and an eyespot in front, resting in the dark
 const swimmer = () => [
   ...nucleus(ROUND, 180, 0.01),
@@ -52,7 +52,9 @@ export const tail = (min, max, where = 0, pull = true) => {
 // and shallower than that at that hour · { below: µm, from, to }
 // never shallower than that between the two hours (and alive) · { deeper: µm, from, to } never deeper (off the floor) · { share: material, max } that part under a share of the
 // cell's volume. An hour is its first time after the start; day: 1 the next time after that.
-export const CHAPTERS = ['Staying alive', 'Your first rules'];
+// Chapter 3 on (2026-11-10): { grown: ×, by, day } any cell of it that many times its newborn volume by then (or already
+// divided) · { cells: n, by, day } that many living cells of it by then. `about`: what a mission with no new part teaches.
+export const CHAPTERS = ['Staying alive', 'Your first rules', 'Growing'];
 export const MISSIONS = [
   { id: 'm1', chapter: 0, title: 'Catch the light', teaches: ['Plastid (makes energy)'],
     story: 'This cell has a nucleus and nothing to live on: it starves before noon.',
@@ -124,6 +126,23 @@ export const MISSIONS = [
         hint: 'It swims too high, where noon light hurts its plastids: stop the tail at less light (a lower number).' },
       { text: 'Above 1,000 µm by 09:00', all: [{ above: 1000, by: 9 }], hint: 'Climb sooner: the tail should run in dim light as well as dark.' },
     ] },
+  // Chapter 3. Measured (2026-11-10, this cell from 800 µm at 07:00, still water): floating below 60% it sits at ~30 µm
+  // with its energy bar full and its nitrogen bar near empty: 1.3× after 2 days, 1.5× after 4, never two cells; below
+  // 45%: 1.8× after 4 days; below 35%: two cells at day 2.42; below 25%: 1.7× at day 2, two cells at day 2.27; below 15%
+  // or less it rides too deep and starves on the second night.
+  { id: 'm7', chapter: 2, title: 'Feed in the deep', teaches: [], about: 'the growth meter: energy and nitrogen',
+    story: 'It floats in the bright water near the surface. On its growth meter (🌱) the energy bar ⚡ is full and the nitrogen bar N is almost empty: the surface is poor in nitrogen, the deep is rich. It never grows enough to divide.',
+    task: 'Open the chamber\'s card and make it float only in dimmer light: by day it then rides deeper, where it can feed. Not too deep: in the dark it starves.',
+    design: { body: ROD, parts: [...drifter(0.01), ...chamber(0.6)] },
+    start: { hour: 7, depth: 800, angle: 0 },
+    stars: [
+      { text: 'Grown to 1.5× its newborn size by 07:00 on day 3', all: [{ grown: 1.5, by: 7, day: 1 }],
+        hint: 'Growth needs both bars: it has the energy, not the nitrogen. Let it sink deeper by day: the chamber should float only when the eyespot sees less light (a lower number than 60%). If it starved, it rode too deep in the dark: a higher number.' },
+      { text: 'Two cells by 07:00 on day 4', all: [{ cells: 2, by: 7, day: 2 }],
+        hint: 'It grows, but too slowly to divide in time: it still spends too long in poor water. Float at less light.' },
+      { text: 'Two cells by 15:00 on day 3', all: [{ cells: 2, by: 15, day: 2 }],
+        hint: 'A little deeper still by day (try 25%). Much lower and it rides in the dark and starves.' },
+    ] },
 ];
 
 // ----- time: a clock hour as sim seconds after the start -----
@@ -149,11 +168,17 @@ export function judge(m, world, cell) {
   const body = cell.pieces[0];
   const shareOf = (mat) => body.inclusions.filter((i) => i.material === mat && !i.stolen).reduce((s, i) => s + i.v, 0) / body.volume;
   const J = { m, t0, t: 0, dead: false, diedT: null, samples: [], status: [], over: false };
-  const decidedBy = (c) => (c.alive !== undefined ? wait(m, c.alive, c.day) : c.at !== undefined ? wait(m, c.at)
+  const decidedBy = (c) => (c.grown !== undefined || c.cells !== undefined ? wait(m, c.by, c.day) : c.alive !== undefined ? wait(m, c.alive, c.day) : c.at !== undefined ? wait(m, c.at)
     : c.by !== undefined ? wait(m, c.by, c.day, c.after || 0) : c.to !== undefined ? wait(m, c.to) : 0);
   J.eta = (i) => Math.max(0, ...m.stars[i].all.map(decidedBy)) - J.t;   // sim seconds until star i is decided at the latest
   J.clock = (t) => { const h = m.start.hour + t / HOUR; return h - 24 * Math.floor(h / 24); };
   const cond = (c) => {
+    if (c.grown !== undefined || c.cells !== undefined) {   // growth: won the moment it is reached; lost when the time runs out or none is left
+      const by = wait(m, c.by, c.day);
+      if (J.samples.some((s) => s.t <= by && (c.cells !== undefined ? s.n >= c.cells : s.size >= c.grown || s.n >= 2))) return 'won';
+      const last = J.samples[J.samples.length - 1];
+      return J.t >= by || (last && last.n === 0) ? 'lost' : 'pending';
+    }
     if (c.alive !== undefined) {
       const at = wait(m, c.alive, c.day);
       return J.dead && J.diedT < at ? 'lost' : J.t >= at ? 'won' : 'pending';
@@ -191,7 +216,10 @@ export function judge(m, world, cell) {
     J.t = (w.steps - t0) * DT;
     const depth = TH - c.q[1];
     if (c.dead && !J.dead) { J.dead = true; J.diedT = J.t; J.diedDepth = depth; J.diedWhy = c.diedWhy || 'starved'; }
-    J.samples.push({ t: J.t, depth, dead: !!c.dead });
+    // the living cells of its kind, and the most grown of them (chapter 3's goals)
+    let n = 0, size = 0;
+    for (const x of w.cells) if (!x.dead && x.species === c.species) { n++; if ((x.size || 1) > size) size = x.size || 1; }
+    J.samples.push({ t: J.t, depth, dead: !!c.dead, n, size });
     J.update();
   };
   J.update();
@@ -199,7 +227,7 @@ export function judge(m, world, cell) {
 }
 
 // A whole attempt without drawing (the check; ⏩ in the page steps the live tank instead)
-export function runMission(m, design, stepWorld, maxS = 2 * M.day) {
+export function runMission(m, design, stepWorld, maxS = 4 * M.day) {
   const { world, cell } = startWorld(m, JSON.parse(JSON.stringify(design)));
   const J = judge(m, world, cell);
   const every = Math.round(1 / DT);
@@ -213,6 +241,8 @@ export const ALWAYS = ['Nucleus (the brain)'];
 export function partOpen(name, best, all) {
   if (all || ALWAYS.includes(name)) return true;
   if (TAUGHT.has(name)) return MISSIONS.some((m) => m.teaches.includes(name) && best[m.id] > 0);
-  return MISSIONS.every((m) => best[m.id] > 0);   // the rest: after the last mission
+  return coreDone(best);   // the rest: after the last mission of chapters 1 and 2
 }
+// Chapters 1 and 2 each have a star: every part not taught yet is open (later chapters don't close them again)
+export const coreDone = (best) => MISSIONS.filter((m) => m.chapter < 2).every((m) => best[m.id] > 0);
 export const missionOpen = (i, best) => i === 0 || best[MISSIONS[i - 1].id] > 0;

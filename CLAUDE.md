@@ -6,6 +6,23 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**CHAPTER 3 STARTED: MISSION 7 BUILT (2026-11-10; author: "yes" to chapter 3 first). Missions 8-10 are NOT built: what
+was planned for them did not hold up when measured.** missions.js: CHAPTERS + 'Growing'; new goals { grown: ×, by, day }
+and { cells: n, by, day } (the judge's samples now carry the living cells of its kind and the most grown one);
+runMission runs up to 4 days; `about` (what a mission with no new part teaches); coreDone (parts not taught open after
+chapters 1-2, as before: later chapters don't close them). **Mission 7, Feed in the deep** (no new part: the growth
+meter): mission 4's drifter with its chamber floating below 60%: it sits at ~30 µm, energy bar full, nitrogen bar
+empty, 1.3× after 2 days and never two cells. ★ 1.5× by 07:00 on day 3 · ★★ two cells by 07:00 on day 4 · ★★★ two
+cells by 15:00 on day 3. Measured: below 45% 0 stars; 35% ★★ (two cells at day 2.42); 25% ★★★ (day 2.27); 15% or less
+it starves on the second night (too deep). tools/missions-check.mjs: 22 cases pass. Played in the page at 400×860
+(0 stars as handed over, ★★★ at 25%, Skip ~5 s). **What did not hold:** (8) "divide at dawn": this drifter grown to
+1.95× and made to divide at 16:30 loses nothing (both daughters live the night): the lesson is true for swimmers awake
+at night (Needle Drifter's dusk division), so it needs a swimmer as its cell; (7's first idea) a nutrient-sensor rule
+sank the cell to the floor and killed it (the floor of this tank's patch reads 0.3-0.5: the patchy nitrogen fools the
+gauge, as known); (9) the nitroplast has no room in this rod, and the same cell on a 20 × 70 µm body sinks to the floor
+and starves (its chamber and plastid don't scale): it needs its own body, tuned. **Next for chapter 3:** a nitroplast
+cell that lives at the surface (tune a body first); a dusk-dividing swimmer for the Division rule; then chapter 4.
+
 **FAST MODE, option A BUILT (2026-11-10; author: "yes").** physics.js: (1) **assembleBody** (exact): a cell moving as
 one body (no joints, or every joint held still) has its balance written out term by term for its three unknowns;
 (2) **the water once per cell** (results shift): flow.js flowGradAt gives the water and its change at the body's

@@ -14,7 +14,7 @@ import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
 import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus } from './journal.js';
 import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, speciesTint, twilight } from './scene.js';
-import { MISSIONS, CHAPTERS, judge, stepsAt, partOpen, missionOpen } from './missions.js';
+import { MISSIONS, CHAPTERS, judge, stepsAt, partOpen, missionOpen, coreDone } from './missions.js';
 import { initMatch } from './match.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
@@ -3606,7 +3606,7 @@ function showMissions() {
     MISSIONS.forEach((m, i) => {
       if (m.chapter !== k) return;
       const open = missionOpen(i, best), cur = mission && mission.i === i;
-      const teaches = m.teaches.length ? 'teaches: ' + m.teaches.map((p) => SHORT[p] || p).join(', ') : 'the rule editor';
+      const teaches = m.teaches.length ? 'teaches: ' + m.teaches.map((p) => SHORT[p] || p).join(', ') : m.about || 'the rule editor';
       html += `<div class="mrow${open ? '' : ' locked'}${cur ? ' cur' : ''}"><span class="mnum">${i + 1}</span><span class="mname">${esc(m.title)}<small>${esc(teaches)}</small></span>`
         + `<span class="mst">${starStr(best[m.id] || 0)}</span>`
         + (open ? `<button data-m="${i}" title="Play this mission">${cur ? '↺' : '▶'}</button>` : '<span title="Earn a star in the mission before">🔒</span>') + '</div>';
@@ -3693,7 +3693,7 @@ function missionDone() {
   const miss = m.stars.findIndex((s, k) => J.status[k] !== 'won');
   const died = J.dead ? `It died at ${hhmm(J.clock(J.diedT))}, ${Math.round(J.diedDepth)} µm deep (${J.diedWhy}). ` : '';
   const opened = !had && J.stars && m.teaches.length ? ` · 🔓 ${m.teaches.map((p) => SHORT[p] || p).join(', ')} is open for your own designs` : '';
-  const done = !had && J.stars && MISSIONS.every((x) => progress.best[x.id] > 0) ? ' · 🔓 every part is open now' : '';
+  const done = !had && J.stars && m.chapter < 2 && coreDone(progress.best) ? ' · 🔓 every part is open now' : '';
   v.hidden = false;
   v.innerHTML = `<b>${J.stars ? starStr(J.stars) : 'Not yet'}</b>${opened}${done}`
     + (miss >= 0 ? `<div class="mhint">${esc(died)}${esc(m.stars[miss].hint)}</div>` : '<div class="mhint">All three stars!</div>');

@@ -28,6 +28,11 @@ const CASES = [
   ['m6', 'as handed over', (m) => plus(m), 0],
   ['m6', 'runs below 50%', (m) => withRule(m, (d) => { for (const p of d.parts) if (p.joint && p.joint.type === 'motor') p.joint.controls = [{ sensor: 'eye', min: 0, max: 0.5 }]; }), 2],
   ['m6', 'runs below 25%', (m) => withRule(m, (d) => { for (const p of d.parts) if (p.joint && p.joint.type === 'motor') p.joint.controls = [{ sensor: 'eye', min: 0, max: 0.25 }]; }), 3],
+  ['m7', 'as handed over (floats below 60%)', (m) => plus(m), 0],
+  ['m7', 'floats below 45%', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.45 }]; }), 0],
+  ['m7', 'floats below 35%', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.35 }]; }), 2],
+  ['m7', 'floats below 25%', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.25 }]; }), 3],
+  ['m7', 'floats below 10%: too deep', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.1 }]; }), 0],
 ];
 
 const only = process.argv.slice(2);
