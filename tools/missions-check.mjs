@@ -1,6 +1,8 @@
 // Every mission: its broken cell earns no star; the fixes it teaches earn the stars they should.
 //   node tools/missions-check.mjs [m1 m3 …]
 import { stepWorld } from '../sim/world.js';
+import { buildCell } from '../sim/build.js';
+import { prepEntry } from '../sim/entry.js';
 import { MISSIONS, runMission, part, tail } from '../sandbox/missions.js';
 
 const by = Object.fromEntries(MISSIONS.map((m) => [m.id, m]));
@@ -33,7 +35,19 @@ const CASES = [
   ['m7', 'floats below 35%', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.35 }]; }), 2],
   ['m7', 'floats below 25%', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.25 }]; }), 3],
   ['m7', 'floats below 10%: too deep', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.1 }]; }), 0],
+  ...[[0, 0, 'as handed over'], [0.3, 1, 'the default nitroplast (0.5%)'], [0.4, 1, 'a small one (1.2%)'], [0.5, 3, '2.3%'], [0.6, 3, '3.9%'], [0.65, 2, '5.0%'], [0.75, 0, 'too big (7.9%)']]
+    .map(([size, want, what]) => ['m8', what, (m) => (size ? withNitroplast(m, size) : plus(m)), want]),
 ];
+
+// A nitroplast where the Add panel's nudge would put it (from Where 90°: round the body, then nearer the centre)
+function withNitroplast(m, size) {
+  const B = m.design.body;
+  for (let k = 0; k <= 18; k++) for (const sign of k ? [1, -1] : [1]) for (const dp of [1, 0.8, 0.6, 0.4, 0.2, 0]) {
+    const d = plus(m, part(B, 'Nitroplast (fixes nitrogen)', ((90 + sign * k * 10) % 360 + 360) % 360, 'nitro', size, dp));
+    try { buildCell(prepEntry(d)); return d; } catch (e) { /* next spot */ }
+  }
+  throw new Error('no room for a nitroplast of size ' + size);
+}
 
 const only = process.argv.slice(2);
 let bad = 0;

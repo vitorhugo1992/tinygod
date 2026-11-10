@@ -34,6 +34,17 @@ const drifter = (rest) => [
   ...part(ROD, 'Light sensor (eyespot)', 0, 'eye', 1),
 ];
 const chamber = (below = 0.25) => { const c = part(ROD, 'Buoyancy chamber', 0, 'chamber', 1); c[0].joint.controls = rule('eye', 0, below); return c; };
+// chapter 3's surface drifter: a longer rod (20 × 70 µm) whose rod-shaped chamber keeps it in the bright water, with a gap
+// between the chamber and the plastid for one more organelle
+const LONG = { radius: 10, length: 50 };
+const surfaceDrifter = () => {
+  const n = nucleus(LONG, 180, 0.01), c = part(LONG, 'Buoyancy chamber', 0, 'chamber', 1, 1, { len: 4 });
+  c[0].joint.controls = rule('eye', 0, 0.6);
+  return [...n,
+    { type: 'inclusion', id: 'plastid', label: 'Plastid', at: [-14, 4], radius: 4.5, length: 16, material: 'plastid', pigment: 'sun' },
+    { type: 'inclusion', id: 'store', label: 'Energy store', at: [-13, -6.3], radius: 3, length: 14, material: 'starch' },
+    ...part(LONG, 'Light sensor (eyespot)', 0, 'eye', 1), ...c];
+};
 // chapter 2's swimmer: round, plastids on both sides, an oil store and an eyespot in front, resting in the dark
 const swimmer = () => [
   ...nucleus(ROUND, 180, 0.01),
@@ -143,6 +154,23 @@ export const MISSIONS = [
       { text: 'Two cells by 15:00 on day 3', all: [{ cells: 2, by: 15, day: 2 }],
         hint: 'A little deeper still by day (try 25%). Much lower and it rides in the dark and starves.' },
     ] },
+  // Measured (2026-11-10, from 100 µm at 07:00, still water, 5 days), nitroplast as the Add panel places it: none 1.3×,
+  // never two cells; 1.2% of the cell 1.9×; 2.3% two cells at day 3.30, 3.1% at 3.02, 3.9% at 3.33, 5.0% at 4.37; 6.3% and
+  // up: the nitrogen bar fills, the energy bar empties (the nitroplast spends what the plastid earns), never two cells. By
+  // day 3: none 1.2×, the default (0.5%) 1.3×: hence ★ at 1.3×.
+  { id: 'm8', chapter: 2, title: 'Make your own nitrogen', teaches: ['Nitroplast (fixes nitrogen)'],
+    story: 'This one lives in the bright upper water and has energy to spare, but the water up here has almost no nitrogen, and it has no way to fetch it from the deep.',
+    task: 'Add a nitroplast: it turns spare energy into nitrogen. Watch both bars of its growth meter (🌱): too small does little, too big eats all its energy.',
+    design: { body: LONG, parts: surfaceDrifter() },
+    start: { hour: 7, depth: 100, angle: 0 },
+    stars: [
+      { text: 'Grown to 1.3× its newborn size by 07:00 on day 4', all: [{ grown: 1.3, by: 7, day: 2 }],
+        hint: 'Its nitrogen bar barely moves: Add → Nitroplast, then ＋ Add to body. Already has one? Make it bigger (Size).' },
+      { text: 'Two cells by 19:00 on day 5', all: [{ cells: 2, by: 19, day: 4 }],
+        hint: 'Watch the growth meter: if the nitrogen bar (N) still lags, make the nitroplast bigger; if the energy bar (⚡) sits empty, it is too big: smaller.' },
+      { text: 'Two cells by 19:00 on day 4', all: [{ cells: 2, by: 19, day: 3 }],
+        hint: 'Close: find the size where both bars fill together (about 2-4% of the cell; the line under Size says how much it is).' },
+    ] },
 ];
 
 // ----- time: a clock hour as sim seconds after the start -----
@@ -227,7 +255,7 @@ export function judge(m, world, cell) {
 }
 
 // A whole attempt without drawing (the check; ⏩ in the page steps the live tank instead)
-export function runMission(m, design, stepWorld, maxS = 4 * M.day) {
+export function runMission(m, design, stepWorld, maxS = 5 * M.day) {
   const { world, cell } = startWorld(m, JSON.parse(JSON.stringify(design)));
   const J = judge(m, world, cell);
   const every = Math.round(1 / DT);

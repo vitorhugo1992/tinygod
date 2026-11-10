@@ -6,6 +6,19 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**MISSION 8 BUILT (2026-11-10): Make your own nitrogen** (teaches the nitroplast). Its cell (missions.js
+surfaceDrifter): a 20 × 70 µm rod (r 10, L 50), the plastid, store and nucleus as mission 4's drifter shifted back, a
+rod-shaped chamber at the front (size 1, length 4: 24% of the cell) floating below 60%, so it rides ~35-40 µm deep with
+its energy bar full and nitrogen empty; a gap between chamber and plastid where the Add panel's nudge puts a
+nitroplast. **Measured (from 100 µm at 07:00, still water, 5 days; the 34 µm rod has no room and a shorter chamber
+sinks it to the floor):** none 1.3×, never two cells; 0.5% (the default) 1.3× by day 3; 1.2% 1.9×; 2.3% two cells at day
+3.30, 3.1% at 3.02, 3.9% at 3.33, 5.0% at 4.37; 6.3% and up the N bar fills and the energy bar empties, never two cells.
+Stars: ★ 1.3× by 07:00 day 4 · ★★ two cells by 19:00 day 5 · ★★★ two cells by 19:00 day 4. runMission runs up to 5
+days. 7 new check cases (29 in all). Played in the page at 400×860: default ★, size 55 (moved to fit) ★★★.
+**Changed for players: the nitroplast now opens with mission 8's first star** (it used to open with every untaught
+part after chapter 2; each part taught in a mission opens with that mission). The budget line reads "earns 0.9× its
+upkeep at 100 µm" for this cell although it lives (it sits shallower): the estimate, not the cell.
+
 **CHAPTER 3 STARTED: MISSION 7 BUILT (2026-11-10; author: "yes" to chapter 3 first). Missions 8-10 are NOT built: what
 was planned for them did not hold up when measured.** missions.js: CHAPTERS + 'Growing'; new goals { grown: ×, by, day }
 and { cells: n, by, day } (the judge's samples now carry the living cells of its kind and the most grown one);
