@@ -3627,11 +3627,13 @@ function startMission(i) {
   load(Object.assign(JSON.parse(JSON.stringify(m.design)), { species: m.title }));
   past.length = 0; future.length = 0;
   missionBar(true); syncChips(); showMissions();
-  if (m.teaches[0] && !m.teaches[0].startsWith('Light sensor')) {
-    showSection('add'); $('partWhat').value = m.teaches[0];
+  const tpl = m.teaches[0] || (m.builder && m.builder.tpl);   // the part it teaches, or the one it is about
+  if (tpl && !tpl.startsWith('Light sensor')) {
+    showSection('add'); $('partWhat').value = tpl;
     if (m.builder && m.builder.where !== undefined) { $('partAngle').value = m.builder.where; showAngle(); }
     if (m.builder && m.builder.pull !== undefined) $('partPull').checked = m.builder.pull;
     $('partWhat').dispatchEvent(new Event('change'));
+    if (m.builder && m.builder.material) { $('partMaterial').value = m.builder.material; $('partMaterial').dispatchEvent(new Event('change')); }
   } else showSection('parts');
   $('buildErr').textContent = '';
 }

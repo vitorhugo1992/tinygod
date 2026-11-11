@@ -65,6 +65,16 @@ const CASES = [
       if (stop) for (const p of d.parts) if (p.joint && p.joint.type === 'motor') p.joint.controls.push({ sensor: 'feeding', min: 0.5, max: 1, stop: true });
       return d;
     }, want]),
+  ...[[null, 0, 'as handed over'], [[270, 0.2, false], 0, 'a harpoon with no rule'], [[270, 0.4], 0, 'a 40 µm harpoon (the dart starts past the hunter)'],
+    [[300, 0.2], 0, 'a harpoon aimed off (300°)'], [[270, 0.1], 3, 'a 10 µm harpoon at 270°'], [[270, 0.2], 3, 'a 20 µm harpoon at 270° (the default)'],
+    [[270, 0.3], 3, 'a 30 µm harpoon at 270°'], ['spring', 2, 'the spring from mission 11 instead']]
+    .map(([h, want, what]) => ['m14', what, (m) => {
+      if (h === 'spring') return plus(m, spring(180, 0, 20, true));
+      if (!h) return plus(m);
+      const p = part(ROUND, 'Spine', h[0], 'harp', h[1], 1, { content: 'harpoon' });
+      if (h[2] !== false) p[0].joint.controls = [{ sensor: 'drained', min: 0.5, max: 1 }];
+      return plus(m, p);
+    }, want]),
 ];
 function spring(where, i, len, wired) {
   const s = part(ROUND, 'Burst organ (escape)', where, 'spring' + i, 0.4, 1, { len });

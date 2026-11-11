@@ -6,6 +6,22 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**MISSION 14 BUILT (2026-11-11; author: "go"): Strike back** (the harpoon: a Spine of Kind Harpoon; teaches no new
+part, so main.js startMission now takes m.builder.tpl and m.builder.material: the Add panel opens on the Spine, Kind
+Harpoon, at 270°). Mission 11's start, but the Raptilla is starved (missions.js HUNGRY: no plastids, oil r 1.5, ~330k
+pJ). ★ alive at dawn · ★★ the hunter dead by dusk · ★★★ dead within half an hour. **Measured:** no defence, a harpoon
+with no rule, one aimed at 300°, or a 40 µm one (the page's default Size: the dart flies from the tip, so it starts
+beyond the hunter 20 µm away): drained, dead ~03:00 (0); a 10-30 µm harpoon at 270° firing on Drained: the wound
+(400k + 10%) kills it at once (★★★); mission 11's spring: the hunter starves 14:40 (★★). A fed Raptilla (~2.1 million
+pJ) survives the wound and latches again 23-100 min later, when the drained swimmer can't pay for a second shot. The
+first hint covers the 40 µm miss. 8 check cases. Played in the page: 40 µm missed (0 stars); Size 20 → ★★★.
+**POISON THE WATER: NOT BUILT; needs the author.** In mission 11's setup a leak sac does nothing (a drained,
+starving cell doesn't leak, nor one with no nitrogen in its growth meter; the swimmer has room only for a 20%-thick sac
+at 45° or 315°), and a burst kills the swimmer without visibly hurting the hunter. Toxins pay in crowds and calm water
+over time (contests): a mission needs its own scenario. Options to put to the author: (A) kamikaze for kin (a chain or
+two kin; one is drained and bursts; does the sister live?); (B) a leaker holding its patch against a swarm over a day
+or two; (C) leave toxins for chapter 5's tanks.
+
 **MISSION 13 BUILT (2026-11-11): Drain it** (teaches the Peduncle; opens with its first star). A swimmer with NO
 plastids and a small oil store (starves at ~11:46) on the floor at 06:30; a Pebble (missions.js PEBBLE: r 12, a plastid
 and a big starch store, no nucleus, still) lies 40 µm to its right; the Add panel opens on the Peduncle at 270°. New
