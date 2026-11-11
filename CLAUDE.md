@@ -18,9 +18,13 @@ first hint covers the 40 µm miss. 8 check cases. Played in the page: 40 µm mis
 **POISON THE WATER: NOT BUILT; needs the author.** In mission 11's setup a leak sac does nothing (a drained,
 starving cell doesn't leak, nor one with no nitrogen in its growth meter; the swimmer has room only for a 20%-thick sac
 at 45° or 315°), and a burst kills the swimmer without visibly hurting the hunter. Toxins pay in crowds and calm water
-over time (contests): a mission needs its own scenario. Options to put to the author: (A) kamikaze for kin (a chain or
-two kin; one is drained and bursts; does the sister live?); (B) a leaker holding its patch against a swarm over a day
-or two; (C) leave toxins for chapter 5's tanks.
+over time (contests): a mission needs its own scenario. Options put to the author: (A) kamikaze for kin, (B) a leaker
+holding its patch against a swarm, (C) leave toxins for chapter 5's tanks; author: "i like ur plan" (measure A, else C).
+**A measured: it fails, so C.** Two sister swimmers 25 µm apart, Raptilla's tube in one, a 20%-thick burst sac firing on
+Drained (all the room there is): it bursts at 11:12; the fed hunter shows no loss (2.11M pJ before and after: the sac's
+~165k is small and its pool refills in light), latches on the sister five minutes later, she bursts too: both die. A
+starved hunter (790k) also shows no loss; the sister lives only because it never meets her. A burst strong enough needs a
+cell built round a big sac (~160 µm³ or more to kill a 790k hunter). **Chapter 4 ends at mission 14.**
 
 **MISSION 13 BUILT (2026-11-11): Drain it** (teaches the Peduncle; opens with its first star). A swimmer with NO
 plastids and a small oil store (starves at ~11:46) on the floor at 06:30; a Pebble (missions.js PEBBLE: r 12, a plastid
