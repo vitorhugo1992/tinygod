@@ -42,7 +42,12 @@ const CASES = [
     [[60, 120, 240, 300], 0, 'four spines, none at front or back', 0.1], [[45, 135, 225, 315], 2, 'four spines on the diagonals'],
     [[30, 90, 150, 210, 270, 330], 1, 'six spines']]
     .map(([at, want, what, len = 0.25]) => ['m9', what, (m) => plus(m, ...at.map((deg, i) => part(ROUND, 'Spine', deg, 'sp' + i, len))), want]),
+  ['m10', 'as handed over (no Division rule)', (m) => plus(m), 0],
+  ...[[1.5, 0], [2.1, 2], [2.4, 2], [2.6, 2], [2.7, 3], [3, 3], [4, 1]]
+    .map(([x, want]) => ['m10', `divides above ${x}×`, (m) => plus(m, divideWhen([{ sensor: 'size', min: (x - 1) / 7, max: 1 }])), want]),
+  ['m10', 'divides when the eyespot sees more than 25%', (m) => plus(m, divideWhen([{ sensor: 'eye', min: 0.25, max: 1 }])), 2],
 ];
+function divideWhen(controls) { return [{ type: 'rule', id: 'divide', label: 'Division', joint: { type: 'divide', controls } }]; }
 
 // A nitroplast where the Add panel's nudge would put it (from Where 90°: round the body, then nearer the centre)
 function withNitroplast(m, size) {

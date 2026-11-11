@@ -6,6 +6,8 @@ import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell } from '../sim/world.js';
 import { PART_TEMPLATES } from './parts.js';
 import { prepEntry } from '../sim/entry.js';
+import { regrow } from '../sim/grow.js';
+import { mouthSize } from '../sim/interact.js';
 
 const M = PARAMS.metab, TH = PARAMS.tank.h, DT = PARAMS.time.dt;
 const HOUR = M.day / 24;   // sim seconds in an hour of the day
@@ -193,11 +195,31 @@ export const MISSIONS = [
       { text: 'Not eaten, with only 3 spines', all: [{ alive: 8 }, { parts: 'Spine', max: 3 }],
         hint: 'Three can do it, a third of the way round from each other (say 90°, 210°, 330°).' },
     ] },
+  // Measured (2026-11-11): the swimmer at 1.9× with one growth step banked, on the upper mouth at 06:30. No Division rule:
+  // it reaches 2× and divides at once, a newborn (20 µm) is swallowed. Size above 2.1×: divides 11:24, up in the water;
+  // the eyespot above 25%: 07:48; above 2.4×: 02:36 that night (daughters 21.3 µm); above 2.7×: 07:00 the next dawn on the
+  // floor, daughters 1.35× (22.1 µm: over the gape). It grows fast at night (2.1× at dusk, 2.6× by dawn). The swallower
+  // starves at 09:18 on day 2, after the mission is decided.
+  { id: 'm10', chapter: 3, title: 'Too big to swallow', teaches: [], about: 'the Division rule and the Size reading',
+    story: 'The swimmer is back on the swallower\'s mouth, grown to almost twice its newborn size: 24 µm across, it no longer fits. But it is about to divide, and each newborn, 20 µm across, will.',
+    task: 'Open its Division card (Parts) and make it wait: "and its Size is more than…". Big cells are safe; newborns are not.',
+    design: { body: ROUND, parts: [...swimmer(), ...tail(0, 0.25)] },
+    start: { hour: 6.5, depth: 1942.1, angle: 90, size: 1.9, rivals: [{ name: 'Gulper', design: GULPER, dx: 16.5, y: 22.5, angle: 0 }] },
+    stars: [
+      { text: 'None of it eaten at 08:00', all: [{ uneaten: 8 }],
+        hint: 'It divided on the mouth and a newborn was swallowed. Its Division card (Parts, under Life cycle): add "and its Size is more than…" so it waits until it is bigger.' },
+      { text: 'Two cells by 08:00 on day 3, none eaten', all: [{ uneaten: 8, day: 2 }, { cells: 2, by: 8, day: 2 }],
+        hint: 'It waits too long: it must still divide by the third morning. Ask for a smaller Size.' },
+      { text: 'Its two newborns too wide for that mouth (over 22 µm across), by 08:00 on day 3', all: [{ uneaten: 8, day: 2 }, { split: 22, by: 8, day: 2 }],
+        hint: 'Each newborn gets half its volume. To be over 22 µm across a newborn must be over 1.33× the newborn size, so it should divide at about 2.7× (the Size reading). It grows fastest at night, deep.' },
+    ] },
 ];
 
-// The other cells a mission puts in its tank (m.start.rivals: { name, design, dx from the player's cell, y above the
-// floor, angle }); the sandbox's reset and the check both call it
+// The rest of a mission's start: the cell grown to m.start.size with one growth step banked (so it grows again at once),
+// and the other cells it puts in its tank (m.start.rivals: { name, design, dx from the player's cell, y above the floor,
+// angle }); the sandbox's reset and the check both call it
 export function addRivals(world, m, cell) {
+  if (m.start && m.start.size > 1 && regrow(world, cell, m.start.size)) { cell.grow.E = 1.02 * cell.grow.stepE; cell.grow.N = 1.02 * cell.grow.stepN; }
   for (const r of (m.start && m.start.rivals) || []) {
     const d = prepEntry(r.design);
     d.name = d.species = r.name;
@@ -229,7 +251,8 @@ export function judge(m, world, cell) {
   const body = cell.pieces[0];
   const shareOf = (mat) => body.inclusions.filter((i) => i.material === mat && !i.stolen).reduce((s, i) => s + i.v, 0) / body.volume;
   const J = { m, t0, t: 0, dead: false, diedT: null, samples: [], status: [], over: false };
-  const decidedBy = (c) => (c.grown !== undefined || c.cells !== undefined ? wait(m, c.by, c.day) : c.alive !== undefined ? wait(m, c.alive, c.day) : c.at !== undefined ? wait(m, c.at)
+  const split = m.stars.some((st) => st.all.some((c) => c.split !== undefined));   // widths only where a star asks
+  const decidedBy = (c) => (c.grown !== undefined || c.cells !== undefined || c.split !== undefined ? wait(m, c.by, c.day) : c.uneaten !== undefined ? wait(m, c.uneaten, c.day) : c.alive !== undefined ? wait(m, c.alive, c.day) : c.at !== undefined ? wait(m, c.at)
     : c.by !== undefined ? wait(m, c.by, c.day, c.after || 0) : c.to !== undefined ? wait(m, c.to) : 0);
   J.eta = (i) => Math.max(0, ...m.stars[i].all.map(decidedBy)) - J.t;   // sim seconds until star i is decided at the latest
   J.clock = (t) => { const h = m.start.hour + t / HOUR; return h - 24 * Math.floor(h / 24); };
@@ -239,6 +262,17 @@ export function judge(m, world, cell) {
       if (J.samples.some((s) => s.t <= by && (c.cells !== undefined ? s.n >= c.cells : s.size >= c.grown || s.n >= 2))) return 'won';
       const last = J.samples[J.samples.length - 1];
       return J.t >= by || (last && last.n === 0) ? 'lost' : 'pending';
+    }
+    if (c.uneaten !== undefined) {   // none of its kind swallowed until then
+      const last = J.samples[J.samples.length - 1];
+      if (last && last.eaten > 0) return 'lost';
+      return J.t >= wait(m, c.uneaten, c.day) ? 'won' : 'pending';
+    }
+    if (c.split !== undefined) {   // its first division: every cell of its kind then at least that wide (narrowest, µm)
+      const s = J.samples.find((x) => x.n >= 2);
+      if (s) return s.t <= wait(m, c.by, c.day) && s.minW > c.split ? 'won' : 'lost';
+      const last = J.samples[J.samples.length - 1];
+      return J.t >= wait(m, c.by, c.day) || (last && last.n === 0) ? 'lost' : 'pending';
     }
     if (c.alive !== undefined) {
       const at = wait(m, c.alive, c.day);
@@ -279,9 +313,12 @@ export function judge(m, world, cell) {
     const depth = TH - c.q[1];
     if (c.dead && !J.dead) { J.dead = true; J.diedT = J.t; J.diedDepth = depth; J.diedWhy = c.diedWhy || 'starved'; }
     // the living cells of its kind, and the most grown of them (chapter 3's goals)
-    let n = 0, size = 0;
-    for (const x of w.cells) if (!x.dead && x.species === c.species) { n++; if ((x.size || 1) > size) size = x.size || 1; }
-    J.samples.push({ t: J.t, depth, dead: !!c.dead, n, size });
+    let n = 0, size = 0, minW = Infinity;
+    for (const x of w.cells) if (!x.dead && x.species === c.species) {
+      n++; if ((x.size || 1) > size) size = x.size || 1;
+      if (split) minW = Math.min(minW, 2 * mouthSize(x));
+    }
+    J.samples.push({ t: J.t, depth, dead: !!c.dead, n, size, minW, eaten: (w.eatenOf || {})[c.species] || 0 });
     J.update();
   };
   J.update();

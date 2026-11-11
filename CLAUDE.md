@@ -6,6 +6,22 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**MISSION 10 BUILT (2026-11-11; author: "yes"): Too big to swallow** (teaches the Division rule and the Size reading;
+no new part). Mission 9's swimmer starts on the swallower's upper mouth grown to 1.9× (24 µm across: safe) with one
+growth step banked (new m.start.size, applied in addRivals: regrow + 1.02 × stepE / stepN), so it reaches 2× and
+divides at once and a 20 µm newborn is swallowed. ★ none of it eaten at 08:00 · ★★ two cells by 08:00 on day 3, none
+eaten · ★★★ its first two newborns over 22 µm across (divide at ≥ ~2.7×). New judge conditions { uneaten: hour, day }
+(sim/interact.js counts world.eatenOf[species]: no effect on results) and { split: µm, by, day } (every cell of its
+kind at its first division at least that wide, 2 × mouthSize). **Measured:** no rule or Size above 1.5×: 0 stars;
+2.1× (divides 11:24), 2.4× (02:36), 2.6×, the eyespot above 25% (07:48, up in the water): ★★; 2.7× and 3×: ★★★ (2.7×
+divides at the next dawn on the floor; it grows fastest deep at night); 4×: ★ (still waiting). A first deadline of noon
+on day 2 was too tight (one run grew slower: 2.6× at 10:30); the swallower starves at ~09:18 on day 3, after the
+mission ends. **Not a real second meeting:** ★★★ is judged by width, not by the swallower (the daughters sink back to
+the floor each dawn ~200 µm from it; a floor-living cell on the swallower starved in 2% light). 10 new check cases (48
+in all); tools/check.mjs passes. Played in the page at 400×860: eaten at 06:32 as handed over; the Division card's "+
+and…" → Size (default "more than 4.0×") dragged to 2.8× → ★★★, Skip 33 s. **Next in chapter 4:** jump away (the spring
+on Drained), stick together (kin pads), drain it (the peduncle), poison the water, the harpoon.
+
 **MISSION 9 BUILT, chapter 4 "Other species" begins (2026-11-10; author chose A: the swimmer starts touching a mouth).**
 missions.js: GULPER (Claude's Gula widened to r 22: gape 11, takes a cell 20 µm across; it sinks and lies on the floor);
 m.start.rivals [{ name, design, dx from the player's cell, y above the floor, angle }] and addRivals(world, m, cell),

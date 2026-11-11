@@ -353,6 +353,7 @@ export function interact(world) {
           for (const s of c.pieces[0].inclusions) if (s.store) energy += s.fill * s.v * PARAMS.metab[s.store].energy;
           N += c.grow ? c.grow.Nbody + c.grow.N : 0;
           c.eatenBy = A.species; c.dead = true; c.diedAt = world.steps; c.diedWhy = `eaten whole by a ${A.species}`;
+          (world.eatenOf ||= {})[c.species] = (world.eatenOf[c.species] || 0) + 1;   // (the missions' judge counts them)
         }
         A.meal = { prey: B.species, n: chain.size, energy, N, t: 0, r: Math.cbrt(3 * vol / (4 * Math.PI)) };
         A.lastSwallow = { prey: B.species, n: chain.size, step: world.steps };
