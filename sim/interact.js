@@ -233,6 +233,7 @@ export function interact(world) {
         const link = { a: A.index, b: B.index, padA: f, pieceB: 0, bx: hit[1], by: hit[2], holds: FEED.hold, feed: true, took: 0, tookN: 0, since: world.steps, price,
           drill: world.metab ? extra : 0, drillAll: extra };
         f.link = link; world.links.push(link);
+        A.latches = (A.latches || 0) + 1;   // (the missions' judge counts them)
         if (world.metab) A.metab.E -= f.cost;
         break;
       }

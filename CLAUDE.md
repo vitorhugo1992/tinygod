@@ -6,6 +6,42 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**MISSION 13 BUILT (2026-11-11): Drain it** (teaches the Peduncle; opens with its first star). A swimmer with NO
+plastids and a small oil store (starves at ~11:46) on the floor at 06:30; a Pebble (missions.js PEBBLE: r 12, a plastid
+and a big starch store, no nucleus, still) lies 40 µm to its right; the Add panel opens on the Peduncle at 270°. New
+judge conditions { latches: max, at } (sim/interact.js counts A.latches: no effect on results) and { gone: hour } (no
+other species alive by then). ★ alive at dusk · ★★ fed with one latch, never torn off · ★★★ and the Pebble drained by
+15:00. **Measured:** a 40 µm tube at 270° without "the tail stops while Feeding" is torn off by its own tail two or
+three times (★); with the rule: one latch, the Pebble dead ~14:43 (★★★). **But it is mostly a one-step mission (be
+honest with the author):** a 20 µm tube latched at 07:48 (the swimmer tumbled over to the Pebble) and held; a 60 µm
+tube without the rule held too; aimed off (240°) or 30 µm with the rule: ★★★. Only 40-50 µm tubes without the rule
+tear. The hoped-for lesson (a swimming hunter tears its own latch, Raptilla's) shows only at those lengths: the heavy
+prey pins the pair, on the floor and mid-water. 8 check cases. Played in the page: ★★★ with the default tube.
+
+**MISSION 12 BUILT (2026-11-11; author: "keep going"): Stick together** (teaches the Pad; it opens with this mission's
+first star). Mission 7's drifter (floating below 25%) at 1.9× lies on the swallower's upper mouth at 06:30 (depth
+1942.5, angle 0), about to divide; the Add panel opens on the Pad at 180°. A chain is swallowed only whole and only if
+it fits across the swallower (44 µm): two 54 µm rods never do. New judge condition { chain: n, at, day } (at least n
+cells of its kind joined to kin then; samples carry joined); { parts, max, type } now counts any part type. ★ none
+eaten at 08:00 · ★★ two cells still joined at dawn · ★★★ that with one pad. **Measured:** no pad: a newborn swallowed
+at 06:31; a pad holding only while the eyespot sees more than 25%: doesn't hold on the dark floor, eaten (0); holding
+only below 5%: lets go by day (★); pads front and back or both sides: ★★; one pad at the back: ★★★ (the newborn is
+placed pad to pad). Round cells would not have worked: two r 10 cells joined are ~40 µm, under the 44 µm limit. 7 new
+check cases. Played in the page at 400×860: Add (opens on the Pad, kin, 180°) → ＋ Add → ★★★ (3 cells by dawn).
+**Next in chapter 4:** drain it (the peduncle), poison the water, the harpoon.
+
+**MISSION 11 BUILT (2026-11-11; author: "go"): Jump away** (teaches the Spring; it now opens with this mission's first
+star, no longer after chapter 2). Claude's Raptilla (inlined in missions.js as RAPTILLA) starts with its 20 µm tube
+touching mission 9's swimmer at 10:00, 900 µm (rival dx 40, y 1103.4, angle 160: the tube's tip on the swimmer's front);
+the Add panel opens on the Spring at Where 180°. New judge condition { free: true, from, to } (no tube in it between
+the hours; samples carry drained). ★ alive at dawn · ★★ free within 5 minutes and not caught again before dusk · ★★★
+that with one spring. **Measured:** no spring, a spring with no rule, a 10 µm one, or one at the front: drained all day
+(its plastids keep it alive in light), dragged to the floor, dead ~01:00-02:00: 0 stars; at the side (90°): caught
+again, free ~10:38: ★; 40 µm at the back: re-caught four times, free ~10:10: ★; two at 150°/210°: ★★; one 20 µm at
+the back firing on Drained: torn free in about a minute wherever the tube latched (front, sides, back): ★★★. 8 new
+check cases. Played in the page at 400×860: Add (opens on the Spring at 180°) → ＋ Add → its card "+ and…" → Drained →
+★★★. **Next in chapter 4:** stick together (kin pads), drain it (the peduncle), poison the water, the harpoon.
+
 **MISSION 10 BUILT (2026-11-11; author: "yes"): Too big to swallow** (teaches the Division rule and the Size reading;
 no new part). Mission 9's swimmer starts on the swallower's upper mouth grown to 1.9× (24 µm across: safe) with one
 growth step banked (new m.start.size, applied in addRivals: regrow + 1.02 × stepE / stepN), so it reaches 2× and

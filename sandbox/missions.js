@@ -8,6 +8,7 @@ import { PART_TEMPLATES } from './parts.js';
 import { prepEntry } from '../sim/entry.js';
 import { regrow } from '../sim/grow.js';
 import { mouthSize } from '../sim/interact.js';
+import { drainedLevel } from '../sim/sense.js';
 
 const M = PARAMS.metab, TH = PARAMS.tank.h, DT = PARAMS.time.dt;
 const HOUR = M.day / 24;   // sim seconds in an hour of the day
@@ -72,6 +73,11 @@ export const CHAPTERS = ['Staying alive', 'Your first rules', 'Growing', 'Other 
 // Chapter 4's swallower: Claude's Gula (designs/gula.json) widened to r 22, so its mouths (gape: half its radius, 11 µm)
 // take a cell 20 µm across; it sinks to the floor and lies there
 const GULPER = {"body":{"radius":22,"length":66},"parts":[{"type":"inclusion","id":"float","material":"chamber","at":[32.34,0],"radius":14.4,"length":1.33,"joint":{"type":"chamber","controls":[{"sensor":"e0","min":0,"max":0.12,"also":[{"sensor":"e1","min":0,"max":0.12},{"sensor":"e2","min":0,"max":0.12}],"all":true},{"sensor":"e0","min":0.005,"max":1,"also":[{"sensor":"e1","min":0.005,"max":1},{"sensor":"e2","min":0.005,"max":1}]},{"sensor":"near","min":0.7,"max":1,"or":true}]}},{"type":"inclusion","id":"plastid","material":"plastid","at":[1.81,0],"radius":14.4,"length":1.33,"pigment":"shade"},{"type":"inclusion","id":"oil","material":"oil","at":[-23.71,0],"radius":10.05},{"type":"inclusion","id":"nucleus","material":"nucleus","at":[-38.46,0],"radius":4.3,"joint":{"type":"rest","controls":[{"sensor":"energy","min":0,"max":0.4}]}},{"type":"sensor","id":"e0","kind":"light","cone":180,"at":[55,0],"angle":0},{"type":"sensor","id":"e1","kind":"light","cone":180,"at":[16.5,22],"angle":90},{"type":"sensor","id":"e2","kind":"light","cone":180,"at":[16.5,-22],"angle":270},{"type":"sensor","id":"near","kind":"near","at":[0,-22],"angle":270,"range":150,"feels":"anything"},{"type":"mouth","id":"mouthF","at":[55,0],"joint":{"type":"engulf"}},{"type":"mouth","id":"mouthL","at":[-16.5,22],"joint":{"type":"engulf"}},{"type":"mouth","id":"mouthR","at":[-16.5,-22],"joint":{"type":"engulf"}},{"type":"mouth","id":"mouthB","at":[-55,0],"joint":{"type":"engulf"}}]};
+// Chapter 4's hunter: Claude's Raptilla (designs/raptilla.json): a swimmer with a 20 µm feeding tube; its tail stops while it feeds
+const RAPTILLA = {"body":{"radius":10},"parts":[{"type":"sensor","id":"eye","label":"Light sensor","at":[9.397,3.42],"angle":20,"kind":"light","cone":180},{"type":"sensor","id":"eyeL","label":"Light sensor","at":[0,10],"angle":90,"kind":"light","cone":180},{"type":"sensor","id":"eyeR","label":"Light sensor","at":[0,-10],"angle":270,"kind":"light","cone":180},{"type":"segment","id":"tail_0","parent":"body","at":[10,0],"angle":0,"length":8,"radius":0.25,"material":"protein","joint":{"type":"motor","rate":30,"swing":35,"phase":0,"controls":[{"sensor":"eye","min":0,"max":0.25,"also":[{"sensor":"eyeL","min":0,"max":0.25},{"sensor":"eyeR","min":0,"max":0.25}],"all":true},{"sensor":"feeding","min":0.5,"max":1,"stop":true}]},"label":"Wave tail"},{"type":"segment","id":"tail_1","parent":"tail_0","at":[4,0],"angle":0,"length":8,"radius":0.25,"material":"protein","joint":{"type":"motor","rate":30,"swing":35,"phase":0.15,"controls":[{"sensor":"eye","min":0,"max":0.25,"also":[{"sensor":"eyeL","min":0,"max":0.25},{"sensor":"eyeR","min":0,"max":0.25}],"all":true},{"sensor":"feeding","min":0.5,"max":1,"stop":true}]}},{"type":"segment","id":"tail_2","parent":"tail_1","at":[4,0],"angle":0,"length":8,"radius":0.25,"material":"protein","joint":{"type":"motor","rate":30,"swing":35,"phase":0.3,"controls":[{"sensor":"eye","min":0,"max":0.25,"also":[{"sensor":"eyeL","min":0,"max":0.25},{"sensor":"eyeR","min":0,"max":0.25}],"all":true},{"sensor":"feeding","min":0.5,"max":1,"stop":true}]}},{"type":"segment","id":"tail_3","parent":"tail_2","at":[4,0],"angle":0,"length":8,"radius":0.25,"material":"protein","joint":{"type":"motor","rate":30,"swing":35,"phase":0.45,"controls":[{"sensor":"eye","min":0,"max":0.25,"also":[{"sensor":"eyeL","min":0,"max":0.25},{"sensor":"eyeR","min":0,"max":0.25}],"all":true},{"sensor":"feeding","min":0.5,"max":1,"stop":true}]}},{"type":"segment","id":"tail_4","parent":"tail_3","at":[4,0],"angle":0,"length":8,"radius":0.25,"material":"protein","joint":{"type":"motor","rate":30,"swing":35,"phase":0.6,"controls":[{"sensor":"eye","min":0,"max":0.25,"also":[{"sensor":"eyeL","min":0,"max":0.25},{"sensor":"eyeR","min":0,"max":0.25}],"all":true},{"sensor":"feeding","min":0.5,"max":1,"stop":true}]}},{"type":"segment","id":"tail_5","parent":"tail_4","at":[4,0],"angle":0,"length":8,"radius":0.25,"material":"protein","joint":{"type":"motor","rate":30,"swing":35,"phase":0.75,"controls":[{"sensor":"eye","min":0,"max":0.25,"also":[{"sensor":"eyeL","min":0,"max":0.25},{"sensor":"eyeR","min":0,"max":0.25}],"all":true},{"sensor":"feeding","min":0.5,"max":1,"stop":true}]}},{"type":"inclusion","id":"nucleus","label":"Nucleus","at":[-5.35,0],"radius":4.3,"material":"nucleus","joint":{"type":"rest","controls":[{"sensor":"eye","min":0,"max":0.01,"also":[{"sensor":"eyeL","min":0,"max":0.01},{"sensor":"eyeR","min":0,"max":0.01}],"all":true}]}},{"type":"inclusion","id":"plastid","label":"Plastid","at":[0,6.35],"radius":3.3,"material":"plastid"},{"type":"inclusion","id":"plastid2","label":"Plastid","at":[0,-6.35],"radius":3.3,"material":"plastid"},{"type":"inclusion","id":"store","at":[5.95,0],"radius":3.7,"label":"Oil store","material":"oil"},{"type":"segment","id":"ped","label":"Peduncle","at":[7.66,6.428],"angle":20,"length":20,"radius":0.6,"material":"protein","joint":{"type":"feed"}}]};
+// Chapter 4's prey: a fat, still cell (a plastid and a big store, no nucleus)
+const PB = { radius: 12 };
+const PEBBLE = { body: PB, parts: [...part(PB, 'Plastid (makes energy)', 90, 'pl', 0.5), ...part(PB, 'Energy store', 270, 'st', 0.5)] };
 export const MISSIONS = [
   { id: 'm1', chapter: 0, title: 'Catch the light', teaches: ['Plastid (makes energy)'],
     story: 'This cell has a nucleus and nothing to live on: it starves before noon.',
@@ -213,6 +219,63 @@ export const MISSIONS = [
       { text: 'Its two newborns too wide for that mouth (over 22 µm across), by 08:00 on day 3', all: [{ uneaten: 8, day: 2 }, { split: 22, by: 8, day: 2 }],
         hint: 'Each newborn gets half its volume. To be over 22 µm across a newborn must be over 1.33× the newborn size, so it should divide at about 2.7× (the Size reading). It grows fastest at night, deep.' },
     ] },
+  // Measured (2026-11-11): Raptilla's tube touching the swimmer at 10:00, 900 µm. No spring, or a spring with no rule,
+  // or a 10 µm one: drained all day (its plastids keep it alive in light), dragged to the floor, dead ~02:00. A 20 µm
+  // spring at the back firing on Drained: torn free in about a minute wherever the tube latched (front, sides, back);
+  // two at 150°/210°: as fast; at the side (90°): caught again, free at ~10:38; 40 µm at the back: re-caught four
+  // times, free ~10:10; at the front (0°): dies.
+  { id: 'm11', chapter: 3, title: 'Jump away', teaches: ['Burst organ (escape)'],
+    story: 'A hunter has stuck its feeding tube into this swimmer and is drinking its energy. By day its plastids keep it going; at night it will be drained to death.',
+    task: 'Add a Spring and give it a rule: it fires when the cell is being drained (Drained). A jump tears the tube off.',
+    builder: { where: 180 },
+    design: { body: ROUND, parts: [...swimmer(), ...tail(0, 0.25)] },
+    start: { hour: 10, depth: 900, angle: 90, rivals: [{ name: 'Raptilla', design: RAPTILLA, dx: 40, y: 1103.4, angle: 160 }] },
+    stars: [
+      { text: 'Alive at dawn', all: [{ alive: 6 }],
+        hint: 'Still drained. Add → Spring, then give it a rule on its card: fires when… Drained. A spring with no rule never fires.' },
+      { text: 'Free within 5 minutes, and not caught again before dusk', all: [{ alive: 6 }, { free: true, from: 10 + 5 / 60, to: 18 }],
+        hint: 'It gets free too slowly or is caught again. A spring at the back (Where 180°) throws it straight away from the hunter; a short one is too weak, a long one drags.' },
+      { text: 'All that with one spring', all: [{ alive: 6 }, { free: true, from: 10 + 5 / 60, to: 18 }, { parts: 'Spring', max: 1 }],
+        hint: 'One spring, well placed, is enough: at the back, 20 µm.' },
+    ] },
+  // Measured (2026-11-11): mission 7's drifter (floating below 25%) at 1.9× lying on the swallower's upper mouth at 06:30,
+  // about to divide. No pads: a newborn is swallowed at once (06:31). Kin pads front and back, both sides, or one at the
+  // back: the newborns stay joined, and a chain is swallowed only whole, if it fits across the swallower (44 µm): two
+  // 54 µm rods don't. Both live and are still joined at the next dawn (rested near the surface).
+  { id: 'm12', chapter: 3, title: 'Stick together', teaches: ['Pad'], about: 'chains',
+    story: 'This drifter lies on the swallower\'s mouth, about to divide. Each newborn rod, 20 µm wide, fits the mouth end-first. But a mouth takes a chain only whole, and only if the chain fits across the swallower.',
+    task: 'Add a kin pad: when it divides, the newborns stay stuck together, pad to pad, a chain too long to swallow.',
+    builder: { where: 180 },
+    design: { body: ROD, parts: [...drifter(0.01), ...chamber(0.25)] },
+    start: { hour: 6.5, depth: 1942.5, angle: 0, size: 1.9, rivals: [{ name: 'Gulper', design: GULPER, dx: 16.5, y: 22.5, angle: 0 }] },
+    stars: [
+      { text: 'None of it eaten at 08:00', all: [{ uneaten: 8 }],
+        hint: 'A newborn was swallowed. Add → Pad (Sticks to: its own kind), then ＋ Add to body: the two newborns stay joined. A pad with a rule holds only while its rule does.' },
+      { text: 'Two cells still joined at dawn', all: [{ uneaten: 6 }, { chain: 2, at: 6 }],
+        hint: 'They came apart: a pad that holds only while some rule holds lets go. Leave its card on "Holds always".' },
+      { text: 'All that with one pad', all: [{ uneaten: 6 }, { chain: 2, at: 6 }, { parts: 'Kin pad', max: 1, type: 'pad' }],
+        hint: 'One pad is enough: the newborn is placed pad to pad, so both share it.' },
+    ] },
+  // Measured (2026-11-11): the hunter (mission 5's swimmer without plastids, a small oil store) on the floor at 06:30, a
+  // Pebble 40 µm to its right. No tube: starves at 13:00. A tube at Where 270°, 40-60 µm, with the tail stopping while
+  // Feeding: one latch, held; the Pebble drained to death at 14:43. Without that rule a long tube is torn off two or
+  // three times by its own tail (80-100k pJ a latch) before one holds (the Pebble dies ~15:36); aimed off (240°) or too
+  // short (30 µm) it latches only after drifting into it (~15:45). In the mission a 60 µm tube without the rule held too (only 40-50 µm tear), and a 20 µm tube latched at 07:48 (the swimmer tumbled over to the Pebble) and held: ★★★ too. Short tubes were never torn.
+  { id: 'm13', chapter: 3, title: 'Drain it', teaches: ['Peduncle (feeds on others)'],
+    story: 'This swimmer has no plastids: it cannot make its own energy, and its oil runs out before noon. A Pebble, a fat slow cell, lies on the floor 40 µm to its right.',
+    task: 'Add a feeding tube (Peduncle) on the side facing the Pebble (Where 270°). Its tip latches on any other cell it touches and drinks.',
+    builder: { where: 270 },
+    design: { body: ROUND, parts: [...nucleus(ROUND, 180, 0.01), ...part(ROUND, 'Energy store', 0, 'oil', 0.3, 1, { content: 'oil' }),
+      ...part(ROUND, 'Light sensor (eyespot)', 0, 'eye', 1), ...tail(0, 0.25)] },
+    start: { hour: 6.5, depth: 1990, angle: 90, rivals: [{ name: 'Pebble', design: PEBBLE, dx: 62.5, y: 12, angle: 0 }] },
+    stars: [
+      { text: 'Alive at dusk', all: [{ alive: 18 }],
+        hint: 'It never fed. Add → Peduncle at Where 270° (the Pebble side): its tip must touch the Pebble.' },
+      { text: 'Fed with one latch, never torn off', all: [{ alive: 18 }, { latches: 1, at: 18 }],
+        hint: 'Its own tail tore the tube out, and every new latch costs energy. Open the tail card: + unless… Feeding (the tail stops while it feeds).' },
+      { text: 'All that, and the Pebble drained by 15:00', all: [{ alive: 18 }, { latches: 1, at: 18 }, { gone: 15 }],
+        hint: 'Latch sooner: a tube long enough to reach the Pebble at once (Length 40 µm or more), pointing straight at it (270°).' },
+    ] },
 ];
 
 // The rest of a mission's start: the cell grown to m.start.size with one growth step banked (so it grows again at once),
@@ -252,7 +315,7 @@ export function judge(m, world, cell) {
   const shareOf = (mat) => body.inclusions.filter((i) => i.material === mat && !i.stolen).reduce((s, i) => s + i.v, 0) / body.volume;
   const J = { m, t0, t: 0, dead: false, diedT: null, samples: [], status: [], over: false };
   const split = m.stars.some((st) => st.all.some((c) => c.split !== undefined));   // widths only where a star asks
-  const decidedBy = (c) => (c.grown !== undefined || c.cells !== undefined || c.split !== undefined ? wait(m, c.by, c.day) : c.uneaten !== undefined ? wait(m, c.uneaten, c.day) : c.alive !== undefined ? wait(m, c.alive, c.day) : c.at !== undefined ? wait(m, c.at)
+  const decidedBy = (c) => (c.free !== undefined ? wait(m, c.to) : c.latches !== undefined ? wait(m, c.at) : c.gone !== undefined ? wait(m, c.gone) : c.chain !== undefined ? wait(m, c.at, c.day) : c.grown !== undefined || c.cells !== undefined || c.split !== undefined ? wait(m, c.by, c.day) : c.uneaten !== undefined ? wait(m, c.uneaten, c.day) : c.alive !== undefined ? wait(m, c.alive, c.day) : c.at !== undefined ? wait(m, c.at)
     : c.by !== undefined ? wait(m, c.by, c.day, c.after || 0) : c.to !== undefined ? wait(m, c.to) : 0);
   J.eta = (i) => Math.max(0, ...m.stars[i].all.map(decidedBy)) - J.t;   // sim seconds until star i is decided at the latest
   J.clock = (t) => { const h = m.start.hour + t / HOUR; return h - 24 * Math.floor(h / 24); };
@@ -267,6 +330,25 @@ export function judge(m, world, cell) {
       const last = J.samples[J.samples.length - 1];
       if (last && last.eaten > 0) return 'lost';
       return J.t >= wait(m, c.uneaten, c.day) ? 'won' : 'pending';
+    }
+    if (c.free !== undefined) {   // no tube in it between the two hours (and alive)
+      const from = wait(m, c.from), to = wait(m, c.to);
+      if (J.samples.some((s) => s.t >= from && s.t <= to && s.drained)) return 'lost';
+      if (J.dead && J.diedT < to) return 'lost';
+      return J.t >= to ? 'won' : 'pending';
+    }
+    if (c.latches !== undefined) {   // its tube latched on at least once and at most that many times by then
+      const last = J.samples[J.samples.length - 1];
+      if (last && last.latches > c.latches) return 'lost';
+      return J.t >= wait(m, c.at) ? (last && last.latches >= 1 ? 'won' : 'lost') : 'pending';
+    }
+    if (c.gone !== undefined) {   // no other species' cell left alive by then
+      if (J.samples.some((s) => s.t <= wait(m, c.gone) && s.others === 0)) return 'won';
+      return J.t >= wait(m, c.gone) ? 'lost' : 'pending';
+    }
+    if (c.chain !== undefined) {   // at that hour, at least that many cells of its kind joined to kin
+      const at = wait(m, c.at, c.day), s = J.samples.find((x) => x.t >= at);
+      return s ? (s.joined >= c.chain ? 'won' : 'lost') : J.samples.length && J.samples[J.samples.length - 1].n === 0 ? 'lost' : 'pending';
     }
     if (c.split !== undefined) {   // its first division: every cell of its kind then at least that wide (narrowest, µm)
       const s = J.samples.find((x) => x.n >= 2);
@@ -296,7 +378,7 @@ export function judge(m, world, cell) {
       return J.t >= to ? 'won' : 'pending';
     }
     if (c.share !== undefined) return shareOf(c.share) <= c.max ? 'won' : 'lost';
-    if (c.parts !== undefined) return (cell.design.parts || []).filter((p) => p.type === 'segment' && p.label === c.parts).length <= c.max ? 'won' : 'lost';
+    if (c.parts !== undefined) return (cell.design.parts || []).filter((p) => p.type === (c.type || 'segment') && p.label === c.parts).length <= c.max ? 'won' : 'lost';
     return 'pending';
   };
   J.update = () => {
@@ -313,12 +395,14 @@ export function judge(m, world, cell) {
     const depth = TH - c.q[1];
     if (c.dead && !J.dead) { J.dead = true; J.diedT = J.t; J.diedDepth = depth; J.diedWhy = c.diedWhy || 'starved'; }
     // the living cells of its kind, and the most grown of them (chapter 3's goals)
-    let n = 0, size = 0, minW = Infinity;
+    let n = 0, size = 0, minW = Infinity, joined = 0, others = 0;
+    for (const x of w.cells) if (!x.dead && x.species !== c.species) others++;
     for (const x of w.cells) if (!x.dead && x.species === c.species) {
       n++; if ((x.size || 1) > size) size = x.size || 1;
+      if (x.neighbours > 0) joined++;
       if (split) minW = Math.min(minW, 2 * mouthSize(x));
     }
-    J.samples.push({ t: J.t, depth, dead: !!c.dead, n, size, minW, eaten: (w.eatenOf || {})[c.species] || 0 });
+    J.samples.push({ t: J.t, depth, dead: !!c.dead, n, size, minW, eaten: (w.eatenOf || {})[c.species] || 0, drained: !c.dead && drainedLevel(w, c) > 0, joined, others, latches: c.latches || 0 });
     J.update();
   };
   J.update();
