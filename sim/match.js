@@ -6,6 +6,7 @@ import { PARAMS } from './params.js';
 import { makeWorld, addCell, stepWorld } from './world.js';
 import { prepEntry } from './entry.js';
 import { startSpots } from './start.js';
+import { newRecord, recordStep } from './record.js';
 
 const DAY = PARAMS.metab.day, DT = PARAMS.time.dt, TH = PARAMS.tank.h;
 const HALF = Math.round(DAY / 2 / DT);   // steps between censuses
@@ -13,7 +14,8 @@ const POP = Math.round(10 / DT);         // steps between the counts the graph d
 const vol = (c) => c.pieces[0].volume;
 
 // entries: [{ name, design }], names all different
-export function newMatch({ entries, seed = 1, days = 3, each = 4, cap = 40 }) {
+// record: also keep the timeline, each species' life and replay frames (sim/record.js; the ladder's match reports)
+export function newMatch({ entries, seed = 1, days = 3, each = 4, cap = 40, record = false }) {
   const world = makeWorld(seed, { day: true, metab: true, grow: true, flow: true });
   const names = entries.map((e) => e.name), n = names.length;
   const spots = startSpots(seed, n * each);
@@ -26,6 +28,7 @@ export function newMatch({ entries, seed = 1, days = 3, each = 4, cap = 40 }) {
     for (let k = 0; k < each; k++) { const s = spots[i + k * n]; m.bio0[e.name] += vol(addCell(world, d, s.x, s.y, 0)); }
   });
   count(m, true);
+  if (record) m.rec = newRecord(m);
   return m;
 }
 
@@ -47,6 +50,7 @@ export function stepMatch(m, steps) {
   PARAMS.grow.cap = m.cap;
   for (let k = 0; k < steps && !m.over; k++) {
     stepWorld(w);
+    if (m.rec) recordStep(m.rec, m);
     if (w.gone && w.gone.length) {
       for (const c of w.gone) m.deaths.push({ species: c.species, why: c.diedWhy || 'starved', day: (c.diedAt ?? w.steps) * DT / DAY, depth: Math.round(TH - c.q[1]) });
       w.gone.length = 0;

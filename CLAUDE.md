@@ -6,6 +6,46 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**MULTIPLAYER, PLANNING (2026-11-13; author: "a way to seamlessly make species of different users fighting each other
+with score board"). Not built; deciding one question at a time.** Claude's outline: an asynchronous ladder on GitHub
+(no server): enter a saved species from the game as a GitHub issue (as 📤 does today); a scheduled GitHub Action plays
+new entries against the field on one kind of machine (fair, repeatable); a Ladder tab with ranks, ratings and each
+species' story; every match recorded as a light replay (positions every few seconds) so the page plays back exactly
+what was scored (sidesteps the cross-browser drift from Math.* in sim/); opponents described, not given (the repo is
+public, so only by convention). Later: entry without a GitHub account (a small free worker), live matches.
+**Decided: A + B** (author: "i like A+B"): ranked one-on-one matches (2 days, growth score, a chess-like rating), plus a
+weekly "big tank" free-for-all for show. **Decided: enter with a GitHub account first** (author: "ur way"; the issue's
+author is the ladder name), the no-account way (a small worker) once the ladder works. **Decided: one species per
+player** (author: "ur way"): a new entry replaces the old one and starts its rating fresh; past entries kept as history
+with their final rank. **Decided: matches run on entering** (the issue starts the job; ~8 placement matches, results
+in ~20-40 min, a comment on the issue when placed), **plus a nightly top-up** replaying some matches between existing
+entries (author: "i like ur idea"). **Required (author): every match tells each species' life as a timeline**: how it
+killed or was killed, how much it reproduced, how many died and when, its events (births, deaths with cause, time and
+depth, who ate or drained whom, latches, harpoon hits, bursts, tethers), its population over time; the replay beside it.
+**Decided: placement and rating** (author: "your rec"): 8 placement matches, 2 against house species (Noctilla,
+Deepdweller II: a fixed yardstick) and up to 6 against players near its rating (everyone while few); a chess-like
+rating (beating a stronger species gains more); a win = the higher growth score, within 10% a draw. **Author: reuse the
+graphs we have** (the day graph: depth, energy, stores, i.e. migration; the population graph) in the match report.
+**Build plan proposed (waits for a go):** (1) a fully recorded match (tools: events, population, per-species journal
+samples, replay frames) and tools/ladder.mjs running placement locally into ladder/*.json; (2) a mock-up of the match
+report, then the report in the page (timeline, the two graphs, replay); (3) GitHub plumbing (🏆 Enter the ladder issue,
+an Action on new entries + nightly, committing ladder/ and commenting on the issue); (4) the Ladder tab; (5) the
+weekly big tank.
+**STEP 1 BUILT (2026-11-13; author: "yes").** sim/record.js (read-only; a recorded match scores exactly as an unrecorded
+one, checked): newRecord / recordStep / lifeSummary; events: born (mother, depth, cells now), died (why, by whom, depth,
+cells left), latched / letgo (why: torn / drained / rule, pJ taken), swallowed, harpoon / tether (hit, kin); life every
+10 s per species (cells, mean / shallowest / deepest depth, mean energy, mean size); frames every 5 s (uid, species,
+x, y, angle, radius, length, dead). sim/match.js newMatch({ record }) calls it each step. tools/ladder.mjs (enter <player>
+<design.json | TG1 code> [--issue=N] · nightly [n] · board; --dir= a scratch ladder, --days= short matches) with
+tools/ladder-worker.mjs (worker threads, up to 4 at once): one species per player (the old one to history), placement
+vs the 2 house species + up to 6 nearest in rating, Elo K 32 from 1000, a draw within 10%; ladder/state.json (designs
+included), ladder/board.json (for the page: no designs, each species as its size and part counts), ladder/last.txt
+(the placement line for the issue comment), ladder/matches/<id>.json (~20 KB for half a day; a 2-day match ~80 KB).
+**Tested** (scratch ladder, half-day and 1-day matches, deleted after): three players placed; Raptilla's file shows
+"Deepdweller II latched onto Raptilla at 868 µm, torn, latched again, drained to death day 0.85" and Raptilla draining a
+Nutricline Bobber to death; a Leviathella swallow. 1-day matches took 40-80 s each, 4 at a time. sw.js lists record.js
+(cache v5). **Next: step 2, a mock-up of the match report.**
+
 **THE MISSION SCREEN, LESS TEXT (2026-11-13; author: "the amount of text in the mobile version… the overall feel doesn't
 feel like a game"; mock-up https://claude.ai/artifact/AD9UfetN66P8Z86fLf2qsN, author: "go").** sandbox/missions.js BRIEF:
 per mission a short task (m.short) and a 2-3 word chip per star (star.chip). main.js missionBar: three slim rows (its
