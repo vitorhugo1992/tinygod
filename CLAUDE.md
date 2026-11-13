@@ -6,6 +6,21 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**THE MISSION SCREEN, LESS TEXT (2026-11-13; author: "the amount of text in the mobile version… the overall feel doesn't
+feel like a game"; mock-up https://claude.ai/artifact/AD9UfetN66P8Z86fLf2qsN, author: "go").** sandbox/missions.js BRIEF:
+per mission a short task (m.short) and a 2-3 word chip per star (star.chip). main.js missionBar: three slim rows (its
+number + the short task + i + ✕ · the star chips, tap one for its full text, a lost one with its hint · ▶ ⏩ ↺ beside a
+time bar with each star placed where it is decided, filling as the attempt runs); a chip pops gold when won.
+missionCard('intro' | 'done' | null) (#missionCard, fixed over the whole screen): the intro card at every mission start
+and on i (chapter, title, the story, the task, every star in full, Start = close and play); the result card (big stars
+popping in turn, Not yet / One star / Two stars / All three stars!, the death and the first missed star's hint, what
+opened, ↺ Again, Next ▶ or Close). drawGoals: "above here" lines (gold dashed, solid when won), the glare band, the
+floor line, an ↑ marker under the bar when a line is above the view, and a growth goal as "1.2× of 1.5×" / "1 of 2
+cells" under the cell. The bar went from ~400 px to ~120 px on a phone. Seen in headless Edge at 400×860 (missions 5, 6,
+7). On a computer headless Edge draws the tank blank and the folded Missions section empty, with or without this change
+(not checked further). **Not built from the mock-up:** the budget line as a gauge, a button to the taught rule, a replay
+of the deciding moment.
+
 **MISSION 14 BUILT (2026-11-11; author: "go"): Strike back** (the harpoon: a Spine of Kind Harpoon; teaches no new
 part, so main.js startMission now takes m.builder.tpl and m.builder.material: the Add panel opens on the Spine, Kind
 Harpoon, at 270°). Mission 11's start, but the Raptilla is starved (missions.js HUNGRY: no plastids, oil r 1.5, ~330k

@@ -1598,7 +1598,7 @@ function reset(pose, carry) {
   world = w; acc = 0; released = null; ghosts = [];
   select(cell);
   cam = { x: cell.q[0], y: cell.q[1] };
-  if (mission) { mission.cell = cell; mission.J = judge(mission.m, world, cell); mission.told = false; mission.skip = false; missionBar(true); }
+  if (mission) { mission.cell = cell; mission.J = judge(mission.m, world, cell); mission.told = false; mission.skip = false; missionBar(true); missionCard(null); }
   return true;
 }
 
@@ -2049,6 +2049,57 @@ window.addEventListener('resize', resize);
 if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);   // the tank's own size changes too (the phone's rail steps aside while arranging)
 
 let nitroCv = null;   // the nitrogen haze, drawn small and stretched
+// A mission's goals drawn in the water (2026-11-13, the mock-up): "above here" lines, the glare to stay out of, the floor
+// to stay off, and the growth goals as a count under the cell; won ones turn gold and solid, lost ones go
+function drawGoals(X, Y, s, W) {
+  const { m, J } = mission, seen = new Set();
+  ctx.save(); ctx.font = '600 12px system-ui'; ctx.textBaseline = 'bottom';
+  const top = $('missionBar').hidden ? 0 : $('missionBar').offsetHeight + 8;
+  let ups = 0;
+  const label = (y, text, col) => {
+    if (y < top + 20) { y = top + 22 + 20 * ups++; text = '↑ ' + text; }
+    const w = ctx.measureText(text).width + 12, x = W - w - 10;
+    ctx.fillStyle = 'rgba(6,12,20,.72)'; ctx.fillRect(x, y - 19, w, 18);
+    ctx.fillStyle = col; ctx.fillText(text, x + 6, y - 3);
+  };
+  let grow = null;
+  m.stars.forEach((st, k) => {
+    const state = J.status[k];
+    if (state === 'lost') return;
+    const col = state === 'won' ? '#ffd36b' : 'rgba(255,226,150,.85)', star = state === 'won' ? '★' : '☆';
+    for (const c of st.all) {
+      if (c.above !== undefined) {
+        const key = 'a' + c.above; if (seen.has(key)) continue; seen.add(key);
+        const y = Y(TH - c.above);
+        ctx.strokeStyle = col; ctx.lineWidth = state === 'won' ? 2 : 1.5; ctx.setLineDash(state === 'won' ? [] : [8, 6]);
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.setLineDash([]);
+        label(y, `${star} ${st.chip}: above here`, col);
+      } else if (c.below !== undefined) {
+        const key = 'b' + c.below; if (seen.has(key)) continue; seen.add(key);
+        const y0 = Y(TH), y1 = Y(TH - c.below);
+        ctx.fillStyle = 'rgba(255,140,90,.10)'; ctx.fillRect(0, y0, W, y1 - y0);
+        ctx.strokeStyle = 'rgba(255,160,110,.7)'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 6]);
+        ctx.beginPath(); ctx.moveTo(0, y1); ctx.lineTo(W, y1); ctx.stroke(); ctx.setLineDash([]);
+        label(y1 + 20, `${star} ${st.chip}: stay below`, '#ffb38a');
+      } else if (c.deeper !== undefined) {
+        const key = 'd' + c.deeper; if (seen.has(key)) continue; seen.add(key);
+        const y = Y(TH - c.deeper);
+        ctx.strokeStyle = 'rgba(255,160,110,.7)'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 6]);
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.setLineDash([]);
+        label(y, `${star} ${st.chip}: stay off the floor`, '#ffb38a');
+      } else if (!grow && state === 'pending' && (c.grown !== undefined || c.cells !== undefined)) grow = c;
+    }
+  });
+  if (grow && !cell.dead) {   // the growth goal under the followed cell: how grown, or how many cells, against the goal
+    const last = J.samples[J.samples.length - 1], q = (cell.drawn || cell).q;
+    const text = grow.grown !== undefined ? `${(last ? last.size : 1).toFixed(1)}× of ${grow.grown}×` : `${last ? last.n : 1} of ${grow.cells} cells`;
+    ctx.font = '800 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const b = cell.pieces[0], r = (b.a + (b.L || 0) / 2) * s, x = X(q[0]), y = Y(q[1]) + r + 6, w = ctx.measureText(text).width + 14;
+    ctx.fillStyle = 'rgba(6,12,20,.72)'; ctx.fillRect(x - w / 2, y, w, 22);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(text, x, y + 3);
+  }
+  ctx.restore();
+}
 function draw() {
   const W = canvas.clientWidth, H = canvas.clientHeight;
   const view = $('viewMode').value;
@@ -2143,6 +2194,7 @@ function draw() {
   drawLinks(X, Y, s);
   drawRuleLinks(X, Y, s);
   drawForces(X, Y, s);
+  if (mission && mission.J && !arrange) drawGoals(X, Y, s, W);
   if (!arrange) drawVignette(ctx, W, H);
   let bottom = H;   // the day graph sits along the bottom; the scale and the clock above it
   graphBox = null;
@@ -3626,7 +3678,7 @@ function startMission(i) {
   if (arrange) stopArrange(true);
   load(Object.assign(JSON.parse(JSON.stringify(m.design)), { species: m.title }));
   past.length = 0; future.length = 0;
-  missionBar(true); syncChips(); showMissions();
+  missionBar(true); syncChips(); showMissions(); missionCard('intro');
   const tpl = m.teaches[0] || (m.builder && m.builder.tpl);   // the part it teaches, or the one it is about
   if (tpl && !tpl.startsWith('Light sensor')) {
     showSection('add'); $('partWhat').value = tpl;
@@ -3639,7 +3691,7 @@ function startMission(i) {
 }
 function leaveMission() {
   mission = null;
-  $('missionBar').hidden = true;
+  $('missionBar').hidden = true; missionCard(null);
   // back to the species you were building before the mission (it used to leave the mission's cell in its place)
   let mine = null;
   try { const d = JSON.parse(localStorage.getItem(CURRENT_KEY) || 'null'); if (d && d.body) { buildCell(withoutTimers(JSON.parse(JSON.stringify(d)))); mine = d; } } catch (e) { /* none kept */ }
@@ -3648,60 +3700,93 @@ function leaveMission() {
   $('buildErr').textContent = mine ? 'free building: back to your own species' : 'free building: your cell stays in the tank';
 }
 const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor(60 * (h % 1))).padStart(2, '0')}`;
+// The mission bar (author, 2026-11-13: "the amount of text in the mobile version"; mock-up agreed): three slim rows while
+// playing (its number and a short task · the stars as chips beside ▶ ⏩ ↺ · a time bar with each star where it is
+// decided); the story and the stars in full are on the mission card (shown at the start, ⓘ brings it back); the verdict is
+// a card of its own with big stars
 function missionBar(build) {
   const box = $('missionBar');
   if (!mission || !mission.J) { box.hidden = true; return; }
   const { m, i, J } = mission;
   if (build) {
-    box.hidden = false; box.classList.remove('fold');
-    box.innerHTML = `<div class="mhead"><b>Mission ${i + 1} · ${esc(m.title)}</b><button class="mfold" title="Fold or open the mission">▾</button><button class="mclose" title="Leave the mission: back to free building">✕</button></div>`
-      + `<div class="mtask">${esc(m.story)} <b>${esc(m.task)}</b></div>`
-      + m.stars.map((s, k) => `<div class="mgoal" data-k="${k}"><i>☆</i>${esc(s.text)}<span></span></div>`).join('')
-      + '<div class="mverdict" hidden></div>'
-      + '<div class="mbtns"><button class="mplay" title="Play / pause the tank">▶ Play</button><button class="mskip" title="Run the tank flat out until every star is decided">⏩ Skip to the result</button>'
-      + '<button class="mretry" title="Start the attempt again from the beginning">↺ Again</button>'
-      + '<button class="mnext" hidden>Next mission ▶</button><button class="mleave" title="Leave the mission: back to free building">✕ Leave</button></div>';
-    box.querySelector('.mfold').onclick = () => box.classList.toggle('fold');
-    box.querySelector('.mskip').onclick = skipMission;
-    box.querySelector('.mplay').onclick = () => $('play').click();
-    box.querySelector('.mretry').onclick = () => { reset(); };
-    box.querySelector('.mleave').onclick = leaveMission;
+    box.hidden = false;
+    mission.ends = m.stars.map((s, k) => J.t + J.eta(k));
+    mission.end = Math.max(1, ...mission.ends);
+    mission.was = J.status.slice();
+    box.innerHTML = `<div class="mbrow"><span class="mnum">${i + 1}</span><b class="mshort">${esc(m.short || m.title)}</b>`
+      + '<button class="minfo" title="The mission card: the story and every star in full">i</button><button class="mclose" title="Leave the mission: back to free building">✕</button></div>'
+      + '<div class="mbrow"><span class="mchips">' + m.stars.map((s, k) => `<button class="mchip" data-k="${k}" title="${esc(s.text)}"><i>☆</i>${esc(s.chip || s.text)}</button>`).join('') + '</span></div>'
+      + '<div class="mbrow"><button class="mplay" title="Play / pause the tank">▶</button><button class="mskip" title="Skip to the result: run the tank flat out until every star is decided">⏩</button>'
+      + '<button class="mretry" title="Start the attempt again from the beginning">↺</button>'
+      + '<div class="mtime"><div class="mfill"></div>' + mission.ends.map((t, k) => (t > 0 ? `<i data-k="${k}" style="left:${(100 * t / mission.end).toFixed(1)}%">☆</i>` : '')).join('') + '</div></div>'
+      + '<div class="mtip" hidden></div>';
+    box.querySelector('.minfo').onclick = () => missionCard('intro');
     box.querySelector('.mclose').onclick = leaveMission;
-    box.querySelector('.mnext').onclick = () => startMission(i + 1);
+    box.querySelector('.mskip').onclick = skipMission;
+    box.querySelector('.mplay').onclick = () => { missionCard(null); $('play').click(); };
+    box.querySelector('.mretry').onclick = () => { missionCard(null); reset(); };
+    for (const b of box.querySelectorAll('.mchip')) b.onclick = () => {   // a chip tapped: its star in full for a few seconds
+      const k = Number(b.dataset.k), st = mission.J.status[k], tip = box.querySelector('.mtip');
+      tip.textContent = (st === 'won' ? '★ ' : st === 'lost' ? '✗ ' : '☆ ') + m.stars[k].text + (st === 'lost' ? ' · ' + m.stars[k].hint : '');
+      tip.hidden = false; clearTimeout(tip.t); tip.t = setTimeout(() => { tip.hidden = true; }, st === 'lost' ? 9000 : 4000);
+    };
   }
   J.status.forEach((st, k) => {
-    const row = box.querySelector(`.mgoal[data-k="${k}"]`);
-    row.className = 'mgoal ' + st;
-    row.querySelector('i').textContent = st === 'won' ? '★' : st === 'lost' ? '✗' : '☆';
-    const left = J.eta(k) / (PARAMS.metab.day / 24);
-    row.querySelector('span').textContent = st === 'pending' && left > 0 ? `in ${left >= 1 ? Math.floor(left) + ' h ' : ''}${Math.round(60 * (left % 1))} min` : '';
+    const chip = box.querySelector(`.mchip[data-k="${k}"]`), mark = box.querySelector(`.mtime i[data-k="${k}"]`);
+    const pop = st === 'won' && mission.was && mission.was[k] !== 'won';
+    chip.className = 'mchip ' + st + (pop ? ' pop' : '');
+    chip.querySelector('i').textContent = st === 'won' ? '★' : st === 'lost' ? '✗' : '☆';
+    if (mark) { mark.className = st; mark.textContent = st === 'won' ? '★' : st === 'lost' ? '✗' : '☆'; }
   });
-  box.querySelector('.mplay').textContent = playing ? '⏸ Pause' : '▶ Play';
-  box.querySelector('.mplay').hidden = J.over;
-  const skip = box.querySelector('.mskip');
-  skip.hidden = J.over;
-  if (mission.skip) {
-    const end = J.t + Math.max(...m.stars.map((s, k) => (J.status[k] === 'pending' ? J.eta(k) : 0)));
-    skip.textContent = `⏩ ${Math.round(100 * J.t / Math.max(1, end))}%…`;
-  } else skip.textContent = '⏩ Skip to the result';
+  mission.was = J.status.slice();
+  box.querySelector('.mfill').style.width = `${Math.min(100, 100 * J.t / mission.end).toFixed(1)}%`;
+  const play = box.querySelector('.mplay'), skip = box.querySelector('.mskip');
+  play.textContent = playing ? '⏸' : '▶';
+  play.hidden = skip.hidden = J.over;
+  skip.textContent = mission.skip ? `${Math.round(100 * J.t / mission.end)}%` : '⏩';
+}
+// The mission card over the tank: 'intro' (the story, the task, every star in full; Start), 'done' (the verdict), or
+// null to close it
+function missionCard(kind) {
+  const card = $('missionCard');
+  if (!kind || !mission) { card.hidden = true; return; }
+  const { m, i, J } = mission;
+  const stars = (n, big) => [0, 1, 2].map((k) => `<span class="${k < n ? 'on' : ''}${big && k === 1 ? ' mid' : ''}">${k < n ? '★' : '☆'}</span>`).join('');
+  if (kind === 'intro') {
+    card.innerHTML = `<small>CHAPTER ${m.chapter + 1} · MISSION ${i + 1}</small><h2>${esc(m.title)}</h2>`
+      + `<p>${esc(m.story)}</p><p class="mctask">${esc(m.task)}</p>`
+      + '<div class="mcstars">' + m.stars.map((s, k) => `<div class="${J.status[k]}"><i>${J.status[k] === 'won' ? '★' : '☆'}</i>${esc(s.text)}</div>`).join('') + '</div>'
+      + '<div class="mcbtns"><button class="mcgo">Start</button></div>';
+    card.querySelector('.mcgo').onclick = () => { card.hidden = true; if (!J.over && !playing) $('play').click(); };
+  } else {
+    const miss = m.stars.findIndex((s, k) => J.status[k] !== 'won');
+    const died = J.dead ? `It died at ${hhmm(J.clock(J.diedT))}, ${Math.round(J.diedDepth)} µm deep (${J.diedWhy}). ` : '';
+    const opened = mission.opened ? `<p class="mcopen">🔓 ${esc(mission.opened)}</p>` : '';
+    const head = ['Not yet', 'One star', 'Two stars', 'All three stars!'][J.stars];
+    card.innerHTML = `<div class="mcbig">${stars(J.stars, true)}</div><h2>${head}</h2>`
+      + (miss >= 0 ? `<p class="mchint">${esc(died)}${esc(m.stars[miss].hint)}</p>` : '') + opened
+      + '<div class="mcbtns"><button class="mcagain">↺ Again</button>'
+      + (J.stars && MISSIONS[i + 1] ? '<button class="mcgo mcnext">Next ▶</button>' : '<button class="mcgo mcclose">Close</button>') + '</div>';
+    card.querySelector('.mcagain').onclick = () => { card.hidden = true; reset(); };
+    const nx = card.querySelector('.mcnext'), cl = card.querySelector('.mcclose');
+    if (nx) nx.onclick = () => startMission(i + 1);
+    if (cl) cl.onclick = () => { card.hidden = true; };
+  }
+  card.className = 'mcard ' + kind;
+  card.hidden = false;
 }
 function missionDone() {
-  const { m, i, J } = mission;
+  const { m, J } = mission;
   mission.told = true; mission.skip = false;
   playing = false; $('play').textContent = '▶';
   const had = progress.best[m.id] || 0;
   if (J.stars > had) { progress.best[m.id] = J.stars; saveProgress(); }
+  const parts = [];
+  if (!had && J.stars && m.teaches.length) parts.push(`${m.teaches.map((p) => SHORT[p] || p).join(', ')} is open for your own designs`);
+  if (!had && J.stars && m.chapter < 2 && coreDone(progress.best)) parts.push('every part is open now');
+  mission.opened = parts.join(' · ');
   missionBar();
-  const box = $('missionBar'), v = box.querySelector('.mverdict');
-  const miss = m.stars.findIndex((s, k) => J.status[k] !== 'won');
-  const died = J.dead ? `It died at ${hhmm(J.clock(J.diedT))}, ${Math.round(J.diedDepth)} µm deep (${J.diedWhy}). ` : '';
-  const opened = !had && J.stars && m.teaches.length ? ` · 🔓 ${m.teaches.map((p) => SHORT[p] || p).join(', ')} is open for your own designs` : '';
-  const done = !had && J.stars && m.chapter < 2 && coreDone(progress.best) ? ' · 🔓 every part is open now' : '';
-  v.hidden = false;
-  v.innerHTML = `<b>${J.stars ? starStr(J.stars) : 'Not yet'}</b>${opened}${done}`
-    + (miss >= 0 ? `<div class="mhint">${esc(died)}${esc(m.stars[miss].hint)}</div>` : '<div class="mhint">All three stars!</div>');
-  box.classList.remove('fold');
-  box.querySelector('.mnext').hidden = !(J.stars && MISSIONS[i + 1]);
+  missionCard('done');
   showMissions(); syncChips();
 }
 function skipMission() {

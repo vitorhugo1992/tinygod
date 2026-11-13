@@ -300,6 +300,30 @@ export const MISSIONS = [
     ] },
 ];
 
+// The mission bar while playing (author, 2026-11-13: "the amount of text in the mobile version"): one short task and a
+// two- or three-word chip per star; the story and the stars' full text live on the intro card (ⓘ)
+const BRIEF = {
+  m1: ['Add a plastid', ['alive 13:00', 'alive at dusk', 'plastid < 7%']],
+  m2: ['Add an energy store', ['midnight', '04:00', '08:00']],
+  m3: ['A chamber that floats in dim light', ['off the floor', 'above 1,200 µm', 'alive at dawn']],
+  m4: ['Rest in the dark', ['dawn', '10:00', 'off the floor']],
+  m5: ['A tail at the front, pulling', ['up by noon', 'up by 09:00', 'up again']],
+  m6: ['Run the tail in dim light', ['up by noon', 'out of the glare', 'up by 09:00']],
+  m7: ['Float only in dim light', ['1.5×', '2 cells', 'by day 3']],
+  m8: ['Add a nitroplast', ['1.3×', '2 cells', 'by day 4']],
+  m9: ['Spines, so it won\u2019t fit', ['not eaten', '≤ 4 spines', '3 spines']],
+  m10: ['Wait to divide until big', ['not eaten', '2 cells', 'wide newborns']],
+  m11: ['A spring that fires when drained', ['alive at dawn', 'free fast', '1 spring']],
+  m12: ['Add a kin pad', ['not eaten', 'joined at dawn', '1 pad']],
+  m13: ['A feeding tube toward the Pebble', ['fed', 'one latch', 'drained by 15:00']],
+  m14: ['A harpoon at the hunter', ['alive at dawn', 'hunter dead', 'dead at once']],
+};
+for (const m of MISSIONS) {
+  const b = BRIEF[m.id] || [m.title, []];
+  m.short = b[0];
+  m.stars.forEach((s, k) => { s.chip = b[1][k] || `★${k + 1}`; });
+}
+
 // The rest of a mission's start: the cell grown to m.start.size with one growth step banked (so it grows again at once),
 // and the other cells it puts in its tank (m.start.rivals: { name, design, dx from the player's cell, y above the floor,
 // angle }); the sandbox's reset and the check both call it
