@@ -30,6 +30,14 @@ MONAD), the board = each species' share of living biomass over time, the report 
 **Open question put to the author:** full physics and small (~60-100 cells: what the simulation carries; ~1-3 ocean
 days a night) or a MONAD-style abstract ecology fed by each design's measured traits (thousands of cells, seasons,
 but no longer the physics the player built in).
+**DECIDED (author, 2026-11-13: "A"): the Ocean runs the real physics, small** (one shared tank, ~60-100 cells, perhaps
+10-20 species at a few cells each, ~1-3 ocean days a night; grows later by the fast mode B / C or several connected
+tanks). The MONAD-style abstract world is not the route. **NEXT CHAT STARTS HERE: plan the Ocean with the author, one
+question at a time, nothing built yet.** Open: the tank (width, depth; the 500 µm arena or wider), how many cells a
+species arrives with and how often the extinct return, the cap per species and overall, what a night costs on GitHub
+(a 2-day duel took ~5 min under load), how the world is saved between nights (the full state must restore exactly),
+what happens when the sim changes (a new season?), the board (share of living biomass over time) and the nightly
+report (step 1's recorder already gives timeline, depth, population, replay). The duel ladder stays as the lab test.
 
 **MULTIPLAYER, PLANNING (2026-11-13; author: "a way to seamlessly make species of different users fighting each other
 with score board"). Not built; deciding one question at a time.** Claude's outline: an asynchronous ladder on GitHub
