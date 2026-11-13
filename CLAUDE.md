@@ -6,6 +6,21 @@ authoritative.
 
 ## Start here (handoff, 2026-11-01)
 
+**IS A LADDER MATCH FAIR AND A FIGHT? MEASURED (2026-11-13; Fable's review of the ladder plan, author: "yes, great
+insight").** tools/ladder-noise.mjs [--seeds --width --days --each --pool] (+ ladder-noise-worker.mjs: sets
+PARAMS.tank.w before the sim loads): 4 pairings × 10 seeds, 2 days, 2 cells each, a draw within 10%; "contact" = a tube
+latch, a swallow, a harpoon hit or a kill (toxin harm is not an event: Plebella's leak doesn't count). ~45 min for 40
+matches, 5 at a time (~5 min a match under load: slower than step 1's estimate).
+**Today's tank (1,600 µm):** 32 of 40 matches had no contact (80%); 10 of 40 went against their pairing's usual result.
+Needle Drifter vs Deepdweller II 5-1-4 although Needle's mean score is 19% higher (2.34× vs 1.96×): a coin flip;
+Deepdweller II vs Bobber 4-0-6; Raptilla vs Bobber 0-1-9 (contact in 4 of 10, 4 kills); Noctilla vs Plebella 0-0-10.
+**A 500 µm tank:** no contact in 19 of 40 (48%; in the two pairings with a hunter 1 of 20, was 12 of 20); kills 24 (was
+8); Needle vs Deepdweller II 6-3-1; **Deepdweller II vs Bobber 7-1-2 (the favourite flips: its tubes now reach prey)**;
+Raptilla vs Bobber 3-0-7; Noctilla vs Plebella 0-0-10; still 10 of 40 against the usual result (kills are chancy).
+**So:** one seed is too noisy for a rating; the wide tank is a growth race. Not checked: the narrow tank's nitrogen
+columns (16 across 500 µm) and squeezed water loops as a place to live in general; the Match tab still plays 1,600 µm.
+**Proposed to the author:** ladder matches in a 500 µm arena, 3 seeds per pairing decided on the summed score.
+
 **MULTIPLAYER, PLANNING (2026-11-13; author: "a way to seamlessly make species of different users fighting each other
 with score board"). Not built; deciding one question at a time.** Claude's outline: an asynchronous ladder on GitHub
 (no server): enter a saved species from the game as a GitHub issue (as 📤 does today); a scheduled GitHub Action plays
