@@ -21,7 +21,10 @@ const opt = (k, v) => { const a = process.argv.find((x) => x.startsWith(`--${k}=
 const ROOT = new URL('../', import.meta.url), DIR = new URL(opt('dir', 'ladder').replace(/\/?$/, '/'), ROOT), MDIR = new URL('matches/', DIR);
 const STATE = new URL('state.json', DIR), BOARD = new URL('board.json', DIR);
 const HOUSE = [{ player: 'house', name: 'Noctilla', file: 'designs/noctilla.json' }, { player: 'house', name: 'Deepdweller II', file: 'designs/deepdweller2.json' }];
-const START = 1000, K = 32, DRAW = 1.1, PLACEMENT = 8, NEAR = PLACEMENT - HOUSE.length;
+// The format (2026-11-13, measured with tools/ladder-noise.mjs): a 500 µm arena (in the 1,600 µm tank 80% of matches had
+// no contact between the species: a growth race) and each pairing over 3 seeds, decided on the summed score (one seed
+// is close to a coin flip between near-equals); 6 placement opponents (2 house + 4 players) to keep a placement ~20 min
+const START = 1000, K = 32, DRAW = 1.1, PLACEMENT = 6, NEAR = PLACEMENT - HOUSE.length, WIDTH = 500, SEEDS = 3;
 const POOL = Math.max(1, Math.min(4, cpus().length - 1));
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const today = () => new Date().toISOString().slice(0, 10);
@@ -63,32 +66,32 @@ function readDesign(src) {
 // One match in a worker; the two species by names that differ
 function play(A, B, n) {
   let nb = B.species; if (nb === A.species) nb = `${B.species} (${B.player})`;
-  const seed = hash(`${A.key}|${B.key}`) + n;
+  const seed = hash(`${A.key}|${B.key}`) + n, seeds = Array.from({ length: Number(opt('seeds', SEEDS)) }, (_, k) => seed + 7919 * k);
   return new Promise((res, rej) => {
     const w = new Worker(new URL('./ladder-worker.mjs', import.meta.url), {
-      workerData: { entries: [{ name: A.species, design: A.design }, { name: nb, design: B.design }], seed, days: Number(opt('days', MATCH_DAYS)), each: MATCH_CELLS / 2, cap: MATCH_CAP } });
+      workerData: { entries: [{ name: A.species, design: A.design }, { name: nb, design: B.design }], seeds, width: Number(opt('width', WIDTH)), days: Number(opt('days', MATCH_DAYS)), each: MATCH_CELLS / 2, cap: MATCH_CAP } });
     w.once('message', (r) => res({ A, B, r })); w.once('error', rej);
   });
 }
 async function runAll(pairs) {
   const out = [], queue = pairs.slice();
-  const lane = async () => { while (queue.length) { const [A, B, n] = queue.shift(); const t = await play(A, B, n); out.push(t); console.log(`  ${A.species} (${A.player}) vs ${B.species} (${B.player}): ${t.r.species.map((s) => `${s.name} ${s.score.toFixed(2)}×`).join(', ')} [${t.r.secs} s]`); } };
+  const lane = async () => { while (queue.length) { const [A, B, n] = queue.shift(); const t = await play(A, B, n); out.push(t); console.log(`  ${A.species} (${A.player}) vs ${B.species} (${B.player}): ${t.r.games.map((g) => g.species.map((s) => s.score.toFixed(2)).join(':')).join('  ')} [${t.r.secs} s]`); } };
   await Promise.all(Array.from({ length: Math.min(POOL, pairs.length) }, lane));
   return out;
 }
 
 // The result into the ratings, the match into its file and the list
 function settle(st, { A, B, r }) {
-  const [sa, sb] = r.species.map((s) => s.score);
+  const mean = (k) => r.games.reduce((t, g) => t + g.species[k].score, 0) / r.games.length, sa = mean(0), sb = mean(1);   // the pairing's score: the mean over its games
   const res = Math.max(sa, sb) <= DRAW * Math.min(sa, sb) ? 0.5 : sa > sb ? 1 : 0;
   const ea = 1 / (1 + 10 ** ((B.rating - A.rating) / 400)), dA = K * (res - ea);
   A.rating += dA; B.rating -= dA;
   if (res === 0.5) { A.d++; B.d++; } else if (res === 1) { A.w++; B.l++; } else { A.l++; B.w++; }
   const id = `${today()}-${slug(A.species)}-vs-${slug(B.species)}-${st.matches.length + 1}`;
-  const side = (P, s) => ({ key: P.key, player: P.player, species: s.name, score: Math.round(s.score * 100) / 100, cells: s.cells, ...r.summary[s.name] });
-  writeFileSync(new URL(`${id}.json`, MDIR), JSON.stringify({ id, date: today(), seed: r.seed, days: r.days, each: r.each, cap: r.cap, names: r.names,
-    a: side(A, r.species[0]), b: side(B, r.species[1]), result: res === 0.5 ? 'draw' : res === 1 ? 'a' : 'b', change: Math.round(dA),
-    events: r.events, life: r.life, frames: r.frames }));
+  const side = (P, k, score) => ({ key: P.key, player: P.player, species: r.names[k], score: Math.round(score * 100) / 100 });
+  writeFileSync(new URL(`${id}.json`, MDIR), JSON.stringify({ id, date: today(), days: r.days, each: r.each, cap: r.cap, width: r.width, names: r.names,
+    a: side(A, 0, sa), b: side(B, 1, sb), result: res === 0.5 ? 'draw' : res === 1 ? 'a' : 'b', change: Math.round(dA),
+    games: r.games }));   // each game: seed, both scores and cells, each side's summary, events, life, frames
   st.matches.push({ id, date: today(), a: A.key, b: B.key, sa: Math.round(sa * 100) / 100, sb: Math.round(sb * 100) / 100, result: res === 0.5 ? 'draw' : res === 1 ? 'a' : 'b', change: Math.round(dA) });
   return { res, dA, other: B };
 }

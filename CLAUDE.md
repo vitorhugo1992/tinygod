@@ -19,7 +19,17 @@ Deepdweller II vs Bobber 4-0-6; Raptilla vs Bobber 0-1-9 (contact in 4 of 10, 4 
 Raptilla vs Bobber 3-0-7; Noctilla vs Plebella 0-0-10; still 10 of 40 against the usual result (kills are chancy).
 **So:** one seed is too noisy for a rating; the wide tank is a growth race. Not checked: the narrow tank's nitrogen
 columns (16 across 500 µm) and squeezed water loops as a place to live in general; the Match tab still plays 1,600 µm.
-**Proposed to the author:** ladder matches in a 500 µm arena, 3 seeds per pairing decided on the summed score.
+**Adopted (author: "yeah"):** tools/ladder.mjs now plays a 500 µm arena, each pairing over 3 seeds decided on the mean
+score (a draw within 10%), 6 placement opponents (2 house + 4 players); a match file holds its 3 games (seed, scores,
+summary, events, life, frames each); --width / --seeds override. The report mock-up predates this (one game shown).
+**THE VISION RESTATED (author, 2026-11-13): "get the users' species and place them in a real virtual world, much like
+MONAD… minus the music".** So the ladder duel is the lab test; the destination is a persistent shared ocean. Claude's
+proposal (not decided): the Ocean replaces the weekly big tank: one world that never resets, advanced every night on
+GitHub, every player's species living in it, newcomers and the extinct arriving as a few cells (immigration, as in
+MONAD), the board = each species' share of living biomass over time, the report = last night's replay and timeline.
+**Open question put to the author:** full physics and small (~60-100 cells: what the simulation carries; ~1-3 ocean
+days a night) or a MONAD-style abstract ecology fed by each design's measured traits (thousands of cells, seasons,
+but no longer the physics the player built in).
 
 **MULTIPLAYER, PLANNING (2026-11-13; author: "a way to seamlessly make species of different users fighting each other
 with score board"). Not built; deciding one question at a time.** Claude's outline: an asynchronous ladder on GitHub
