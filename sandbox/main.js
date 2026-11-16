@@ -1,5 +1,7 @@
 // The sandbox viewer: plain shapes, trails and numbers over the same simulation the checks run.
 import { PARAMS } from '../sim/params.js';
+import { mouthSize } from '../sim/interact.js';
+import { spanOf } from '../sim/entry.js';
 import { makeWorld, addCell, stepWorld, worldTime } from '../sim/world.js';
 import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
@@ -151,6 +153,7 @@ function showBody() {
   $('platesRow').style.display = $('platesNote').style.display = plated ? '' : 'none';
   $('bodyPlates').max = plateMax(b.radius);   // bigger cells may carry thicker plates
   if (plated) { $('bodyPlates').value = Math.min(b.plates ?? PARAMS.plates.start, plateMax(b.radius)); showPlates(); }
+  showShape();
 }
 // what the plates do and cost: the piercing price, the energy per division, how much faster it sinks (the design
 // built with and without them)
@@ -193,6 +196,249 @@ for (const id of ['bodyRadius', 'bodyLength']) {
   $(id).onchange = reshape;
 }
 $('bodyWall').onchange = reshape;
+
+// ----- the shape: lobes (shapes step 3; author 2026-11-16: "the body tab is great u can go"). The cell drawn big; a
+// lobe's tip drags round its root (a body lobe's root slides round the rim) and longer or shorter, snapping to 15°; the
+// orange dot on the selected one sets its thickness. Tried while dragging, applied to the tank when let go. An organelle
+// in a lobe moves with it; one that no longer fits slides inward until it does. Every cell starts round (author). -----
+const SNAP = 15, LOBE_MAX = PARAMS.lobes.max;
+let shapeSel = null;      // the selected lobe, by its id
+let shapeTrial = null;    // the design while a handle is dragged
+let shapeDrag = null;     // { kind: 'tip' | 'side', id }
+let shapeXf = null;       // body frame <-> canvas: { s, ox, oy }
+const lobesOf = (d) => (d.parts || []).filter((p) => p.type === 'lobe');
+const lobeById = (d, id) => (d.parts || []).find((p) => p.type === 'lobe' && p.id === id);
+const r2 = (v) => Math.round(v * 100) / 100;
+function lobeId(d) { let k = 1; while ((d.parts || []).some((p) => p.id === `lobe${k}`)) k++; return `lobe${k}`; }
+// each lobe's frame in the body's (from the built cell): { id, root, dir, L, r }
+function lobeFrames(c) {
+  return c.pieces.filter((p) => p.kind === 'lobe').map((p) => {
+    const part = c.design.parts[p.part], ux = Math.cos(p.frame.dir), uy = Math.sin(p.frame.dir);
+    return { id: part.id, part, root: [p.frame.x - ux * p.L / 2, p.frame.y - uy * p.L / 2], dir: p.frame.dir, L: p.L, r: p.a };
+  });
+}
+function shapeCell(d) { try { const c = buildCell(withoutTimers(JSON.parse(JSON.stringify(d))), { loose: true }); updatePose(c); return c; } catch (e) { return null; } }
+// the lobe (deepest) an inclusion's middle sits in, outside the body's own capsule
+function holderOf(frames, body, at) {
+  const [x, y] = at, dx = Math.max(Math.abs(x) - (body.length || 0) / 2, 0);
+  if (Math.hypot(dx, y) <= body.radius) return null;
+  let best = null;
+  for (const f of frames) {
+    const ux = Math.cos(f.dir), uy = Math.sin(f.dir), t = (x - f.root[0]) * ux + (y - f.root[1]) * uy;
+    if (t < -f.r || t > f.L + f.r) continue;
+    const s = -(x - f.root[0]) * uy + (y - f.root[1]) * ux;
+    if (Math.abs(s) <= f.r) best = f;
+  }
+  return best;
+}
+// organelles held by a lobe follow it from the old frames to the new; then any that stick out slide inward
+function carryOrganelles(before, after) {
+  const c0 = shapeCell(before), c1 = shapeCell(after);
+  if (!c0 || !c1) return after;
+  const f0 = lobeFrames(c0), f1 = new Map(lobeFrames(c1).map((f) => [f.id, f]));
+  for (const p of after.parts) {
+    if (p.type !== 'inclusion' || !p.at) continue;
+    const h = holderOf(f0, before.body, p.at), n = h && f1.get(h.id);
+    if (!n) continue;
+    const ux = Math.cos(h.dir), uy = Math.sin(h.dir), dx = p.at[0] - h.root[0], dy = p.at[1] - h.root[1];
+    const t = (dx * ux + dy * uy) * (h.L > 0 ? n.L / h.L : 1), s = Math.max(-n.r, Math.min(n.r, -dx * uy + dy * ux));
+    const vx = Math.cos(n.dir), vy = Math.sin(n.dir);
+    p.at = [r2(n.root[0] + vx * t - vy * s), r2(n.root[1] + vy * t + vx * s)];
+    p.angle = Math.round(((p.angle || 0) + (n.dir - h.dir) * 180 / Math.PI) * 10) / 10;
+  }
+  // whatever now sticks out of the cell slides toward the body's middle until it fits
+  const lobes = lobesOf(after);
+  for (const p of after.parts) {
+    if (p.type !== 'inclusion' || !p.at) continue;
+    for (let k = 0; k < 14; k++) {
+      try { buildCell({ body: after.body, parts: [...lobes, { ...p, joint: undefined }] }); break; }
+      catch (e) { if (!/sticks out/.test(e.message)) break; p.at = [r2(p.at[0] * 0.85), r2(p.at[1] * 0.85)]; }
+    }
+  }
+  return after;
+}
+// a lobe set to a new aim and length: its root on the body's rim (or its parent's tip), its branches at its tip
+function aimLobe(d, id, ang, len) {
+  const l = lobeById(d, id);
+  if (!l.parent || l.parent === 'body') {
+    const [x, y] = surfacePoint(d.body, ang), ux = Math.cos(ang * Math.PI / 180), uy = Math.sin(ang * Math.PI / 180);
+    l.at = [r2(x - ux * 0.5), r2(y - uy * 0.5)]; l.angle = ((ang % 360) + 360) % 360;
+  } else l.angle = Math.round(ang * 10) / 10;
+  if (len !== undefined) l.length = Math.round(len);
+  for (const b of lobesOf(d)) if (b.parent === id) b.at = [r2(l.length / 2), 0];
+}
+function showShape() {
+  const open = partAllowed('Lobe');
+  $('shapeBox').hidden = !open; $('shapeLock').hidden = open;
+  if (!open || !design) return;
+  const d = shapeTrial || design, lobes = lobesOf(d);
+  if (shapeSel && !lobeById(d, shapeSel)) shapeSel = null;
+  $('lobeCount').textContent = lobes.length ? `${lobes.length} of ${LOBE_MAX} lobes` : 'round: no lobes';
+  $('lobeAdd').disabled = lobes.length >= LOBE_MAX;
+  $('lobeBranch').disabled = $('lobeMirror').disabled = !shapeSel || lobes.length >= LOBE_MAX;
+  $('lobeRemove').disabled = !shapeSel;
+  $('lobeSel').hidden = !shapeSel;
+  if (shapeSel) {
+    const l = lobeById(d, shapeSel);
+    $('lobeLen').value = l.length; $('lobeLenOut').textContent = `${Math.round(l.length)} µm`;
+    $('lobeThick').max = Math.min(10, d.body.radius); $('lobeThick').value = l.radius; $('lobeThickOut').textContent = `${l.radius} µm`;
+  }
+  drawShape(d);
+}
+function drawShape(d) {
+  const cv = $('shapeCv'), g = cv.getContext('2d'), W = cv.width, c = shapeCell(d);
+  g.clearRect(0, 0, W, W);
+  if (!c) return;
+  // fit: the whole cell with room for the handles
+  let far = d.body.radius + (d.body.length || 0) / 2;
+  for (const f of lobeFrames(c)) far = Math.max(far, Math.hypot(f.root[0] + Math.cos(f.dir) * f.L, f.root[1] + Math.sin(f.dir) * f.L) + f.r);
+  const s = Math.min(16, (W / 2 - 50) / far), ox = W / 2, oy = W / 2;
+  shapeXf = { s, ox, oy };
+  const P = ([x, y]) => [ox + x * s, oy - y * s];
+  g.strokeStyle = 'rgba(147,168,182,.10)'; g.lineWidth = 1;   // 10 µm rings
+  for (let r = 10; r * s < W; r += 10) { g.beginPath(); g.arc(ox, oy, r * s, 0, 2 * Math.PI); g.stroke(); }
+  // outside parts, faint
+  g.strokeStyle = 'rgba(220,240,232,.45)'; g.lineCap = 'round';
+  c.pieces.forEach((p, i) => {
+    if (p.kind !== 'segment') return;
+    const h = p.L / 2, a = P([c.cx[i] - c.cs[i] * h, c.cy[i] - c.sn[i] * h]), b = P([c.cx[i] + c.cs[i] * h, c.cy[i] + c.sn[i] * h]);
+    g.lineWidth = Math.max(2, 2 * p.a * s); g.beginPath(); g.moveTo(...a); g.lineTo(...b); g.stroke();
+  });
+  // the body and lobes: one membrane
+  const pts = bodyOutline(c, 0, 0, 0).map(P);
+  outlineOn(g, pts);
+  const fill = g.createRadialGradient(ox, oy - 20, 10, ox, oy, W / 2);
+  fill.addColorStop(0, 'rgba(160,240,225,.28)'); fill.addColorStop(1, 'rgba(42,161,152,.42)');
+  g.fillStyle = fill; g.fill();
+  g.strokeStyle = 'rgba(111,211,196,.35)'; g.lineWidth = 8; g.stroke();
+  g.strokeStyle = '#bff3ea'; g.lineWidth = 2; g.stroke();
+  // organelles
+  const tint = { plastid: 'rgba(110,190,90,.9)', nucleus: 'rgba(160,120,220,.9)', starch: 'rgba(240,228,190,.9)', oil: 'rgba(242,201,76,.9)',
+    chamber: 'rgba(170,215,240,.6)', nitroplast: 'rgba(60,190,180,.9)', toxin: 'rgba(208,80,138,.9)', statolith: 'rgba(200,200,200,.9)' };
+  for (const inc of c.pieces[0].inclusions) { outlineOn(g, inc.outline.map(P)); g.fillStyle = tint[inc.material] || 'rgba(200,210,220,.7)'; g.fill(); }
+  // handles: every lobe's tip; the selected one's thickness dot and axis
+  for (const f of lobeFrames(c)) {
+    const ux = Math.cos(f.dir), uy = Math.sin(f.dir), tip = P([f.root[0] + ux * f.L, f.root[1] + uy * f.L]), on = f.id === shapeSel;
+    if (on) {
+      g.setLineDash([6, 6]); g.strokeStyle = 'rgba(242,184,75,.75)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(...P(f.root)); g.lineTo(...tip); g.stroke(); g.setLineDash([]);
+      const side = P([f.root[0] + ux * f.L / 2 - uy * f.r, f.root[1] + uy * f.L / 2 + ux * f.r]);
+      g.fillStyle = '#ff8a73'; g.beginPath(); g.arc(...side, 11, 0, 2 * Math.PI); g.fill();
+    }
+    g.fillStyle = on ? '#f2b84b' : 'rgba(228,238,243,.8)'; g.beginPath(); g.arc(...tip, on ? 13 : 10, 0, 2 * Math.PI); g.fill();
+  }
+  g.fillStyle = 'rgba(228,238,243,.8)'; g.fillRect(20, W - 40, 10 * s, 4); g.font = '500 20px system-ui'; g.fillText('10 µm', 20, W - 48);
+  // what the shape does: each division's price, uptake by surface, size to a mouth, size
+  const b = c.pieces[0], V = b.volume, A = b.area, G = PARAMS.grow, price = (G.energy + G.wallEnergy * A / V) / (G.energy + G.wallEnergy * 0.3);
+  const ball = 4 * Math.PI * Math.cbrt(3 * V / (4 * Math.PI)) ** 2, span = spanOf(c);
+  const cls = price <= 1.005 ? 'good' : price <= 1.2 ? 'meh' : 'bad';
+  $('shapeRead').innerHTML = `<span title="Each division builds new wall, paid by surface: energy per µm³ against a plain round cell">each division <b class="${cls}">×${price.toFixed(2)}</b></span>`
+    + `<span title="Nitrogen comes in through the surface: per µm³, against a round cell of the same volume">nitrogen uptake <b>×${(A / ball).toFixed(2)}</b></span>`
+    + `<span title="A mouth must take the cell's narrowest width, lobes and spines included">to a mouth <b>${mouthSize(c).toFixed(1)} µm</b></span>`
+    + `<span title="Its volume, and tip to tip (at most ${PARAMS.lobes.span} µm)">size <b>${Math.round(V).toLocaleString('en')} µm³</b> · ${Math.round(span)} µm</span>`;
+}
+function outlineOn(g, P) {
+  const n = P.length, mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  g.beginPath(); const m0 = mid(P[n - 1], P[0]); g.moveTo(m0[0], m0[1]);
+  for (let k = 0; k < n; k++) { const m = mid(P[k], P[(k + 1) % n]); g.quadraticCurveTo(P[k][0], P[k][1], m[0], m[1]); }
+  g.closePath();
+}
+// a change to the lobes: organelles carried, then applied (undoable); refused with the reason if it doesn't build
+function commitShape(after) {
+  const d = carryOrganelles(design, after);
+  shapeTrial = null;
+  if (!applyDesign(d)) showShape();
+}
+const free = (d) => {   // where the body has most room: the angle farthest from its lobes
+  let best = 0, gap = -1;
+  for (let a = 0; a < 360; a += 5) {
+    const g = Math.min(360, ...lobesOf(d).filter((l) => !l.parent || l.parent === 'body').map((l) => Math.abs(((a - l.angle) % 360 + 540) % 360 - 180)));
+    if (g > gap) { gap = g; best = a; }
+  }
+  return best;
+};
+$('lobeAdd').onclick = () => {
+  const d = JSON.parse(JSON.stringify(design));
+  if (lobesOf(d).length >= LOBE_MAX) return;
+  const id = lobeId(d), a = d.body.radius;
+  d.parts.unshift({ type: 'lobe', id, parent: 'body', at: [0, 0], angle: 0, length: Math.round(Math.max(8, 1.6 * a)), radius: Math.max(1, Math.round(Math.min(4, 0.45 * a) * 2) / 2) });
+  aimLobe(d, id, free(design));
+  shapeSel = id; commitShape(d);
+};
+$('lobeBranch').onclick = () => {
+  if (!shapeSel) return;
+  const d = JSON.parse(JSON.stringify(design)), p = lobeById(d, shapeSel);
+  if (lobesOf(d).length >= LOBE_MAX) return;
+  const id = lobeId(d), at = d.parts.indexOf(p) + 1;
+  d.parts.splice(at, 0, { type: 'lobe', id, parent: p.id, at: [r2(p.length / 2), 0], angle: 40, length: Math.max(4, Math.round(p.length * 0.6)), radius: Math.max(1, Math.round(p.radius * 0.7 * 2) / 2) });
+  shapeSel = id; commitShape(d);
+};
+$('lobeMirror').onclick = () => {
+  if (!shapeSel) return;
+  const d = JSON.parse(JSON.stringify(design));
+  // the lobe and every branch under it, reflected top to bottom, new ids; its own root mirrored on the rim
+  const group = [], walk = (id) => { const l = lobeById(d, id); group.push(l); for (const b of lobesOf(d)) if (b.parent === id) walk(b.id); };
+  walk(shapeSel);
+  if (lobesOf(d).length + group.length > LOBE_MAX) { $('buildErr').textContent = `that would make more than ${LOBE_MAX} lobes`; return; }
+  const ids = new Map(), copies = group.map((l) => { const id = lobeId({ parts: [...d.parts, ...[...ids.values()].map((x) => ({ id: x }))] }); ids.set(l.id, id); return { ...JSON.parse(JSON.stringify(l)), id }; });
+  for (const c of copies) { c.at = [c.at[0], r2(-c.at[1])]; c.angle = ((360 - c.angle) % 360); if (ids.has(c.parent)) c.parent = ids.get(c.parent); }
+  d.parts.splice(d.parts.indexOf(group[group.length - 1]) + 1, 0, ...copies);
+  shapeSel = copies[0].id; commitShape(d);
+};
+$('lobeRemove').onclick = () => {
+  if (!shapeSel) return;
+  const d = JSON.parse(JSON.stringify(design)), gone = new Set([shapeSel]);
+  let grew = true;
+  while (grew) { grew = false; for (const p of d.parts) if (p.id && !gone.has(p.id) && gone.has(p.parent)) { gone.add(p.id); grew = true; } }
+  const goneParts = d.parts.filter((p) => gone.has(p.id) || gone.has(p.parent));
+  d.parts = d.parts.filter((p) => !goneParts.includes(p));
+  unplug(d, new Set(goneParts.filter((p) => p.id).map((p) => p.id)));
+  shapeSel = null; commitShape(d);
+};
+$('lobeLen').oninput = () => { if (!shapeSel) return; shapeTrial ||= JSON.parse(JSON.stringify(design)); const l = lobeById(shapeTrial, shapeSel); aimLobe(shapeTrial, shapeSel, l.angle, Number($('lobeLen').value)); showShape(); };
+$('lobeThick').oninput = () => { if (!shapeSel) return; shapeTrial ||= JSON.parse(JSON.stringify(design)); lobeById(shapeTrial, shapeSel).radius = Number($('lobeThick').value); showShape(); };
+for (const id of ['lobeLen', 'lobeThick']) $(id).onchange = () => { if (shapeTrial) commitShape(shapeTrial); };
+// the canvas: tips (any lobe), the thickness dot (the selected one), a tap on a lobe selects it
+const shapeAt = (e) => {
+  const cv = $('shapeCv'), r = cv.getBoundingClientRect(), k = cv.width / r.width, px = (e.clientX - r.left) * k, py = (e.clientY - r.top) * k;
+  return { px, py, x: (px - shapeXf.ox) / shapeXf.s, y: -(py - shapeXf.oy) / shapeXf.s };
+};
+$('shapeCv').addEventListener('pointerdown', (e) => {
+  if (!shapeXf) return;
+  const c = shapeCell(design); if (!c) return;
+  const { px, py, x, y } = shapeAt(e), frames = lobeFrames(c), near = (bx, by, r) => Math.hypot(shapeXf.ox + bx * shapeXf.s - px, shapeXf.oy - by * shapeXf.s - py) < r;
+  const sel = frames.find((f) => f.id === shapeSel);
+  if (sel) { const ux = Math.cos(sel.dir), uy = Math.sin(sel.dir); if (near(sel.root[0] + ux * sel.L / 2 - uy * sel.r, sel.root[1] + uy * sel.L / 2 + ux * sel.r, 30)) { shapeDrag = { kind: 'side', id: sel.id }; $('shapeCv').setPointerCapture(e.pointerId); return; } }
+  for (const f of [...frames].reverse()) if (near(f.root[0] + Math.cos(f.dir) * f.L, f.root[1] + Math.sin(f.dir) * f.L, 30)) {
+    shapeDrag = { kind: 'tip', id: f.id }; shapeSel = f.id; $('shapeCv').setPointerCapture(e.pointerId); showShape(); return;
+  }
+  const hit = frames.find((f) => { const ux = Math.cos(f.dir), uy = Math.sin(f.dir), t = Math.max(0, Math.min(f.L, (x - f.root[0]) * ux + (y - f.root[1]) * uy));
+    return Math.hypot(x - f.root[0] - ux * t, y - f.root[1] - uy * t) <= f.r + 1; });
+  shapeSel = hit ? hit.id : null; showShape();
+});
+$('shapeCv').addEventListener('pointermove', (e) => {
+  if (!shapeDrag) return;
+  shapeTrial ||= JSON.parse(JSON.stringify(design));
+  const c = shapeCell(shapeTrial); if (!c) return;
+  const { x, y } = shapeAt(e), f = lobeFrames(c).find((q) => q.id === shapeDrag.id), l = lobeById(shapeTrial, shapeDrag.id);
+  if (!f) return;
+  if (shapeDrag.kind === 'tip') {
+    if (!l.parent || l.parent === 'body') {
+      const ang = Math.round(Math.atan2(y, x) * 180 / Math.PI / SNAP) * SNAP, [sx, sy] = surfacePoint(shapeTrial.body, ang);
+      aimLobe(shapeTrial, l.id, ang, Math.max(2, Math.min(80, Math.hypot(x - sx, y - sy) + 0.5)));
+    } else {   // a branch: round its parent's tip, its angle against its parent's
+      const pf = lobeFrames(c).find((q) => q.id === l.parent), tx = pf.root[0] + Math.cos(pf.dir) * pf.L, ty = pf.root[1] + Math.sin(pf.dir) * pf.L;
+      const world = Math.round(Math.atan2(y - ty, x - tx) * 180 / Math.PI / SNAP) * SNAP;
+      aimLobe(shapeTrial, l.id, world - pf.dir * 180 / Math.PI, Math.max(2, Math.min(80, Math.hypot(x - tx, y - ty))));
+    }
+  } else {
+    const ux = Math.cos(f.dir), uy = Math.sin(f.dir), t = Math.max(0, Math.min(f.L, (x - f.root[0]) * ux + (y - f.root[1]) * uy));
+    l.radius = Math.max(1, Math.min(10, shapeTrial.body.radius, Math.round(Math.hypot(x - f.root[0] - ux * t, y - f.root[1] - uy * t) * 2) / 2));
+  }
+  showShape();
+});
+const shapeUp = () => { if (!shapeDrag) return; shapeDrag = null; if (shapeTrial) commitShape(shapeTrial); };
+$('shapeCv').addEventListener('pointerup', shapeUp); $('shapeCv').addEventListener('pointercancel', shapeUp);
 
 // ----- the Build panel: add parts round the body, list them, remove them -----
 for (const [cat, names] of Object.entries(CATEGORIES)) {
@@ -2552,39 +2798,86 @@ const CELL_T0 = performance.now();
 // or sink, bleached and stolen plastids, the outline red while starving, blue resting, yellow stunned, grey dead. -----
 // a capsule's outline (body frame, µm) as points, wobbling `wob` µm
 // The body's outline in its own frame, wobbling: its capsule, or with lobes the outline of body and lobes together
-// (traced by rays from its centre, the farthest point inside along each: a pocket hidden behind a branch is filled in)
+// (the edge of the shape traced exactly: marching squares on the distance to the nearest capsule, the outer loop kept,
+// spaced evenly; each point with its outward direction, for the wobble and the plates)
 const lobeCache = new Map();
-function bodyOutline(c, wob, t, seed) {
+function bodyOutline(c, wob, t, seed, inset = 0) {   // inset: drawn in by that much (the plates band)
   const b = c.pieces[0];
   if (!b.lobes) return capsulePts(b.a, b.L, wob, t, seed);
-  const key = c.design.name + '|' + (c.size || 1).toFixed(3) + '|' + c.pieces.length + '|' + b.volume.toFixed(1);
+  const caps = c.pieces.filter((p) => p.kind === 'body' || p.kind === 'lobe').map((p) => {
+    const f = p.frame, ux = Math.cos(f.dir) * p.L / 2, uy = Math.sin(f.dir) * p.L / 2;
+    return [f.x - ux, f.y - uy, f.x + ux, f.y + uy, p.a];
+  });
+  const key = caps.map((q) => q.map((v) => v.toFixed(2)).join(',')).join(';');
   let base = lobeCache.get(key);
   if (!base) {
-    const caps = c.pieces.filter((p) => p.kind === 'body' || p.kind === 'lobe').map((p) => {
-      const f = p.frame, ux = Math.cos(f.dir) * p.L / 2, uy = Math.sin(f.dir) * p.L / 2;
-      return [f.x - ux, f.y - uy, f.x + ux, f.y + uy, p.a];
-    });
-    const inside = (x, y) => caps.some(([x1, y1, x2, y2, a]) => {
-      const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy;
-      let u = l2 > 0 ? ((x - x1) * dx + (y - y1) * dy) / l2 : 0; u = u < 0 ? 0 : u > 1 ? 1 : u;
-      const ex = x - x1 - dx * u, ey = y - y1 - dy * u; return ex * ex + ey * ey <= a * a;
-    });
-    const far = Math.max(...caps.map(([x1, y1, x2, y2, a]) => Math.max(Math.hypot(x1, y1), Math.hypot(x2, y2)) + a)) + 1;
-    base = [];
-    const n = 360;
-    for (let i = 0; i < n; i++) {
-      const u = i / n * 2 * Math.PI, cx = Math.cos(u), sy = Math.sin(u);
-      let r = far;
-      while (r > 0 && !inside(cx * r, sy * r)) r -= 0.2;
-      base.push([cx * r, sy * r, cx, sy]);
-    }
+    base = traceUnion(caps);
     if (lobeCache.size > 200) lobeCache.clear();
     lobeCache.set(key, base);
   }
   return base.map(([x, y, nx, ny], i) => {
     const u = i / base.length * 6.283, w = wob * (0.6 * Math.sin(3 * u + t * 1.3 + seed) + 0.4 * Math.sin(7 * u - t * 2.1 + seed * 2));
-    return [x + nx * w, y + ny * w];
+    return [x + nx * (w - inset), y + ny * (w - inset)];
   });
+}
+// The outline of capsules joined ([x1, y1, x2, y2, r] each): [[x, y, nx, ny], ...] counter-clockwise, ~0.5 µm apart
+function traceUnion(caps) {
+  const sdf = (x, y) => {
+    let m = Infinity;
+    for (const [x1, y1, x2, y2, a] of caps) {
+      const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy;
+      let u = l2 > 0 ? ((x - x1) * dx + (y - y1) * dy) / l2 : 0; u = u < 0 ? 0 : u > 1 ? 1 : u;
+      const d = Math.hypot(x - x1 - dx * u, y - y1 - dy * u) - a; if (d < m) m = d;
+    }
+    return m;
+  };
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [ax, ay, bx, by, a] of caps) { x0 = Math.min(x0, ax - a, bx - a); y0 = Math.min(y0, ay - a, by - a); x1 = Math.max(x1, ax + a, bx + a); y1 = Math.max(y1, ay + a, by + a); }
+  const h = Math.max(0.25, Math.max(x1 - x0, y1 - y0) / 220);
+  x0 -= 2 * h; y0 -= 2 * h;
+  const nx = Math.ceil((x1 + 2 * h - x0) / h) + 1, ny = Math.ceil((y1 + 2 * h - y0) / h) + 1, f = new Float64Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) f[j * nx + i] = sdf(x0 + i * h, y0 + j * h);
+  // a crossing on a grid edge, by the edge's id: horizontal edges (i, j)-(i+1, j) and vertical ones (i, j)-(i, j+1)
+  const pt = new Map(), next = new Map();
+  const cross = (i, j, horiz) => {
+    const k = (horiz ? 0 : 1) + 2 * (j * nx + i);
+    if (!pt.has(k)) {
+      const a = f[j * nx + i], b = horiz ? f[j * nx + i + 1] : f[(j + 1) * nx + i], s = a / (a - b);
+      pt.set(k, horiz ? [x0 + (i + s) * h, y0 + j * h] : [x0 + i * h, y0 + (j + s) * h]);
+    }
+    return k;
+  };
+  for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const a = f[j * nx + i] < 0, b = f[j * nx + i + 1] < 0, cc = f[(j + 1) * nx + i + 1] < 0, d = f[(j + 1) * nx + i] < 0;
+    const code = (a ? 1 : 0) | (b ? 2 : 0) | (cc ? 4 : 0) | (d ? 8 : 0);
+    if (code === 0 || code === 15) continue;
+    const S = () => cross(i, j, true), E = () => cross(i + 1, j, false), N = () => cross(i, j + 1, true), W = () => cross(i, j, false);
+    // segments joining the crossings, each kept with the inside on its left (so loops run counter-clockwise)
+    const segs = { 1: [[W, S]], 2: [[S, E]], 3: [[W, E]], 4: [[E, N]], 5: [[W, N], [E, S]], 6: [[S, N]], 7: [[W, N]], 8: [[N, W]],
+      9: [[N, S]], 10: [[N, E], [S, W]], 11: [[N, E]], 12: [[E, W]], 13: [[E, S]], 14: [[S, W]] }[code];
+    for (const [p, q] of segs) next.set(p(), q());
+  }
+  // walk the loops; keep the longest (the outer edge)
+  let best = [];
+  const seen = new Set();
+  for (const start of next.keys()) {
+    if (seen.has(start)) continue;
+    const loop = [];
+    for (let k = start; k !== undefined && !seen.has(k); k = next.get(k)) { seen.add(k); loop.push(pt.get(k)); }
+    if (loop.length > best.length) best = loop;
+  }
+  // even spacing (~0.5 µm, at most 480 points) and outward directions from the distance's slope
+  let per = 0; for (let i = 0; i < best.length; i++) { const p = best[i], q = best[(i + 1) % best.length]; per += Math.hypot(q[0] - p[0], q[1] - p[1]); }
+  const n = Math.max(48, Math.min(480, Math.round(per / 0.5))), out = [];
+  let i = 0, acc = 0;
+  for (let k = 0; k < n; k++) {
+    const want = k * per / n;
+    while (true) { const p = best[i % best.length], q = best[(i + 1) % best.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]); if (acc + l >= want || i > 2 * best.length) break; acc += l; i++; }
+    const p = best[i % best.length], q = best[(i + 1) % best.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, s = (want - acc) / l;
+    const x = p[0] + (q[0] - p[0]) * s, y = p[1] + (q[1] - p[1]) * s, e = 0.05, gx = sdf(x + e, y) - sdf(x - e, y), gy = sdf(x, y + e) - sdf(x, y - e), g = Math.hypot(gx, gy) || 1;
+    out.push([x, y, gx / g, gy / g]);
+  }
+  return out;
 }
 function capsulePts(r, L, wob, t, seed) {
   const h = L / 2, per = 2 * L + 2 * Math.PI * r, n = Math.max(36, Math.min(96, Math.round(per / 1.6))), pts = [];
@@ -2779,9 +3072,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
   ctx.strokeStyle = rgbaOf(rim || tint, rim ? 0.35 : 0.18 + 0.1 * lit); ctx.lineWidth = Math.max(2.2 * s, rim ? 4 : 2); ctx.stroke();
   ctx.strokeStyle = rim || rgbaOf(lighter(tint, 0.45), 0.65 + 0.3 * lit); ctx.lineWidth = Math.max(0.55 * s, rim ? 2 : 1.2); ctx.stroke();
   if (b.plates) {   // armour: a tan band just inside the outline, its plates' seams dark
-    const band = Math.max(b.plates * s, 1.5), inner = (b.lobes ? bodyOutline(c, 0, 0, 0).map(([x, y]) => {   // with lobes: the outline drawn in by half the plates
-      const r = Math.hypot(x, y) || 1; return [x - x / r * b.plates / 2, y - y / r * b.plates / 2];
-    }) : capsulePts(Math.max(b.a - b.plates / 2, 0.5), b.L, 0, 0, 0)).map(xf);
+    const band = Math.max(b.plates * s, 1.5), inner = (b.lobes ? bodyOutline(c, 0, 0, 0, b.plates / 2) : capsulePts(Math.max(b.a - b.plates / 2, 0.5), b.L, 0, 0, 0)).map(xf);
     outlinePath(inner); ctx.strokeStyle = real.dead ? '#8a8f98' : 'rgba(205,185,138,.8)'; ctx.lineWidth = band; ctx.stroke();
     ctx.lineCap = 'butt'; ctx.setLineDash([1.2, Math.max(5, 2 * Math.PI * b.a * s / 14) - 1.2]); ctx.strokeStyle = 'rgba(60,48,28,.85)'; ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'round';
   }
@@ -3854,6 +4145,6 @@ function skipMission() {
   };
   slice();
 }
-$('openAllBtn').onclick = () => { progress.all = !progress.all; saveProgress(); syncChips(); };
+$('openAllBtn').onclick = () => { progress.all = !progress.all; saveProgress(); syncChips(); showShape(); };
 showMissions(); syncChips();
 initMatch({ getDesign: () => design, inMission: () => !!mission, leave: leaveMission });   // ⚔ Matches: the design being built against the house rivals (match.js)

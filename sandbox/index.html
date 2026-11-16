@@ -155,6 +155,17 @@
   #chips .pbtn.on { border-color: var(--h-add); background: rgba(242,180,90,.12); }
   #addPart { width: 100%; padding: 8px; font-size: 14px; background: var(--on); border-color: var(--accent); }
   #buildErr, #err { color: var(--bad); }
+  /* the shape: lobes (shapes step 3; mock-up approved 2026-11-16) */
+  #shapeBox { display: grid; gap: 6px; margin-bottom: 8px; }
+  .shapeHead { display: flex; justify-content: space-between; font-size: 13px; }
+  .shapeHead span { color: var(--dim); font-size: 12px; }
+  #shapeCv { width: 100%; max-width: 340px; aspect-ratio: 1 / 1; justify-self: center; border-radius: 12px; touch-action: none;
+    background: radial-gradient(120% 90% at 50% 20%, #0f2b3d 0%, #07141f 80%); }
+  .shapeTools { display: flex; flex-wrap: wrap; gap: 5px; }
+  .shapeTools button { padding: 5px 8px; font-size: 12px; }
+  #shapeRead { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 12px; color: var(--dim); }
+  #shapeRead b { color: var(--text, #e4eef3); font-variant-numeric: tabular-nums; }
+  #shapeRead b.good { color: #6fe0a0; } #shapeRead b.meh { color: #ffd84a; } #shapeRead b.bad { color: #ff8a7a; }
   /* the energy budget, always in sight while building */
   #budgetLine { font-size: 12px; color: var(--dim); line-height: 1.45; margin-top: 4px; }
   #budgetLine:empty { display: none; }
@@ -505,6 +516,22 @@
   </section>
   <section class="sec" data-sec="body" style="--hue: var(--h-body)">
     <h2>Body</h2>
+    <div id="shapeBox">
+      <div class="shapeHead"><b>Shape</b><span id="lobeCount"></span></div>
+      <canvas id="shapeCv" width="640" height="640" title="Drag a lobe's tip to aim it and pull it longer; drag the orange dot on a selected lobe to make it thicker or thinner; tap a lobe to select it"></canvas>
+      <div class="shapeTools">
+        <button id="lobeAdd" title="Add an arm of living cell where the body has most room (up to 6 lobes)">＋ Lobe</button>
+        <button id="lobeBranch" title="Grow a branch from the selected lobe's tip">＋ On this lobe</button>
+        <button id="lobeMirror" title="Add a copy of the selected lobe (and its branches) reflected top to bottom">⇅ Mirror</button>
+        <button id="lobeRemove" title="Remove the selected lobe, its branches and anything on them">🗑 Remove</button>
+      </div>
+      <div id="lobeSel" hidden>
+        <div class="slider">Length <input type="range" id="lobeLen" min="2" max="80" step="1"><span id="lobeLenOut"></span></div>
+        <div class="slider">Thickness <input type="range" id="lobeThick" min="1" max="10" step="0.5"><span id="lobeThickOut"></span></div>
+      </div>
+      <div id="shapeRead"></div>
+    </div>
+    <div id="shapeLock" class="tip" hidden>🔒 Lobes (any body shape) open as you finish missions (chapters 1 and 2), or with 🔓 All parts in ⋯ More.</div>
     <div class="slider">Radius <input type="range" id="bodyRadius" min="1" max="50" step="0.5"><span id="bodyRadiusOut"></span></div>
     <div class="slider" title="0 = round; longer makes a rod">Length <input type="range" id="bodyLength" min="0" max="200" step="1"><span id="bodyLengthOut"></span></div>
     <div class="row" title="Plain: a thin protein wall. Plates: cellulose armour (like armoured dinoflagellates): a peduncle pays more to pierce it, but plates are heavy and each division must build them">Wall <span class="seg" id="wallSeg"></span></div>
