@@ -2545,6 +2545,41 @@ const CELL_T0 = performance.now();
 // tapering whips in their rule colour. What the old drawing showed is all still here: store levels, a chamber's float
 // or sink, bleached and stolen plastids, the outline red while starving, blue resting, yellow stunned, grey dead. -----
 // a capsule's outline (body frame, µm) as points, wobbling `wob` µm
+// The body's outline in its own frame, wobbling: its capsule, or with lobes the outline of body and lobes together
+// (traced by rays from its centre, the farthest point inside along each: a pocket hidden behind a branch is filled in)
+const lobeCache = new Map();
+function bodyOutline(c, wob, t, seed) {
+  const b = c.pieces[0];
+  if (!b.lobes) return capsulePts(b.a, b.L, wob, t, seed);
+  const key = c.design.name + '|' + (c.size || 1).toFixed(3) + '|' + c.pieces.length + '|' + b.volume.toFixed(1);
+  let base = lobeCache.get(key);
+  if (!base) {
+    const caps = c.pieces.filter((p) => p.kind === 'body' || p.kind === 'lobe').map((p) => {
+      const f = p.frame, ux = Math.cos(f.dir) * p.L / 2, uy = Math.sin(f.dir) * p.L / 2;
+      return [f.x - ux, f.y - uy, f.x + ux, f.y + uy, p.a];
+    });
+    const inside = (x, y) => caps.some(([x1, y1, x2, y2, a]) => {
+      const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy;
+      let u = l2 > 0 ? ((x - x1) * dx + (y - y1) * dy) / l2 : 0; u = u < 0 ? 0 : u > 1 ? 1 : u;
+      const ex = x - x1 - dx * u, ey = y - y1 - dy * u; return ex * ex + ey * ey <= a * a;
+    });
+    const far = Math.max(...caps.map(([x1, y1, x2, y2, a]) => Math.max(Math.hypot(x1, y1), Math.hypot(x2, y2)) + a)) + 1;
+    base = [];
+    const n = 360;
+    for (let i = 0; i < n; i++) {
+      const u = i / n * 2 * Math.PI, cx = Math.cos(u), sy = Math.sin(u);
+      let r = far;
+      while (r > 0 && !inside(cx * r, sy * r)) r -= 0.2;
+      base.push([cx * r, sy * r, cx, sy]);
+    }
+    if (lobeCache.size > 200) lobeCache.clear();
+    lobeCache.set(key, base);
+  }
+  return base.map(([x, y, nx, ny], i) => {
+    const u = i / base.length * 6.283, w = wob * (0.6 * Math.sin(3 * u + t * 1.3 + seed) + 0.4 * Math.sin(7 * u - t * 2.1 + seed * 2));
+    return [x + nx * w, y + ny * w];
+  });
+}
 function capsulePts(r, L, wob, t, seed) {
   const h = L / 2, per = 2 * L + 2 * Math.PI * r, n = Math.max(36, Math.min(96, Math.round(per / 1.6))), pts = [];
   for (let i = 0; i < n; i++) {
@@ -2569,7 +2604,11 @@ function chainsOf(c) {
   ch = [];
   const kids = c.pieces.map(() => []);
   c.pieces.forEach((p, i) => { if (p.parent >= 0) kids[p.parent].push(i); });
-  for (const r of kids[0]) { const run = [r]; let k = r; while (kids[k].length) { k = kids[k][0]; run.push(k); } ch.push(run); }
+  // runs start on the body or on a lobe (a lobe is body: drawn in its outline, bodyOutline)
+  c.pieces.forEach((h, hi) => {
+    if (h.kind !== 'body' && h.kind !== 'lobe') return;
+    for (const r of kids[hi]) { if (c.pieces[r].kind === 'lobe') continue; const run = [r]; let k = r; while (kids[k].length) { k = kids[k][0]; run.push(k); } ch.push(run); }
+  });
   chainCache.set(c.design, ch);
   return ch;
 }
@@ -2694,8 +2733,9 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
   }
 
   // the body: see-through in its species' tint, lit from above, its membrane wobbling a little
-  const bp = capsulePts(b.a, b.L, small ? 0 : 0.3, t * (c.joints.some((j) => j.on) ? 1.6 : 1), seed).map(xf);
-  const [ccx, ccy] = [X(c.cx[0]), Y(c.cy[0])], R = (b.a + b.L / 2) * s;
+  const bp = bodyOutline(c, small ? 0 : 0.3, t * (c.joints.some((j) => j.on) ? 1.6 : 1), seed).map(xf);
+  const [ccx, ccy] = [X(c.cx[0]), Y(c.cy[0])];
+  const R = (b.lobes ? Math.max(b.a + b.L / 2, ...c.pieces.filter((p) => p.kind === 'lobe').map((p) => Math.hypot(p.frame.x, p.frame.y) + p.L / 2 + p.a)) : b.a + b.L / 2) * s;
   if (!small) {   // a soft halo in the water
     const hg = ctx.createRadialGradient(ccx, ccy, b.a * s * 0.6, ccx, ccy, R + 6 * s);
     hg.addColorStop(0, rgbaOf(tint, 0)); hg.addColorStop(0.75, rgbaOf(tint, 0.05 + 0.05 * lit)); hg.addColorStop(1, rgbaOf(tint, 0));
@@ -2733,7 +2773,9 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
   ctx.strokeStyle = rgbaOf(rim || tint, rim ? 0.35 : 0.18 + 0.1 * lit); ctx.lineWidth = Math.max(2.2 * s, rim ? 4 : 2); ctx.stroke();
   ctx.strokeStyle = rim || rgbaOf(lighter(tint, 0.45), 0.65 + 0.3 * lit); ctx.lineWidth = Math.max(0.55 * s, rim ? 2 : 1.2); ctx.stroke();
   if (b.plates) {   // armour: a tan band just inside the outline, its plates' seams dark
-    const band = Math.max(b.plates * s, 1.5), inner = capsulePts(Math.max(b.a - b.plates / 2, 0.5), b.L, 0, 0, 0).map(xf);
+    const band = Math.max(b.plates * s, 1.5), inner = (b.lobes ? bodyOutline(c, 0, 0, 0).map(([x, y]) => {   // with lobes: the outline drawn in by half the plates
+      const r = Math.hypot(x, y) || 1; return [x - x / r * b.plates / 2, y - y / r * b.plates / 2];
+    }) : capsulePts(Math.max(b.a - b.plates / 2, 0.5), b.L, 0, 0, 0)).map(xf);
     outlinePath(inner); ctx.strokeStyle = real.dead ? '#8a8f98' : 'rgba(205,185,138,.8)'; ctx.lineWidth = band; ctx.stroke();
     ctx.lineCap = 'butt'; ctx.setLineDash([1.2, Math.max(5, 2 * Math.PI * b.a * s / 14) - 1.2]); ctx.strokeStyle = 'rgba(60,48,28,.85)'; ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'round';
   }

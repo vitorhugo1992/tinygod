@@ -1611,6 +1611,38 @@ const runDay = (design, y, seconds, opts = {}) => {
     `alone ${fmt(alone, 3)}, under 20 cells ${fmt(under, 3)} (expected ${fmt(want, 3)}), 480 µm beside them ${fmt(beside, 3)}`);
 }
 
+// 28ao. Lobes (free body shapes, 2026-11-16): rigid arms of living cell. A star adds volume and surface (more surface than
+// a ball of its volume), organelles fit inside a lobe and across its junction but not wider than it, a lobe hidden in the
+// body and a 7th lobe are refused, the star sinks slower than a ball of its volume, it is wider to a mouth, it grows with
+// the cell, and a feeding tube latches on a lobe
+{
+  const lobe = (deg, length, radius) => ({ type: 'lobe', at: [Math.cos(deg * DEG) * 9, Math.sin(deg * DEG) * 9], angle: deg, length, radius });
+  const star = { name: 'Star', body: { radius: 10 }, parts: [lobe(90, 20, 4), lobe(210, 20, 4), lobe(330, 20, 4)] };
+  const s = build(star), V = s.pieces[0].volume, A = s.pieces[0].area, rEq = Math.cbrt(3 * V / (4 * Math.PI));
+  const ball = build({ body: { radius: rEq }, parts: [] });
+  const err = (d) => { try { build(d); return ''; } catch (e) { return e.message; } };
+  const withInc = (at, r) => ({ ...star, parts: [...star.parts, { type: 'inclusion', material: 'plastid', at, radius: r }] });
+  const sink = (d) => { const w = makeWorld(1); const c = addCell(w, d, 800, 1000, 0), y0 = c.q[1]; for (let i = 0; i < 10000; i++) stepWorld(w); return (y0 - c.q[1]) / 10; };
+  const vs = sink(star), vb = sink({ body: { radius: rEq }, parts: [] });
+  const { mouthSize } = await import('../sim/interact.js');
+  const { makeCell } = await import('../sim/grow.js');
+  const g2 = makeCell(star, 2).pieces[0].volume / V;
+  let latch = null;
+  {
+    const w = makeWorld(1, { metab: true });
+    const prey = addCell(w, { ...star, name: 'Prey' }, 800, 1000, 0);
+    addCell(w, { name: 'Hunter', body: { radius: 6 }, parts: [{ type: 'segment', at: [0, -6], angle: -90, length: 10, radius: 0.6, joint: { type: 'feed' } }] }, 800, 1000 + 33 + 17.1, 0);
+    for (let i = 0; i < 3000 && !latch; i++) { stepWorld(w); latch = (w.links || []).find((l) => l.feed); }
+    latch = latch && prey.pieces[latch.pieceB].kind;
+  }
+  const many = { ...star, parts: [...star.parts, ...[0, 1, 2, 3].map((k) => lobe(k * 20 + 10, 10, 2))] };
+  check('lobes: a star of body and arms', s.pieces.length === 4 && A / ball.pieces[0].area > 1.4 && !err(withInc([0, 22], 2.5)) && !err(withInc([0, 10], 3))
+    && err(withInc([0, 22], 4)).includes('sticks out') && err({ ...star, parts: [...star.parts, { type: 'lobe', at: [0, 0], angle: 0, length: 2, radius: 3 }] }).includes('reach out')
+    && err(many).includes('at most') && vs < 0.6 * vb && mouthSize(s) > 20 && Math.abs(g2 - 2) < 0.05 && latch === 'lobe',
+    `volume ${fmt(V, 0)} µm³, surface ${fmt(A / ball.pieces[0].area, 2)}× a ball's of that volume; sinks ${fmt(vs, 2)} µm/s vs the ball's ${fmt(vb, 2)}; ` +
+    `mouth size ${fmt(mouthSize(s), 1)}; grown ${fmt(g2, 3)}×; a tube latched on its ${latch}`);
+}
+
 // 29. Determinism with day, metabolism and stores
 {
   const go = () => {

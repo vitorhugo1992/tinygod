@@ -60,7 +60,7 @@ function padWorld(cell, pad) {
 function surfaceNear(cell, x, y, reach, only = -1) {
   let best = null;
   for (let i = 0; i < cell.pieces.length; i++) {
-    if (only >= 0 && i !== only) continue;
+    if (only === 'living' ? !living(cell.pieces[i]) : only >= 0 && i !== only) continue;
     const [ax, ay, bx, by] = ends(cell, i);
     const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
     let t = l2 > 0 ? ((x - ax) * dx + (y - ay) * dy) / l2 : 0;
@@ -98,23 +98,36 @@ function groups(world) {
 // (spines, harpoons, tethers, feeding tubes). A rod goes in end-first (its body length never counted), so spines along
 // its axis don't help, nor does one spine alone; spines pointing several ways do. Flagella fold; a thrown harpoon is gone
 export function mouthSize(c) {
-  const body = c.pieces[0], a = body.a, h = (body.L || 0) / 2, tips = [];
+  const body = c.pieces[0], a = body.a, h = (body.L || 0) / 2, tips = [], round = [];
   for (const p of c.pieces) {
-    if (p.parent !== 0 || p.kind !== 'segment' || p.L <= 0) continue;
+    if (p.kind === 'lobe') {   // a lobe: both ends of its axis, its thickness round them (body frame)
+      const f = p.frame, ux = Math.cos(f.dir) * p.L / 2, uy = Math.sin(f.dir) * p.L / 2;
+      round.push([f.x - ux, f.y - uy, p.a], [f.x + ux, f.y + uy, p.a]);
+      continue;
+    }
+    if (p.kind !== 'segment' || p.L <= 0) continue;
     const j = p.joint >= 0 ? c.joints[p.joint] : null;
     if (j && j.type !== 'fire' && j.type !== 'tether' && j.type !== 'feed') continue;
-    tips.push([p.ax + Math.cos(p.mount) * p.L, p.ay + Math.sin(p.mount) * p.L]);
+    if (p.parent === 0) { tips.push([p.ax + Math.cos(p.mount) * p.L, p.ay + Math.sin(p.mount) * p.L]); continue; }
+    const host = c.pieces[p.parent];
+    if (host.kind !== 'lobe') continue;   // on a lobe: its tip in the body's frame
+    const f = host.frame, fc = Math.cos(f.dir), fs = Math.sin(f.dir), d = f.dir + p.mount;
+    tips.push([f.x + fc * p.ax - fs * p.ay + Math.cos(d) * p.L, f.y + fs * p.ax + fc * p.ay + Math.sin(d) * p.L]);
   }
-  if (!tips.length) return a;
+  if (!tips.length && !round.length) return a;
   let least = Infinity;
   for (let k = 0; k < 90; k++) {   // every 2°: the width across that direction
     const u = k * Math.PI / 90, nx = Math.cos(u), ny = Math.sin(u), e = Math.abs(h * nx);
     let lo = -e - a, hi = e + a;
     for (const [x, y] of tips) { const d = x * nx + y * ny; if (d < lo) lo = d; if (d > hi) hi = d; }
+    for (const [x, y, r] of round) { const d = x * nx + y * ny; if (d - r < lo) lo = d - r; if (d + r > hi) hi = d + r; }
     if (hi - lo < least) least = hi - lo;
   }
   return Math.max(a, least / 2);
 }
+
+// The living pieces of a cell (its body and lobes): what a tube pierces, a harpoon wounds, a mouth takes hold of
+const living = (p) => p.kind === 'body' || p.kind === 'lobe';
 
 // The cells joined to `c` by pads (a peduncle's latch not counted), itself included
 function chainOf(world, c) {
@@ -224,13 +237,13 @@ export function interact(world) {
         if (B === A || B.species === A.species || B.emptied) continue;
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
         if (dx * dx + dy * dy > r * r) continue;
-        const hit = surfaceNear(B, x, y, f.r, 0);   // the body only: spines and flagella keep it off
+        const hit = surfaceNear(B, x, y, f.r, 'living');   // the body and its lobes only: spines and flagella keep it off
         if (!hit) continue;
         // the tube's own price at once (a predator that can't pay doesn't latch, and says so); what plates add is
         // drilled afterwards as a flow (PARAMS.feed.drill, metab.js), draining nothing until it is through
         const extra = f.cost * PARAMS.plates.pierce * (B.pieces[0].plates || 0), price = f.cost + extra;
         if (world.metab && A.metab.E < f.cost) { A.cantPierce = { prey: B.species, price: f.cost }; continue; }
-        const link = { a: A.index, b: B.index, padA: f, pieceB: 0, bx: hit[1], by: hit[2], holds: FEED.hold, feed: true, took: 0, tookN: 0, since: world.steps, price,
+        const link = { a: A.index, b: B.index, padA: f, pieceB: hit[0], bx: hit[1], by: hit[2], holds: FEED.hold, feed: true, took: 0, tookN: 0, since: world.steps, price,
           drill: world.metab ? extra : 0, drillAll: extra };
         f.link = link; world.links.push(link);
         A.latches = (A.latches || 0) + 1;   // (the missions' judge counts them)
@@ -265,7 +278,7 @@ export function interact(world) {
           }
         }
       }
-      const B = best && best.B, hit = B && best.k === 0 && !B.dead ? B : null, len = best ? best.s : HP.range;
+      const B = best && best.B, hit = B && living(B.pieces[best.k]) && !B.dead ? B : null, len = best ? best.s : HP.range;
       h.shot = { step: world.steps, x0, y0, x1: x0 + ux * len, y1: y0 + uy * len, hit: hit ? hit.species : null,
         caught: !B || hit ? null : B.dead ? 'a dead cell' : 'a spine or flagellum', kin: !!hit && hit.species === A.species };
       A.lastShot = h.shot;
@@ -338,7 +351,7 @@ export function interact(world) {
       for (const B of cells) {
         if (B === A || B.eatenBy || B.species === A.species || B.pieces[0].a > E.gape * A.pieces[0].a || B.pieces[0].volume > free) continue;
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach + E.reach;   // (a mouth is no piece: it adds no reach)
-        if (dx * dx + dy * dy > r * r || !surfaceNear(B, mx, my, E.reach, 0) || mouthSize(B) > E.gape * A.pieces[0].a) continue;
+        if (dx * dx + dy * dy > r * r || !surfaceNear(B, mx, my, E.reach, 'living') || mouthSize(B) > E.gape * A.pieces[0].a) continue;
         // a chain counts as one (author, 2026-11-02): to swallow a joined cell the mouth takes its whole chain, which must
         // fit across the predator (its extent at most the predator's width), in its free room, and every cell the gape
         const chain = chainOf(world, B);

@@ -83,6 +83,14 @@ const weight = (rho, vol) => (rho - PARAMS.water.density) * vol * G;
 const capsuleVolume = (L, a) => PI * a * a * L + (4 / 3) * PI * a * a * a;
 
 const capsuleArea = (L, a) => 2 * PI * a * L + 4 * PI * a * a;
+// distance from (px, py) to the segment (x1, y1)-(x2, y2)
+function segPointDist(x1, y1, x2, y2, px, py) {
+  const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy;
+  let t = l2 > 0 ? ((px - x1) * dx + (py - y1) * dy) / l2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const ex = px - x1 - dx * t, ey = py - y1 - dy * t;
+  return Math.sqrt(ex * ex + ey * ey);
+}
 
 // A segment grown or cut to length L (a harpoon thrown and growing back): its drag, volume and weight follow
 export function setSegmentLength(p, L) {
@@ -242,21 +250,69 @@ export function buildCell(design, opts = {}) {
   // The body: cytoplasm inside a wall
   const b = design.body;
   const bL = b.length || 0, bA = b.radius;
-  const vol = capsuleVolume(bL, bA);
+  const coreVol = capsuleVolume(bL, bA);
   const wallMat = legacyMaterial(b.wall || 'protein');
   const plates = wallMat === 'plates' ? Math.min(Math.max(b.plates ?? PARAMS.plates.start, PARAMS.plates.min), plateMax(bA)) : 0;
-  const wallVol = Math.min(capsuleArea(bL, bA) * (plates || C.wallThickness), vol);
+  const wallVol = Math.min(capsuleArea(bL, bA) * (plates || C.wallThickness), coreVol);
   pieces.push({
     kind: 'body', parent: -1, ax: 0, ay: 0, mount: 0, offset: 0, joint: -1,
-    L: bL, a: bA, material: wallMat, volume: vol, area: capsuleArea(bL, bA), plates, plateVol: plates ? wallVol : 0,
+    L: bL, a: bA, material: wallMat, volume: coreVol, area: capsuleArea(bL, bA), plates, plateVol: plates ? wallVol : 0,
     ...capsuleDrag(bL, bA),
-    wpts: [{ x: 0, y: 0, w: weight(C.cytoplasm, vol - wallVol) + weight(material(wallMat).density, wallVol) }],
+    wpts: [{ x: 0, y: 0, w: weight(C.cytoplasm, coreVol - wallVol) + weight(material(wallMat).density, wallVol) }],
     inclusions: [],
   });
   ids.set('body', 0);
   let inclusionVol = 0;
+  // the body's own capsule and each lobe's, in the body's frame: [x1, y1, x2, y2, radius] (the room inside, mouths)
+  const capsules = [[-bL / 2, 0, bL / 2, 0, bA]];
+  pieces[0].frame = { x: 0, y: 0, dir: 0 };
+
+  // Lobes (free body shapes, author 2026-11-14): arms of living cell fused to the body or to another lobe, before every
+  // other part (parts may sit on them). A lobe grows from `at` (in its parent's frame, on its rim) `length` µm along
+  // `angle`, `radius` thick, with rounded ends; rigid (one stiff shape: the fast path solves it with the body). It is
+  // cell: its volume and surface join the body's (upkeep, uptake, growth, room for a meal), its wall is the body's;
+  // the part of it buried in its parent is not counted twice (its root's half-sphere and the stretch of its axis inside
+  // the parent). Organelles sit anywhere inside the body and its lobes, across a junction too.
+  const lobes = (design.parts || []).filter((p) => p.type === 'lobe');
+  if (lobes.length > PARAMS.lobes.max && !loose) throw new Error(`at most ${PARAMS.lobes.max} lobes`);
+  for (const part of lobes) {
+    const parent = ids.get(part.parent || 'body');
+    if (parent === undefined) throw new Error(`unknown parent: ${part.parent}`);
+    const host = pieces[parent];
+    if (host.kind !== 'body' && host.kind !== 'lobe') throw new Error('a lobe grows from the body or another lobe');
+    const L = Math.max(part.length || 0, 0), a = part.radius;
+    if (!(a >= PARAMS.lobes.minRadius)) throw new Error(`a lobe must be at least ${PARAMS.lobes.minRadius} µm thick`);
+    const [x, y] = part.at || [0, 0], m = (part.angle || 0) * DEG;
+    // in the body's frame: its root, direction and centre
+    const pf = host.frame, pc = dcos(pf.dir), ps = dsin(pf.dir);
+    const rx = pf.x + pc * x - ps * y, ry = pf.y + ps * x + pc * y, dir = pf.dir + m, uc = dcos(dir), us = dsin(dir);
+    // how far along its axis it is still inside its parent (sampled), then what it adds
+    const [h1x, h1y, h2x, h2y, ha] = capsules[parent];
+    let buried = 0;
+    for (let t = 0; t <= L; t += 0.1) { if (segPointDist(h1x, h1y, h2x, h2y, rx + uc * t, ry + us * t) >= ha) break; buried = t; }
+    if (!loose && segPointDist(h1x, h1y, h2x, h2y, rx, ry) + a <= ha + 1e-9 && segPointDist(h1x, h1y, h2x, h2y, rx + uc * L, ry + us * L) + a <= ha + 1e-9) throw new Error('a lobe must reach out of the cell');
+    const out = Math.max(L - buried, 0);
+    const lv = PI * a * a * out + (2 / 3) * PI * a * a * a, la = 2 * PI * a * out + 2 * PI * a * a;
+    const lwall = Math.min(la * (plates || C.wallThickness), lv);
+    const piece = {
+      kind: 'lobe', parent, ax: x, ay: y, mount: m, offset: L / 2, joint: -1,
+      L, a, material: wallMat, volume: lv, area: la, plates,
+      ...capsuleDrag(L, a),
+      wpts: [{ x: 0, y: 0, w: weight(C.cytoplasm, lv - lwall) + weight(material(wallMat).density, lwall) }],
+      frame: { x: rx + uc * L / 2, y: ry + us * L / 2, dir },
+      part: design.parts.indexOf(part),
+    };
+    pieces.push(piece);
+    capsules.push([rx, ry, rx + uc * L, ry + us * L, a]);
+    pieces[0].volume += lv; pieces[0].area += la;
+    if (plates) pieces[0].plateVol += lwall;
+    if (part.id) ids.set(part.id, pieces.length - 1);
+  }
+  pieces[0].lobes = pieces.length - 1;
+  const vol = pieces[0].volume;   // the whole cell's, lobes included
 
   for (const part of design.parts || []) {
+    if (part.type === 'lobe') continue;
     const parent = ids.get(part.parent || 'body');
     if (parent === undefined) throw new Error(`unknown parent: ${part.parent}`);
     const [x, y] = part.at || [0, 0];
@@ -321,10 +377,12 @@ export function buildCell(design, opts = {}) {
       const own = !rigid && Array.isArray(part.outline);
       const shape = shapeOf(part), { outline, mid } = shape;
       const r = own ? shape.thick : part.radius;
-      // inside the wall: each corner's distance from the body's axis (a convex body: the corners decide)
+      // inside the wall: each corner's distance from the body's axis (a convex body: the corners decide); with lobes,
+      // each corner inside the body or any lobe (the outline's corners are close together, so its edges follow)
       for (const [ex, ey] of outline) {
         const dx = Math.max(Math.abs(ex) - host.L / 2, 0);
-        if (!loose && Math.sqrt(dx * dx + ey * ey) > host.a - C.wallThickness + 1e-9) throw new Error('inclusion sticks out of the body');
+        if (!loose && Math.sqrt(dx * dx + ey * ey) > host.a - C.wallThickness + 1e-9
+          && !capsules.some(([x1, y1, x2, y2, ca], i) => i > 0 && segPointDist(x1, y1, x2, y2, ex, ey) <= ca - C.wallThickness + 1e-9)) throw new Error('inclusion sticks out of the body');
       }
       for (const o of host.inclusions) {
         if (!loose && polysOverlap(outline, o.outline)) throw new Error('inclusions overlap: there is no room for both there');

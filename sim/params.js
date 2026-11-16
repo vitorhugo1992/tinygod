@@ -38,6 +38,11 @@ export const PARAMS = {
     wallThickness: 0.3,     // µm; the wall material's share of the body (plates: their own thickness, PARAMS.plates)
     maxInclusionFraction: 0.9, // inclusions may fill at most this share of the body (a diatom is mostly vacuole)
   },
+  lobes: {                  // free body shapes (author, 2026-11-14): rigid arms of living cell on the body (build.js)
+    max: 6,                 // at most this many on a body (the Ocean's budget of pieces)
+    minRadius: 1,           // µm, the thinnest lobe
+    span: 300,              // µm, an entry's widest reach tip to tip (the body alone: up to 200 + 2 × 50)
+  },
   drag: {
     minLogAspect: 2,        // ln(length/radius) floor for the slender-rod formulas, so stubby pieces stay sane
   },

@@ -34,7 +34,7 @@ export function scaledDesign(design, g) {
       if (p.length) p.length *= o;
       if (p.bend) p.bend /= o;
       if (Array.isArray(p.outline)) p.outline = p.outline.map(([x, y]) => [x * o, y * o]);
-    } else if (p.type === 'segment') {
+    } else if (p.type === 'segment' || p.type === 'lobe') {   // a lobe is body: it grows by the cell's width
       xy(p, w);
       p.length *= w;
       p.radius *= w;

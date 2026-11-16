@@ -31,8 +31,26 @@ export function entryProblem(design) {
   for (const n of nuc) if (n.radius !== PARAMS.brain.radius || n.length || n.outline || n.bend) return `the nucleus must be round, radius ${PARAMS.brain.radius}`;
   const wired = d.parts.some((p) => p.joint && (p.joint.controls || p.joint.control || p.joint.speed));
   if (wired && !nuc.length) return 'rules need a nucleus (without one the game drops every rule)';
-  try { buildCell(prepEntry(d)); } catch (e) { return explain(d, e.message); }
+  let cell;
+  try { cell = buildCell(prepEntry(d)); } catch (e) { return explain(d, e.message); }
+  // with lobes: no bigger than the biggest plain body, and no wider than PARAMS.lobes.span tip to tip
+  const most = Math.PI * 50 * 50 * 200 + 4 / 3 * Math.PI * 50 ** 3, v = cell.pieces[0].volume;
+  if (v > most + 1e-6) return `the cell is too big: ${Math.round(v)} µm³ with its lobes, at most ${Math.round(most)} (a body of radius 50, length 200)`;
+  const span = spanOf(cell);
+  if (span > PARAMS.lobes.span + 1e-9) return `the cell is too wide: ${r2(span)} µm tip to tip, at most ${PARAMS.lobes.span}`;
   return '';
+}
+
+// A cell's widest reach across its body and lobes, tip to tip (µm)
+export function spanOf(cell) {
+  const pts = [];
+  for (const p of cell.pieces) if (p.kind === 'body' || p.kind === 'lobe') {
+    const f = p.frame, ux = Math.cos(f.dir) * p.L / 2, uy = Math.sin(f.dir) * p.L / 2;
+    pts.push([f.x - ux, f.y - uy, p.a], [f.x + ux, f.y + uy, p.a]);
+  }
+  let most = 0;
+  for (const [x1, y1, a1] of pts) for (const [x2, y2, a2] of pts) most = Math.max(most, Math.hypot(x2 - x1, y2 - y1) + a1 + a2);
+  return most;
 }
 
 // buildCell's error with the parts and numbers that cause it, so an AI can fix its design (round inclusions and
