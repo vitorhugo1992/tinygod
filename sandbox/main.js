@@ -3701,7 +3701,11 @@ $('calmBtn').onclick = () => { calmBeats = !calmBeats; };
 // Sound (sound.js): off until tapped; on last time, it starts again at the first tap anywhere (browsers need a tap)
 const soundIcon = () => { $('soundBtn').textContent = (soundOn() ? '🔊' : '🔇') + ' Sound'; $('soundBtn').classList.toggle('on', soundOn()); };
 $('soundBtn').onclick = (e) => { e.stopPropagation(); setSound(!soundOn()); soundIcon(); };
-if (soundWanted()) addEventListener('pointerdown', () => { if (!soundOn()) { setSound(true); soundIcon(); } }, { once: true, capture: true });
+// (a click, not a press: iPhones start sound only from one; a tap on the Sound button itself is left to the button)
+if (soundWanted()) {
+  const start = (e) => { removeEventListener('click', start, true); if (!soundOn() && !(e.target.closest && e.target.closest('#soundBtn'))) { setSound(true); soundIcon(); } };
+  addEventListener('click', start, true);
+}
 toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day'); toggle('flowBtn', 'flow');
 $('day').onchange = () => { if (world) world.day = $('day').checked; };
 $('flow').onchange = () => { if (world) world.flow = $('flow').checked; };

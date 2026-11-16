@@ -64,10 +64,11 @@ function build(ctx) {
   swell.connect(swellG).connect(bed.gain); swell.start();
   // the deep: a soft low drone, a fifth, breathing slowly
   const drone = A.createGain(); drone.gain.value = 0.05;
-  for (const [f, g] of [[41.2, 1], [61.7, 0.6], [82.4, 0.25]]) { const o = A.createOscillator(), og = A.createGain(); o.frequency.value = f; og.gain.value = g; o.connect(og).connect(drone); o.start(); }
+  // (the upper partials are for small speakers: a phone plays nothing below ~150 Hz, and the deep would fall silent)
+  for (const [f, g] of [[41.2, 1], [61.7, 0.6], [82.4, 0.3], [123.5, 0.22], [164.8, 0.14], [247, 0.06]]) { const o = A.createOscillator(), og = A.createGain(); o.frequency.value = f; og.gain.value = g; o.connect(og).connect(drone); o.start(); }
   const breath = A.createOscillator(), breathG = A.createGain(); breath.frequency.value = 0.11; breathG.gain.value = 0.015;
   breath.connect(breathG).connect(drone.gain); breath.start();
-  drone.connect(lp(140)).connect(master);
+  drone.connect(lp(300)).connect(master);
   // near the lit surface: a gentle muffled lapping
   const lap = A.createGain(); lap.gain.value = 0;
   loop(pink).connect(lp(520, 0.7)).connect(lap).connect(master);
@@ -238,6 +239,7 @@ function cueOf(c, controls) {
 let seenWorld = null, seen = new Set(), links = new Set();
 const marks = new WeakMap();
 export function listen(world) {
+  if (!on) { seenWorld = null; return; }   // off: no work; turned on, what is there is not news
   if (world !== seenWorld) {   // a new tank (reset, a mission): what is there now is not news
     seenWorld = world; seen = new Set(world.cells.map((c) => c.uid)); links = new Set(world.links || []);
     for (const c of world.cells) marks.set(c, snapshot(c));
@@ -368,6 +370,12 @@ export async function renderDemo(seconds = 60) {
   A = keep.A; nodes = keep.nodes;
   return buf;
 }
+
+// the page hidden (another tab, the phone locked): the water stops; back: it goes on
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => {
+  if (!A || !on || !A.suspend) return;
+  if (document.hidden) A.suspend(); else A.resume();
+});
 
 export function soundOn() { return on; }
 // turn it on or off (must come from a tap: phones start sound only then)

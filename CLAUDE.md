@@ -94,6 +94,14 @@ rising), cells joining by pads (a tock), a tube sipping every ~1.2-2 s while it 
 switched by a rule leaning on an eyespot rings a small glassy note (1,318 + 1,976 Hz) 70 ms before its own sound; one
 on a feeler (touch, near, moving water) a soft tick (sound.js cueOf). update() now gets the world. Demo 60 s: brightness
 at the surface 0.024 (was 0.096), the deep 0.010; no errors in the page with a swimmer.
+**Author (2026-11-16): "sounds good, I like the end better" (the demo's end = the deep at night: the drone and the
+darkest bed); a last check by Fable, a code review (it can't hear either):** (1) remembered-on sound started on
+pointerdown, which iPhones don't accept and which a first tap on the Sound button itself then switched off again: now
+on the first click anywhere, a tap on the button left to the button; (2) the water went on with the page hidden (another
+tab, a locked phone): suspended on visibilitychange; (3) listen() built snapshots with sound off: now nothing, and
+turning it on starts from what is there; (4) **the deep was nearly all below 150 Hz, which a phone's speaker can't
+play** (the part the author likes would be silent there): the drone gained quiet partials (123.5, 164.8, 247 Hz; its
+filter 140 -> 300 Hz); on headphones nearly the same. Open: if the surface should lean further toward the deep's sound.
 **SHAPES STEP 3 BUILT (2026-11-16; author: "the body tab is great u can go"): the lobe editor at the top of the Body
 tab** (sandbox/main.js "the shape: lobes", index.html #shapeBox): the cell drawn big (organelles and outside parts
 too); drag a tip (snaps to 15°; a body lobe's root slides round the rim via surfacePoint, a branch turns round its
