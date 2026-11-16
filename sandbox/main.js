@@ -2043,7 +2043,7 @@ function frame(now) {
   if (world) {
     if (canvas.clientWidth > 0) draw();   // a folded tank window draws nothing
     if (soundView) soundUpdate(soundView, { depth: Math.min(1, Math.max(0, 1 - soundView.y / TH)), light: world.light ? daylight(world) : 0,
-      flow: world.flow ? 1 - daylight(world) : 0, playing, speed: Number($('speed').value) });
+      flow: world.flow ? 1 - daylight(world) : 0, playing, speed: Number($('speed').value), world });
     if (!$('stats').hidden) stats(); liveReadings(); ruleLive(); syncButtons();
     $('stats').style.top = desk ? '8px' : `${$('bar').offsetHeight + 14}px`;
     if (desk) topClock();

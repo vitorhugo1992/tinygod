@@ -78,7 +78,39 @@ most every 0.12-0.5 s and 6 sounds a second in all (fast forward). Page: 🔊 So
 tap anywhere: browsers need one); main.js keeps soundView (the camera) from draw(). sw.js lists sound.js (cache v6).
 renderDemo(seconds) renders a demo off-line (surface at noon -> mid-water -> the deep at night, each foley in turn):
 checked in headless Edge, 40 s, no errors, peak 0.54, brightness falling ~8× from surface to deep at an even loudness.
-**Not heard by Claude**: the author judges it by ear. Not built: sounds for swimming (flagella), a volume slider. (The open list as it stood before these decisions: the tank (width, depth; the 500 µm arena or wider), how many cells a
+**Not heard by Claude**: the author judges it by ear. Not built: sounds for swimming (flagella), a volume slider.
+**SOUND, SECOND PASS (2026-11-16; author: "sounds very windy with a lot of turbulence. needs to sound more underwater
+and calmer. also yes, every action has its own foley, a tail beating, an eyespot that detects light that triggers an
+action, and so on").** Why windy: the bed opened to ~1.2 kHz and a 2.6 kHz pink band near the surface (= wind); the
+half-speed noise rumble was lumpy. Now: the bed is brown noise through two low-passes (110-350 Hz), quieter, a 0.045 Hz
+shallow swell; the deep a soft drone (41.2 / 61.7 / 82.4 Hz, breathing at 0.11 Hz) growing with depth; near the lit
+surface only a muffled lapping (pink through 520 Hz, slowly pulsing); glints lower (0.9-1.9 kHz), rarer, softer;
+bubbles rarer; a darker 3.6 s reverb; **all foley through one 2.2 kHz low-pass** (heard through water), the harpoon a
+muffled thup, the burst a cloud of tiny bubbles (no hiss). **New foley:** a swish for every stroke of up to three beating
+cells nearest the middle of the screen (at most 2.5 a real second, the calm drawing's rhythm; quieter when small on
+screen; pitch per cell), a tail switched on / off by its rule (a whirr up / a settle; not when resting, starving or
+stunned stops it), a chamber switching to float (rising bubbles) / sink (falling gurgle), rest / wake (a hum falling /
+rising), cells joining by pads (a tock), a tube sipping every ~1.2-2 s while it drinks; **what set it off:** a part
+switched by a rule leaning on an eyespot rings a small glassy note (1,318 + 1,976 Hz) 70 ms before its own sound; one
+on a feeler (touch, near, moving water) a soft tick (sound.js cueOf). update() now gets the world. Demo 60 s: brightness
+at the surface 0.024 (was 0.096), the deep 0.010; no errors in the page with a swimmer.
+**SHAPES STEP 3 BUILT (2026-11-16; author: "the body tab is great u can go"): the lobe editor at the top of the Body
+tab** (sandbox/main.js "the shape: lobes", index.html #shapeBox): the cell drawn big (organelles and outside parts
+too); drag a tip (snaps to 15°; a body lobe's root slides round the rim via surfacePoint, a branch turns round its
+parent's tip, its angle stored against its parent's); the orange dot on the selected lobe sets its thickness (1 to
+min(10, body radius)); ＋ Lobe (where the body has most room; length 1.6 × radius, thickness 0.45 × radius up to 4),
+＋ On this lobe, ⇅ Mirror (the lobe and its branches, top to bottom), 🗑 Remove (with its branches and anything on
+them, rules unplugged), Length and Thickness sliders; live readout (each division's energy vs a plain ball: green /
+amber to +20% / red; nitrogen uptake per µm³ vs a ball of its volume; size to a mouth; volume and tip to tip). Tried
+while dragging (shapeTrial), applied when let go (applyDesign: undoable; refused with the reason if it doesn't build).
+**Organelles carried:** one whose middle sits in a lobe (outside the body's own capsule) keeps its place in that lobe's
+frame (along it scaled by the new length, turned with it); anything sticking out slides toward the middle (×0.85 steps)
+until it fits. Lobes unlock like untaught parts (partAllowed('Lobe'): after chapters 1-2 or 🔓 All parts; a lock note
+otherwise) until their own mission exists. **The body's outline is now traced exactly** (traceUnion: marching squares on
+the distance to the nearest capsule, the longest loop, ~0.5 µm spacing, normals from the distance's slope; cached by the
+capsules' numbers; the ray tracing filled pockets behind branches); the plates band follows the normals. Seen in headless
+Edge at 400×860 (add ×3, drag a tip, branch, mirror, undo; the tank cell gets its lobes; no errors). **Next: step 4, a
+mission that teaches lobes** (then the Ocean). (The open list as it stood before these decisions: the tank (width, depth; the 500 µm arena or wider), how many cells a
 species arrives with and how often the extinct return, the cap per species and overall, what a night costs on GitHub
 (a 2-day duel took ~5 min under load), how the world is saved between nights (the full state must restore exactly),
 what happens when the sim changes (a new season?), the board (share of living biomass over time) and the nightly
