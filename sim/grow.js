@@ -132,7 +132,7 @@ export function growCells(world) {
     // a plastid a thief took is rebuilt first, at growth prices for its volume
     if (c.lost && c.lost.length) {
       const k = c.lost[0], p = c.design.parts[k], v = volumeOf(p) * organelleGrowth(c.size || 1);
-      const E = v * G.energy, N = v * G.nitrogen;
+      const E = v * (G.energy + 0.3 * G.wallEnergy), N = v * G.nitrogen;   // an r 10 ball's price per µm³ (no wall of its own)
       if (g.E >= E && g.N >= N) {
         const keep = { E: g.E - E, N: g.N - N };
         c.lost = c.lost.slice(1); c.rebuilt = (c.rebuilt || 0) + 1;

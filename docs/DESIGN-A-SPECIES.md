@@ -44,8 +44,9 @@ traps earlier designers fell into, and the answer format. Read all of it before 
   dies.** While the pool is empty its flagella stop and its chambers can't be held.
 - **Growth and division**: surplus energy beyond the stores, plus nitrogen taken in through the cell's surface, fill a
   growth meter. The cell grows in 10% steps, and once it has doubled its volume it divides into two copies of your
-  design (newborn size), each with half of everything. Doubling costs 300 pJ per µm³ of the newborn cell, plus
-  1 nitrogen unit per µm³. Nitrogen uptake is up to 0.022 units per µm² of surface per second, times n/(n+1) where n is
+  design (newborn size), each with half of everything. Doubling costs 180 pJ per µm³ of the newborn cell plus
+  **400 pJ per µm² of its surface** (its new wall), plus 1 nitrogen unit per µm³. A radius-10 sphere pays ~300 pJ per
+  µm³ in all; a slender or spiky cell more (surface ÷ volume 0.42: ×1.16), a big compact one less. Nitrogen uptake is up to 0.022 units per µm² of surface per second, times n/(n+1) where n is
   the water's richness (1 deep, ~0.06 at the surface). A radius-10 cell fills its nitrogen in ~300 s in the rich deep (faster in a patch, slower outside one),
   or ~5 days at the surface. Uptake runs at 40% while resting and stops while starving. A **nitroplast** (section 3) makes
   nitrogen from surplus energy instead, anywhere. **Smaller cells fill faster**:
@@ -102,6 +103,22 @@ up.
 - Inclusions (organelles) must sit inside the wall: **every point of an inclusion must be within (radius − 0.3) µm of
   the body's axis line** (the segment from x = −L/2 to +L/2 on y = 0). For a round inclusion at (x, y) of radius r in a
   sphere: √(x² + y²) + r ≤ radius − 0.3.
+
+**Lobes (any body shape).** Up to 6 arms of living cell, fused rigid to the body or to another lobe, listed in
+`parts` like any part (others may hang from a lobe by its `id`):
+
+```json
+{ "type": "lobe", "id": "armUp", "parent": "body", "at": [0, 9.5], "angle": 90, "length": 20, "radius": 4 }
+```
+
+It grows from `at` (in its parent's frame, on its rim) `length` µm along `angle`, `radius` thick (at least 1), with
+round ends. A lobe is cell: its volume and surface join the body's (upkeep, nitrogen uptake, the doubling's price,
+growth), its wall is the body's; the stretch inside its parent isn't counted twice. Organelles may sit in a lobe or
+across where it joins (every point inside the body or some lobe, within its radius − 0.3). What shape does: more
+surface takes nitrogen faster (a three-armed star has ~1.6× the surface of a sphere of its volume) but each division
+pays for that wall; arms slow sinking (that star sinks ~3× slower than the sphere) and steer a sinking cell; a mouth
+must take the cell's narrowest width, arms included. Limits: the whole cell no bigger than a radius-50, length-200
+body (~2.09 million µm³) and no more than 300 µm tip to tip.
 
 The world is drawn and moves in 2D, but volumes, weights and costs are 3D: every round thing is a sphere, every rod a
 capsule, all centred on the drawing's plane. So room and overlap are tested in the plane (two inclusions overlap if
@@ -328,7 +345,8 @@ the average of where it spends its daylight hours.)
 
 Costs to cover, per second, averaged:
 - the body: 1 pJ/s per µm³; the nucleus ~333 pJ/s; everything else as listed (chambers held, flagella beating, mouths);
-- growth: to double once a day, 300 pJ per µm³ of body over 600 s = **0.5 pJ/s per µm³ of body**.
+- growth: to double once a day, ~300 pJ per µm³ of body over 600 s = **~0.5 pJ/s per µm³ of body** (a radius-10
+  sphere; slender or lobed cells pay more for their wall).
 
 So at ~500 µm a plastid of ~10% of the body pays for a plain cell and some growth; nearer the floor it would need a
 fifth of the body. Income stops at night:
@@ -396,7 +414,9 @@ floor). It is here only to show how the pieces fit together.
 
 - `inclusion sticks out of the body`: some point of it is past radius − 0.3 from the body's axis line.
 - `inclusions overlap: there is no room for both there`.
-- `inclusions overfill the body`: more than 90% of its volume.
+- `inclusions overfill the body`: more than 90% of its volume (lobes included).
+- `at most 6 lobes`; `a lobe must reach out of the cell` (one wholly inside its parent); a lobe thinner than 1 µm;
+  `the cell is too big` / `the cell is too wide` (the limits above).
 - `nucleus full: N modules, 16 slots`.
 - `a cell has one nucleus`; the nucleus must be round with radius 4.3.
 - `no sensor called X`: a rule names a sensor id that doesn't exist (built-ins by their names in section 3.2).

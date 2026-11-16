@@ -73,9 +73,12 @@ export function initMetab(cell) {
   const size = cell.size || 1, V0 = body.volume / size, plates0 = (body.plateVol || 0) / Math.cbrt(size * size);
   // a toxin sac needs extra nitrogen (its newborn volume × PARAMS.toxin.nitrogen)
   const og = size <= 2 ? size : 2 + P.grow.organelles * (size - 2), tox0 = body.inclusions.reduce((a, i) => a + (i.toxin ? i.v : 0), 0) / og;
-  const Eneed = V0 * P.grow.energy + plates0 * P.plates.energy, Nneed = V0 * P.grow.nitrogen + tox0 * P.toxin.nitrogen;
+  // the wall is paid for by surface (author 2026-11-14): a doubling also builds as much new wall as the newborn has
+  // (PARAMS.grow.wallEnergy, wallNitrogen per µm²), so a spiky or slender cell pays more per µm³ than a compact one
+  const A0 = body.area / Math.cbrt(size * size);
+  const Eneed = V0 * P.grow.energy + A0 * P.grow.wallEnergy + plates0 * P.plates.energy, Nneed = V0 * P.grow.nitrogen + A0 * P.grow.wallNitrogen + tox0 * P.toxin.nitrogen;
   cell.grow = { E: 0, N: 0, Eneed, Nneed, stepE: P.grow.step * Eneed, stepN: P.grow.step * Nneed,
-    Nbody: body.volume * P.grow.nitrogen, uptake: 0 };
+    Nbody: body.volume * P.grow.nitrogen + body.area * P.grow.wallNitrogen, uptake: 0 };
 }
 
 // A store's full energy

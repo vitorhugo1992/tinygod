@@ -159,7 +159,7 @@ function showPlates() {
   try {
     const d = JSON.parse(JSON.stringify(design));
     const with_ = buildCell({ ...d, body: { ...d.body, wall: 'plates', plates: t } }), without = buildCell({ ...d, body: { ...d.body, wall: 'protein' } });
-    const b = with_.pieces[0], extra = Math.round(100 * b.plateVol * PARAMS.plates.energy / (b.volume * PARAMS.grow.energy));
+    const b = with_.pieces[0], extra = Math.round(100 * b.plateVol * PARAMS.plates.energy / (b.volume * PARAMS.grow.energy + b.area * PARAMS.grow.wallEnergy));
     note += ` · +${extra}% energy per division`;
     const wt = (c) => c.pieces.reduce((a, p) => a + p.wpts.reduce((x, q) => x + q.w, 0) + p.inclusions.reduce((x, i) => x + i.wpt.w, 0), 0);
     const w1 = wt(with_), w0 = wt(without);

@@ -282,8 +282,14 @@ export const PARAMS = {
   // Growth and division (step 1, author 2026-11-01): a meter of two bars, energy and nitrogen; full, the cell divides.
   // Both cost in proportion to the cell's volume; nitrogen comes in through its surface, so smaller cells fill faster.
   grow: {
-    energy: 300,            // pJ per µm³ of cell grown (doubling an r 10 cell: ~1.26 million, about a good design's wasted surplus)
+    // a doubling's energy: by volume, plus its new wall by the newborn's surface (shapes step 2, author 2026-11-14: "the
+    // wall is paid for by surface"); 40% of an r 10 ball's price is its wall (A/V 0.3), so that ball pays what it paid
+    // before (~1.26 million pJ), a slender or spiky cell more (A/V 0.42: ×1.16; Plebella 0.55: ×1.33), a big one less
+    // (Leviathella ×0.69); the wall is carbon: no nitrogen by surface (a spiky cell keeps its faster uptake in poor water)
+    energy: 180,            // pJ per µm³ of cell grown (was 300 with the wall free)
+    wallEnergy: 400,        // pJ per µm² of the newborn's surface, each doubling
     nitrogen: 1,            // N units per µm³ of cell
+    wallNitrogen: 0,        // N units per µm² of surface (the wall: carbon)
     // growing (author 2026-11-02): the design is the newborn; it grows `step` of its newborn volume at a time (the bars
     // bank up to a doubling's worth), up to `max` times it; organelles gain `organelles` of the cell's volume gain
     step: 0.1,
