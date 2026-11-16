@@ -54,7 +54,31 @@ the dark deep.** (2) Twelve species alone 3 days (full world, seed 1; the slende
 ±30-50% (Plebella 2.2 -> 3.1 on seed 1; Deepdweller II died out at 0 and 40% and made 4 cells at 70% on seed 2). 72
 checks and every mission case pass with it. **A modest handicap, not a reversal**: shape's main effect stays its
 surface (faster uptake in poor water), sinking and mouths. Brief updated (the doubling's price, a lobes paragraph,
-the budget line, the refusals). Not rerun: a mixed contest. (The open list as it stood before these decisions: the tank (width, depth; the 500 µm arena or wider), how many cells a
+the budget line, the refusals). Not rerun: a mixed contest.
+**SHAPES STEP 3, THE EDITOR MOCK-UP (2026-11-16; author: "yes"):** https://claude.ai/artifact/RECA25vF1nMFe4c8Q8mqCa
+(private; a working page: ＋ Lobe where there is most room, drag a tip to aim and lengthen it round its root on the
+rim, drag the side dot for thickness, ＋ On this lobe (a branch from its tip), ⇅ Mirror, 🗑 Remove (with its branches),
+sliders for exact numbers, angles snapping to 15°; live readout: each division's energy per µm³ vs a plain ball (green
+/ amber to +20% / red), nitrogen uptake per µm³ vs a ball of its volume, size to a mouth, volume, tip to tip). Author:
+"the mockup is great, but **default shape should be round no lobes**" (changed: it opens round, ↺ Round). Still asked
+in it: the shape at the top of the Body tab (organelles stay in ✋ Arrange and move with their lobe), and whether
+snapping to 15° is welcome. **Next: build the editor into the Body tab** once the author answers those (or says go).
+**SOUND BUILT (2026-11-16; author: "also you can work on the sound design"; no music).** sandbox/sound.js, all
+synthesised with Web Audio (no files: offline works). **The water** where the camera looks: brown noise through a
+low-pass opening with how open and lit the water is ((1 − depth)² × (0.3 + 0.7 × daylight): 160-1,260 Hz), a 0.07 Hz
+swell, a rumble (≤ 85 Hz) growing with depth, a high pink wash near the lit surface (× (1 − depth)⁴ × light), louder bed
+with night currents, glints (tiny high chimes) and bubble trickles near the surface; a generated 3.2 s dark impulse
+reverb; a compressor on the master. **Foley** from the simulation, read only (listen(world) after each batch of steps,
+before world.gone is emptied): a division (two rising bloops, a cell with a mother not seen before), a death (a low
+falling sigh; not for one eaten or harpooned, whose own sound covers it), a swallow (gulp), a tube latching (a wet
+click), a harpoon (snap, whoosh, a thud on a hit), a tether (a twang), a spring jump (boing: a burst motor starting to
+fire), a toxin burst (pop and fizz); heard only on screen or up to half a screen beyond, panned by where; each kind at
+most every 0.12-0.5 s and 6 sounds a second in all (fast forward). Page: 🔊 Sound first in ⋯ More (on the rail it pushed
+⋯ off a phone's screen), off by default, remembered (localStorage tinygod.sound; on last time, it starts at the first
+tap anywhere: browsers need one); main.js keeps soundView (the camera) from draw(). sw.js lists sound.js (cache v6).
+renderDemo(seconds) renders a demo off-line (surface at noon -> mid-water -> the deep at night, each foley in turn):
+checked in headless Edge, 40 s, no errors, peak 0.54, brightness falling ~8× from surface to deep at an even loudness.
+**Not heard by Claude**: the author judges it by ear. Not built: sounds for swimming (flagella), a volume slider. (The open list as it stood before these decisions: the tank (width, depth; the 500 µm arena or wider), how many cells a
 species arrives with and how often the extinct return, the cap per species and overall, what a night costs on GitHub
 (a 2-day duel took ~5 min under load), how the world is saved between nights (the full state must restore exactly),
 what happens when the sim changes (a new season?), the board (share of living biomass over time) and the nightly

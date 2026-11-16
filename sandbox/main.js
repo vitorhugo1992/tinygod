@@ -16,6 +16,7 @@ import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus 
 import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, speciesTint, twilight } from './scene.js';
 import { MISSIONS, CHAPTERS, judge, stepsAt, partOpen, missionOpen, coreDone, addRivals } from './missions.js';
 import { initMatch } from './match.js';
+import { listen as soundListen, update as soundUpdate, setSound, soundOn, wanted as soundWanted } from './sound.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
@@ -37,6 +38,7 @@ let design, world, cell, playing = false, acc = 0, lagging = false;   // cell: t
 let trail = [], samples = [], released = null;   // released: where and when latches were let go
 let ghosts = [];                                  // outlines of cells as they were at Release
 let cam = { x: TW / 2, y: TH / 2 };
+let soundView = null;   // the view the sound hears from (set in draw)
 let mission = null;   // the mission being played: { m, i, J: its judge, cell: its cell, told: its verdict shown } (missions.js)
 // mission progress (stars): declared here, before the first design loads, because the slot meter reads it
 const MISSION_KEY = 'tinygod.missions';
@@ -1690,6 +1692,7 @@ function advance(steps) {
       if (trail.length > 4000) trail.shift();
     }
   }
+  soundListen(world);   // the sounds of what just happened (read only)
   for (const c of [...world.cells, ...(world.gone || [])]) if (c.dead && !c.deathTold) { c.deathTold = true; if (!mission && (c === cell || c.design === design)) toldDeath(c); }
   if (world.born) world.born.length = 0;
   if (world.gone) world.gone.length = 0;
@@ -1793,6 +1796,8 @@ function frame(now) {
   }
   if (world) {
     if (canvas.clientWidth > 0) draw();   // a folded tank window draws nothing
+    if (soundView) soundUpdate(soundView, { depth: Math.min(1, Math.max(0, 1 - soundView.y / TH)), light: world.light ? daylight(world) : 0,
+      flow: world.flow ? 1 - daylight(world) : 0, playing, speed: Number($('speed').value) });
     if (!$('stats').hidden) stats(); liveReadings(); ruleLive(); syncButtons();
     $('stats').style.top = desk ? '8px' : `${$('bar').offsetHeight + 14}px`;
     if (desk) topClock();
@@ -2126,6 +2131,7 @@ function draw() {
     cam = { x: cx0 <= cx1 ? Math.min(cx1, Math.max(cx0, cam.x)) : TW / 2, y: cy0 <= cy1 ? Math.min(cy1, Math.max(cy0, cam.y)) : (cy0 + cy1) / 2 };
   }
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
+  soundView = { x: cam.x, y: cam.y, s, W, H };   // what the sound hears from (sound.js)
 
   ctx.fillStyle = COLOR.outside; ctx.fillRect(0, 0, W, H);
   const x0 = cam.x - W / 2 / s, x1 = cam.x + W / 2 / s, y0 = cam.y - H / 2 / s, y1 = cam.y + H / 2 / s;
@@ -3401,6 +3407,10 @@ function segmented(boxId, selectId) {
 segmented('speedSeg', 'speed'); segmented('viewSeg', 'viewMode'); segmented('wallSeg', 'bodyWall'); segmented('feelsSeg', 'partFeels'); segmented('contentSeg', 'partContent'); segmented('pigmentSeg', 'partPigment'); segmented('materialSeg', 'partMaterial'); segmented('sticksSeg', 'partSticks'); segmented('toxSeg', 'partToxKind');
 const toggle = (btnId, boxId) => { $(btnId).onclick = () => { $(boxId).checked = !$(boxId).checked; $(boxId).dispatchEvent(new Event('change')); }; };
 $('calmBtn').onclick = () => { calmBeats = !calmBeats; };
+// Sound (sound.js): off until tapped; on last time, it starts again at the first tap anywhere (browsers need a tap)
+const soundIcon = () => { $('soundBtn').textContent = (soundOn() ? '🔊' : '🔇') + ' Sound'; $('soundBtn').classList.toggle('on', soundOn()); };
+$('soundBtn').onclick = (e) => { e.stopPropagation(); setSound(!soundOn()); soundIcon(); };
+if (soundWanted()) addEventListener('pointerdown', () => { if (!soundOn()) { setSound(true); soundIcon(); } }, { once: true, capture: true });
 toggle('gravityBtn', 'gravity'); toggle('lightBtn', 'light'); toggle('dayBtn', 'day'); toggle('flowBtn', 'flow');
 $('day').onchange = () => { if (world) world.day = $('day').checked; };
 $('flow').onchange = () => { if (world) world.flow = $('flow').checked; };
