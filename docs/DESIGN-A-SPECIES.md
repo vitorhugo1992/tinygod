@@ -144,7 +144,7 @@ must stay inside the wall, and together may fill at most 90% of the body. Inside
 
 | material | density kg/m³ | what it does |
 |---|---|---|
-| `nucleus` | 1100 | **The brain** (section 4). **Radius exactly 4.3, round, one per cell.** Upkeep 1 pJ/s per µm³ (~333 pJ/s). Needed for any rule; without one every part runs all the time (and the tournament refuses rules without a nucleus). |
+| `nucleus` | 1100 | **The brain** (section 4). **Radius 4.3, round (or moulded to another shape of the same volume, 333 µm³), one per cell.** Upkeep 1 pJ/s per µm³ (~333 pJ/s). Needed for any rule; without one every part runs all the time (and the tournament refuses rules without a nucleus). |
 | `plastid` | 1100 | **Makes energy from light**: up to 55 pJ/s per µm³ in full light, half of that at 20% light (saturating). Damaged above 40% light. `"pigment": "shade"` (phycobilins): up to 33, half at 4% light, damaged above 15% light and twice as fast, 2.5× the upkeep. |
 | `starch` | 1500 full | **Quick energy store**, 6,000 pJ per µm³. Fills at up to 1/200 of its full capacity a second, burns at up to 1/150. Its weight follows its fill: the part not yet filled counts as cytoplasm (1060), so a full one is heavy ballast and an empty one weighs like cytoplasm. |
 | `oil` | 920 full | **Slow energy store**, 9,000 pJ per µm³. Fills at 1/400, burns at 1/300 of its full capacity a second. Its weight follows its fill the same way: full, it is lighter than water and floats the cell a little. |
@@ -418,7 +418,7 @@ floor). It is here only to show how the pieces fit together.
 - `at most 6 lobes`; `a lobe must reach out of the cell` (one wholly inside its parent); a lobe thinner than 1 µm;
   `the cell is too big` / `the cell is too wide` (the limits above).
 - `nucleus full: N modules, 16 slots`.
-- `a cell has one nucleus`; the nucleus must be round with radius 4.3.
+- `a cell has one nucleus`; the nucleus must keep the volume of a round one of radius 4.3 (333 µm³; round is simplest, a rod of that volume is allowed).
 - `no sensor called X`: a rule names a sensor id that doesn't exist (built-ins by their names in section 3.2).
 - `unknown parent: X`: a segment hangs from an id that doesn't exist or comes later in the list (list parents first).
 - `min must not be above max`.

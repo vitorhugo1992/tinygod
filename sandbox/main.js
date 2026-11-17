@@ -1906,6 +1906,10 @@ const removeSelected = () => {
 };
 $('removeCell').onclick = removeSelected;
 $('removeCellBar').onclick = removeSelected;
+// tap a cell: a 🗑 appears beside it for 5 s (author, 2026-11-17: "sometimes i just wanna click on it and delete it");
+// on a computer the Delete key removes the selected cell. Not in a mission, not while arranging, never the last cell
+let cellDelUntil = 0;
+$('cellDel').onclick = () => { cellDelUntil = 0; $('cellDel').hidden = true; removeSelected(); };
 
 // The capsules of a cell, as they are now
 function outline(c) {
@@ -2378,6 +2382,15 @@ function draw() {
   }
   const X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
   soundView = { x: cam.x, y: cam.y, s, W, H };   // what the sound hears from (sound.js)
+  {   // the 🗑 beside a cell just tapped
+    const show = performance.now() < cellDelUntil && !mission && !arrange && world.cells.length > 1 && (!drag || !drag.cell || !drag.moved), b = $('cellDel');
+    b.hidden = !show;
+    if (show) {
+      const q = cell.vis ? cell.vis.q : cell.q, r = (cell.pieces[0].a + cell.pieces[0].L / 2) * s;
+      b.style.left = `${canvas.offsetLeft + Math.max(4, Math.min(W - 42, X(q[0]) + r * 0.7 + 6))}px`;
+      b.style.top = `${canvas.offsetTop + Math.max(4, Math.min(H - 42, Y(q[1]) - r * 0.7 - 44))}px`;
+    }
+  }
 
   ctx.fillStyle = COLOR.outside; ctx.fillRect(0, 0, W, H);
   const x0 = cam.x - W / 2 / s, x1 = cam.x + W / 2 / s, y0 = cam.y - H / 2 / s, y1 = cam.y + H / 2 / s;
@@ -3325,6 +3338,7 @@ canvas.addEventListener('pointerdown', (e) => {
   tap = hit || cell ? { x: e.clientX, y: e.clientY, cell: hit || cell, wx, wy, r: 4 / s } : null;   // a part can stick out far
   if (hit) {
     if (hit !== cell) select(hit);
+    cellDelUntil = performance.now() + 5000;   // a 🗑 beside the tapped cell for a few seconds
     drag = { cell: hit, dx: hit.q[0] - wx, dy: hit.q[1] - wy, view: $('viewMode').value };
     $('viewMode').value = 'free';   // a camera following the dragged cell would run away from the mouse
   } else {
@@ -3683,6 +3697,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (k === 'q') rotate(cell, e.shiftKey ? 2 : 15);
   if (k === 'e') rotate(cell, e.shiftKey ? -2 : -15);
+  if ((k === 'delete' || k === 'backspace') && !mission && !arrange) { e.preventDefault(); removeSelected(); }
 });
 
 // ----- buttons that stand for the hidden selects and checkboxes, so everything is one tap away -----

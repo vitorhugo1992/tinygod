@@ -3,6 +3,7 @@
 import { PARAMS } from './params.js';
 import { nucleiOf } from './brain.js';
 import { buildCell } from './build.js';
+import { volumeOf } from './shape.js';
 
 // The empty rule slots the sandbox fills in (rest, chamber, hold, divide), on a copy
 export function prepEntry(design) {
@@ -28,7 +29,9 @@ export function entryProblem(design) {
   const twice = ids.find((id, i) => ids.indexOf(id) !== i);
   if (twice) return `two parts have the id "${twice}"`;
   const nuc = nucleiOf(d);
-  for (const n of nuc) if (n.radius !== PARAMS.brain.radius || n.length || n.outline || n.bend) return `the nucleus must be round, radius ${PARAMS.brain.radius}`;
+  // one size of nucleus for everyone, whatever its shape (it may be moulded, e.g. into a lobe): the volume of a round one
+  const nv = 4 / 3 * Math.PI * PARAMS.brain.radius ** 3;
+  for (const n of nuc) { let v; try { v = volumeOf(n); } catch (e) { return 'the nucleus has no valid shape'; } if (Math.abs(v / nv - 1) > 0.02) return `the nucleus must keep its size: the volume of a round one of radius ${PARAMS.brain.radius} (${Math.round(nv)} µm³; it may be moulded to another shape)`; }
   const wired = d.parts.some((p) => p.joint && (p.joint.controls || p.joint.control || p.joint.speed));
   if (wired && !nuc.length) return 'rules need a nucleus (without one the game drops every rule)';
   let cell;
