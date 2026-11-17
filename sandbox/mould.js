@@ -65,18 +65,47 @@ export function selfCrosses(P) {
 
 // The wall: how far in from it an organelle may reach, and the room's centre line for a point
 export const roomOf = (body) => body.radius - PARAMS.cell.wallThickness - 0.05;
-const wallCentre = (body, x) => { const h = (body.length || 0) / 2; return [Math.max(-h, Math.min(h, x)), 0]; };
+// The room inside is the body's capsule and every lobe's (free body shapes, 2026-11-17: author, "i wanna be able to
+// place organelles inside the lobes"). roomFor(design) notes the design's lobes for its body and returns the body: pass
+// it wherever a function here takes `body` (a body never noted has no lobes).
+const LOBES = new WeakMap();   // body -> its lobes' capsules [x1, y1, x2, y2, radius], body frame
+export function roomFor(d) {
+  const frames = new Map([['body', { x: 0, y: 0, dir: 0 }]]), caps = [];
+  for (const p of d.parts || []) {
+    if (p.type !== 'lobe') continue;
+    const pf = frames.get(p.parent || 'body');
+    if (!pf) continue;
+    const [ax, ay] = p.at || [0, 0], pc = Math.cos(pf.dir), ps = Math.sin(pf.dir), dir = pf.dir + (p.angle || 0) * Math.PI / 180;
+    const rx = pf.x + pc * ax - ps * ay, ry = pf.y + ps * ax + pc * ay, L = p.length || 0, ux = Math.cos(dir), uy = Math.sin(dir);
+    caps.push([rx, ry, rx + ux * L, ry + uy * L, p.radius]);
+    if (p.id) frames.set(p.id, { x: rx + ux * L / 2, y: ry + uy * L / 2, dir });
+  }
+  LOBES.set(d.body, caps);
+  return d.body;
+}
+// For a point: the nearest spot on the middle line of the capsule it is deepest inside (or least outside), and that
+// capsule's room: [cx, cy, room]
+function wallAt(body, x, y) {
+  const h = (body.length || 0) / 2;
+  let bx = Math.max(-h, Math.min(h, x)), by = 0, br = roomOf(body), best = Math.hypot(x - bx, y - by) - br;
+  for (const [x1, y1, x2, y2, a] of LOBES.get(body) || []) {
+    const dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy;
+    let t = l2 > 0 ? ((x - x1) * dx + (y - y1) * dy) / l2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const cx = x1 + dx * t, cy = y1 + dy * t, r = a - PARAMS.cell.wallThickness - 0.05, out = Math.hypot(x - cx, y - cy) - r;
+    if (out < best) { best = out; bx = cx; by = cy; br = r; }
+  }
+  return [bx, by, br];
+}
 // how far the outline sticks out of the wall (≤ 0: inside)
 export function outOfWall(p, body) {
   let worst = -Infinity;
-  for (const [x, y] of bodyPoints(p)) { const [cx, cy] = wallCentre(body, x); worst = Math.max(worst, Math.hypot(x - cx, y - cy) - roomOf(body)); }
+  for (const [x, y] of bodyPoints(p)) { const [cx, cy, room] = wallAt(body, x, y); worst = Math.max(worst, Math.hypot(x - cx, y - cy) - room); }
   return worst;
 }
 // points past the wall put on it (a hair inside); marks the ones it moved in `pinned`
 function clampToWall(Q, body, pinned) {
-  const room = roomOf(body) - 0.02;
   Q.forEach((q, i) => {
-    const [cx, cy] = wallCentre(body, q[0]), dx = q[0] - cx, dy = q[1] - cy, d = Math.hypot(dx, dy);
+    const [cx, cy, rm] = wallAt(body, q[0], q[1]), room = rm - 0.02, dx = q[0] - cx, dy = q[1] - cy, d = Math.hypot(dx, dy);
     if (d > room) { q[0] = cx + dx / d * room; q[1] = cy + dy / d * room; pinned[i] = true; }
   });
 }
@@ -134,9 +163,9 @@ export function moveTo(p, B, want, body) {
   if (B.outline) p.outline = B.outline.map((q) => [...q]); else { delete p.outline; for (const k of ['radius', 'length', 'bend']) if (B[k] !== undefined) p[k] = B[k]; else delete p[k]; }
   if (outOfWall(p, body) <= 0) return true;
   // how far in it may go: its middle at least ~half its thickness from the wall
-  const thick = p.outline ? blobVolume(p.outline).thick : p.radius, [cx, cy] = wallCentre(body, want[0]);
-  const d = Math.hypot(want[0] - cx, want[1] - cy), lim = roomOf(body) - 0.5 * thick;
-  if (d > lim) p.at = [round2(cx + (want[0] - cx) / d * lim), round2(cy + (want[1] - cy) / d * lim)];
+  const thick = p.outline ? blobVolume(p.outline).thick : p.radius, [cx, cy, rm] = wallAt(body, want[0], want[1]);
+  const d = Math.hypot(want[0] - cx, want[1] - cy), lim = Math.max(rm - 0.5 * thick, 0);
+  if (d > lim) p.at = [round2(cx + (want[0] - cx) / (d || 1) * lim), round2(cy + (want[1] - cy) / (d || 1) * lim)];
   const V = volumeOf(B), Q = bodyPoints(p), pinned = [];
   clampToWall(Q, body, pinned);
   keepVolume(p, Q, V, body, pinned);
@@ -144,6 +173,7 @@ export function moveTo(p, B, want, body) {
 }
 // Everything sticking out of a (smaller) wall flattens against it, its volume kept
 export function fitWall(d) {
+  roomFor(d);
   for (const p of d.parts) if (isInc(p) && !rigid(p) && outOfWall(p, d.body) > 0) {
     const V = volumeOf(p), Q = bodyPoints(p), pinned = [];
     clampToWall(Q, d.body, pinned);
@@ -157,6 +187,7 @@ export function fitWall(d) {
 // one in hand) and the rigid statolith keep their shape and place. Whatever still overlaps is left (drawn red).
 export function relax(d, fixed = -1, iters = 60, budget = 1000) {   // budget: ms at most (a tap shouldn't hang)
   const t0 = performance.now();
+  roomFor(d);
   const idx = d.parts.map((p, i) => i).filter((i) => isInc(d.parts[i]));
   const V = new Map(idx.map((i) => [i, volumeOf(d.parts[i])]));
   const still = (i) => i === fixed || rigid(d.parts[i]);
@@ -214,7 +245,7 @@ export function relax(d, fixed = -1, iters = 60, budget = 1000) {   // budget: m
       busy = true;
       const out = outOfWall(p, d.body);
       if (out > 1e-3 && it < 4) {   // eased back in
-        const [cx, cy] = wallCentre(d.body, p.at[0]), dx = p.at[0] - cx, dy = p.at[1] - cy, n = Math.hypot(dx, dy) || 1;
+        const [cx, cy] = wallAt(d.body, p.at[0], p.at[1]), dx = p.at[0] - cx, dy = p.at[1] - cy, n = Math.hypot(dx, dy) || 1;
         p.at = [p.at[0] - dx / n * (out + 0.03), p.at[1] - dy / n * (out + 0.03)];
         continue;
       }

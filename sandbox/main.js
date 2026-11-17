@@ -8,7 +8,7 @@ import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/ph
 import { rewire, respeed, controlsOf, buildCell, plateMax } from '../sim/build.js';
 import { regrow } from '../sim/grow.js';
 import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
-import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax } from './mould.js';
+import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax, roomFor } from './mould.js';
 import { lightAt, daylight, clock, depthLight } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel, neighboursLevel, padLevel, alarmLevel, poisonedLevel } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
@@ -3379,7 +3379,7 @@ function problemsOf(d) {
   const over = new Set(), inc = d.parts.map((p, i) => [p, i]).filter(([p]) => isInc(p));
   const pts = inc.map(([p]) => bodyPoints(p));
   for (let a = 0; a < inc.length; a++) for (let b = a + 1; b < inc.length; b++) if (polysOverlap(pts[a], pts[b])) { over.add(inc[a][1]); over.add(inc[b][1]); }
-  for (const [p, i] of inc) if (outOfWall(p, d.body) > 1e-3) over.add(i);
+  for (const [p, i] of inc) if (outOfWall(p, roomFor(d)) > 1e-3) over.add(i);
   let msg = '';
   try { buildCell(d); } catch (e) { msg = e.message; }
   return { over, msg };
@@ -3453,11 +3453,11 @@ function arrangeTo(e) {
   const p = d.parts[g.k], B = a.base.parts[g.k];
   if (a.pinchF) {   // bigger or smaller, the same shape
     if (rigid(p)) p.radius = Math.round(B.radius * a.pinchF * 100) / 100;
-    else { toOutline(B); p.at = B.at; scaleBy(p, B.outline, a.pinchF, d.body); }
+    else { toOutline(B); p.at = B.at; scaleBy(p, B.outline, a.pinchF, roomFor(d)); }
     setTrial(d); return;
   }
   // moved: where its middle would be; pressed into the wall it flattens there and bulges elsewhere (its volume kept)
-  if (!moveTo(p, B, [P[0] + g.off[0], P[1] + g.off[1]], d.body)) return;   // the statolith can't go into the wall
+  if (!moveTo(p, B, [P[0] + g.off[0], P[1] + g.off[1]], roomFor(d))) return;   // the statolith can't go into the wall
   // the others stay locked where they are (red where they overlap); only Squish to fit packs them
   setTrial(d);
 }
@@ -3470,7 +3470,7 @@ function showTurn() {
 }
 $('arrZoom').oninput = () => { if (!arrange) return; $('zoom').value = Math.min(40, arrange.zoom0 * Number($('arrZoom').value)); };
 // the view's centre in the body's frame: X / Y sliders (a share of the cell's size each way); selecting centres on it
-const panSpan = () => (design.body.radius + (design.body.length || 0) / 2) * 1.2;
+const panSpan = () => (arrange && arrange.cell ? spanOf(arrange.cell) / 2 : design.body.radius + (design.body.length || 0) / 2) * 1.2;   // lobes included
 function lookAt([x, y]) {
   if (!arrange) return;
   arrange.pan = [x, y];
@@ -3512,7 +3512,8 @@ function startArrange() {
   arrange = { prev: { view: $('viewMode').value, zoom: $('zoom').value }, trial: JSON.parse(JSON.stringify(design)), cell: null, sel: null, drag: null, base: null, pinchF: null, problems: { over: new Set(), msg: '' } };
   playing = false; $('play').textContent = '▶'; document.body.classList.add('arranging'); $('barMore').classList.remove('open');
   $('viewMode').value = 'follow';
-  $('zoom').value = arrange.zoom0 = Math.min(20, 0.45 * Math.min(W, H * 0.55) / (b.radius + (b.length || 0) / 2));
+  const whole = shapeCell(design);   // the whole cell in view, lobes included
+  $('zoom').value = arrange.zoom0 = Math.min(20, 0.45 * Math.min(W, H * 0.55) / (whole ? spanOf(whole) / 2 : b.radius + (b.length || 0) / 2));
   $('arrZoom').value = 1; $('arrangeTools').hidden = false; $('arrangeView').hidden = false; arrange.pan = [0, 0]; lookAt([0, 0]); showTurn();
   $('arrangeBtn').textContent = '✓ Done arranging';
   $('squishBtn').hidden = true;

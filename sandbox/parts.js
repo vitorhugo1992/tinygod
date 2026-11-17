@@ -301,8 +301,10 @@ export function categoryOf(p) {
 // The design's parts grouped by root (a part on the body with everything hanging from it)
 export function partGroups(parts) {
   const groups = [];
+  const lobes = new Set(parts.filter((p) => p.type === 'lobe' && p.id).map((p) => p.id));   // lobes are body (the Body tab's shape), not parts in the list
   for (const p of parts) {
-    if (p.parent && p.parent !== 'body') continue;
+    if (p.type === 'lobe') continue;
+    if (p.parent && p.parent !== 'body' && !lobes.has(p.parent)) continue;
     const ids = new Set(p.id ? [p.id] : []);
     const members = [p];
     let grew = true;
