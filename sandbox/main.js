@@ -4061,7 +4061,7 @@ function startMission(i) {
     if (m.builder && m.builder.pull !== undefined) $('partPull').checked = m.builder.pull;
     $('partWhat').dispatchEvent(new Event('change'));
     if (m.builder && m.builder.material) { $('partMaterial').value = m.builder.material; $('partMaterial').dispatchEvent(new Event('change')); }
-  } else showSection('parts');
+  } else showSection(m.builder && m.builder.section || 'parts');
   $('buildErr').textContent = '';
 }
 function leaveMission() {

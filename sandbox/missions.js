@@ -69,7 +69,7 @@ export const tail = (min, max, where = 0, pull = true) => {
 // cell's volume. An hour is its first time after the start; day: 1 the next time after that.
 // Chapter 3 on (2026-11-10): { grown: ×, by, day } any cell of it that many times its newborn volume by then (or already
 // divided) · { cells: n, by, day } that many living cells of it by then. `about`: what a mission with no new part teaches.
-export const CHAPTERS = ['Staying alive', 'Your first rules', 'Growing', 'Other species'];
+export const CHAPTERS = ['Staying alive', 'Your first rules', 'Growing', 'Other species', 'Shape'];
 // Chapter 4's swallower: Claude's Gula (designs/gula.json) widened to r 22, so its mouths (gape: half its radius, 11 µm)
 // take a cell 20 µm across; it sinks to the floor and lies there
 const GULPER = {"body":{"radius":22,"length":66},"parts":[{"type":"inclusion","id":"float","material":"chamber","at":[32.34,0],"radius":14.4,"length":1.33,"joint":{"type":"chamber","controls":[{"sensor":"e0","min":0,"max":0.12,"also":[{"sensor":"e1","min":0,"max":0.12},{"sensor":"e2","min":0,"max":0.12}],"all":true},{"sensor":"e0","min":0.005,"max":1,"also":[{"sensor":"e1","min":0.005,"max":1},{"sensor":"e2","min":0.005,"max":1}]},{"sensor":"near","min":0.7,"max":1,"or":true}]}},{"type":"inclusion","id":"plastid","material":"plastid","at":[1.81,0],"radius":14.4,"length":1.33,"pigment":"shade"},{"type":"inclusion","id":"oil","material":"oil","at":[-23.71,0],"radius":10.05},{"type":"inclusion","id":"nucleus","material":"nucleus","at":[-38.46,0],"radius":4.3,"joint":{"type":"rest","controls":[{"sensor":"energy","min":0,"max":0.4}]}},{"type":"sensor","id":"e0","kind":"light","cone":180,"at":[55,0],"angle":0},{"type":"sensor","id":"e1","kind":"light","cone":180,"at":[16.5,22],"angle":90},{"type":"sensor","id":"e2","kind":"light","cone":180,"at":[16.5,-22],"angle":270},{"type":"sensor","id":"near","kind":"near","at":[0,-22],"angle":270,"range":150,"feels":"anything"},{"type":"mouth","id":"mouthF","at":[55,0],"joint":{"type":"engulf"}},{"type":"mouth","id":"mouthL","at":[-16.5,22],"joint":{"type":"engulf"}},{"type":"mouth","id":"mouthR","at":[-16.5,-22],"joint":{"type":"engulf"}},{"type":"mouth","id":"mouthB","at":[-55,0],"joint":{"type":"engulf"}}]};
@@ -298,6 +298,26 @@ export const MISSIONS = [
       { text: 'The hunter dead within half an hour', all: [{ alive: 6 }, { gone: 10.5 }],
         hint: 'Strike it at once: the harpoon must hit its body. Too long a spine and the dart starts beyond it: keep it 30 µm or shorter.' },
     ] },
+  // Chapter 5, Shape (2026-11-17): lobes slow a fall. Mission 2's solved cell (nucleus, plastid, a big oil store), no
+  // chamber, no tail, from 100 µm at 07:00 in still water. Measured: plain it is on the floor by dusk (1,989 µm at
+  // 18:00) and starves there next morning; 1 default lobe (16 × r 4) 1,528 µm at dusk (★); 2 default 1,249 (★); 3 default
+  // 1,133 (★★); 6 default 969 but starve at 05:00 (★★: thick arms are a lot of cell to feed); thin arms (20 × r 2): 3 on
+  // the floor by dawn (★★), 4 at 1,914 at dawn, 5 at 1,711, 6 (r 1.5) at 1,539, alive at noon (★★★). Many thin arms slow
+  // the fall most for the least extra cell.
+  { id: 'm15', chapter: 4, title: 'Slow your fall', teaches: [], about: 'lobes (the Body tab’s Shape)',
+    builder: { section: 'body' },
+    story: 'This cell lives well in the light, but it has no chamber and no tail: by dusk it has sunk to the dark floor, and it starves there next morning.',
+    task: 'In the Body tab, add lobes (＋ Lobe): arms of living cell that drag in the water and slow its fall. Thin ones cost least to keep.',
+    design: { body: ROUND, parts: [...nucleus(ROUND, 270), ...part(ROUND, 'Plastid (makes energy)', 45, 'plastid', 0.5), ...part(ROUND, 'Energy store', 165, 's', 0.45, 1, { content: 'oil' })] },
+    start: { hour: 7, depth: 100, angle: 90 },
+    stars: [
+      { text: 'Off the floor at dusk', all: [{ above: 1900, at: 18 }],
+        hint: 'It sinks all day. Body tab → Shape → ＋ Lobe: an arm sticking out drags in the water and slows the fall.' },
+      { text: 'Above 1,200 µm at dusk', all: [{ above: 1200, at: 18 }],
+        hint: 'Still too fast: more arms, or longer ones (drag a lobe’s tip outward). Arms pointing different ways slow it most.' },
+      { text: 'Off the floor until dawn, and alive at noon', all: [{ deeper: 1950, from: 8, to: 6 }, { alive: 12, day: 1 }],
+        hint: 'Thick arms are a lot of living cell: they cost upkeep and it starves in the night. Make them thin (the orange dot, or Thickness 2 µm or less) and use more of them: five or six.' },
+    ] },
 ];
 
 // The mission bar while playing (author, 2026-11-13: "the amount of text in the mobile version"): one short task and a
@@ -317,6 +337,7 @@ const BRIEF = {
   m12: ['Add a kin pad', ['not eaten', 'joined at dawn', '1 pad']],
   m13: ['A feeding tube toward the Pebble', ['fed', 'one latch', 'drained by 15:00']],
   m14: ['A harpoon at the hunter', ['alive at dawn', 'hunter dead', 'dead at once']],
+  m15: ['Lobes to slow its fall', ['off the floor', 'above 1,200 µm', 'till dawn']],
 };
 for (const m of MISSIONS) {
   const b = BRIEF[m.id] || [m.title, []];

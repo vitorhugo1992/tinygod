@@ -4,6 +4,7 @@ import { stepWorld } from '../sim/world.js';
 import { buildCell } from '../sim/build.js';
 import { prepEntry } from '../sim/entry.js';
 import { MISSIONS, runMission, part, tail } from '../sandbox/missions.js';
+import { surfacePoint } from '../sandbox/parts.js';
 
 const by = Object.fromEntries(MISSIONS.map((m) => [m.id, m]));
 const plus = (m, ...extra) => ({ body: m.design.body, parts: [...JSON.parse(JSON.stringify(m.design.parts)), ...extra.flat()] });
@@ -75,7 +76,15 @@ const CASES = [
       if (h[2] !== false) p[0].joint.controls = [{ sensor: 'drained', min: 0.5, max: 1 }];
       return plus(m, p);
     }, want]),
+  ...[[0, 0, 0, 0, 'as handed over'], [1, 16, 4, 1, 'one default lobe'], [2, 16, 4, 1, 'two default lobes'], [3, 16, 4, 2, 'three default lobes'],
+    [6, 16, 4, 2, 'six default lobes (starve in the night)'], [3, 20, 2, 2, 'three thin arms'], [5, 20, 2, 3, 'five thin arms'], [6, 20, 1.5, 3, 'six thin arms']]
+    .map(([n, len, r, want, what]) => ['m15', what, (m) => plus(m, Array.from({ length: n }, (_, i) => arm(90 + i * 360 / n, len, r, 'l' + i))), want]),
 ];
+// a lobe on the round body, pointing out at `ang` degrees
+function arm(ang, len, r, id) {
+  const [x, y] = surfacePoint(ROUND, ang), u = ang * Math.PI / 180;
+  return { type: 'lobe', id, at: [+(x - Math.cos(u) * 0.5).toFixed(2), +(y - Math.sin(u) * 0.5).toFixed(2)], angle: ang % 360, length: len, radius: r };
+}
 function spring(where, i, len, wired) {
   const s = part(ROUND, 'Burst organ (escape)', where, 'spring' + i, 0.4, 1, { len });
   if (wired) s[0].joint.controls = [{ sensor: 'drained', min: 0.5, max: 1 }];
