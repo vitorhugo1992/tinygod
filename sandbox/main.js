@@ -268,6 +268,7 @@ function aimLobe(d, id, ang, len) {
   for (const b of lobesOf(d)) if (b.parent === id) b.at = [r2(l.length / 2), 0];
 }
 function showShape() {
+  showControls();   // the Add panel's On menu follows the lobes
   const open = partAllowed('Lobe');
   $('shapeBox').hidden = !open; $('shapeLock').hidden = open;
   if (!open || !design) return;
@@ -469,6 +470,7 @@ let editing = null;   // the id of the part being edited, or null when adding
 const showControls = () => {
   const c = CONTROLS[$('partWhat').value] || {};
   $('tiltRow').style.display = c.tilt ? '' : 'none';
+  fillOn(); $('onRow').style.display = !c.inside && design && lobesOf(design).length ? '' : 'none';
   $('sizeRow').style.display = c.size ? '' : 'none';
   $('insideRow').style.display = c.inside ? '' : 'none';
   $('feelsRow').style.display = c.feels ? '' : 'none';
@@ -515,7 +517,11 @@ function makePart(body, id, spot) {   // spot: { where, depth } instead of the s
   if (c.material) b.content = $('partMaterial').value;   // a spine's material, a pad's kind: the same place
   if (c.sticks) b.content = $('partSticks').value;
   if (c.toxkind) b.content = $('partToxKind').value;   // a toxin sac's Kind: burst / leak
+  // on a lobe: built round the lobe as if it were the body (its own frame: x along it from its middle), then hung on it
+  const lobe = !c.inside && $('partOn').value !== 'body' && design ? lobeById(design, $('partOn').value) : null;
+  if (lobe) { b.on = lobe.id; body = { radius: lobe.radius, length: lobe.length || 0 }; }
   const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length, b.strength, b.content, b.pull);
+  if (lobe) for (const p of parts) if (!p.parent || p.parent === 'body') p.parent = lobe.id;
   if (b.flip) flipPart(parts);
   parts[0].build = b;
   return parts;
@@ -558,6 +564,12 @@ function updateEdited() {
   $('partAngle').value = spot.where; $('partInside').value = Math.round(spot.depth * 100); showAngle(); showInside();
   if (applyDesign(withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, editing)))) $('buildErr').textContent = `moved to where it fits: ${spot.where}°, inside ${Math.round(spot.depth * 100)}%`;
 }
+// the On menu: the body and each lobe (author, 2026-11-17: parts on lobes from the Add panel)
+function fillOn() {
+  const sel = $('partOn'), was = sel.value, lobes = design ? lobesOf(design) : [];
+  sel.innerHTML = '<option value="body">the body</option>' + lobes.map((l, i) => `<option value="${l.id}">lobe ${i + 1}${l.parent && l.parent !== 'body' ? ' (a branch)' : ''}</option>`).join('');
+  sel.value = lobes.some((l) => l.id === was) ? was : 'body';
+}
 function startEditing(b) {
   editing = b.id;
   if (b.content && b.tpl.startsWith('Plastid')) $('partPigment').value = b.content;
@@ -565,7 +577,7 @@ function startEditing(b) {
   else if (b.content && b.tpl === 'Pad') $('partSticks').value = b.content;
   else if (b.tpl === 'Toxin sac') $('partToxKind').value = b.content === 'leak' ? 'leak' : 'burst';
   else if (b.content) $('partContent').value = b.content;
-  $('partWhat').value = b.tpl; showControls(); showSection('add');
+  $('partWhat').value = b.tpl; fillOn(); $('partOn').value = b.on && lobeById(design, b.on) ? b.on : 'body'; showControls(); showSection('add');
   $('partAngle').value = b.where; $('partTilt').value = b.tilt;
   $('partSize').value = Math.round(b.size * 100); $('partInside').value = Math.round(b.depth * 100);
   if (b.feels) $('partFeels').value = b.feels;
@@ -586,7 +598,7 @@ function stopEditing() {
 }
 $('cancelEdit').onclick = stopEditing;
 // while editing, letting go of a slider (or picking another part type) updates the part at once
-for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partFeels', 'partFlip', 'partPull']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
+for (const id of ['partAngle', 'partTilt', 'partSize', 'partInside', 'partLength', 'partFeels', 'partFlip', 'partPull', 'partOn']) $(id).onchange = () => { if (editing) updateEdited(); else updatePreview(); };
 $('partContent').onchange = () => { showControls(); previewOn = true; if (editing) updateEdited(); else updatePreview(); };
 $('partPigment').onchange = $('partContent').onchange;
 $('partMaterial').onchange = $('partContent').onchange;
@@ -626,7 +638,7 @@ function updatePreview() {
       ? "won't fit: no free spot big enough anywhere inside (try a smaller size)" : bad ? `won't fit: ${bad}` : '';
   if (nudge) bad = '';
   let c;
-  try { c = buildCell({ body: design.body, parts: makePart(design.body, id, nudge) }); } catch (e) { return; }
+  try { c = buildCell({ body: design.body, parts: [...lobesOf(design), ...makePart(design.body, id, nudge)] }, { loose: true }); } catch (e) { return; }
   // as the part starts: springs at their rest, extenders as they start, a burst organ at the start of its stroke
   c.joints.forEach((j, i) => { c.q[3 + i] = j.type === 'extend' ? j.start : j.type === 'motor' ? motorAngle(j, 0) : 0; });
   preview = { cell: c, bad };

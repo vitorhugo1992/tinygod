@@ -544,6 +544,7 @@
     <h2>Add a part</h2>
     <div id="chips"></div>
     <div id="lockNote" hidden></div>
+    <div class="row" id="onRow" title="Put the part on the body or on one of its lobes (Where then goes round that lobe: 0° its tip, 180° where it joins)">On <select id="partOn"><option value="body">the body</option></select></div>
     <div class="slider" title="Where on the body: 0° front (right), 180° back">Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180"><span id="partAngleOut"></span></div>
     <div class="slider" id="tiltRow" title="Turn the part away from pointing straight out (a side flagellum needs tilt to turn the cell)"><span id="tiltLabel">Tilt</span> <input type="range" id="partTilt" min="-90" max="90" step="5" value="0"><span id="partTiltOut"></span></div>
     <div class="slider" id="lengthRow" title="How long the part is: longer pushes harder, but drags more and costs more upkeep">Length <input type="range" id="partLength" min="10" max="100" step="5" value="40"><span id="partLengthOut"></span></div>
