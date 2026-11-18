@@ -498,7 +498,18 @@ PARAMS.pads.tradeTime 600 s (a day: the host reads a steady 0.72-0.80, the fixer
 and the reading is 0.5 + 0.5 (in − out) / (in + out + tradeFloor 100 pJ/s), so a cell whose partner left drifts back
 toward even (0.22 half a day after, 0.45 at day 3: a host burned by a cheat is wary for a while; its pad sticks again
 once above its threshold). 71 checks pass. (3) the page: Sticks to: its own kind / anything / **a partner of another species**, the pad drawn
-and its link, the Trade reading in the rule editor, numbers and log lines, the brief for AIs; (4) maybe a mission. Then: shapes step 4 (a mission that teaches lobes), then the Ocean's build plan.
+and its link, the Trade reading in the rule editor, numbers and log lines, the brief for AIs; (4) maybe a mission.
+**STEP 3 BUILT (2026-11-18; author: "yes"):** index.html Sticks to: Its own kind / Anything / **A partner** (parts.js
+'Partner pad'); main.js: COLOR.partner sea green (pads and links), the Trade reading (BUILT_NAME, KINDS zones giving /
+trading evenly / receiving, RANGE 20-100%, 🤝, offered when the design has a partner pad; Neighbours now offered only
+with kin pads), the hold card "joins a partner pad of another species it touches: the two share energy and nitrogen",
+a pad reads "stuck to another species", numbers "partner joined to a X … trade N%" (a partner is no longer counted as
+a chain), journal.js "joined a X by a partner pad" / "parted from its partner"; the brief (a Partner pad paragraph and
+the `trade` reading); sw.js cache v7. **Also fixed:** meaning('poisoned') called pc(v) on a string (threw whenever a
+cell was poisoned). Seen in headless Edge at 400×860: a host with a Trade-ruled partner pad and the small fixer join,
+the card, numbers and log read right, the Add panel adds a Partner pad, no page errors. **Next (open):** a mission that
+teaches the Partner pad (maybe); then the Ocean's build plan (to settle with the author: what changes now that shapes,
+the wall price and symbiosis exist). Shapes step 4 is done (mission 15).
 **IDEA FOR LATER (author, 2026-11-08): symbiosis**, species in relationships with each other (not planned yet). Pieces already there: pads that hold strangers (mucus), sharing between joined kin (shareChains: energy and growth N), stolen plastids, the nitroplast (itself an endosymbiont). Possible routes to discuss: a pad that shares with a stranger it holds (a fixer feeding N to a partner that gives energy, like diatom-diazotroph associations, e.g. Richelia in Hemiaulus); hosting a partner inside (an endosymbiont that divides with the host); cleaning or riding (a swimmer carrying a drifter). Needs two players' designs to agree, so it fits matches between species.
 
 **MISSIONS BUILT, chapters 1-2 (2026-11-08; author: "yes" to the plan).** sandbox/missions.js (pure; the page and
