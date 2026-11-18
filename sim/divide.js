@@ -162,7 +162,10 @@ export function divideCells(world) {
     const p = world.cells[k];
     p.waiting = null;
     if (!ready(world, p)) continue;
-    if (world.cells.length >= G.cap) { p.waiting = 'tank full'; continue; }
+    if (world.cells.length >= (world.cap || G.cap)) { p.waiting = 'tank full'; continue; }
+    // a ceiling per species (the Ocean, author 2026-11-14: about a quarter of the tank's): at it a species can't divide,
+    // but still grows and stores; world.capSpecies, absent elsewhere
+    if (world.capSpecies && world.cells.reduce((t, c) => t + (!c.dead && c.species === p.species), 0) >= world.capSpecies) { p.waiting = 'its kind is at its ceiling'; continue; }
     const spot = spotFor(world, p);
     if (!spot) { p.waiting = 'no room beside it'; continue; }
     // the spot was found for the cell as big as it is; it shrinks to half, then its daughter appears there

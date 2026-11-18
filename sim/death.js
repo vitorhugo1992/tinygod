@@ -20,7 +20,13 @@ export function removeDead(world) {
   // the dead go G.gone s after dying, or after landing on the floor; one eaten whole at once (it is inside its predator)
   for (const c of old) if (c.dead && c.landedAt === undefined && c.q[1] < c.reach + 1) c.landedAt = world.steps;
   const goes = (c) => c.dead && (c.eatenBy || (world.steps - (c.landedAt ?? c.diedAt)) * DT >= G.gone);
-  if (!old.some(goes)) return;
+  if (old.some(goes)) removeCells(world, goes);
+}
+
+// Take out the cells for which goes(c) holds, now (their nitrogen into the water unless it rotted already or they were
+// eaten), keeping every pad, tube and tether link right
+export function removeCells(world, goes) {
+  const old = world.cells;
   const keep = [];
   for (const c of old) {
     if (goes(c)) {
@@ -38,4 +44,13 @@ export function removeDead(world) {
     l.a = a; l.b = b; return true;
   });
   world.cells = keep;
+}
+
+// The Ocean (2026-11-14: a new release replaces the old version): every living cell of a species taken out at once,
+// its nitrogen back into the water where it is; told as a death (why)
+export function takeOut(world, species, why) {
+  const out = world.cells.filter((c) => c.species === species);
+  for (const c of out) if (!c.dead) { c.dead = true; c.diedAt = world.steps; c.diedWhy = why; }
+  removeCells(world, (c) => c.species === species);
+  return out.length;
 }
