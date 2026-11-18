@@ -436,7 +436,16 @@ surface seen from below, murk clouds, soft light beams fixed to the water, a far
 haze one smooth image (its column seams drew lines). Not yet measured: frame rate on a real phone. **Next:** the author
 plays missions 1-6; then chapter 3 (growing) as a plan.
 
-**NEXT CHAT STARTS HERE (handoff, 2026-11-17; author: "lets plan the symbioses and ocean in a fresh chat").** (1) **Plan symbiosis**, one question at a time, nothing built (the entry "SYMBIOSIS QUEUED" below: a sharing pad between species, carrying; no partner living inside). (2) **The Ocean**: its ten decisions and its build plan stand as written in the first entry of this file (save and restore exactly, the contact grid, tools/ocean.mjs, the morning page, GitHub); to settle with the author: what in it must change now that shapes, the wall price and symbiosis exist, then a go. Still open from shapes: step 4, a mission that teaches lobes; the Add panel can't put parts on a lobe (below). Everything is pushed; 72 checks and every mission case pass. The local server may need starting (`node tools/serve.mjs --lan`).
+**NEXT CHAT STARTS HERE (handoff, 2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done
+since the last handoff (entries below): symbiosis (Partner pad, Trade reading, measured mutualism), Cunabella and
+Azotella, swallowing drawn, mission 16 (Find a partner). Start by settling with the author what in the Ocean plan (first
+entry of this file) changes now that shapes, the wall price and symbiosis exist (Claude's first question ready: does a
+partner pair count as one entry or two?), then a go on its build plan. **Not verified at handoff:** the full
+tools/missions-check.mjs run after mission 16 (the judge gained a `partner` condition and samples carry `partnered`;
+mission 16's own 6 cases pass): rerun it first. Untracked scratch tools/_*.mjs and _*.json are measurement scripts, not
+part of the game. Open small items: Azotella can't grow while joined (sharing evens a small fixer's nitrogen away);
+the "Lego" look (author) could be softened in the drawing.
+**Previous handoff (2026-11-17; author: "lets plan the symbioses and ocean in a fresh chat").** (1) **Plan symbiosis**, one question at a time, nothing built (the entry "SYMBIOSIS QUEUED" below: a sharing pad between species, carrying; no partner living inside). (2) **The Ocean**: its ten decisions and its build plan stand as written in the first entry of this file (save and restore exactly, the contact grid, tools/ocean.mjs, the morning page, GitHub); to settle with the author: what in it must change now that shapes, the wall price and symbiosis exist, then a go. Still open from shapes: step 4, a mission that teaches lobes; the Add panel can't put parts on a lobe (below). Everything is pushed; 72 checks and every mission case pass. The local server may need starting (`node tools/serve.mjs --lan`).
 **THE TWO OPEN SHAPE ITEMS DONE (2026-11-17; author: "lets take them quickly before this chat compacts").** (1) **Parts
 on a lobe from the Add panel:** an **On** menu (#partOn: the body, lobe 1, lobe 2…, "(a branch)"; shown only for
 outside parts while the design has lobes) builds the part round the chosen lobe as if it were the body (its own frame:
