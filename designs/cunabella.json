@@ -104,59 +104,59 @@
     "material": "oil",
     "at": [
      0,
-     42.55
+     40.55
     ],
     "angle": 90,
     "radius": 3,
-    "length": 12
+    "length": 16
    },
    {
     "type": "inclusion",
     "id": "armOil1",
     "material": "oil",
     "at": [
-     -40.47,
-     13.15
+     -38.57,
+     12.53
     ],
     "angle": 162,
     "radius": 3,
-    "length": 12
+    "length": 16
    },
    {
     "type": "inclusion",
     "id": "armOil2",
     "material": "oil",
     "at": [
-     -25.01,
-     -34.42
+     -23.83,
+     -32.81
     ],
     "angle": 234,
     "radius": 3,
-    "length": 12
+    "length": 16
    },
    {
     "type": "inclusion",
     "id": "armOil3",
     "material": "oil",
     "at": [
-     25.01,
-     -34.42
+     23.83,
+     -32.81
     ],
     "angle": 306,
     "radius": 3,
-    "length": 12
+    "length": 16
    },
    {
     "type": "inclusion",
     "id": "armOil4",
     "material": "oil",
     "at": [
-     40.47,
-     13.15
+     38.57,
+     12.53
     ],
     "angle": 18,
     "radius": 3,
-    "length": 12
+    "length": 16
    },
    {
     "type": "inclusion",
@@ -164,59 +164,59 @@
     "material": "plastid",
     "at": [
      0,
-     24
+     22
     ],
     "angle": 90,
     "radius": 3,
-    "length": 12
+    "length": 8
    },
    {
     "type": "inclusion",
     "id": "armPlastid1",
     "material": "plastid",
     "at": [
-     -22.83,
-     7.42
+     -20.92,
+     6.8
     ],
     "angle": 162,
     "radius": 3,
-    "length": 12
+    "length": 8
    },
    {
     "type": "inclusion",
     "id": "armPlastid2",
     "material": "plastid",
     "at": [
-     -14.11,
-     -19.42
+     -12.93,
+     -17.8
     ],
     "angle": 234,
     "radius": 3,
-    "length": 12
+    "length": 8
    },
    {
     "type": "inclusion",
     "id": "armPlastid3",
     "material": "plastid",
     "at": [
-     14.11,
-     -19.42
+     12.93,
+     -17.8
     ],
     "angle": 306,
     "radius": 3,
-    "length": 12
+    "length": 8
    },
    {
     "type": "inclusion",
     "id": "armPlastid4",
     "material": "plastid",
     "at": [
-     22.83,
-     7.42
+     20.92,
+     6.8
     ],
     "angle": 18,
     "radius": 3,
-    "length": 12
+    "length": 8
    },
    {
     "type": "inclusion",
@@ -305,11 +305,12 @@
    },
    {
     "type": "pad",
-    "id": "nest126",
+    "id": "nest1",
     "label": "Partner pad",
+    "parent": "arm1",
     "at": [
-     -8.82,
-     12.14
+     4,
+     3.4
     ],
     "kind": "partner",
     "joint": {
@@ -319,17 +320,23 @@
        "sensor": "trade",
        "min": 0.2,
        "max": 1
+      },
+      {
+       "sensor": "oil",
+       "min": 0.25,
+       "max": 1
       }
      ]
     }
    },
    {
     "type": "pad",
-    "id": "nest270",
+    "id": "nest4",
     "label": "Partner pad",
+    "parent": "arm4",
     "at": [
-     0,
-     -15
+     4,
+     3.4
     ],
     "kind": "partner",
     "joint": {
@@ -338,6 +345,11 @@
       {
        "sensor": "trade",
        "min": 0.2,
+       "max": 1
+      },
+      {
+       "sensor": "oil",
+       "min": 0.25,
        "max": 1
       }
      ]
@@ -354,5 +366,5 @@
   ],
   "name": "Cunabella"
  },
- "note": "A host (Claude, 2026-11-18): a five-armed star. Each arm holds a slim plastid near its root and oil near its tip, so the arms catch light, slow the fall and float it once the oil fills; the round body is a big buoyancy chamber and the nucleus. Floats while every eyespot (at three arm tips) sees less than 30% sun, sinks above 50%, rests in the dark. No nitroplast: two Partner pads in the crooks between its arms wait for a nitrogen fixer (they let go if Trade falls below 20%). Alone from the floor: never starving, about 700-1,500 µm, divides around day 3.3."
+ "note": "A host (Claude, 2026-11-18): a five-armed star. Each arm holds a slim plastid near its root and oil toward its tip, so the arms catch light, slow the fall and float it once the oil fills; the round body is a big buoyancy chamber and the nucleus. Floats while every eyespot (at three arm tips) sees less than 30% sun, sinks above 50%, rests in the dark. No nitroplast: two Partner pads on the sides of two arms wait for a nitrogen fixer (Azotella). They hold while Trade is above 20% and its oil above 25%: when carrying the partner drags it down and burns its oil, it sheds it, as a coral bleaches. Alone: lives near the surface, divides around day 3.9; with an Azotella on an arm, around day 1.5."
 }

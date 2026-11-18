@@ -1,0 +1,157 @@
+{
+ "name": "Azotella",
+ "from": "Claude",
+ "design": {
+  "species": "Azotella",
+  "body": {
+   "radius": 7
+  },
+  "parts": [
+   {
+    "type": "lobe",
+    "id": "hornN",
+    "at": [
+     1.13,
+     6.4
+    ],
+    "angle": 80,
+    "length": 10,
+    "radius": 4
+   },
+   {
+    "type": "lobe",
+    "id": "tipN",
+    "parent": "hornN",
+    "at": [
+     8.7,
+     0
+    ],
+    "angle": -30,
+    "length": 5,
+    "radius": 3.3
+   },
+   {
+    "type": "lobe",
+    "id": "hornP",
+    "at": [
+     1.13,
+     -6.4
+    ],
+    "angle": -80,
+    "length": 10,
+    "radius": 4
+   },
+   {
+    "type": "lobe",
+    "id": "tipP",
+    "parent": "hornP",
+    "at": [
+     8.7,
+     0
+    ],
+    "angle": 30,
+    "length": 5,
+    "radius": 3.3
+   },
+   {
+    "type": "inclusion",
+    "id": "nucleus",
+    "material": "nucleus",
+    "at": [
+     -2.3,
+     0
+    ],
+    "radius": 4.3,
+    "joint": {
+     "type": "rest",
+     "controls": [
+      {
+       "sensor": "eye",
+       "min": 0,
+       "max": 0.01
+      }
+     ]
+    }
+   },
+   {
+    "type": "inclusion",
+    "id": "nitroplast",
+    "material": "nitroplast",
+    "at": [
+     2.27,
+     12.9
+    ],
+    "angle": 80,
+    "radius": 3.5,
+    "length": 5
+   },
+   {
+    "type": "inclusion",
+    "id": "plastid",
+    "material": "plastid",
+    "at": [
+     2.27,
+     -12.9
+    ],
+    "angle": -80,
+    "radius": 3.5,
+    "length": 5
+   },
+   {
+    "type": "inclusion",
+    "id": "oil2",
+    "material": "oil",
+    "at": [
+     5.12,
+     21.81
+    ],
+    "radius": 2.7
+   },
+   {
+    "type": "inclusion",
+    "id": "oil",
+    "material": "oil",
+    "at": [
+     5.12,
+     -21.81
+    ],
+    "radius": 2.7
+   },
+   {
+    "type": "sensor",
+    "id": "eye",
+    "parent": "tipP",
+    "at": [
+     5.8,
+     0
+    ],
+    "angle": 0,
+    "kind": "light",
+    "cone": 180
+   },
+   {
+    "type": "pad",
+    "id": "hug",
+    "label": "Partner pad",
+    "at": [
+     7,
+     0
+    ],
+    "kind": "partner",
+    "joint": {
+     "type": "hold"
+    }
+   },
+   {
+    "type": "rule",
+    "id": "divide",
+    "label": "Division",
+    "joint": {
+     "type": "divide"
+    }
+   }
+  ],
+  "name": "Azotella"
+ },
+ "note": "A partner (Claude, 2026-11-18): a crescent that cups a Cunabella's arm. Its body holds the nucleus; two curved horns (lobes, each with a tip turned inward) hold a nitroplast and a plastid, oil in both tips; a Partner pad on the inside of the curve; no chamber, no tail; rests in the dark. Joined, it feeds its host nitrogen (Trade about 0.04-0.13: it gives far more than it gets) and is carried toward the light; its host divides about 2 days sooner and sheds it around day 2, once its own oil runs low. Alone it sinks and starved on all three seeds tried (day 3-4); after a stay on a host all three were alive at day 4. Put it in the tank beside a Cunabella: free Partner pads pull each other within 15 µm."
+}

@@ -510,6 +510,25 @@ cell was poisoned). Seen in headless Edge at 400×860: a host with a Trade-ruled
 the card, numbers and log read right, the Add panel adds a Partner pad, no page errors. **Next (open):** a mission that
 teaches the Partner pad (maybe); then the Ocean's build plan (to settle with the author: what changes now that shapes,
 the wall price and symbiosis exist). Shapes step 4 is done (mission 15).
+**TWO SYMBIOTIC SPECIES (2026-11-18; author: "make two new species that have relationships, be creative with the
+lobes, one at a time"):** designs/cunabella.json and designs/azotella.json (From Claude; generators tools/_cuna.mjs,
+tools/_azo.mjs, pair harness tools/_pair.mjs, rise / sink probe tools/_probe.mjs: scratch, untracked).
+**Cunabella** (host): body r 15 = a buoyancy chamber (15%) + nucleus; five arms (lobes 34 × r 3.4), each a slim
+plastid near its root and oil toward its tip (plastid 8%, oil 14%); eyespots at three arm tips; floats while every eye
+sees < 30%, sinks > 50%, rests in the dark; no nitroplast; Partner pads on the sides of two arms, holding while Trade >
+20% AND oil > 25% (it sheds a partner that drags it down, as a coral bleaches). **Azotella** (partner): a crescent
+(body r 7 with the nucleus, two horns 10 × r 4 at ±80° with tips 5 × r 3.3 turned 30° in: nitroplast and plastid
+~12% each, oil in both tips), a Partner pad on the inside of the curve, no chamber, rests in the dark. **Measured (4
+days, seeds 1-3):** Cunabella alone lives near the surface, nitrogen-starved by day (its energy bar full by noon, N
+2-9%), first division ~day 3.9; joined to an Azotella it divides before day 2 on every seed, then the pair sinks
+(the mother after division is too light for the extra weight, burns its arm oil) and it sheds the partner ~day 2;
+Azotella alone starved on all 3 seeds (day 3-4), joined and later shed it was alive on all 3 at day 4 (1.4-1.7×).
+**What designing them taught:** (1) arms are costly cytoplasm: a body chamber can't lift five arms; oil in the arms
+(920 kg/m³) can, and doubles as the night store; (2) "float while dim" made a slow chamber cell rise at night and sink
+by day; "float while every eye < 30%, sink while any > 50%" holds it up; (3) **sharing is capped by the smaller cell:**
+5% a second of the smaller pool and of the smaller nitrogen meter, so a small fixer can't be powered by a big host,
+and a fixer joined to a hungry host never fills its own meter (its N is evened away as fast as it fixes): Azotella
+never grows while joined. A balance point for the author if partners should both grow while joined.
 **IDEA FOR LATER (author, 2026-11-08): symbiosis**, species in relationships with each other (not planned yet). Pieces already there: pads that hold strangers (mucus), sharing between joined kin (shareChains: energy and growth N), stolen plastids, the nitroplast (itself an endosymbiont). Possible routes to discuss: a pad that shares with a stranger it holds (a fixer feeding N to a partner that gives energy, like diatom-diazotroph associations, e.g. Richelia in Hemiaulus); hosting a partner inside (an endosymbiont that divides with the host); cleaning or riding (a swimmer carrying a drifter). Needs two players' designs to agree, so it fits matches between species.
 
 **MISSIONS BUILT, chapters 1-2 (2026-11-08; author: "yes" to the plan).** sandbox/missions.js (pure; the page and
