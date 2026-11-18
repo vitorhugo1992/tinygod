@@ -436,6 +436,17 @@ surface seen from below, murk clouds, soft light beams fixed to the water, a far
 haze one smooth image (its column seams drew lines). Not yet measured: frame rate on a real phone. **Next:** the author
 plays missions 1-6; then chapter 3 (growing) as a plan.
 
+**OCEAN STEP 1 BUILT (2026-11-18; author: "go"): save and restore a world exactly.** sim/save.js saveState(root) ->
+JSON text, loadState(text) -> the root: not a list of fields but the whole object graph walked (a world, a match, any
+of it), so fields added later are saved with no change here; kept: shared objects and cycles, Map / Set order, typed
+arrays as their bytes, -0, NaN, ±Infinity, undefined, holes, Rng's state (the only class); a function or unknown class
+refuses with its path. Module-level state in sim/ checked: only scratch buffers and a pure shape cache. **Measured:**
+tools/save-check.mjs [A B every] [--seed] (9 species × 2: lobes, partner pads, tubes, mouths, harpoons, tethers, a
+leaker, fixers, moving water, shading) unbroken vs saved-loaded-resumed: the whole saved text identical (bit for bit)
+after 10+10 s (saved twice) and after two days (300 + 900 s, saved 6 times; 3 births, 8 deaths, 4 links, two
+toxin clouds on the way; ~7.5 min each run); check 29b (72 checks pass). A world saves to ~0.2-0.6 MB of text (cells' pieces
+most of it, then shade and nitrogen grids): gzip it in the Ocean's files. Not yet in the page (sw.js doesn't list it).
+**Open question for the author:** does a partner pair count as one entry or two? **NEXT: Ocean step 2, the contact grid.**
 **NEXT CHAT STARTS HERE (handoff, 2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done
 since the last handoff (entries below): symbiosis (Partner pad, Trade reading, measured mutualism), Cunabella and
 Azotella, swallowing drawn, mission 16 (Find a partner). Start by settling with the author what in the Ocean plan (first

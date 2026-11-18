@@ -1683,6 +1683,24 @@ const runDay = (design, y, seconds, opts = {}) => {
   check('a world with day, metabolism and stores runs bit-identical twice', a.every((x, i) => x === b[i]), `${a.length / 8} numbers compared after 20 s`);
 }
 
+// 29b. Save and restore (the Ocean, 2026-11-18): a growing world in moving water, saved to text and loaded halfway,
+// ends exactly as the unbroken run (sim/save.js; tools/save-check.mjs runs a full mixed tank)
+{
+  const { saveState, loadState } = await import('../sim/save.js');
+  const fresh = () => {
+    const w = makeWorld(7, { day: true, metab: true, grow: true, flow: true });
+    addCell(w, phototroph(4, PRESETS['Wave tail'].parts), 700, 1500, 90);
+    addCell(w, phototroph(), 900, 1800, 0); addCell(w, phototroph(), 920, 1790, 30);
+    return w;
+  };
+  const a = fresh(); for (let i = 0; i < 10000; i++) stepWorld(a);
+  let b = fresh(); for (let i = 0; i < 5000; i++) stepWorld(b);
+  b = loadState(saveState(b));
+  for (let i = 0; i < 5000; i++) stepWorld(b);
+  const sa = saveState(a), sb = saveState(b);
+  check('a world saved and loaded halfway ends bit for bit as the unbroken run', sa === sb, `${fmt(sa.length / 1024, 0)} KB saved after 5 s; 10 s compared`);
+}
+
 // 30. Speed (not a pass test yet)
 {
   for (const name of ['Spiny cell', 'Wave tail']) {
