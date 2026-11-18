@@ -31,12 +31,26 @@ const TW = PARAMS.tank.w, TH = PARAMS.tank.h;
 
 // Distance from (x, y) to the nearest surface it feels (other cells' pieces; with `anything`, also kin and the
 // tank's walls, floor and surface), or Infinity
+// (2026-11-18, the Ocean's speed) every cell's place and reach copied into plain arrays once a step: reading them
+// from the cell objects for every feeler was slow in a crowded tank; the same numbers, so the same results
+let PX = new Float64Array(64), PY = new Float64Array(64), PR = new Float64Array(64), BX = new Float64Array(64), BY = new Float64Array(64), BHA = new Float64Array(64), PSP = [], PAT = -1, PW = null, PN = -1;
+function places(world) {
+  const cells = world.cells, n = cells.length;
+  if (PAT === world.steps && PW === world && PN === n) return;
+  if (PX.length < n) { PX = new Float64Array(2 * n); PY = new Float64Array(2 * n); PR = new Float64Array(2 * n); BX = new Float64Array(2 * n); BY = new Float64Array(2 * n); BHA = new Float64Array(2 * n); }
+  for (let i = 0; i < n; i++) { const c = cells[i]; PX[i] = c.q[0]; PY[i] = c.q[1]; PR[i] = c.reach; PSP[i] = c.species; const b = c.pieces[0]; BX[i] = c.cx[0]; BY[i] = c.cy[0]; BHA[i] = b.L / 2 + b.a; }
+  PAT = world.steps; PW = world; PN = n;
+}
 function nearest(world, cell, x, y, reach, anything) {
   let best = anything ? Math.min(x, TW - x, y, TH - y) : Infinity;
-  for (const o of world.cells) {
-    if (o === cell || (!anything && o.species === cell.species)) continue;
-    const dx = o.q[0] - x, dy = o.q[1] - y;
-    if (dx * dx + dy * dy > (o.reach + reach) * (o.reach + reach)) continue;
+  places(world);
+  const cells = world.cells, sp = cell.species;
+  for (let k = 0; k < cells.length; k++) {
+    if (!anything && PSP[k] === sp) continue;
+    const dx = PX[k] - x, dy = PY[k] - y;
+    if (dx * dx + dy * dy > (PR[k] + reach) * (PR[k] + reach)) continue;
+    const o = cells[k];
+    if (o === cell) continue;
     for (let i = 0; i < o.pieces.length; i++) {
       const p = o.pieces[i], h = p.L / 2, c = o.cs[i], s = o.sn[i];
       const ax = o.cx[i] - c * h, ay = o.cy[i] - s * h;
@@ -143,7 +157,12 @@ const FU = [0, 0, 0];
 function flowFelt(world, cell, x, y, range) {
   let v = 0;
   if (world.flowNow) { const w = flowAt(world.flowNow, x, y, FU)[2]; v += (w < 0 ? -w : w) / S.flowCurl; }
-  for (const o of world.cells) {
+  places(world);
+  const cells = world.cells;
+  for (let k = 0; k < cells.length; k++) {
+    const gx = x - BX[k], gy = y - BY[k], gl = range + BHA[k] + 1e-6;
+    if (gx * gx + gy * gy > gl * gl) continue;   // beyond its range: the same results, cheaper
+    const o = cells[k];
     if (o === cell || o.dead || !o.wake) continue;
     const b = o.pieces[0], h = b.L / 2, ex = o.cs[0] * h, ey = o.sn[0] * h;
     const dx = x - o.cx[0], dy = y - o.cy[0], l2 = ex * ex + ey * ey;

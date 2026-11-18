@@ -446,7 +446,23 @@ leaker, fixers, moving water, shading) unbroken vs saved-loaded-resumed: the who
 after 10+10 s (saved twice) and after two days (300 + 900 s, saved 6 times; 3 births, 8 deaths, 4 links, two
 toxin clouds on the way; ~7.5 min each run); check 29b (72 checks pass). A world saves to ~0.2-0.6 MB of text (cells' pieces
 most of it, then shade and nitrogen grids): gzip it in the Ocean's files. Not yet in the page (sw.js doesn't list it).
-**Open question for the author:** does a partner pair count as one entry or two? **NEXT: Ocean step 2, the contact grid.**
+**Open question for the author:** does a partner pair count as one entry or two? (Claude: two.)
+**OCEAN STEP 2 BUILT (2026-11-18; author: "go"): contact made cheaper, NOT a grid (results bit for bit the same).**
+Profiled first (tools/ocean-cost.mjs [cells per species] [sim s]: the 12 species of the cost estimate at random spots,
+full world, ms per sim second and an FNV hash of the whole saved state): far pairs were already skipped by a cheap
+distance check; at 96 cells only ~243 cell pairs a step are close and ~22 piece pairs touch. **The cost was reading
+fields off the cell objects** (dozens of fields each, slow in JavaScript) in every all-pairs loop, and piece × piece
+loops on close pairs. Changed: interact.js nearLists (each cell's neighbours in index order, from positions copied to
+plain arrays once a step, widened by the most any test adds: pad pull 15 µm) feeds contact, tubes, mouths, pad pull and
+pad sticking; contact keeps only B's pieces within reach of all of A and skips piece pairs whose middles are too far
+apart (1e-6 µm spare); surfaceNear the same skip; mouthSize cached once a cell a step; sense.js nearest (feelers) and
+flowFelt read the copied arrays. Harpoons and tethers unchanged (cheap). **Same results:** bench fingerprints
+unchanged, ocean-cost hashes unchanged at 12-96 cells, the 60-cell tank over half a day ends in the same state as the
+code before (7bfdd0de); 72 checks and every mission case pass. **Measured, ms per sim second (normal speed, bench 50
+ms):** 12 cells 340 -> ~330, 36 1,770 -> ~1,000, 60 6,600 -> ~2,300, 96 8,100 -> ~5,400 (per cell 28 -> 56: still
+grows with crowding: at 96 cells the cells' own physics ~2.3 s, contact ~1.5, sensing ~1.3, metabolism ~0.5). **So an
+ocean day (600 sim s) on this computer: 60 cells ~25 min, 100 cells ~55 min** (a GitHub job may run 6 h; its machine's
+speed not measured). **To decide: the ceiling, 60 or 100** (Claude: 100, a quarter per species = 25). Next: Ocean step 3.
 **NEXT CHAT STARTS HERE (handoff, 2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done
 since the last handoff (entries below): symbiosis (Partner pad, Trade reading, measured mutualism), Cunabella and
 Azotella, swallowing drawn, mission 16 (Find a partner). Start by settling with the author what in the Ocean plan (first

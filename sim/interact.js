@@ -62,6 +62,8 @@ function surfaceNear(cell, x, y, reach, only = -1) {
   let best = null;
   for (let i = 0; i < cell.pieces.length; i++) {
     if (only === 'living' ? !living(cell.pieces[i]) : only >= 0 && i !== only) continue;
+    const P = cell.pieces[i], gx = x - cell.cx[i], gy = y - cell.cy[i], gl = reach + P.L / 2 + P.a + 1e-6;
+    if (gx * gx + gy * gy > gl * gl) continue;   // too far to be within reach (same results, cheaper)
     const [ax, ay, bx, by] = ends(cell, i);
     const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
     let t = l2 > 0 ? ((x - ax) * dx + (y - ay) * dy) / l2 : 0;
@@ -144,22 +146,72 @@ function chainOf(world, c) {
   return seen;
 }
 
+// Which cells could meet which this step (2026-11-18, the Ocean's speed): every pair whose reach circles, widened by
+// the most any test below adds (a pad's pull, a mouth's reach), overlap. Each test still makes its own exact check, so
+// this only spares the far pairs, and lists them in index order so every loop meets cells in the order it always did:
+// the same results bit for bit. The positions are copied into plain arrays first: reading them from the cell objects
+// (dozens of fields each) is what made the all-pairs check slow, ~1 ms a step at 96 cells.
+let BJ = new Int32Array(64), BH = new Float64Array(64);
+let NX = new Float64Array(64), NY = new Float64Array(64), NR = new Float64Array(64), NL = new Int32Array(256), NS = new Int32Array(65);
+function nearLists(cells) {
+  const n = cells.length, M = Math.max(PAD.attract, PARAMS.engulf.reach) + 1e-6;
+  if (NX.length < n) { NX = new Float64Array(2 * n); NY = new Float64Array(2 * n); NR = new Float64Array(2 * n); NS = new Int32Array(2 * n + 1); }
+  for (let i = 0; i < n; i++) { const c = cells[i]; NX[i] = c.q[0]; NY[i] = c.q[1]; NR[i] = c.reach; }
+  let m = 0;
+  for (let a = 0; a < n; a++) {
+    NS[a] = m;
+    const xa = NX[a], ya = NY[a], ra = NR[a] + M;
+    for (let b = 0; b < n; b++) {
+      if (b === a) continue;
+      const dx = xa - NX[b], dy = ya - NY[b], r = ra + NR[b];
+      if (dx * dx + dy * dy > r * r) continue;
+      if (m >= NL.length) { const g = new Int32Array(2 * NL.length); g.set(NL); NL = g; }
+      NL[m++] = b;
+    }
+  }
+  NS[n] = m;
+  return { start: NS, list: NL };
+}
+
 export function interact(world) {
   const cells = world.cells;
   world.links ||= [];
   for (const c of cells) c.ext = [];
   cells.forEach((c, i) => { c.index = i; });
+  const near = nearLists(cells);   // each cell's neighbours in index order (the Ocean's speed; same results)
 
   // contact between pieces of different cells
   for (let a = 0; a < cells.length; a++) {
     const A = cells[a];
-    for (let b = a + 1; b < cells.length; b++) {
+    for (let k = near.start[a], kEnd = near.start[a + 1]; k < kEnd; k++) {
+      const b = near.list[k];
+      if (b <= a) continue;
       const B = cells[b];
       const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
       if (dx * dx + dy * dy > r * r) continue;
-      for (let i = 0; i < A.pieces.length; i++) {
-        const [a1x, a1y, a2x, a2y] = ends(A, i);
-        for (let j = 0; j < B.pieces.length; j++) {
+      // (2026-11-18, the Ocean's speed) a piece pair whose middles lie farther apart than both half-lengths and both
+      // radii can't touch: skipped before the exact test, so results are the same bit for bit (1e-6 µm to spare)
+      const bx0 = B.q[0], by0 = B.q[1], bReach = B.reach, ax0 = A.q[0], ay0 = A.q[1], aReach = A.reach;
+      const APc = A.pieces, BPc = B.pieces, Acx = A.cx, Acy = A.cy, Bcx = B.cx, Bcy = B.cy;
+      // B's pieces that reach within all of A, and their half-length + radius, in order
+      let nb = 0;
+      if (BJ.length < BPc.length) { BJ = new Int32Array(2 * BPc.length); BH = new Float64Array(2 * BPc.length); }
+      for (let j = 0; j < BPc.length; j++) {
+        const PB = BPc[j], hB = PB.L / 2 + PB.a, gx = Bcx[j] - ax0, gy = Bcy[j] - ay0, gl = hB + aReach + 1e-6;
+        if (gx * gx + gy * gy > gl * gl) continue;
+        BJ[nb] = j; BH[nb++] = hB;
+      }
+      if (!nb) continue;
+      for (let i = 0; i < APc.length; i++) {
+        const PA = APc[i], hA = PA.L / 2 + PA.a, mx = Acx[i], my = Acy[i];
+        let gx = mx - bx0, gy = my - by0, gl = hA + bReach + 1e-6;
+        if (gx * gx + gy * gy > gl * gl) continue;   // this piece is beyond all of B
+        let ae = null;
+        for (let jj = 0; jj < nb; jj++) {
+          const j = BJ[jj];
+          gx = mx - Bcx[j]; gy = my - Bcy[j]; gl = hA + BH[jj] + 1e-6;
+          if (gx * gx + gy * gy > gl * gl) continue;
+          const [a1x, a1y, a2x, a2y] = ae ||= ends(A, i);
           const [b1x, b1y, b2x, b2y] = ends(B, j);
           const [s, t] = closest(a1x, a1y, a2x, a2y, b1x, b1y, b2x, b2y);
           const px = a1x + (a2x - a1x) * s, py = a1y + (a2y - a1y) * s;
@@ -234,7 +286,8 @@ export function interact(world) {
       if (f.link || !f.go) continue;
       A.cantPierce = null;
       const [x, y] = padWorld(A, f);
-      for (const B of cells) {
+      for (let k = near.start[A.index], kEnd = near.start[A.index + 1]; k < kEnd; k++) {
+        const B = cells[near.list[k]];
         if (B === A || B.species === A.species || B.emptied) continue;
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
         if (dx * dx + dy * dy > r * r) continue;
@@ -342,6 +395,7 @@ export function interact(world) {
 
   // mouths: swallow another species' cell touching one whole, if it fits the gape (metab.js digests it; death.js removes it)
   const E = PARAMS.engulf;
+  const msz = new Map(), sizeOf = (c) => { let v = msz.get(c); if (v === undefined) msz.set(c, v = mouthSize(c)); return v; };   // once a cell a step
   for (const A of cells) {
     if (A.dead || A.meal || !A.mouths || !A.mouths.length) continue;
     // room for the meal (author: "won't the predator need a lot of space to swallow"): its free cytoplasm
@@ -349,10 +403,11 @@ export function interact(world) {
     for (const mo of A.mouths) {
       if (!mo.go || A.meal) continue;
       const [mx, my] = padWorld(A, mo);
-      for (const B of cells) {
+      for (let k = near.start[A.index], kEnd = near.start[A.index + 1]; k < kEnd; k++) {
+        const B = cells[near.list[k]];
         if (B === A || B.eatenBy || B.species === A.species || B.pieces[0].a > E.gape * A.pieces[0].a || B.pieces[0].volume > free) continue;
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach + E.reach;   // (a mouth is no piece: it adds no reach)
-        if (dx * dx + dy * dy > r * r || !surfaceNear(B, mx, my, E.reach, 'living') || mouthSize(B) > E.gape * A.pieces[0].a) continue;
+        if (dx * dx + dy * dy > r * r || !surfaceNear(B, mx, my, E.reach, 'living') || sizeOf(B) > E.gape * A.pieces[0].a) continue;
         // a chain counts as one (author, 2026-11-02): to swallow a joined cell the mouth takes its whole chain, which must
         // fit across the predator (its extent at most the predator's width), in its free room, and every cell the gape
         const chain = chainOf(world, B);
@@ -361,7 +416,7 @@ export function interact(world) {
           vol += c.pieces[0].volume;
           for (const o of chain) ext = Math.max(ext, Math.hypot(c.q[0] - o.q[0], c.q[1] - o.q[1]) + c.pieces[0].a + o.pieces[0].a + (c.pieces[0].L + o.pieces[0].L) / 2);
         }
-        if (chain.size > 1 && (vol > free || ext > 2 * A.pieces[0].a || [...chain].some((c) => mouthSize(c) > E.gape * A.pieces[0].a))) continue;
+        if (chain.size > 1 && (vol > free || ext > 2 * A.pieces[0].a || [...chain].some((c) => sizeOf(c) > E.gape * A.pieces[0].a))) continue;
         let energy = 0, N = 0;
         for (const c of chain) {
           energy += c.metab ? c.metab.E : 0;
@@ -387,8 +442,10 @@ export function interact(world) {
   // partner pads pull free partner pads of other species the same way (partners find each other)
   for (let a = 0; a < cells.length; a++) {
     const A = cells[a];
-    if (A.dead) continue;
-    for (let b = a + 1; b < cells.length; b++) {
+    if (A.dead || !A.pads.length) continue;
+    for (let k = near.start[a], kEnd = near.start[a + 1]; k < kEnd; k++) {
+      const b = near.list[k];
+      if (b <= a) continue;
       const B = cells[b];
       if (B.dead) continue;
       const want = B.species === A.species ? 'kin' : 'partner';
@@ -417,7 +474,8 @@ export function interact(world) {
     for (const pad of A.pads) {
       if (pad.link || pad.go === false) continue;
       const [x, y] = padWorld(A, pad);
-      for (const B of cells) {
+      for (let k = near.start[A.index], kEnd = near.start[A.index + 1]; k < kEnd; k++) {
+        const B = cells[near.list[k]];
         if (B === A || pad.link) continue;
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
         if (dx * dx + dy * dy > r * r) continue;
