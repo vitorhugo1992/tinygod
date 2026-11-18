@@ -84,11 +84,12 @@ export const alarmLevel = (cell) => cell.alarm || 0;
 // Poisoned: how strong the other species' toxin clouds are where it is (sim/toxin.js; 1 at PARAMS.toxin.leak.full)
 // Trade (symbiosis, author 2026-11-17): which way things flow through its partner pads, smoothed over
 // PARAMS.pads.tradeTime (metab.js shareChains keeps cell.trade { in, out } in pJ/s, nitrogen at PARAMS.pads.tradeN):
-// 0 only giving, 0.5 even (or nothing flowing), 1 only receiving
+// 0 only giving, 0.5 even (or nothing flowing: flows well under PARAMS.pads.tradeFloor read near 0.5, so a cell whose
+// partner left drifts back to even as its smoothed flows fade), 1 only receiving
 export function tradeLevel(cell) {
   const t = cell.trade;
-  if (!t || t.in + t.out < 1e-9) return 0.5;
-  return t.in / (t.in + t.out);
+  if (!t) return 0.5;
+  return 0.5 + 0.5 * (t.in - t.out) / (t.in + t.out + PARAMS.pads.tradeFloor);
 }
 export const tiedLevel = (cell) => ((cell.tethers || []).some((t) => t.link) ? 1 : 0);   // 1 while a tether's line holds something
 export const poisonedLevel = (cell) => (cell.poison ? Math.min(1, cell.poison.level / PARAMS.toxin.leak.full) : 0);

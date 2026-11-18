@@ -486,9 +486,18 @@ as alone (noise); a passenger (r 9, nucleus, 6% plastid, small starch, no chambe
 second of that difference covers ~0.9 of the passenger's upkeep); **resting at night (an eyespot, below 1%) it lived 3
 days joined, 1.8×, never divided**, Trade 0.86-1.00 (host 0.00-0.14); **but the host fell to 8.8× / 9.0×** (it feeds
 the passenger and is dragged deeper: ~1,200-1,400 µm at day 3 vs ~500-800 for its free daughters). So today a passenger
-on a fixer is a parasite: it gives nothing the host lacks. **The mutualism to test next:** a host that lives where
-nitrogen is poor (shallow, light-rich, no nitroplast) carrying a small chamberless FIXER (Richelia in Hemiaulus); and
-a host's Trade rule dropping a freeloader. (3) the page: Sticks to: its own kind / anything / **a partner of another species**, the pad drawn
+on a fixer is a parasite: it gives nothing the host lacks. **STEP 2, A REAL MUTUALISM (2026-11-18; author: "A", test
+the real pairing):** host "Hemi" = Needle Drifter without its nitroplast (N-short), passenger "Richa" (tools/_richa.json:
+a 12 × 42 µm rod, nucleus, plastid ~10%, nitroplast ~11%, small starch, eyespot rest below 1%, no chamber; Richelia in
+Hemiaulus), 3 days, seeds 1 / 2: **Hemi alone 1.3× / 1.3×, joined 2.5× / 2.7× (2 cells); Richa alone starves on the
+floor by day 1, joined alive 1.2× / 1.4×** (never divided): both gain. **A freeloader is dropped:** Needle Drifter whose
+pad holds unless Trade < 20% let the resting passenger go within a quarter day (it starved) and grew 13.6× / 12.2×
+(alone 12.0 / 11.2). **Trade retuned (Claude's call):** smoothed over 30 s it swung 0.17-0.64 within a day (by day the
+host receives nitrogen, at night it sends energy) and the ruled host dropped its good partner at day ~2.9; now
+PARAMS.pads.tradeTime 600 s (a day: the host reads a steady 0.72-0.80, the fixer 0.20-0.29, the pair kept all 3 days)
+and the reading is 0.5 + 0.5 (in − out) / (in + out + tradeFloor 100 pJ/s), so a cell whose partner left drifts back
+toward even (0.22 half a day after, 0.45 at day 3: a host burned by a cheat is wary for a while; its pad sticks again
+once above its threshold). 71 checks pass. (3) the page: Sticks to: its own kind / anything / **a partner of another species**, the pad drawn
 and its link, the Trade reading in the rule editor, numbers and log lines, the brief for AIs; (4) maybe a mission. Then: shapes step 4 (a mission that teaches lobes), then the Ocean's build plan.
 **IDEA FOR LATER (author, 2026-11-08): symbiosis**, species in relationships with each other (not planned yet). Pieces already there: pads that hold strangers (mucus), sharing between joined kin (shareChains: energy and growth N), stolen plastids, the nitroplast (itself an endosymbiont). Possible routes to discuss: a pad that shares with a stranger it holds (a fixer feeding N to a partner that gives energy, like diatom-diazotroph associations, e.g. Richelia in Hemiaulus); hosting a partner inside (an endosymbiont that divides with the host); cleaning or riding (a swimmer carrying a drifter). Needs two players' designs to agree, so it fits matches between species.
 

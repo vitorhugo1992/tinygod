@@ -326,7 +326,9 @@ export const PARAMS = {
     pull: 3,                // pN of that pull (drifting cells come together; a swimmer passing by isn't caught)
     // Partner pads (symbiosis, author 2026-11-17): a partner pad joins only a partner pad on a cell of ANOTHER species,
     // holds like a kin pad (kinBreak), attracts like one, and the pair shares as kin do (share); the Trade reading
-    tradeTime: 30,          // s the Trade reading is smoothed over
+    tradeTime: 600,         // s the Trade reading is smoothed over: a day (measured: at 30 s the flow turning round between
+                            // day and night swung it 0.17-0.64 and a host dropped a partner that paid it back on balance)
+    tradeFloor: 100,        // pJ/s: flows smaller than this read near 0.5 (a cell whose partner left drifts back to even)
     tradeN: 600,            // pJ a unit of nitrogen counts as in the Trade reading (the nitroplast's price)
     grace: 1,               // s a chain's links can't snap after a daughter slots in (contact pushes the cells apart)
     maxChain: 32,           // hidden backstop: a new link may not make a group bigger than this
