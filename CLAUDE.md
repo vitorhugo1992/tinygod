@@ -486,7 +486,17 @@ biomass. Board after night 5: seed 1 Needle Drifter 1.51 (8 cells), Bobber 1.46,
 seed 2 **Needle Drifter 4.01 with 25 cells: at its ceiling** (the ceiling working as meant), Leviathella 1.07, the
 rest ≤ 0.68. A night took 3-9 min (13-36 cells). **To decide with the author: what replaces Leviathella** (Claude: Raptilla
 2, a hunter that farms its prey through a tube rather than eating it whole; or Cunabella + Azotella, symbiosis on show,
-for two of the eight), then a second trial.
+for two of the eight), then a second trial. **Author: "sure go" (Raptilla 2). Second trial, same seeds:** night 5:
+seed 1 61 cells, seed 2 43; **Needle Drifter reached its 25-cell ceiling by night 4 on both** (score 7.96 / 8.89,
+69% / 84% of the biomass): **the ceiling bites, it is not only a safety net**; Deepdweller II the predator now (17 / 21
+kills, all by draining; seed 2 it rose to 21 cells and crashed to 8, starving), Bobber 3.72 / 2.24, Bloomeater 5 / 2
+kills; **Raptilla 2 never killed** (2 cells, then 0 on seed 2); extinct at night 5: Laqueella (seed 1), Laqueella,
+Plebella, Raptilla 2 (seed 2; all drained by Deepdweller II, each due back). Deaths 46 / 51, half starving. A night
+took 20-28 min at ~60 cells with both seeds running at once. Why Leviathella was so strong (told the author): its gape
+takes anything under 50 µm across (every house species), 8 mouths with no rule (always hungry: only the 60 s digestion
+pauses it), 3 cells 300 µm long in a 1,600 µm tank of moving water, and a kill is under 0.3% of its body (it never
+grows from eating, so the kills cost it nothing and earn it nothing). Offered for later, not decided: appetite (no
+swallowing while stores and meter are full; Claude's lean), digestion by meal size, or a price per swallow.
 **NEXT CHAT STARTS HERE (handoff, 2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done
 since the last handoff (entries below): symbiosis (Partner pad, Trade reading, measured mutualism), Cunabella and
 Azotella, swallowing drawn, mission 16 (Find a partner). Start by settling with the author what in the Ocean plan (first

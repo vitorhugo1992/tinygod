@@ -29,7 +29,7 @@ export const OCEAN = { cap: 100, capSpecies: 25, arrive: 3, returnAfter: 3, rele
 export const HOUSE = [
   ['Noctilla', 'designs/noctilla.json'], ['Plebella', 'designs/plebella.json'], ['Nutricline Bobber', 'tournament/bobber-blind-opus.json'],
   ['Deepdweller II', 'designs/deepdweller2.json'], ['Needle Drifter', 'tournament/fixer-blind-opus2.json'], ['Laqueella', 'designs/laqueella.json'],
-  ['Bloomeater', 'designs/_gulper.json'], ['Leviathella', 'designs/leviathella.json'],
+  ['Bloomeater', 'designs/_gulper.json'], ['Raptilla 2', 'designs/raptilla2.json'],
 ];
 
 const opt = (k, v) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : v; };
