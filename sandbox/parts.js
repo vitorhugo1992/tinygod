@@ -144,9 +144,10 @@ export const PART_TEMPLATES = {
       radius: PARAMS.feed.radius, material: 'protein', joint: { type: 'feed' } }],
   // a mouth (author, 2026-11-02, engulfing): swallows another species' cell touching it whole, if it fits the gape
   'Mouth (engulfs)': (body, deg, id) => [{ type: 'mouth', id, label: 'Mouth', at: surfacePoint(body, deg), joint: { type: 'engulf' } }],
-  // one pad: sticks to its own kind only (kin), or to anything (mucus)
+  // one pad: sticks to its own kind only (kin), to anything (mucus), or to a partner pad of another species (partner:
+  // symbiosis, the two share energy and nitrogen)
   'Pad': (body, deg, id, size, tilt, depth, feels, len, strength, kind = 'kin') =>
-    [{ type: 'pad', id, label: kind === 'mucus' ? 'Mucus pad' : 'Kin pad', at: surfacePoint(body, deg), kind, joint: { type: 'hold' } }],   // its rule: HOLDS while… (chains)
+    [{ type: 'pad', id, label: kind === 'mucus' ? 'Mucus pad' : kind === 'partner' ? 'Partner pad' : 'Kin pad', at: surfacePoint(body, deg), kind, joint: { type: 'hold' } }],   // its rule: HOLDS while… (chains)
   'Touch sensor': (body, deg, id, size, tilt, depth, feels) =>
     [{ type: 'sensor', id, label: `Touch sensor${feels === 'anything' ? ' (anything)' : ''}`, at: surfacePoint(body, deg), kind: 'touch', feels }],
   'Proximity sensor': (body, deg, id, size, tilt, depth, feels) =>

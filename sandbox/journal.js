@@ -85,6 +85,12 @@ export function note(world, c) {
   if (c.lastTie && c.lastTie !== w.tie) { const t = c.lastTie;
     say(t.why === 'tied' ? `tied itself to a ${t.kin ? 'kin cell' : t.what} with its tether` : t.why === 'let go' ? `let go of the ${t.what} it had tied` : t.why === 'snapped' ? `its tether's line snapped (the ${t.what} pulled too hard)` : t.why === 'its catch died' ? `its tethered ${t.what} died: the line let go` : `its tether let go (${t.why})`); }
   w.tie = c.lastTie;
+  {   // partners (symbiosis): joined to or parted from another species by partner pads
+    const mates = (world.links || []).filter((l) => l.partner && (world.cells[l.a] === c || world.cells[l.b] === c)).map((l) => (world.cells[l.a] === c ? world.cells[l.b] : world.cells[l.a]).species).sort().join(', ');
+    if (mates && mates !== w.mates) say(`joined a ${mates} by a partner pad: they share energy and nitrogen`);
+    if (!mates && w.mates) say(`parted from its partner (${w.mates})`);
+    w.mates = mates;
+  }
   if (c.tiedBy && c.tiedBy !== w.tiedBy) say(`a ${c.tiedBy.species} tied itself to it with a tether`, true);
   w.tiedBy = c.tiedBy;
   if (c.harpooned && c.harpooned !== w.harpooned) say(`hit by a ${c.harpooned.by}'s harpoon: stunned ${PARAMS.harpoon.stun} s, lost ${Math.round(c.harpooned.lost / 1000)}k pJ`, true);

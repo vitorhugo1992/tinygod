@@ -10,7 +10,7 @@ import { regrow } from '../sim/grow.js';
 import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
 import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax, roomFor } from './mould.js';
 import { lightAt, daylight, clock, depthLight } from '../sim/light.js';
-import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel, neighboursLevel, padLevel, alarmLevel, poisonedLevel } from '../sim/sense.js';
+import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel, neighboursLevel, padLevel, alarmLevel, poisonedLevel, tradeLevel } from '../sim/sense.js';
 import { nitrogenAt } from '../sim/nutrient.js';
 import { initMetab } from '../sim/metab.js';
 import { brainUse, brainProblem, nucleiOf, nucleusSlots, BUILT_INS } from '../sim/brain.js';
@@ -29,7 +29,7 @@ const COLOR = {
   water: '#0b1322', outside: '#060a12', grid: '#132036', gridMajor: '#1f3352', label: '#4d6a86',
   trail: '#6fd3b5', toxin: '#d0508a', protein: '#a8d8a0', glass: '#9fd8f0', oil: '#f2c94c', sap: '#5f8fd8',
   body: { protein: '#3f7d5c', plates: '#4d7a52' }, plates: '#cdb98a', outline: '#d8f0e0', motor: '#ff7a6b', hinge: '#ffb54a',
-  extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', link: '#e070ff', selected: '#ffffff',
+  extend: '#c9a0ff', stopped: '#5d6b74', coil: '#ffb54a', coilFiring: '#fff1a0', coilEmpty: '#6b5a40', kin: '#e070ff', mucus: '#f2e28a', partner: '#4fe0b5', link: '#e070ff', selected: '#ffffff',
   nucleus: 'rgba(176,150,214,.55)', envelope: '#c9b6ea', chromatin: 'rgba(92,70,140,.8)', nucleolus: '#5b467f',
   resting: '#7d93d8',
   statolith: 'rgba(200,215,230,.35)', grain: '#e8eef5', chem: '#c8b26a',
@@ -733,7 +733,7 @@ function partName(g, all = partGroups(design.parts || [])) {
   const same = all.filter((x) => own(x) === name);
   return same.length > 1 ? `${name} ${same.indexOf(all.find((x) => x.members[0] === g.members[0])) + 1}` : name;
 }
-const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health', feeding: 'Feeding', size: 'Size', drained: 'Drained', neighbours: 'Neighbours', alarm: 'Alarm', poisoned: 'Poisoned' };
+const BUILT_NAME = { energy: 'Energy', starch: 'Starch', oil: 'Oil', health: 'Plastid health', feeding: 'Feeding', size: 'Size', drained: 'Drained', neighbours: 'Neighbours', alarm: 'Alarm', poisoned: 'Poisoned', trade: 'Trade' };
 // a sensor (or built-in reading) by id: its name and colour (built-ins have none)
 function sensorInfo(id) {
   if (BUILT_NAME[id]) return { name: BUILT_NAME[id], colour: null };
@@ -754,10 +754,11 @@ function meaning(kind, v, id) {
   if (kind === 'health') return `${pc} healthy`;
   if (kind === 'feeding') return v >= 0.5 ? 'feeding' : 'not feeding';
   if (kind === 'drained') return v >= 0.5 ? 'being drained' : 'not being drained';
-  if (kind === 'poisoned') return v <= 0.01 ? 'clean water' : `${pc(v)} poisoned`;
+  if (kind === 'poisoned') return v <= 0.01 ? 'clean water' : `${pc} poisoned`;
   if (kind === 'alarm') return v <= 0.01 ? 'calm' : `a kin attacked ~${Math.round((1 - v) * PARAMS.alarm.range)} µm away`;
   if (kind === 'neighbours') return `${Math.round(4 * v)}${v >= 1 ? '+' : ''} kin joined`;
-  if (kind === 'pad') return v < 0.25 ? 'free' : v < 0.75 ? 'joined to kin' : 'stuck to a stranger';
+  if (kind === 'pad') return v < 0.25 ? 'free' : v < 0.75 ? 'joined to kin' : 'stuck to another species';
+  if (kind === 'trade') return v < 0.35 ? 'giving more than it gets' : v > 0.65 ? 'getting more than it gives' : 'trading evenly';
   if (kind === 'size') return `${sizeX(v)} its newborn volume`;
   if (kind === 'touch') return v >= 0.5 ? 'touching' : 'not touching';
   if (kind === 'near') return v <= 0 ? 'nothing near' : v >= 1 ? 'touching' : `something ${Math.round((1 - v) * nearRange(id))} µm away`;
@@ -791,7 +792,9 @@ const KINDS = {
   poisoned: { verb: 'is', zones: [[0, 0.05, 'clean water'], [0.05, 0.4, 'a little poisoned'], [0.4, 1, 'badly poisoned']], u: (v) => (v <= 0.01 ? 'clean water' : `${pc(v)} poisoned`) },
   alarm: { verb: 'senses', zones: [[0, 0.05, 'calm'], [0.05, 0.5, 'an attack nearby'], [0.5, 1, 'an attack close by']], u: (v) => (v <= 0.01 ? 'calm' : `an attack ~${Math.round((1 - v) * PARAMS.alarm.range)} µm away`) },
   neighbours: { verb: 'has', zones: [[0, 0.125, 'alone'], [0.125, 0.375, 'a chain end'], [0.375, 0.625, 'in the middle'], [0.625, 1, 'a branch']], u: (v) => `${Math.round(4 * v)}${v >= 1 ? '+' : ''} kin` },
-  pad: { verb: 'is', zones: [[0, 0.25, 'free'], [0.25, 0.75, 'joined to kin'], [0.75, 1, 'stuck to a stranger']], u: (v) => (v < 0.25 ? 'free' : v < 0.75 ? 'joined to kin' : 'stuck to a stranger') },
+  pad: { verb: 'is', zones: [[0, 0.25, 'free'], [0.25, 0.75, 'joined to kin'], [0.75, 1, 'stuck to another species']], u: (v) => (v < 0.25 ? 'free' : v < 0.75 ? 'joined to kin' : 'stuck to another species') },
+  // Trade (symbiosis): which way things flow through its partner pads over the last day (0 only giving, 1 only receiving)
+  trade: { verb: 'is', zones: [[0, 0.35, 'giving'], [0.35, 0.65, 'trading evenly'], [0.65, 1, 'receiving']], u: (v) => `${pc(v)} received` },
   drained: { verb: 'is', zones: [[0, 0.5, 'not being drained'], [0.5, 1, 'being drained']], u: (v) => (v >= 0.5 ? 'being drained' : 'not being drained') },
   feeding: { verb: 'is', zones: [[0, 0.5, 'not feeding'], [0.5, 1, 'feeding']], u: (v) => (v >= 0.5 ? 'feeding' : 'not feeding') },
   tied: { verb: 'is', zones: [[0, 0.5, 'not tied'], [0.5, 1, 'tied']], u: (v) => (v >= 0.5 ? 'tied' : 'not tied') },
@@ -903,7 +906,7 @@ function sentence(targets, tappable, where) {
   if (verb === 'releases') s += ` <span class="small">(frees what its tether holds; the dart winds back in ${PARAMS.tether.reload} s)</span>`;
   if (verb === 'leaks') s += ` <span class="small">(toxin into the water: a cloud that drifts, spreads and fades; other species in it lose energy and plastid health; kin are immune)</span>`;
   if (verb === 'bursts') s += ` <span class="small">(dies, poisoning other species within ${PARAMS.toxin.range} µm: kin are immune)</span>`;
-  if (verb === 'holds') s += ` <span class="small">(${m.kind === 'mucus' ? 'sticks to anything it touches, weakly' : 'joins a kin pad it touches, and its daughter at division: chains'}; while this fails it lets go and won't stick)</span>`;
+  if (verb === 'holds') s += ` <span class="small">(${m.kind === 'mucus' ? 'sticks to anything it touches, weakly' : m.kind === 'partner' ? 'joins a partner pad of another species it touches: the two share energy and nitrogen' : 'joins a kin pad it touches, and its daughter at division: chains'}; while this fails it lets go and won't stick)</span>`;
   if (verb === 'feeds') s += ` <span class="small">(latches on another species' body it touches: ${PARAMS.feed.pierce * m.length / 1000}k pJ to pierce; lets go when this stops holding)</span>`;
   return `<div class="line">${s}${add('go', go.length ? '+ and…' : '+ when…', 'A condition it needs')}${add('stop', '+ unless…', 'Something that stops it, whatever the rest says')}</div>`;
 }
@@ -914,11 +917,11 @@ const ruleSummary = (targets) => sentence(targets, false);
 // outside it) in groups: AND inside a group, OR between groups. A target is what one rule drives: every motor of a tail,
 // a burst organ or an ejectisome. Rewiring changes the design and the cells already in the tank
 // as they are: no reset. -----
-const RANGE = { tied: [0.5, 1], poisoned: [0.05, 1], alarm: [0.05, 1], neighbours: [0.375, 1], pad: [0.25, 1], drained: [0.5, 1], size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0, 0.25], touch: [0.5, 1], near: [0.3, 1], flow: [0.4, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
-const ICON = { tied: '🪝', poisoned: '☠', alarm: '🚨', neighbours: '🔗', pad: '🧷', drained: '🩸', size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', flow: '🌊', energy: '⚡', statolith: '⚖', chem: '🧪' };
+const RANGE = { trade: [0.2, 1], tied: [0.5, 1], poisoned: [0.05, 1], alarm: [0.05, 1], neighbours: [0.375, 1], pad: [0.25, 1], drained: [0.5, 1], size: [3 / 7, 1], feeding: [0.5, 1], health: [0, 0.7], starch: [0.2, 1], oil: [0.2, 1], light: [0, 0.25], touch: [0.5, 1], near: [0.3, 1], flow: [0.4, 1], energy: [0.3, 1], statolith: [0.6, 1], chem: [0.5, 1] };   // a sensible start
+const ICON = { trade: '🤝', tied: '🪝', poisoned: '☠', alarm: '🚨', neighbours: '🔗', pad: '🧷', drained: '🩸', size: '📏', feeding: '🍽', health: '🌿', starch: '🍚', oil: '🫒', light: '👁', touch: '✋', near: '📡', flow: '🌊', energy: '⚡', statolith: '⚖', chem: '🧪' };
 // what a sensor id is: 'energy' (built in), or the kind of the design part with that id
 function sensorKind(id) {
-  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding' || id === 'size' || id === 'drained' || id === 'neighbours' || id === 'alarm' || id === 'poisoned' || id === 'tied') return id;
+  if (id === 'energy' || id === 'starch' || id === 'oil' || id === 'health' || id === 'feeding' || id === 'size' || id === 'drained' || id === 'neighbours' || id === 'alarm' || id === 'poisoned' || id === 'tied' || id === 'trade') return id;
   const p = (design.parts || []).find((x) => x.id === id) || {};
   if (p.type === 'pad') return 'pad';
   return p.material === 'statolith' ? 'statolith' : p.kind || 'light';
@@ -938,8 +941,9 @@ function sensorList(except) {
     list.push({ id: 'health', name: 'its plastid health (hurt by too much light)', short: 'Plastid health', kind: 'health' });
   // its pads (what each holds) and how many kin it is joined to (author 2026-11-02: pads that sense; Neighbours)
   const padGroups = all.filter((g) => g.category === 'Pads' && g.members[0].id);
-  for (const g of padGroups) list.push({ id: g.members[0].id, name: `${partName(g, all)} (free / joined to kin / stuck to a stranger)`, short: partName(g, all), kind: 'pad', colour: colourOf(g) });
-  if (padGroups.some((g) => g.members[0].kind !== 'mucus')) list.push({ id: 'neighbours', name: 'its neighbours (how many kin it is joined to)', short: 'Neighbours', kind: 'neighbours' });
+  for (const g of padGroups) list.push({ id: g.members[0].id, name: `${partName(g, all)} (free / joined to kin / stuck to another species)`, short: partName(g, all), kind: 'pad', colour: colourOf(g) });
+  if (padGroups.some((g) => g.members[0].kind === 'partner')) list.push({ id: 'trade', name: 'trade (through its partner pads over the last day: 0% only giving, 100% only receiving)', short: 'Trade', kind: 'trade' });
+  if (padGroups.some((g) => (g.members[0].kind || 'kin') === 'kin')) list.push({ id: 'neighbours', name: 'its neighbours (how many kin it is joined to)', short: 'Neighbours', kind: 'neighbours' });
   list.push({ id: 'alarm', name: 'alarm (a kin nearby is being drained: how near)', short: 'Alarm', kind: 'alarm' });
   list.push({ id: 'poisoned', name: 'poisoned (another species\' toxin in the water round it: how strong)', short: 'Poisoned', kind: 'poisoned' });
   list.push({ id: 'drained', name: 'drained (another cell\'s peduncle is latched on it)', short: 'Drained', kind: 'drained' });
@@ -1620,6 +1624,7 @@ function liveReading(c, id) {
   if (id === 'neighbours') return { value: neighboursLevel(c) };
   if (id === 'alarm') return { value: alarmLevel(c) };
   if (id === 'poisoned') return { value: poisonedLevel(c) };
+  if (id === 'trade') return { value: tradeLevel(c) };
   { const k = c.pads.findIndex((p) => c.design.parts[p.part] && c.design.parts[p.part].id === id); if (k >= 0) return { value: padLevel(world, c, c.pads[k]) }; }
   return c.sensors.find((x) => x.id === id);
 }
@@ -2269,8 +2274,14 @@ function budget(lines) {
     const stolen = cell.pieces[0].inclusions.filter((x) => x.stolen);
     {   // its chain: kin joined by pads
       const seen = new Set([cell]), todo = [cell];
-      while (todo.length) { const x = todo.pop(); for (const l of world.links || []) { if (l.feed || !l.padB) continue; const A = world.cells[l.a], B = world.cells[l.b], o = A === x ? B : B === x ? A : null; if (o && !seen.has(o)) { seen.add(o); todo.push(o); } } }
+      while (todo.length) { const x = todo.pop(); for (const l of world.links || []) { if (l.feed || !l.padB || l.partner) continue; const A = world.cells[l.a], B = world.cells[l.b], o = A === x ? B : B === x ? A : null; if (o && !seen.has(o)) { seen.add(o); todo.push(o); } } }
       if (seen.size > 1) lines.push(`chain     ${seen.size} cells joined: they even out energy and nitrogen; its drag ${Math.round(100 * (1 - (cell.shield || 1)))}% less`);
+    }
+    {   // its partners: other species joined by partner pads (symbiosis)
+      const mates = (world.links || []).filter((l) => l.partner && (world.cells[l.a] === cell || world.cells[l.b] === cell)).map((l) => (world.cells[l.a] === cell ? world.cells[l.b] : world.cells[l.a]).species);
+      const t = tradeLevel(cell);
+      if (mates.length) lines.push(`partner   joined to ${mates.map((m) => 'a ' + m).join(' and ')}: they even out energy and nitrogen; trade ${Math.round(100 * t)}% (${meaning('trade', t)})`);
+      else if (cell.trade) lines.push(`partner   none now; trade ${Math.round(100 * t)}% (${meaning('trade', t)}, fading back to even)`);
     }
     if (cell.lost && cell.lost.length) lines.push(`robbed    ${cell.lost.length} of its plastids taken by a thief: it rebuilds them from its growth meter before growing`);
     if (stolen.length) lines.push(`stolen    ${stolen.length} plastid${stolen.length > 1 ? 's' : ''} at ${stolen.map((x) => `${Math.round(100 * x.stolen.fade)}%`).join(', ')} of their output (fading by half a day; light damage is never mended)`);
@@ -3148,7 +3159,7 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     ctx.fillStyle = 'rgba(30,8,16,.85)'; ctx.beginPath(); ctx.ellipse(X(px), Y(py), r, r * 0.5, -a + Math.PI / 2, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = 'rgba(255,190,205,.85)'; ctx.lineWidth = Math.max(0.5 * s, 1.2); ctx.beginPath(); ctx.ellipse(X(px), Y(py), r * 1.12, r * 0.62, -a + Math.PI / 2, 0, Math.PI * 2); ctx.stroke();
   }
-  for (const pad of c.pads) {   // a pad: a glowing sticky knob (kin violet, mucus pale gold)
+  for (const pad of c.pads) {   // a pad: a glowing sticky knob (kin violet, mucus pale gold, partner sea green)
     const [px, py] = padWorld(c, pad), r = Math.max(pad.r * s * 1.4, small ? 2 : 3.5), col = COLOR[pad.kind];
     const pg = ctx.createRadialGradient(X(px), Y(py), 0, X(px), Y(py), r);
     pg.addColorStop(0, rgbaOf(lighter(col, 0.4), pad.link ? 1 : 0.8)); pg.addColorStop(1, rgbaOf(col, 0));
@@ -3248,6 +3259,7 @@ function drawLinks(X, Y, s) {
     if (l.padB) [bx, by] = padWorld(B, l.padB);
     else { const i = l.pieceB; bx = B.cx[i] + B.cs[i] * l.bx - B.sn[i] * l.by; by = B.cy[i] + B.sn[i] * l.bx + B.cs[i] * l.by; }
     if (l.tether) { drawTetherLine(X, Y, s, A, l, ax, ay, bx, by); continue; }
+    ctx.strokeStyle = l.partner ? COLOR.partner : COLOR.link;
     if (l.feed) { ctx.save(); ctx.strokeStyle = '#ff4d6d'; ctx.lineWidth = Math.max(1.2 * s, 2.5); if (l.drill > 0) { ctx.setLineDash([3, 3]); ctx.globalAlpha = 0.6 + 0.4 * Math.abs(Math.sin(performance.now() / 120)); } }
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
     if (l.feed && l.drill > 0) {   // drilling: a ring round the latch fills as it gets through the plates

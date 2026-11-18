@@ -189,6 +189,7 @@ formulas: e.g. a rod's front tip is (L/2 + radius, 0)); `at` is where it senses.
 | `alarm` | a kin cell within 60 µm is being drained: 1 touching, 0 at 60 µm, fades over 3 s |
 | `poisoned` | how thick other species' toxin clouds are here (1 at a heavy dose) |
 | `tied` | 1 while one of its tethers holds something on its line |
+| `trade` | through its partner pads over about a day: 0 only giving, 0.5 even (or no partner), 1 only receiving (nitrogen counted at 600 pJ a unit) |
 | a pad's id | that pad: 0 free, 0.5 joined to kin, 1 stuck to another species |
 
 ### 3.3 Flagella (swimming)
@@ -279,6 +280,13 @@ All cost 5 pJ/s per µm of length.
   (smaller cells make longer chains). Joined kin slowly share energy and nitrogen, and each feels 15% (one neighbour)
   or 25% (two) less drag. `"kind": "mucus"` sticks weakly (4 pN) to anything. Rule: holds while (no rule: always). Pad
   ids can be read as sensors.
+- **Partner pad** (symbiosis): `{ "type": "pad", "id": "p1", "at": [0, -6], "kind": "partner" }`. It joins only a
+  partner pad on a cell of ANOTHER species (both designers must have put one on), holds 40 pN, pulls free partner pads
+  within 15 µm, and the two share as kin do: their energy pools and growth meters' nitrogen even out (5% of the
+  difference a second). So a cell short of nitrogen and a nitrogen fixer short of energy each give what the other
+  lacks; a swimmer can tow a partner that has no buoyancy of its own. Two cells that each steer their own depth tear
+  apart. A partner that only takes is a real risk: the `trade` reading tells (e.g. a pad holding while `trade` is more
+  than 0.2 drops a freeloader). A daughter's partner pads start free. Partners are not kin: no chain, no neighbours.
 
 ### 3.5 Division
 
