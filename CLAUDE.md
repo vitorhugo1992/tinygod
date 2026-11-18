@@ -462,7 +462,31 @@ code before (7bfdd0de); 72 checks and every mission case pass. **Measured, ms pe
 ms):** 12 cells 340 -> ~330, 36 1,770 -> ~1,000, 60 6,600 -> ~2,300, 96 8,100 -> ~5,400 (per cell 28 -> 56: still
 grows with crowding: at 96 cells the cells' own physics ~2.3 s, contact ~1.5, sensing ~1.3, metabolism ~0.5). **So an
 ocean day (600 sim s) on this computer: 60 cells ~25 min, 100 cells ~55 min** (a GitHub job may run 6 h; its machine's
-speed not measured). **To decide: the ceiling, 60 or 100** (Claude: 100, a quarter per species = 25). Next: Ocean step 3.
+speed not measured). **Decided (author: "yes" to Claude's picks): the ceiling 100 cells, 25 a species; a partner pair
+is two entries** (each one player's species, its own row; one can die out without the other).
+**OCEAN STEP 3 BUILT (2026-11-18): tools/ocean.mjs** (found · release <player> <design | TG1> [--name=] · night [n] ·
+board; --dir= a scratch Ocean, --seconds= a shorter night, --seed=). Files in ocean/: state.json (species with their
+designs, stays, a row per night: cells, biomass, growth since arrival, share, born, died, kills; the queue), world.json.gz
+(the tank, sim/save.js; ~240 KB at 30 cells), board.json (ranked by the mean growth over the last 7 nights, 0 while
+extinct; cells, share, kills, nights alive, extinctions with cause, the return night; bands: share per night; past:
+replaced versions), nights/<n>.json.gz (record.js events with arrivals and replacements, life, frames, summary, deaths).
+A night: releases (the player's old version taken out: death.js takeOut / removeCells), returns (extinct 3 nights;
+house species only while 12 or fewer live), arrivals as 3 cells at startSpots(hash of seed, night, name), then one
+ocean day dawn to dawn, recorded. Sim: divide.js world.cap / world.capSpecies (the Ocean's world carries them: saved
+with it); bench fingerprints unchanged. Release rules: refused if entryProblem, or within 3 nights of the player's last;
+a release still queued is swapped; a name taken by another player gets "(player)". **Tested** (scratch, 60-120 s
+nights): founding, 3 players, a refusal, a swap in the queue, a replacement, a starving species dying out (cause from
+its corpses if none was removed yet) and returning on the third night. **Seen on the way:** 3 Leviathellas ate 9 cells
+in four 2-min nights and hold ~96% of the biomass (the share picture will be Leviathella's; the board's growth score
+is not). **Founders' trial (5 nights, the 8 house species alone, seeds 1, 2; tools/_trial1, _trial2, untracked): LEVIATHELLA
+FAILS IT.** It made 53 of the 74 deaths (30 and 23; Bloomeater 6, Deepdweller II's tubes 4, starving 11), ate 5 of the
+other 7 species out at least once on each seed (every one of them came back 3 nights later as it should), yet never grew
+or divided itself (3 cells all 5 nights, growth 1.0-1.17: eating gains a giant almost nothing) and holds 89-96% of the
+biomass. Board after night 5: seed 1 Needle Drifter 1.51 (8 cells), Bobber 1.46, Leviathella 1.09, the rest ≤ 0.91;
+seed 2 **Needle Drifter 4.01 with 25 cells: at its ceiling** (the ceiling working as meant), Leviathella 1.07, the
+rest ≤ 0.68. A night took 3-9 min (13-36 cells). **To decide with the author: what replaces Leviathella** (Claude: Raptilla
+2, a hunter that farms its prey through a tube rather than eating it whole; or Cunabella + Azotella, symbiosis on show,
+for two of the eight), then a second trial.
 **NEXT CHAT STARTS HERE (handoff, 2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done
 since the last handoff (entries below): symbiosis (Partner pad, Trade reading, measured mutualism), Cunabella and
 Azotella, swallowing drawn, mission 16 (Find a partner). Start by settling with the author what in the Ocean plan (first
