@@ -497,6 +497,21 @@ takes anything under 50 µm across (every house species), 8 mouths with no rule 
 pauses it), 3 cells 300 µm long in a 1,600 µm tank of moving water, and a kill is under 0.3% of its body (it never
 grows from eating, so the kills cost it nothing and earn it nothing). Offered for later, not decided: appetite (no
 swallowing while stores and meter are full; Claude's lean), digestion by meal size, or a price per swallow.
+**MOUTHS GET APPETITE AND A PRICE (2026-11-18; author: "implement appetite for mouths, doesn't make sense to be always
+swallowing, and it needs to cost something. it's too OP").** PARAMS.engulf.hungry 0.6: a cell swallows only while its
+energy (pool and stores, metab.js fullness) is below 60% of what it can hold (A.sated); PARAMS.engulf.price 40 pJ per µm³
+swallowed (the food vacuole and its enzymes), paid at once from the pool, refused if it can't pay (A.cantSwallow;
+lastSwallow.price). A Noctilla-sized meal costs ~170k against ~100-400k kept. Page: the mouth pill FULL / TOO DEAR, the
+card says both, the log "full: its mouths won't swallow…" / "hungry again"; brief updated; sw.js cache v8; check 28ar
+(73 checks); 28ae now expects the gain less the price. Missions: a rival can start part-empty (rivals[].energy, applied
+in addRivals); the three Gulpers start at 0.3 (a swallower at dawn has spent the night): every mission case passes.
+**Measured** (the first trial's eight with Leviathella, 3 cells each, 2 days, seeds 1, 2): **Leviathella is never hungry**
+(74-100% full all day: its plastid and oil keep it fed) **and swallowed nothing**; deaths 11 / 10 (were ~40 per 2
+days), all kills Deepdweller II's tubes; Bloomeater hungry about a third of the time, ate nothing in 2 days. So a
+swallower must now be built hungry (fewer plastids, more mouth); a self-feeding giant doesn't hunt. Not seen in the
+page (text changes only, syntax-checked).
+**THE OCEAN FOUNDED (2026-11-18; author: "yes")**, ocean/, under the appetite rule from its first night, with the eight
+of the second trial (Raptilla 2 for Leviathella). **Night 1 run locally** (4.5 min): 24 -> 32 cells, one kill (Deepdweller II), board Plebella 2.63 (6 cells), Needle Drifter 2.00, Deepdweller II 1.97, Bobber 1.77, Laqueella 1.70, Noctilla 1.23, Bloomeater 1.13, Raptilla 2 0.83. ocean/ is committed (~310 KB: world.json.gz 250 KB). Nights are run by hand (node tools/ocean.mjs night) until step 5 (the nightly GitHub Action). **Next: Ocean step 4, a mock-up of the morning page.**
 **NEXT CHAT STARTS HERE (handoff, 2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done
 since the last handoff (entries below): symbiosis (Partner pad, Trade reading, measured mutualism), Cunabella and
 Azotella, swallowing drawn, mission 16 (Find a partner). Start by settling with the author what in the Ocean plan (first
