@@ -173,6 +173,19 @@ function runNight() {
   console.log(`Night ${night}: ${world.cells.length} cells, ${st.last.minutes} min. ${told.join('; ') || 'nothing arrived or died out'}.`);
 }
 
+// What a species carries, counted (the page draws its cells with them; described, never given: no layout, no rules)
+function partsOf(d) {
+  const c = {};
+  for (const p of d.parts || []) {
+    const j = p.joint && p.joint.type;
+    const w = p.type === 'inclusion' ? (['starch', 'oil'].includes(p.material) ? 'store' : p.material)
+      : p.type === 'segment' ? (j === 'feed' ? 'tube' : j === 'motor' ? 'tail' : j === 'fire' ? 'harpoon' : j === 'tether' ? 'tether' : p.joint && p.joint.burst ? 'spring' : 'spine')
+      : p.type === 'sensor' ? (p.kind === 'light' ? 'eyespot' : 'feeler') : p.type === 'rule' ? null : p.type === 'pad' ? (p.kind === 'partner' ? 'partner pad' : 'pad') : p.type;
+    if (w) c[w] = (c[w] || 0) + 1;
+  }
+  return c;
+}
+
 // The board (what the page reads; no designs): ranked by growth since arrival over the last 7 nights (0 while extinct)
 function board(st) {
   const rows = Object.values(st.species).filter((s) => s.status === 'living' || s.status === 'extinct').map((s) => {
@@ -184,7 +197,7 @@ function board(st) {
       nightsAlive: s.status === 'living' && stay ? st.night - stay.from + 1 : 0,
       returns: s.status === 'extinct' ? s.lastDied + OCEAN.returnAfter : null,
       extinctions: s.stays.filter((x) => x.why && x.why !== 'replaced').map((x) => ({ from: x.from, to: x.to, why: x.why })),
-      size: `${Math.round(2 * s.design.body.radius)} × ${Math.round(2 * s.design.body.radius + (s.design.body.length || 0))} µm` };
+      size: `${Math.round(2 * s.design.body.radius)} × ${Math.round(2 * s.design.body.radius + (s.design.body.length || 0))} µm`, parts: partsOf(s.design) };
   }).sort((a, b) => b.score - a.score || b.share - a.share);
   rows.forEach((r, i) => { r.rank = i + 1; });
   // the picture: each species' share of the living biomass, night by night
@@ -208,5 +221,5 @@ const [cmd, ...rest] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 if (cmd === 'found') found();
 else if (cmd === 'release') release(rest[0], rest[1]);
 else if (cmd === 'night') { const n = Number(rest[0] || 1); for (let i = 0; i < n; i++) runNight(); printBoard(); }
-else if (cmd === 'board') printBoard();
+else if (cmd === 'board') { const st = loadSt(); writeFileSync(BOARD, JSON.stringify(board(st), null, 1)); printBoard(); }
 else console.log('node tools/ocean.mjs found | release <player> <design> | night [n] | board   [--dir= --seconds=]');

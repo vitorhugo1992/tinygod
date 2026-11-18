@@ -18,6 +18,7 @@ import { note, nightsLeft, drawJournal, eventText, forecast, census, drawCensus 
 import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, speciesTint, twilight } from './scene.js';
 import { MISSIONS, CHAPTERS, judge, stepsAt, partOpen, missionOpen, coreDone, addRivals } from './missions.js';
 import { initMatch } from './match.js';
+import { initOcean } from './ocean.js';
 import { listen as soundListen, update as soundUpdate, setSound, soundOn, wanted as soundWanted } from './sound.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
@@ -3871,7 +3872,7 @@ $('zoomOut').onclick = () => zoomBy(1 / 1.4);
 // The game opens the one it sends you to: tapping a part in the tank opens Parts, picking or editing a part opens Add.
 const SECTION_KEY = 'tinygod.section';
 function showSection(name) {
-  if (!['missions', 'match', 'body', 'add', 'parts', 'tank'].includes(name)) name = 'missions';
+  if (!['missions', 'match', 'ocean', 'body', 'add', 'parts', 'tank'].includes(name)) name = 'missions';
   for (const el of document.querySelectorAll('.sec')) el.classList.toggle('show', el.dataset.sec === name);
   for (const b of $('tabs').querySelectorAll('button')) b.classList.toggle('on', b.dataset.sec === name);
   try { localStorage.setItem(SECTION_KEY, name); } catch (e) { /* private mode: not remembered */ }
@@ -4299,4 +4300,5 @@ function skipMission() {
 }
 $('openAllBtn').onclick = () => { progress.all = !progress.all; saveProgress(); syncChips(); showShape(); };
 showMissions(); syncChips();
-initMatch({ getDesign: () => design, inMission: () => !!mission, leave: leaveMission });   // ⚔ Matches: the design being built against the house rivals (match.js)
+initMatch({ getDesign: () => design, inMission: () => !!mission, leave: leaveMission });
+initOcean();   // 🌊 the Ocean (ocean.js): last night in one line, the leaderboard, ▶ Watch full screen   // ⚔ Matches: the design being built against the house rivals (match.js)

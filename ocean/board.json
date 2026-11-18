@@ -44,6 +44,12 @@
    "returns": null,
    "extinctions": [],
    "size": "8 × 32 µm",
+   "parts": {
+    "plastid": 1,
+    "store": 1,
+    "toxin": 1,
+    "pad": 6
+   },
    "rank": 1
   },
   {
@@ -61,6 +67,16 @@
    "returns": null,
    "extinctions": [],
    "size": "12 × 196 µm",
+   "parts": {
+    "nucleus": 1,
+    "plastid": 1,
+    "nitroplast": 1,
+    "chamber": 2,
+    "store": 1,
+    "eyespot": 1,
+    "feeler": 1,
+    "tail": 4
+   },
    "rank": 2
   },
   {
@@ -78,6 +94,16 @@
    "returns": null,
    "extinctions": [],
    "size": "10 × 82 µm",
+   "parts": {
+    "nucleus": 1,
+    "store": 2,
+    "toxin": 1,
+    "chamber": 1,
+    "plastid": 1,
+    "feeler": 3,
+    "spine": 6,
+    "tube": 2
+   },
    "rank": 3
   },
   {
@@ -95,6 +121,16 @@
    "returns": null,
    "extinctions": [],
    "size": "10 × 70 µm",
+   "parts": {
+    "nucleus": 1,
+    "plastid": 1,
+    "store": 1,
+    "chamber": 1,
+    "eyespot": 1,
+    "feeler": 1,
+    "spine": 2,
+    "tail": 5
+   },
    "rank": 4
   },
   {
@@ -112,6 +148,15 @@
    "returns": null,
    "extinctions": [],
    "size": "10 × 54 µm",
+   "parts": {
+    "plastid": 1,
+    "store": 1,
+    "toxin": 1,
+    "nucleus": 1,
+    "pad": 4,
+    "feeler": 2,
+    "tether": 2
+   },
    "rank": 5
   },
   {
@@ -129,6 +174,13 @@
    "returns": null,
    "extinctions": [],
    "size": "20 × 20 µm",
+   "parts": {
+    "eyespot": 3,
+    "tail": 6,
+    "nucleus": 1,
+    "plastid": 2,
+    "store": 1
+   },
    "rank": 6
   },
   {
@@ -146,6 +198,15 @@
    "returns": null,
    "extinctions": [],
    "size": "24 × 114 µm",
+   "parts": {
+    "nucleus": 1,
+    "plastid": 1,
+    "chamber": 1,
+    "store": 4,
+    "eyespot": 1,
+    "feeler": 1,
+    "mouth": 4
+   },
    "rank": 7
   },
   {
@@ -163,6 +224,14 @@
    "returns": null,
    "extinctions": [],
    "size": "20 × 20 µm",
+   "parts": {
+    "eyespot": 3,
+    "tail": 6,
+    "nucleus": 1,
+    "plastid": 2,
+    "store": 1,
+    "tube": 1
+   },
    "rank": 8
   }
  ],
