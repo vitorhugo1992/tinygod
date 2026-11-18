@@ -877,7 +877,7 @@ function sentence(targets, tappable, where) {
   const stWords = () => st.map((c, i) => (i ? ' or ' : '') + term(c, 'stop', i)).join('');
   const add = (list, label, title) => (tappable ? ` <button class="add" data-add="${list}" title="${title}">${label}</button>` : '');
   const never = (t) => `<span class="never">${t}</span>`;
-  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'holds' ? 'Always holds' : verb === 'bursts' ? 'Never bursts' : verb === 'leaks' ? 'Leaks all the time' : verb === 'shoots' || verb === 'ties' ? 'Never fires' : verb === 'reels' ? 'Holds its length' : verb === 'releases' ? 'Never lets go by choice' : verb === 'engulfs' ? 'Engulfs whenever it touches a small enough cell' : verb === 'divides' ? 'Divides as soon as it has doubled' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
+  if (!nucleiOf(design).length) return `<div class="line">${verb === 'runs' ? 'Runs all the time' : verb === 'feeds' ? 'Feeds whenever it touches another species' : verb === 'holds' ? 'Always holds' : verb === 'bursts' ? 'Never bursts' : verb === 'leaks' ? 'Leaks all the time' : verb === 'shoots' || verb === 'ties' ? 'Never fires' : verb === 'reels' ? 'Holds its length' : verb === 'releases' ? 'Never lets go by choice' : verb === 'engulfs' ? 'Engulfs whenever it is hungry and touches a small enough cell' : verb === 'divides' ? 'Divides as soon as it has doubled' : verb === 'floats' ? 'Neutral' : verb === 'rests' ? 'Never rests' : 'Fires only by hand'}: no nucleus. Add a 🧬 Nucleus (Inside the cell) to give it a rule.</div>`;
   if (verb === 'reels') return `<div class="line">Reels in ${go.length ? `when ${goWords()}` : never('never')}.${add('go', go.length ? '+ and…' : '+ when…', 'A condition that reels the line in')}</div>
     <div class="line">Lets out ${st.length ? `when ${stWords()}` : never('never')}.${add('stop', st.length ? '+ or…' : '+ when…', 'A condition that lets the line out (reeling in wins)')}</div>
     <div class="line small">Reeling in wins; neither: the line holds its length (${PARAMS.tether.reel} µm/s, up to ${PARAMS.tether.max} µm).</div>`;
@@ -900,7 +900,7 @@ function sentence(targets, tappable, where) {
   }
   s += '.';
   if (verb === 'rests') s += ' <span class="small">(upkeep and income at 40%, flagella stop)</span>';
-  if (verb === 'engulfs') s += ` <span class="small">(swallows another species' cell touching its mouth whole, if it is at most half as wide as this one and fits in its free room; digests it over a minute)</span>`;
+  if (verb === 'engulfs') s += ` <span class="small">(swallows another species' cell touching its mouth whole, if it is at most half as wide as this one and fits in its free room, only while hungry: its energy below 60% of what it can hold; each swallow costs 40 pJ per µm³ of the prey; digests it over a minute)</span>`;
   if (verb === 'shoots') s += ` <span class="small">(throws the spine straight out ${PARAMS.harpoon.range} µm, blind: a cell's body in its line, kin too, is stunned ${PARAMS.harpoon.stun} s and loses ${PARAMS.harpoon.venom / 1000}k pJ + ${Math.round(100 * PARAMS.harpoon.wound)}% of its energy (less than that and it dies); it grows back in ${PARAMS.harpoon.reload} s, ${PARAMS.harpoon.cost / 1000}k pJ per µm)</span>`;
   if (verb === 'ties') s += ` <span class="small">(throws a dart on a line straight out ${PARAMS.tether.range} µm, blind: it sticks to whatever it hits, kin too; no wound. ${PARAMS.tether.cost / 1000}k pJ per µm of spine a shot; a miss winds back in ${PARAMS.tether.reload} s; the line snaps above ${PARAMS.tether.hold} pN)</span>`;
   if (verb === 'releases') s += ` <span class="small">(frees what its tether holds; the dart winds back in ${PARAMS.tether.reload} s)</span>`;
@@ -1554,7 +1554,7 @@ function liveRule(live, k) {
   const hp = live.harpoons && live.harpoons.find((x) => x.part === k);   // a harpoon: loaded, reloading, or off
   if (hp) return { ctls: hp.controls || null, state: hp.t > 0 ? `REGROWING ${Math.ceil(hp.t)} s` : hp.controls ? 'LOADED' : 'OFF', cls: hp.t > PARAMS.harpoon.reload - 1 ? 'on' : '' };
   const mo = live.mouths && live.mouths.find((x) => x.part === k);   // a mouth: digesting, ready, or off
-  if (mo) return { ctls: mo.controls || null, state: live.meal ? 'DIGESTING' : mo.go ? 'READY' : 'OFF', cls: live.meal ? 'on' : '' };
+  if (mo) return { ctls: mo.controls || null, state: live.meal ? 'DIGESTING' : !mo.go ? 'OFF' : live.sated ? 'FULL' : live.cantSwallow ? 'TOO DEAR' : 'READY', cls: live.meal ? 'on' : '' };
   const tx = live.pieces[0].inclusions.find((x) => x.part === k && x.toxin);   // a toxin sac: armed, or burst
   if (tx && tx.leak) return { ctls: tx.controls || null, state: tx.go && live.leaking > 0 ? 'LEAKING' : 'IDLE', cls: tx.go && live.leaking > 0 ? 'on' : '' };
   if (tx) return { ctls: tx.controls || null, state: live.dead && live.burst ? 'BURST' : tx.controls ? 'ARMED' : 'SAFE', cls: live.burst ? 'on' : '' };

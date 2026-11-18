@@ -273,7 +273,11 @@ All cost 5 pJ/s per µm of length.
   body (a rod goes in end-first: its half-width) and the tips of its spines, harpoons, tethers and feeding tubes
   (flagella fold and don't count) and its volume fits in this cell's free room (body volume minus inclusions). Kin chains count as one, so a
   chain must fit across the predator. Digesting takes 60 s, keeps 20% of the prey's energy and half its nitrogen, and
-  it can't swallow again meanwhile. Upkeep 100 pJ/s per mouth. Rule: engulfs when (no rule: always).
+  it can't swallow again meanwhile. **It eats only while hungry**: while its energy (pool and stores) is below 60%
+  of what it can hold; a fuller cell doesn't swallow. **Each swallow costs 40 pJ per µm³ of what it takes in**, paid at
+  once from its pool (refused if the pool can't pay): a meal of a 4,000 µm³ cell costs 160,000 pJ, so a starved or
+  tiny prey can be worth less than it costs. Upkeep 100 pJ/s per mouth. Rule: engulfs when (no rule: always, while
+  hungry).
 - **Pad**: `{ "type": "pad", "id": "pad1", "at": [10, 0], "kind": "kin" }`. A kin pad sticks to a kin cell's kin pad,
   holds 40 pN, and gently pulls free kin pads within 15 µm. At division, a cell with kin pads places its daughter pad to
   pad: **chains form**, and their shape follows where the pads sit. A chain holds up to 8 radius-10 cells' volume

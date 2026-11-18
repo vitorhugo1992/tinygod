@@ -9,7 +9,7 @@
 // - groups: cells joined by pads. No chain rule: chains come from pads meeting. A hidden backstop
 //   (PARAMS.pads.maxChain) only blocks a new link that would make a group bigger than that.
 import { PARAMS } from './params.js';
-import { drainEnergy, energyOf } from './metab.js';
+import { drainEnergy, energyOf, fullness } from './metab.js';
 import { setSegmentLength } from './build.js';
 
 const KCC = PARAMS.contact.cells;
@@ -398,6 +398,10 @@ export function interact(world) {
   const msz = new Map(), sizeOf = (c) => { let v = msz.get(c); if (v === undefined) msz.set(c, v = mouthSize(c)); return v; };   // once a cell a step
   for (const A of cells) {
     if (A.dead || A.meal || !A.mouths || !A.mouths.length) continue;
+    // appetite (2026-11-18): a cell with its energy at E.hungry of what it can hold or more doesn't swallow
+    A.sated = world.metab && fullness(A) >= E.hungry;
+    if (A.sated) continue;
+    A.cantSwallow = null;
     // room for the meal (author: "won't the predator need a lot of space to swallow"): its free cytoplasm
     const free = A.pieces[0].volume - A.pieces[0].inclusions.reduce((t, x) => t + x.v, 0);
     for (const mo of A.mouths) {
@@ -417,6 +421,9 @@ export function interact(world) {
           for (const o of chain) ext = Math.max(ext, Math.hypot(c.q[0] - o.q[0], c.q[1] - o.q[1]) + c.pieces[0].a + o.pieces[0].a + (c.pieces[0].L + o.pieces[0].L) / 2);
         }
         if (chain.size > 1 && (vol > free || ext > 2 * A.pieces[0].a || [...chain].some((c) => sizeOf(c) > E.gape * A.pieces[0].a))) continue;
+        const price = E.price * vol;   // the food vacuole and its enzymes, paid at once
+        if (world.metab && A.metab.E < price) { A.cantSwallow = { prey: B.species, price }; continue; }
+        if (world.metab) A.metab.E -= price;
         let energy = 0, N = 0;
         for (const c of chain) {
           energy += c.metab ? c.metab.E : 0;
@@ -432,7 +439,7 @@ export function interact(world) {
           A.meal.look = { uid: B.uid, mx: lx(mx, my), my: ly(mx, my), px: lx(B.cx[0], B.cy[0]), py: ly(B.cx[0], B.cy[0]),
             pc: c0 * B.cs[0] + s0 * B.sn[0], ps: c0 * B.sn[0] - s0 * B.cs[0] };
         }
-        A.lastSwallow = { prey: B.species, n: chain.size, step: world.steps };
+        A.lastSwallow = { prey: B.species, n: chain.size, step: world.steps, price: world.metab ? price : 0 };
         break;
       }
     }

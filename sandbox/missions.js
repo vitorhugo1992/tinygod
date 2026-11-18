@@ -198,7 +198,7 @@ export const MISSIONS = [
     story: 'A swallower lies on the floor, and this swimmer starts right on its mouth. A mouth takes any cell that fits across it: this one, 20 µm wide, does.',
     task: 'Add spines so it no longer fits: a mouth takes a cell if it fits across it any way round, so spread them (two leave a narrow way in).',
     design: { body: ROUND, parts: [...swimmer(), ...tail(0, 0.25)] },
-    start: { hour: 6.5, depth: 1944.5, angle: 90, rivals: [{ name: 'Gulper', design: GULPER, dx: 16.5, y: 22.5, angle: 0 }] },
+    start: { hour: 6.5, depth: 1944.5, angle: 90, rivals: [{ name: 'Gulper', design: GULPER, dx: 16.5, y: 22.5, angle: 0, energy: 0.3 }] },
     stars: [
       { text: 'Not eaten: alive at 08:00', all: [{ alive: 8 }],
         hint: 'It still fits across the mouth some way round. Add → Spine, and spread them round the cell: its narrowest width, spines included, must be over 22 µm.' },
@@ -216,7 +216,7 @@ export const MISSIONS = [
     story: 'The swimmer is back on the swallower\'s mouth, grown to almost twice its newborn size: 24 µm across, it no longer fits. But it is about to divide, and each newborn, 20 µm across, will.',
     task: 'Open its Division card (Parts) and make it wait: "and its Size is more than…". Big cells are safe; newborns are not.',
     design: { body: ROUND, parts: [...swimmer(), ...tail(0, 0.25)] },
-    start: { hour: 6.5, depth: 1942.1, angle: 90, size: 1.9, rivals: [{ name: 'Gulper', design: GULPER, dx: 16.5, y: 22.5, angle: 0 }] },
+    start: { hour: 6.5, depth: 1942.1, angle: 90, size: 1.9, rivals: [{ name: 'Gulper', design: GULPER, dx: 16.5, y: 22.5, angle: 0, energy: 0.3 }] },
     stars: [
       { text: 'None of it eaten at 08:00', all: [{ uneaten: 8 }],
         hint: 'It divided on the mouth and a newborn was swallowed. Its Division card (Parts, under Life cycle): add "and its Size is more than…" so it waits until it is bigger.' },
@@ -253,7 +253,7 @@ export const MISSIONS = [
     task: 'Add a kin pad: when it divides, the newborns stay stuck together, pad to pad, a chain too long to swallow.',
     builder: { where: 180 },
     design: { body: ROD, parts: [...drifter(0.01), ...chamber(0.25)] },
-    start: { hour: 6.5, depth: 1942.5, angle: 0, size: 1.9, rivals: [{ name: 'Gulper', design: GULPER, dx: 16.5, y: 22.5, angle: 0 }] },
+    start: { hour: 6.5, depth: 1942.5, angle: 0, size: 1.9, rivals: [{ name: 'Gulper', design: GULPER, dx: 16.5, y: 22.5, angle: 0, energy: 0.3 }] },
     stars: [
       { text: 'None of it eaten at 08:00', all: [{ uneaten: 8 }],
         hint: 'A newborn was swallowed. Add → Pad (Sticks to: its own kind), then ＋ Add to body: the two newborns stay joined. A pad with a rule holds only while its rule does.' },
@@ -377,7 +377,9 @@ export function addRivals(world, m, cell) {
   for (const r of (m.start && m.start.rivals) || []) {
     const d = prepEntry(r.design);
     d.name = d.species = r.name;
-    addCell(world, d, cell.q[0] + (r.dx || 0), r.y, r.angle || 0);
+    const c = addCell(world, d, cell.q[0] + (r.dx || 0), r.y, r.angle || 0);
+    // energy: how full it starts (a swallower at dawn has spent the night: hungry, so its mouths work; 2026-11-18, appetite)
+    if (r.energy !== undefined) { c.metab.E = r.energy * c.metab.C; for (const x of c.pieces[0].inclusions) if (x.store) x.fill = r.energy; }
   }
 }
 

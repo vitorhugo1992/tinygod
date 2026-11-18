@@ -233,6 +233,9 @@ export const PARAMS = {
     keep: 0.2,              // share of the prey's energy kept (as the peduncle's)
     keepN: 0.5,             // share of its nitrogen kept
     upkeep: 100,            // pJ/s per mouth (author, 2026-11-03: a mouth costs; as much as 20 µm of an outside part)
+    // appetite and a price (author, 2026-11-18: "doesn't make sense to be always swallowing, and it needs to cost something"):
+    hungry: 0.6,            // it swallows only while its energy (pool and stores) is below this share of what it can hold
+    price: 40,              // pJ per µm³ it swallows, paid at once from its pool (the food vacuole and its enzymes); it can't swallow without it
   },
   // The harpoon (author, 2026-11-03; Polykrikos, Nematodinium): a spine set to fire shoots a dart straight out along
   // itself, blind (author: it must not "know magically where the enemy is"); the spine IS the dart: thrown, it is gone

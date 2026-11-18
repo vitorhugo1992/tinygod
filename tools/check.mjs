@@ -1278,12 +1278,31 @@ const runDay = (design, y, seconds, opts = {}) => {
   const spine = (deg, r) => ({ type: 'segment', at: [r * Math.cos(deg * Math.PI / 180), r * Math.sin(deg * Math.PI / 180)], angle: deg, length: 14, radius: 0.5, material: 'protein' });
   const oneSpine = meet(pred(false), { species: 'p', body: { radius: 5 }, parts: [spine(0, 5)] });
   const threeSpines = meet(pred(false), { species: 'p', body: { radius: 5 }, parts: [spine(0, 5), spine(90, 5), spine(270, 5)] });
-  const want = PARAMS.engulf.keep * 1e6;   // the prey's pool (no stores)
+  const want = PARAMS.engulf.keep * 1e6 - PARAMS.engulf.price * (4 / 3) * Math.PI * 8 ** 3;   // the prey's pool (no stores), less the swallow's price
   check('engulfing: a small enough prey touching the mouth is swallowed and digested (its share kept); too wide, a packed predator, or kin: no; a chain counts as one (a pair fits, three do not); spines spread three ways make a small prey too wide, one spine does not',
-    small.swallowed && small.digesting && small.done && Math.abs(small.gained - idle - want) < 0.3 * want && !wide.swallowed && !packed.swallowed && roomy.swallowed && !kin.swallowed
+    small.swallowed && small.digesting && small.done && Math.abs(small.gained - idle - want) < 0.3 * PARAMS.engulf.keep * 1e6 && !wide.swallowed && !packed.swallowed && roomy.swallowed && !kin.swallowed
       && pair.swallowed && pair.n === 2 && pair.left === 0 && pair.links === 0 && !three.swallowed && three.left === 3 && oneSpine.swallowed && !threeSpines.swallowed,
     `r 8 prey: ${small.swallowed ? 'swallowed' : 'not'}, kept ${fmt((small.gained - idle) / 1000, 0)}k pJ over ${PARAMS.engulf.time} s (expected ~${fmt(want / 1000, 0)}k); r 12: ${wide.swallowed ? 'swallowed' : 'too wide'}; ` +
     `r 9.5 prey: an empty predator ${roomy.swallowed ? 'swallows it' : 'no'}, a packed one ${packed.swallowed ? 'swallows it' : 'has no room'}; kin: ${kin.swallowed ? 'swallowed' : 'spared'}; a joined pair: ${pair.swallowed ? `swallowed together (${pair.n})` : 'not'}; a chain of three: ${three.swallowed ? 'swallowed' : 'safe'} (${three.left} left); r 5 prey with one spine: ${oneSpine.swallowed ? 'swallowed' : 'spared'}, with three: ${threeSpines.swallowed ? 'swallowed' : 'spared'}`);
+}
+
+// 28ar. Appetite and a price for mouths (author, 2026-11-18: "doesn't make sense to be always swallowing, and it needs to
+// cost something"): a predator at PARAMS.engulf.hungry of its energy or fuller doesn't swallow; one that can't pay the
+// price (PARAMS.engulf.price per µm³ of prey) doesn't either; a hungry one that can pays it at once
+{
+  const eater = { species: 'eater', body: { radius: 20 }, parts: [{ type: 'mouth', id: 'm', at: [20, 0], joint: { type: 'engulf' } }] };
+  const meal = { species: 'p', body: { radius: 8 }, parts: [] }, price = PARAMS.engulf.price * (4 / 3) * Math.PI * 512;
+  const tryIt = (E) => {
+    const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+    const A = addCell(w, eater, 800, 1000, 0), B = addCell(w, meal, 829, 1000, 0);
+    A.metab.C = 1e7; A.metab.E = E; B.metab.C = B.metab.E = 1e6;
+    for (let i = 0; i < 300; i++) stepWorld(w);
+    return { eaten: !w.cells.includes(B), sated: !!A.sated, dear: !!A.cantSwallow, paid: A.lastSwallow ? A.lastSwallow.price : 0 };
+  };
+  const full = tryIt(0.7e7), hungry = tryIt(0.5e7), broke = tryIt(price / 2);
+  check('appetite: a predator fuller than its hunger line does not swallow, a hungry one does and pays its price at once, one that cannot pay does not',
+    !full.eaten && full.sated && hungry.eaten && Math.abs(hungry.paid - price) < 1 && !broke.eaten && broke.dear,
+    `at 70% full: ${full.eaten ? 'swallowed' : 'not (full)'}; at 50%: ${hungry.eaten ? `swallowed, paid ${fmt(hungry.paid / 1000, 0)}k pJ` : 'not'}; with half the price in its pool: ${broke.eaten ? 'swallowed' : 'not (too dear)'}`);
 }
 
 // 28t. Death (step 1): a cell starving PARAMS.grow.die s in a row dies, sinks, is removed, and its nitrogen (its body's

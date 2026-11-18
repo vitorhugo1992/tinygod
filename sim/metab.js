@@ -124,6 +124,12 @@ function feed(world, cell, l) {
 }
 
 // All the energy a cell holds: its pool and its stores
+// How full of energy it is, 0-1: the pool and every store against what they can hold (a mouth's appetite, interact.js)
+export function fullness(o) {
+  let e = o.metab.E, cap = o.metab.C;
+  for (const s of o.pieces[0].inclusions) if (s.store) { e += s.fill * capacity(s); cap += capacity(s); }
+  return cap > 0 ? e / cap : 1;
+}
 export function energyOf(o) {
   let e = o.metab.E;
   for (const s of o.pieces[0].inclusions) if (s.store) e += s.fill * capacity(s);

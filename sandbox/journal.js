@@ -97,6 +97,7 @@ export function note(world, c) {
   w.harpooned = c.harpooned;
   if (c.lastSwallow && c.lastSwallow !== w.swallow) say(c.lastSwallow.n > 1 ? `swallowed a chain of ${c.lastSwallow.n} ${c.lastSwallow.prey} whole: digesting it` : `swallowed a ${c.lastSwallow.prey} whole: digesting it`);
   w.swallow = c.lastSwallow;
+  if (!!c.sated !== !!w.sated) { if (w.sated !== undefined) say(c.sated ? "full: its mouths won't swallow until its energy falls below 60%" : "hungry again: its mouths will swallow"); w.sated = !!c.sated; }
   if (c.lastMeal2 && c.lastMeal2 !== w.meal2) say(`digested a ${c.lastMeal2.prey}: kept ${Math.round(c.lastMeal2.energy / 1000)}k pJ`);
   w.meal2 = c.lastMeal2;
   w.dead = !!c.dead;
