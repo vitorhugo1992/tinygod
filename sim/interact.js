@@ -371,6 +371,12 @@ export function interact(world) {
           (world.eatenOf ||= {})[c.species] = (world.eatenOf[c.species] || 0) + 1;   // (the missions' judge counts them)
         }
         A.meal = { prey: B.species, n: chain.size, energy, N, t: 0, r: Math.cbrt(3 * vol / (4 * Math.PI)) };
+        {   // for the page only (no effect on results): where the mouth and the prey were, in the predator's body frame,
+            // so the swallow can be drawn (the prey pulled in through the mouth, then digested where it lies)
+          const c0 = A.cs[0], s0 = A.sn[0], lx = (x, y) => (x - A.cx[0]) * c0 + (y - A.cy[0]) * s0, ly = (x, y) => (y - A.cy[0]) * c0 - (x - A.cx[0]) * s0;
+          A.meal.look = { uid: B.uid, mx: lx(mx, my), my: ly(mx, my), px: lx(B.cx[0], B.cy[0]), py: ly(B.cx[0], B.cy[0]),
+            pc: c0 * B.cs[0] + s0 * B.sn[0], ps: c0 * B.sn[0] - s0 * B.cs[0] };
+        }
         A.lastSwallow = { prey: B.species, n: chain.size, step: world.steps };
         break;
       }

@@ -529,6 +529,20 @@ by day; "float while every eye < 30%, sink while any > 50%" holds it up; (3) **s
 5% a second of the smaller pool and of the smaller nitrogen meter, so a small fixer can't be powered by a big host,
 and a fixer joined to a hungry host never fills its own meter (its N is evened away as fast as it fixes): Azotella
 never grows while joined. A balance point for the author if partners should both grow while joined.
+**Author on the pair's screenshot: "not quite but almost like lego pieces"** (straight capsule arms, rods and balls in a
+row; Claude offered tapering, slightly bent arms and softer organelle outlines, drawing only: not taken up yet).
+**SWALLOWING DRAWN (2026-11-18; mock-up https://claude.ai/artifact/9nGza3a61b4Gabppk3L9hz, author: "great, build"):**
+drawing only. sim/interact.js adds meal.look { uid, mx, my (the mouth), px, py, pc, ps (the prey's place and turn) } in
+the predator's body frame at the swallow (no effect on results; bench fingerprints unchanged). sandbox/main.js:
+preySeen (uid → cell, kept while a meal is digested: the prey is gone from the tank); mouthGape (per mouth, eased: it
+opens when another species' cell it could take is within ~12 µm of it, as wide as that cell needs, at most the gape;
+while swallowing only the mouth it came through stays open, ~0.75 s real time); mealPose / drawMeal (pulled in over
+PULL_MS 600 ms of real time, through the mouth to a point 30% of the way from the middle, pinched across the motion
+at the lips; then its own outline, bodyOutline, browning, shrinking to ~40% of its area, going ragged, its organelles
+fading first, specks over the last 15% of digestion); a prey never seen (swallowed before a frame drew it) falls back
+to the old brown disc. Mouths now lie along the wall (the wall's direction from the body's axis: on a rod's sides they
+were tilted). Seen in headless Edge (mission 9's Gulper and swimmer): the near mouth gapes before contact, one mouth
+open while swallowing, the squeeze, the meal at rest, the ragged brown outline late in digestion; no page errors.
 **IDEA FOR LATER (author, 2026-11-08): symbiosis**, species in relationships with each other (not planned yet). Pieces already there: pads that hold strangers (mucus), sharing between joined kin (shareChains: energy and growth N), stolen plastids, the nitroplast (itself an endosymbiont). Possible routes to discuss: a pad that shares with a stranger it holds (a fixer feeding N to a partner that gives energy, like diatom-diazotroph associations, e.g. Richelia in Hemiaulus); hosting a partner inside (an endosymbiont that divides with the host); cleaning or riding (a swimmer carrying a drifter). Needs two players' designs to agree, so it fits matches between species.
 
 **MISSIONS BUILT, chapters 1-2 (2026-11-08; author: "yes" to the plan).** sandbox/missions.js (pure; the page and

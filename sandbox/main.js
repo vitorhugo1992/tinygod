@@ -2451,6 +2451,7 @@ function draw() {
     ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx) + 0.01, Y(by)); ctx.stroke();
   }
   const spd = playing ? Number($('speed').value) : 0;
+  rememberCells();
   for (const c of world.cells) {
     c.drawn = calmPose(c, lastReal, spd) || c;   // drawn: for taps
     if (c.dead) ctx.globalAlpha = 0.45;   // dead: faded and grey, sinking
@@ -3021,6 +3022,94 @@ function taper(P, w0, w1, style) {
     ctx.beginPath(); ctx.moveTo(pts[i - 1][0], pts[i - 1][1]); ctx.lineTo(pts[i][0] + 0.01, pts[i][1]); ctx.stroke();
   }
 }
+// ----- swallowing, drawn (author, 2026-11-18, from the mock-up): the mouth gapes when a cell small enough to take is near,
+// the prey is pulled in through it in its own outline (~0.6 s of real time, pinched at the lips), the mouth closes, and
+// the meal lies inside in that outline, browning, shrinking and going ragged over the minute of digestion, then breaks
+// into specks. Drawing only: the simulation notes where the mouth and the prey were (meal.look, interact.js); the
+// prey's own cell, gone from the tank, is kept here by its uid for a while.
+const preySeen = new Map();
+function rememberCells() {
+  for (const c of world.cells) preySeen.set(c.uid, c);
+  if (preySeen.size > world.cells.length + 80) {   // forget the old ones, but not a prey still being digested
+    const keep = new Set(world.cells.map((c) => c.uid));
+    for (const c of world.cells) if (c.meal && c.meal.look) keep.add(c.meal.look.uid);
+    for (const k of [...preySeen.keys()]) if (!keep.has(k)) preySeen.delete(k);
+  }
+}
+const easeIO = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+const PULL_MS = 600, MEAL_BROWN = [138, 106, 60];
+// how open a mouth is (0 shut, 1 open) and how wide it would open (µm, half-width), eased frame to frame
+function mouthGape(A, k, px, py, now) {
+  const st = (A.gapes ||= [])[k] || (A.gapes[k] = { open: 0, width: 0, t: now });
+  const dt = Math.min(0.1, (now - st.t) / 1000); st.t = now;
+  let target = 0, width = st.width;
+  const L = A.meal && A.meal.look;
+  if (L && A.mealT0 !== undefined && now - A.mealT0 < PULL_MS + 150) {   // swallowing: the mouth it came through opens until it is in
+    const wx = A.cx[0] + A.cs[0] * L.mx - A.sn[0] * L.my, wy = A.cy[0] + A.sn[0] * L.mx + A.cs[0] * L.my;
+    const prey = preySeen.get(L.uid);
+    if (Math.hypot(wx - px, wy - py) < 2) { target = 1; if (prey) width = Math.min(PARAMS.engulf.gape * A.pieces[0].a, prey.pieces[0].a * 1.15); }
+  } else if (!A.meal && !A.dead) {   // a cell it could take, close by
+    for (const B of world.cells) {
+      if (B === A || B.dead || B.species === A.species || B.pieces[0].a > PARAMS.engulf.gape * A.pieces[0].a) continue;
+      const d = Math.hypot(B.cx[0] - px, B.cy[0] - py);
+      if (d < B.pieces[0].a + B.pieces[0].L / 2 + 12) { target = 1; width = Math.min(PARAMS.engulf.gape * A.pieces[0].a, B.pieces[0].a * 1.15); break; }
+    }
+  }
+  st.width = width;
+  st.open += (target - st.open) * Math.min(1, dt * (target ? 9 : 5));
+  return st;
+}
+// where a meal is drawn now: { prey, x, y (body frame), pc, ps (its turn), dir, squeeze, k (digested 0-1), inside }
+function mealPose(A) {
+  const m = A.meal, L = m.look, prey = L && preySeen.get(L.uid);
+  if (!prey) return null;
+  const now = performance.now();
+  if (A.mealSeen !== m) { A.mealSeen = m; A.mealT0 = m.t > 1 ? now - PULL_MS : now; }   // (a meal already under way: no pull)
+  const u = easeIO((now - A.mealT0) / PULL_MS), k = Math.min(1, m.t / PARAMS.engulf.time);
+  const rx = L.mx * 0.3, ry = L.my * 0.3;   // where it comes to rest: between the middle and the mouth
+  let x, y;
+  if (u < 0.4) { x = L.px + (L.mx - L.px) * u / 0.4; y = L.py + (L.my - L.py) * u / 0.4; }
+  else { x = L.mx + (rx - L.mx) * (u - 0.4) / 0.6; y = L.my + (ry - L.my) * (u - 0.4) / 0.6; }
+  const dx = rx - L.px, dy = ry - L.py, dl = Math.hypot(dx, dy) || 1;
+  const near = Math.hypot(x - L.mx, y - L.my) / (prey.pieces[0].a * 2 + 1e-9);
+  return { prey, x, y, pc: L.pc, ps: L.ps, dir: [dx / dl, dy / dl], squeeze: u < 1 ? 0.3 * Math.max(0, 1 - near) : 0, k, inside: u >= 1 };
+}
+function drawMeal(M, xf, s) {
+  const { prey, k } = M, t = performance.now() / 1000;
+  const crumble = Math.min(1, Math.max(0, (k - 0.85) / 0.15));
+  const sc = Math.sqrt(Math.max(0.12, 1 - 0.85 * k)), [px, py] = [-M.dir[1], M.dir[0]];
+  const place = ([x, y], rough = 1) => {   // a point of the prey's own frame to the predator's body frame, then the screen
+    let X1 = (x * M.pc - y * M.ps) * sc * rough, Y1 = (x * M.ps + y * M.pc) * sc * rough;
+    const across = X1 * px + Y1 * py; X1 -= px * across * M.squeeze; Y1 -= py * across * M.squeeze;
+    return xf([M.x + X1, M.y + Y1]);
+  };
+  const tint = hexRGB(speciesTint(prey.species)), b = Math.min(1, k * 1.6);
+  const col = tint.map((v, i) => Math.round(v + (MEAL_BROWN[i] - v) * b));
+  const base = ctx.globalAlpha, alpha = (0.9 - 0.4 * k) * (1 - crumble);
+  if (alpha > 0.01) {
+    const pts = bodyOutline(prey, 0, 0, 0), n = pts.length;
+    ctx.beginPath();
+    pts.forEach((p, i) => { const u = i / n * 6.283, [x, y] = place(p, 1 + k * (0.18 * Math.sin(u * 7 + 1.7) + 0.1 * Math.sin(u * 13 + t * 0.6))); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.closePath();
+    ctx.globalAlpha = base * alpha; ctx.fillStyle = `rgba(${col},.75)`; ctx.fill();
+    ctx.strokeStyle = `rgba(${col.map((v, i) => Math.round(v + ([216, 195, 154][i] - v) * 0.4))},.9)`; ctx.lineWidth = Math.max(0.4 * s, 1.1); ctx.stroke();
+    const inner = Math.max(0, 1 - k * 2.5);   // its own organelles fade first
+    if (inner > 0) {
+      ctx.globalAlpha = base * alpha * inner;
+      try { for (const inc of prey.pieces[0].inclusions) drawOrganelle(prey, inc, (p) => place(p), s * sc, 0.6, prey.pieces[0].a * s < 7); } catch (e) { /* drawn without */ }
+    }
+  }
+  if (crumble > 0 && crumble < 1) {   // specks drifting out from where it lay, fading
+    const r0 = prey.pieces[0].a * sc;
+    ctx.globalAlpha = base * 0.75 * (1 - crumble); ctx.fillStyle = 'rgba(170,140,95,1)';
+    for (let i = 0; i < 18; i++) {
+      const a = i * 2.4 + t * 0.15, d = r0 * (0.3 + (i % 6) * 0.15) * (0.6 + crumble), [x, y] = xf([M.x + Math.cos(a) * d, M.y + Math.sin(a) * d]);
+      ctx.beginPath(); ctx.arc(x, y, Math.max((0.25 + (i % 3) * 0.15) * s, 0.8), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = base;
+}
+
 function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the cell itself
   ctx.lineCap = 'round';
   const t = (performance.now() - CELL_T0) / 1000, b = c.pieces[0], xf = bodyXf(c, X, Y), now = performance.now();
@@ -3091,12 +3180,14 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     }
   }
   for (const inc of b.inclusions) drawOrganelle(c, inc, xf, s, lit, small);
-  if (real.meal) {   // a swallowed cell, shrinking and fading as it is digested
+  const mealDraw = real.meal ? mealPose(real) : null;
+  if (real.meal && !mealDraw) {   // a swallowed cell we never saw: a brown disc, shrinking and fading as it is digested
     const left = 1 - real.meal.t / PARAMS.engulf.time, rr = real.meal.r * Math.sqrt(Math.max(left, 0));
     ctx.globalAlpha = 0.25 + 0.55 * left; ctx.fillStyle = '#8a6a3c'; ctx.strokeStyle = '#d8c39a'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(ccx, ccy, Math.max(rr * s, 1), 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.globalAlpha = 1;
   }
+  if (mealDraw && mealDraw.inside) drawMeal(mealDraw, xf, s);
   {   // light from above: a sheen on the upper side, shade below
     const sh = ctx.createLinearGradient(0, ccy - R, 0, ccy + R);
     sh.addColorStop(0, `rgba(255,255,240,${(0.10 + 0.14 * lit).toFixed(2)})`); sh.addColorStop(0.45, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(0,10,25,.22)');
@@ -3154,11 +3245,26 @@ function drawCell(c, X, Y, s, real = c) {   // c: posed for drawing; real: the c
     eg.addColorStop(0, on ? 'rgba(255,170,90,1)' : 'rgba(190,70,40,.95)'); eg.addColorStop(0.5, on ? 'rgba(255,110,50,.85)' : 'rgba(140,40,25,.8)'); eg.addColorStop(1, 'rgba(200,60,30,0)');
     ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(ex, ey, r * (on ? 1.8 : 1.2), 0, Math.PI * 2); ctx.fill();
   }
-  for (const mo of c.mouths || []) {   // a mouth: a dark gap in the wall with a pale lip
-    const [px, py] = padWorld(c, mo), a = Math.atan2(py - c.cy[0], px - c.cx[0]), r = Math.max(2.4 * s, small ? 2 : 4);
-    ctx.fillStyle = 'rgba(30,8,16,.85)'; ctx.beginPath(); ctx.ellipse(X(px), Y(py), r, r * 0.5, -a + Math.PI / 2, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,190,205,.85)'; ctx.lineWidth = Math.max(0.5 * s, 1.2); ctx.beginPath(); ctx.ellipse(X(px), Y(py), r * 1.12, r * 0.62, -a + Math.PI / 2, 0, Math.PI * 2); ctx.stroke();
-  }
+  (c.mouths || []).forEach((mo, k) => {   // a mouth: a dark gap in the wall with a pale lip; it gapes when prey is near
+    const [px, py] = padWorld(c, mo), r = Math.max(2.4 * s, small ? 2 : 4);
+    // the wall's outward direction there: from the nearest point of the body's axis (a rod's sides face straight out)
+    const lx = (px - c.cx[0]) * c.cs[0] + (py - c.cy[0]) * c.sn[0], ly = (py - c.cy[0]) * c.cs[0] - (px - c.cx[0]) * c.sn[0];
+    const ax = Math.max(-b.L / 2, Math.min(b.L / 2, lx)), a = Math.atan2(c.sn[0], c.cs[0]) + Math.atan2(ly, lx - ax);
+    const g = mouthGape(real, k, px, py, now), rot = -a + Math.PI / 2;
+    if (g.open < 0.08) {
+      ctx.fillStyle = 'rgba(30,8,16,.85)'; ctx.beginPath(); ctx.ellipse(X(px), Y(py), r, r * 0.5, rot, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,190,205,.85)'; ctx.lineWidth = Math.max(0.5 * s, 1.2); ctx.beginPath(); ctx.ellipse(X(px), Y(py), r * 1.12, r * 0.62, rot, 0, Math.PI * 2); ctx.stroke();
+      return;
+    }
+    // open: a wide dark opening along the wall, a pink lip curling round each end
+    const major = r + (Math.max(g.width * s, r) - r) * g.open, minor = major * 0.55, ux = Math.cos(rot), uy = Math.sin(rot);
+    ctx.fillStyle = 'rgba(30,8,16,.9)'; ctx.beginPath(); ctx.ellipse(X(px), Y(py), major, minor, rot, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,190,205,.55)'; ctx.lineWidth = Math.max(0.4 * s, 1); ctx.beginPath(); ctx.ellipse(X(px), Y(py), major, minor, rot, 0, Math.PI * 2); ctx.stroke();
+    const lr = Math.max(0.9 * s, small ? 1.5 : 2.6) * (0.7 + 0.3 * g.open);
+    ctx.fillStyle = 'rgba(255,190,205,.92)';
+    for (const sd of [-1, 1]) { ctx.beginPath(); ctx.arc(X(px) + ux * major * sd, Y(py) + uy * major * sd, lr, 0, Math.PI * 2); ctx.fill(); }
+  });
+  if (mealDraw && !mealDraw.inside) drawMeal(mealDraw, xf, s);   // being pulled in: drawn over the mouth
   for (const pad of c.pads) {   // a pad: a glowing sticky knob (kin violet, mucus pale gold, partner sea green)
     const [px, py] = padWorld(c, pad), r = Math.max(pad.r * s * 1.4, small ? 2 : 3.5), col = COLOR[pad.kind];
     const pg = ctx.createRadialGradient(X(px), Y(py), 0, X(px), Y(py), r);
