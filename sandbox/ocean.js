@@ -14,7 +14,6 @@ const hour = (d) => { let h = 6 + 24 * (d + 0.06); return h - 24 * Math.floor(h 
 const hhmm = (d) => { const h = hour(d); return `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor(60 * (h % 1))).padStart(2, '0')}`; };
 const light = (d) => { const s = Math.sin(2 * Math.PI * (d + 0.06)); return s > 0 ? Math.sqrt(s) : 0; };
 const ord = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th');
-const um = (v) => `${Math.round(v).toLocaleString('en')} µm`;
 const rnd = (n) => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul(n ^ (n >>> 12), 0x297a2d39); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
 
 const CSS = `
@@ -114,7 +113,7 @@ export function initOcean() {
     const who = (s) => (s === sp ? `the ${s}` : `a ${s}`), Me = (s) => (s === sp ? s : `A ${s}`);
     if (e.kind === 'born') return [`${Me(e.species)} divided${e.species === sp ? '!' : ''}`, `${e.cells} cells now`];
     if (e.kind === 'died') {
-      if (e.by && e.by !== e.species) return [`${Me(e.by)} ${e.why.startsWith('drained') ? 'drained' : e.why.startsWith('eaten') ? 'swallowed' : 'killed'} ${who(e.species)}${e.by === sp ? '!' : ''}`, `${um(e.depth)} deep`];
+      if (e.by && e.by !== e.species) return [`${Me(e.by)} ${e.why.startsWith('drained') ? 'drained' : e.why.startsWith('eaten') ? 'swallowed' : 'killed'} ${who(e.species)}${e.by === sp ? '!' : ''}`, e.why];
       return [`${e.species === sp ? `One ${e.species}` : `A ${e.species}`} died`, e.why];
     }
     if (e.kind === 'latched') return [`${Me(e.species)} hooked ${who(e.prey)}`, 'a feeding tube'];
@@ -134,7 +133,7 @@ export function initOcean() {
     const lost = N.events.filter((e) => e.kind === 'died' && e.species === sp);
     const was = (N.life[0] && N.life[0].s[sp] && N.life[0].s[sp].n) || 0;
     const bits = [r.cells > was ? `grew from ${was} cells to <b>${r.cells}</b>` : r.cells === was ? `held its ${was} cells` : r.cells ? `fell from ${was} cells to ${r.cells}` : '<b>died out</b>'];
-    if (kills.length) bits.push(kills.map((k) => `${k.why.startsWith('drained') ? 'drained' : 'killed'} a ${esc(k.species)} at ${um(k.depth)}`).join(', '));
+    if (kills.length) bits.push(kills.map((k) => `${k.why.startsWith('drained') ? 'drained' : 'killed'} a ${esc(k.species)}`).join(', '));
     if (lost.length) bits.push(`lost ${lost.length} (${[...new Set(lost.map((d) => esc(d.why)))].join(', ')})`);
     if (!born && !kills.length && !lost.length && r.cells) bits.push('a quiet night');
     return `<b>${esc(sp)}</b> ${bits.join(', ')}, and ranks <b>${ord(r.rank)}</b> of ${board.rows.length}.`;
@@ -305,9 +304,6 @@ export function initOcean() {
         g.fillStyle = bg; g.beginPath(); g.moveTo(0, ch); for (let x = 0; x <= TW; x += 20) g.lineTo(sx(x), yf - (6 + 6 * Math.sin(x / 37) + 4 * Math.sin(x / 11)) * cam.k); g.lineTo(cw, ch); g.fill();
         g.fillStyle = 'rgba(230,215,170,.35)'; for (let i = 0; i < 80; i++) { g.beginPath(); g.arc(sx(rnd(i + 700) * TW), yf - rnd(i + 800) * 8 * cam.k, (0.6 + rnd(i + 900)) * DPR, 0, 7); g.fill(); }
       }
-      g.fillStyle = 'rgba(200,225,232,.5)'; g.font = `${11 * DPR}px ui-monospace, Menlo, monospace`; g.textAlign = 'right';
-      for (let d = 250; d < 2000; d += 250) { const y = sy(TH - d); if (y < 80 * DPR || y > ch - 130 * DPR) continue; g.fillRect(cw - 8 * DPR, y, 8 * DPR, 1); g.fillText(`${d} µm`, cw - 12 * DPR, y + 4 * DPR); }
-      g.textAlign = 'left';
       return L;
     }
     const mini = q('.mini canvas'), mg = mini.getContext('2d');
@@ -321,7 +317,7 @@ export function initOcean() {
     }
     function toast(e) {
       const [a, b] = say(e, sp), t = document.createElement('div');
-      t.className = `toast ${kindOf(e, sp)}`; t.innerHTML = `<i>${ICON[e.kind] || '·'}</i><div>${esc(a)}<small>${hhmm(e.day)}${e.depth !== undefined ? ` · ${um(e.depth)}` : ''} · ${esc(b)}</small></div>`;
+      t.className = `toast ${kindOf(e, sp)}`; t.innerHTML = `<i>${ICON[e.kind] || '·'}</i><div>${esc(a)}<small>${hhmm(e.day)} · ${esc(b)}</small></div>`;
       const box2 = q('.toasts'); box2.prepend(t); while (box2.children.length > 3) box2.lastChild.remove();
       setTimeout(() => t.classList.add('out'), 2600); setTimeout(() => t.remove(), 3100);
     }
