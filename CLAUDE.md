@@ -543,6 +543,21 @@ fading first, specks over the last 15% of digestion); a prey never seen (swallow
 to the old brown disc. Mouths now lie along the wall (the wall's direction from the body's axis: on a rod's sides they
 were tilted). Seen in headless Edge (mission 9's Gulper and swimmer): the near mouth gapes before contact, one mouth
 open while swallowing, the squeeze, the meal at rest, the ragged brown outline late in digestion; no page errors.
+**MISSION 16 BUILT (2026-11-18; author: "we need a teaching partner pad"; decided: you play the host (A); ★★★ first
+planned as shedding a partner under stress, measured useless here (still water, the mother never sinks), changed with
+the author to more partners): Find a partner** (chapter index 3, Other species; teaches: [], about the Partner pad).
+Cunabella without its pads (missions.js STAR, AZOTELLA inlined from designs/) at 600 µm, 07:00, still water; two
+Azotellas rest 3 µm off the sides of arms 5 and 2 (lobes arm4 and arm1), their pads facing where a pad at Where 19° on
+that arm sits (~10 µm out from its middle). builder { tpl: 'Pad', sticks: 'partner', on: 'arm4', where: 19 } (main.js
+startMission now takes builder.sticks and builder.on). New judge condition { partner: hour, day } (samples carry
+partnered: a partner link on a cell of its kind). ★ joined to a partner by noon · ★★ two cells by 07:00 on day 5 ·
+★★★ two cells by 17:00 on day 4. **Measured:** no pad, a pad on an arm with no Azotella, a kin pad: never joined, no
+division in 4 days (0); a Partner pad by either Azotella: two cells at day 3.75 (★★); pads by both: day 3.17 (★★★). 6
+check cases. **Found on the way:** an Azotella can't join a pad at an arm's middle (its horns bump into Cunabella's
+body before the pads meet; pads 4.8 µm apart for good): designs/cunabella.json's pads moved 10 µm out along their arms;
+in still water Cunabella alone hardly gathers nitrogen (no division in 4 days; with moving water it divided ~day
+3.9). Played in the page at 400×860: intro card, the Add panel preset (Pad, A partner, lobe 5, Where 20°), ＋ Add →
+joined at once, ★ lit; no page errors. Scratch: tools/_m16.mjs (untracked).
 **IDEA FOR LATER (author, 2026-11-08): symbiosis**, species in relationships with each other (not planned yet). Pieces already there: pads that hold strangers (mucus), sharing between joined kin (shareChains: energy and growth N), stolen plastids, the nitroplast (itself an endosymbiont). Possible routes to discuss: a pad that shares with a stranger it holds (a fixer feeding N to a partner that gives energy, like diatom-diazotroph associations, e.g. Richelia in Hemiaulus); hosting a partner inside (an endosymbiont that divides with the host); cleaning or riding (a swimmer carrying a drifter). Needs two players' designs to agree, so it fits matches between species.
 
 **MISSIONS BUILT, chapters 1-2 (2026-11-08; author: "yes" to the plan).** sandbox/missions.js (pure; the page and

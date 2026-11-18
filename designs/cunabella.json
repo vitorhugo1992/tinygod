@@ -309,7 +309,7 @@
     "label": "Partner pad",
     "parent": "arm1",
     "at": [
-     4,
+     10,
      3.4
     ],
     "kind": "partner",
@@ -335,7 +335,7 @@
     "label": "Partner pad",
     "parent": "arm4",
     "at": [
-     4,
+     10,
      3.4
     ],
     "kind": "partner",
@@ -366,5 +366,5 @@
   ],
   "name": "Cunabella"
  },
- "note": "A host (Claude, 2026-11-18): a five-armed star. Each arm holds a slim plastid near its root and oil toward its tip, so the arms catch light, slow the fall and float it once the oil fills; the round body is a big buoyancy chamber and the nucleus. Floats while every eyespot (at three arm tips) sees less than 30% sun, sinks above 50%, rests in the dark. No nitroplast: two Partner pads on the sides of two arms wait for a nitrogen fixer (Azotella). They hold while Trade is above 20% and its oil above 25%: when carrying the partner drags it down and burns its oil, it sheds it, as a coral bleaches. Alone: lives near the surface, divides around day 3.9; with an Azotella on an arm, around day 1.5."
+ "note": "A host (Claude, 2026-11-18): a five-armed star. Each arm holds a slim plastid near its root and oil toward its tip, so the arms catch light, slow the fall and float it once the oil fills; the round body is a big buoyancy chamber and the nucleus. Floats while every eyespot (at three arm tips) sees less than 30% sun, sinks above 50%, rests in the dark. No nitroplast: two Partner pads on the sides of two arms, 10 µm out from their middles (nearer the body an Azotella's horns bump into it before the pads meet) wait for a nitrogen fixer (Azotella). They hold while Trade is above 20% and its oil above 25%: when carrying the partner drags it down and burns its oil, it sheds it, as a coral bleaches. Alone: lives near the surface, divides around day 3.9; with an Azotella on an arm, around day 1.5."
 }

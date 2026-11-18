@@ -79,6 +79,11 @@ const CASES = [
   ...[[0, 0, 0, 0, 'as handed over'], [1, 16, 4, 1, 'one default lobe'], [2, 16, 4, 1, 'two default lobes'], [3, 16, 4, 2, 'three default lobes'],
     [6, 16, 4, 2, 'six default lobes (starve in the night)'], [3, 20, 2, 2, 'three thin arms'], [5, 20, 2, 3, 'five thin arms'], [6, 20, 1.5, 3, 'six thin arms']]
     .map(([n, len, r, want, what]) => ['m15', what, (m) => plus(m, Array.from({ length: n }, (_, i) => arm(90 + i * 360 / n, len, r, 'l' + i))), want]),
+  // mission 16: Partner pads on the arms (Where 19° on an arm: its side, ~10 µm out from its middle)
+  ...[[[], 0, 'as handed over'], [[['arm4', 'partner']], 2, 'a Partner pad where an Azotella rests'], [[['arm1', 'partner']], 2, 'a Partner pad by the other Azotella'],
+    [[['arm4', 'partner'], ['arm1', 'partner']], 3, 'Partner pads by both'], [[['arm2', 'partner']], 0, 'a Partner pad on an arm with no Azotella'],
+    [[['arm4', 'kin']], 0, 'a kin pad there']]
+    .map(([pads, want, what]) => ['m16', what, (m) => plus(m, pads.map(([arm, kind], i) => ({ type: 'pad', id: 'pp' + i, parent: arm, at: surfacePoint({ radius: 3.4, length: 34 }, 19), kind, joint: { type: 'hold' } }))), want]),
 ];
 // a lobe on the round body, pointing out at `ang` degrees
 function arm(ang, len, r, id) {

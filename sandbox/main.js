@@ -4179,6 +4179,8 @@ function startMission(i) {
     if (m.builder && m.builder.pull !== undefined) $('partPull').checked = m.builder.pull;
     $('partWhat').dispatchEvent(new Event('change'));
     if (m.builder && m.builder.material) { $('partMaterial').value = m.builder.material; $('partMaterial').dispatchEvent(new Event('change')); }
+    if (m.builder && m.builder.sticks) { $('partSticks').value = m.builder.sticks; $('partSticks').dispatchEvent(new Event('change')); }
+    if (m.builder && m.builder.on) { fillOn(); $('partOn').value = m.builder.on; $('partOn').dispatchEvent(new Event('change')); }
   } else showSection(m.builder && m.builder.section || 'parts');
   $('buildErr').textContent = '';
 }

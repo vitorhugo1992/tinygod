@@ -79,6 +79,10 @@ const RAPTILLA = {"body":{"radius":10},"parts":[{"type":"sensor","id":"eye","lab
 const HUNGRY = { body: RAPTILLA.body, parts: RAPTILLA.parts.filter((p) => p.material !== 'plastid').map((p) => (p.material === 'oil' ? { ...p, radius: 1.5 } : p)) };
 // Chapter 4's prey: a fat, still cell (a plastid and a big store, no nucleus)
 const PB = { radius: 12 };
+// Mission 16's cells (Claude's, designs/cunabella.json and azotella.json): the star without its partner pads, and the
+// crescent nitrogen fixer
+const STAR = {"body":{"radius":15},"parts":[{"type":"lobe","id":"arm0","at":[0,14.5],"angle":90,"length":34,"radius":3.4},{"type":"lobe","id":"arm1","at":[-13.79,4.48],"angle":162,"length":34,"radius":3.4},{"type":"lobe","id":"arm2","at":[-8.52,-11.73],"angle":234,"length":34,"radius":3.4},{"type":"lobe","id":"arm3","at":[8.52,-11.73],"angle":306,"length":34,"radius":3.4},{"type":"lobe","id":"arm4","at":[13.79,4.48],"angle":18,"length":34,"radius":3.4},{"type":"sensor","id":"eye0","parent":"arm0","at":[20.4,0],"angle":0,"kind":"light","cone":180},{"type":"sensor","id":"eye2","parent":"arm2","at":[20.4,0],"angle":0,"kind":"light","cone":180},{"type":"sensor","id":"eye3","parent":"arm3","at":[20.4,0],"angle":0,"kind":"light","cone":180},{"type":"inclusion","id":"armOil0","material":"oil","at":[0,40.55],"angle":90,"radius":3,"length":16},{"type":"inclusion","id":"armOil1","material":"oil","at":[-38.57,12.53],"angle":162,"radius":3,"length":16},{"type":"inclusion","id":"armOil2","material":"oil","at":[-23.83,-32.81],"angle":234,"radius":3,"length":16},{"type":"inclusion","id":"armOil3","material":"oil","at":[23.83,-32.81],"angle":306,"radius":3,"length":16},{"type":"inclusion","id":"armOil4","material":"oil","at":[38.57,12.53],"angle":18,"radius":3,"length":16},{"type":"inclusion","id":"armPlastid0","material":"plastid","at":[0,22],"angle":90,"radius":3,"length":8},{"type":"inclusion","id":"armPlastid1","material":"plastid","at":[-20.92,6.8],"angle":162,"radius":3,"length":8},{"type":"inclusion","id":"armPlastid2","material":"plastid","at":[-12.93,-17.8],"angle":234,"radius":3,"length":8},{"type":"inclusion","id":"armPlastid3","material":"plastid","at":[12.93,-17.8],"angle":306,"radius":3,"length":8},{"type":"inclusion","id":"armPlastid4","material":"plastid","at":[20.92,6.8],"angle":18,"radius":3,"length":8},{"type":"inclusion","id":"nucleus","material":"nucleus","at":[-8.5,5.5],"radius":4.3,"joint":{"type":"rest","controls":[{"sensor":"eye0","also":[{"sensor":"eye2"},{"sensor":"eye3"}],"min":0,"max":0.005,"all":true}]}},{"type":"inclusion","id":"float","material":"chamber","at":[3,-3],"radius":9,"joint":{"type":"chamber","controls":[{"sensor":"eye0","also":[{"sensor":"eye2"},{"sensor":"eye3"}],"min":0,"max":0.3,"all":true},{"sensor":"eye0","also":[{"sensor":"eye2"},{"sensor":"eye3"}],"min":0,"max":1},{"sensor":"eye0","also":[{"sensor":"eye2"},{"sensor":"eye3"}],"min":0.5,"max":1,"stop":true}]}},{"type":"rule","id":"divide","label":"Division","joint":{"type":"divide"}}]};
+const AZOTELLA = {"body":{"radius":7},"parts":[{"type":"lobe","id":"hornN","at":[1.13,6.4],"angle":80,"length":10,"radius":4},{"type":"lobe","id":"tipN","parent":"hornN","at":[8.7,0],"angle":-30,"length":5,"radius":3.3},{"type":"lobe","id":"hornP","at":[1.13,-6.4],"angle":-80,"length":10,"radius":4},{"type":"lobe","id":"tipP","parent":"hornP","at":[8.7,0],"angle":30,"length":5,"radius":3.3},{"type":"inclusion","id":"nucleus","material":"nucleus","at":[-2.3,0],"radius":4.3,"joint":{"type":"rest","controls":[{"sensor":"eye","min":0,"max":0.01}]}},{"type":"inclusion","id":"nitroplast","material":"nitroplast","at":[2.27,12.9],"angle":80,"radius":3.5,"length":5},{"type":"inclusion","id":"plastid","material":"plastid","at":[2.27,-12.9],"angle":-80,"radius":3.5,"length":5},{"type":"inclusion","id":"oil2","material":"oil","at":[5.12,21.81],"radius":2.7},{"type":"inclusion","id":"oil","material":"oil","at":[5.12,-21.81],"radius":2.7},{"type":"sensor","id":"eye","parent":"tipP","at":[5.8,0],"angle":0,"kind":"light","cone":180},{"type":"pad","id":"hug","label":"Partner pad","at":[7,0],"kind":"partner","joint":{"type":"hold"}},{"type":"rule","id":"divide","label":"Division","joint":{"type":"divide"}}]};
 const PEBBLE = { body: PB, parts: [...part(PB, 'Plastid (makes energy)', 90, 'pl', 0.5), ...part(PB, 'Energy store', 270, 'st', 0.5)] };
 export const MISSIONS = [
   { id: 'm1', chapter: 0, title: 'Catch the light', teaches: ['Plastid (makes energy)'],
@@ -318,6 +322,25 @@ export const MISSIONS = [
       { text: 'Off the floor until dawn, and alive at noon', all: [{ deeper: 1950, from: 8, to: 6 }, { alive: 12, day: 1 }],
         hint: 'Thick arms are a lot of living cell: they cost upkeep and it starves in the night. Make them thin (the orange dot, or Thickness 2 µm or less) and use more of them: five or six.' },
     ] },
+  // Mission 16 (author, 2026-11-18: "we need a teaching partner pad"; A: you play the host; ★★★: more partners). Measured
+  // (still water, from 600 µm at 07:00, two Azotellas resting against arms 5 and 2): no pad, a pad on another arm, or a
+  // kin pad: no partner, never two cells in 4 days (0); a Partner pad on one of those arms: joined at once, two cells at
+  // day 3.75 (★★); on both: day 3.17 (★★★). An Azotella can join only a pad ~10 µm out along an arm: nearer the body its
+  // horns bump into it first (Where 19° on that arm).
+  { id: 'm16', chapter: 3, title: 'Find a partner', teaches: [], about: 'the Partner pad (a Pad that sticks to a partner)',
+    builder: { tpl: 'Pad', sticks: 'partner', on: 'arm4', where: 19 },
+    story: 'This star lives in bright water where nitrogen is scarce: its energy bar fills by noon, its nitrogen bar hardly moves, and it may never divide. Two Azotellas rest against its arms: small crescents that make nitrogen but can’t stay up on their own.',
+    task: 'Put a Partner pad on an arm where an Azotella rests (Add tab: Pad, Sticks to A partner, On that arm). Joined, the two share energy and nitrogen.',
+    design: STAR,
+    start: { hour: 7, depth: 600, angle: 0, rivals: [{ name: 'Azotella', design: AZOTELLA, dx: 34.71, y: 1427.47, angle: -72 }, { name: 'Azotella', design: AZOTELLA, dx: -44.23, y: 1398.18, angle: 72 }] },
+    stars: [
+      { text: 'Joined to a partner by noon', all: [{ partner: 12 }],
+        hint: 'Add tab: Pad, Sticks to "A partner", On the arm an Azotella rests against, Where about 19° (on the arm’s side, out from its middle). Its pad must meet yours.' },
+      { text: 'Two cells by 07:00 on day 5', all: [{ cells: 2, by: 7, day: 3 }],
+        hint: 'Joined, the fixer’s nitrogen fills its growth meter. If it never joined, the pad is on the wrong arm or the wrong side of it.' },
+      { text: 'Two cells by 17:00 on day 4', all: [{ cells: 2, by: 17, day: 3 }],
+        hint: 'One fixer can’t make nitrogen fast enough. The other Azotella rests against another arm: give that arm a Partner pad too.' },
+    ] },
 ];
 
 // The mission bar while playing (author, 2026-11-13: "the amount of text in the mobile version"): one short task and a
@@ -330,6 +353,7 @@ const BRIEF = {
   m5: ['A tail at the front, pulling', ['up by noon', 'up by 09:00', 'up again']],
   m6: ['Run the tail in dim light', ['up by noon', 'out of the glare', 'up by 09:00']],
   m7: ['Float only in dim light', ['1.5×', '2 cells', 'by day 3']],
+  m16: ['A Partner pad where a fixer rests', ['joined', '2 cells', 'by day 4']],
   m8: ['Add a nitroplast', ['1.3×', '2 cells', 'by day 4']],
   m9: ['Spines, so it won\u2019t fit', ['not eaten', '≤ 4 spines', '3 spines']],
   m10: ['Wait to divide until big', ['not eaten', '2 cells', 'wide newborns']],
@@ -382,7 +406,7 @@ export function judge(m, world, cell) {
   const shareOf = (mat) => body.inclusions.filter((i) => i.material === mat && !i.stolen).reduce((s, i) => s + i.v, 0) / body.volume;
   const J = { m, t0, t: 0, dead: false, diedT: null, samples: [], status: [], over: false };
   const split = m.stars.some((st) => st.all.some((c) => c.split !== undefined));   // widths only where a star asks
-  const decidedBy = (c) => (c.free !== undefined ? wait(m, c.to) : c.latches !== undefined ? wait(m, c.at) : c.gone !== undefined ? wait(m, c.gone) : c.chain !== undefined ? wait(m, c.at, c.day) : c.grown !== undefined || c.cells !== undefined || c.split !== undefined ? wait(m, c.by, c.day) : c.uneaten !== undefined ? wait(m, c.uneaten, c.day) : c.alive !== undefined ? wait(m, c.alive, c.day) : c.at !== undefined ? wait(m, c.at)
+  const decidedBy = (c) => (c.partner !== undefined ? wait(m, c.partner, c.day || 0) : c.free !== undefined ? wait(m, c.to) : c.latches !== undefined ? wait(m, c.at) : c.gone !== undefined ? wait(m, c.gone) : c.chain !== undefined ? wait(m, c.at, c.day) : c.grown !== undefined || c.cells !== undefined || c.split !== undefined ? wait(m, c.by, c.day) : c.uneaten !== undefined ? wait(m, c.uneaten, c.day) : c.alive !== undefined ? wait(m, c.alive, c.day) : c.at !== undefined ? wait(m, c.at)
     : c.by !== undefined ? wait(m, c.by, c.day, c.after || 0) : c.to !== undefined ? wait(m, c.to) : 0);
   J.eta = (i) => Math.max(0, ...m.stars[i].all.map(decidedBy)) - J.t;   // sim seconds until star i is decided at the latest
   J.clock = (t) => { const h = m.start.hour + t / HOUR; return h - 24 * Math.floor(h / 24); };
@@ -392,6 +416,11 @@ export function judge(m, world, cell) {
       if (J.samples.some((s) => s.t <= by && (c.cells !== undefined ? s.n >= c.cells : s.size >= c.grown || s.n >= 2))) return 'won';
       const last = J.samples[J.samples.length - 1];
       return J.t >= by || (last && last.n === 0) ? 'lost' : 'pending';
+    }
+    if (c.partner !== undefined) {   // joined to another species by a Partner pad by then
+      const by = wait(m, c.partner, c.day || 0);
+      if (J.samples.some((s) => s.t <= by && s.partnered)) return 'won';
+      return J.t >= by ? 'lost' : 'pending';
     }
     if (c.uneaten !== undefined) {   // none of its kind swallowed until then
       const last = J.samples[J.samples.length - 1];
@@ -469,7 +498,8 @@ export function judge(m, world, cell) {
       if (x.neighbours > 0) joined++;
       if (split) minW = Math.min(minW, 2 * mouthSize(x));
     }
-    J.samples.push({ t: J.t, depth, dead: !!c.dead, n, size, minW, eaten: (w.eatenOf || {})[c.species] || 0, drained: !c.dead && drainedLevel(w, c) > 0, joined, others, latches: c.latches || 0 });
+    const partnered = (w.links || []).some((l) => l.partner && (w.cells[l.a] && w.cells[l.a].species === c.species || w.cells[l.b] && w.cells[l.b].species === c.species));
+    J.samples.push({ partnered, t: J.t, depth, dead: !!c.dead, n, size, minW, eaten: (w.eatenOf || {})[c.species] || 0, drained: !c.dead && drainedLevel(w, c) > 0, joined, others, latches: c.latches || 0 });
     J.update();
   };
   J.update();
