@@ -97,7 +97,7 @@ function chainOf(world, c, kinOnly) {   // kinOnly: kin pad links only (the volu
   while (todo.length) {
     const x = todo.pop();
     for (const l of world.links || []) {
-      if (l.feed || l.tether || kinOnly && !l.padB) continue;
+      if (l.feed || l.tether || kinOnly && (!l.padB || l.partner)) continue;
       const A = world.cells[l.a], B = world.cells[l.b], o = A === x ? B : B === x ? A : null;
       if (o && !seen.has(o)) { seen.add(o); todo.push(o); }
     }

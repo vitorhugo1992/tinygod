@@ -7,7 +7,7 @@
 //   parts: [
 //     { type: 'segment', id?, parent = 'body', at: [x, y], angle, length, radius, material, joint? },
 //     { type: 'inclusion', parent = 'body', at: [x, y], radius, material, density?, fill? },
-//     { type: 'pad', parent = 'body', at: [x, y], radius = 1, kind = 'kin' | 'mucus' },
+//     { type: 'pad', parent = 'body', at: [x, y], radius = 1, kind = 'kin' | 'mucus' | 'partner' },
 //     { type: 'sensor', id, parent = 'body', at: [x, y], angle, kind = 'light' | 'touch' | 'near', range?, cone?,
 //       feels = 'strangers' | 'anything' },
 //     { type: 'rule', id: 'divide', joint: { type: 'divide', controls } },   // the DIVIDE rule: nothing in the tank;
@@ -140,7 +140,7 @@ function parseJoint(j, pieceIndex) {
 // healthy its plastids are; -5: feeding, 1 while a peduncle of its is latched; -6: size, how grown it is; -7: drained,
 // 1 while another's peduncle drains it; -8: neighbours, how many kin it is joined to; a pad's id: what that pad holds,
 // as PAD_READ - its place in the cell's pads; -9: alarm, a kin nearby is being drained)
-const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7, neighbours: -8, alarm: -9, poisoned: -10, tied: -11 };
+const BUILT_IN = { energy: -1, starch: -2, oil: -3, health: -4, feeding: -5, size: -6, drained: -7, neighbours: -8, alarm: -9, poisoned: -10, tied: -11, trade: -12 };
 export const PAD_READ = -100;
 let padIds = new Map();   // the design being built: pad id -> its place among the cell's pads
 function sensorIndex(sensors, id) {
@@ -425,7 +425,7 @@ export function buildCell(design, opts = {}) {
       if (part.joint && controlsOf(part.joint).length) controls.push([mo, controlsOf(part.joint)]);
     } else if (part.type === 'pad') {
       const kind = part.kind || 'kin';
-      if (kind !== 'kin' && kind !== 'mucus') throw new Error(`unknown pad kind: ${kind}`);
+      if (kind !== 'kin' && kind !== 'mucus' && kind !== 'partner') throw new Error(`unknown pad kind: ${kind}`);
       const pad = { piece: parent, x, y, r: part.radius || 1, kind, link: null, go: true, part: design.parts.indexOf(part) };
       if (part.id) padIds.set(part.id, pads.length);
       pads.push(pad);
@@ -473,7 +473,7 @@ export function buildCell(design, opts = {}) {
 
   const np = pieces.length;
   return {
-    design, pieces, joints, pads, feeders, mouths, harpoons, tethers, sensors, n, colTurn, reach, rest, resting: false, divideRule, divideOk: true,
+    design, pieces, joints, pads, partners: pads.some((p) => p.kind === 'partner'), feeders, mouths, harpoons, tethers, sensors, n, colTurn, reach, rest, resting: false, divideRule, divideOk: true,
     species: design.species || design.name || 'A',
     ext: [],                 // this step's contacts and pad pulls from other cells (interact.js)
     jointPiece: Int32Array.from(joints.map((j) => j.piece)),

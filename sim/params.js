@@ -324,6 +324,10 @@ export const PARAMS = {
                                // not real fluid dynamics, the shape of it; passive chains sink a bit faster too)
     attract: 15,            // µm: a free kin pad gently pulls a free kin pad of its species this close (author 2026-11-02)
     pull: 3,                // pN of that pull (drifting cells come together; a swimmer passing by isn't caught)
+    // Partner pads (symbiosis, author 2026-11-17): a partner pad joins only a partner pad on a cell of ANOTHER species,
+    // holds like a kin pad (kinBreak), attracts like one, and the pair shares as kin do (share); the Trade reading
+    tradeTime: 30,          // s the Trade reading is smoothed over
+    tradeN: 600,            // pJ a unit of nitrogen counts as in the Trade reading (the nitroplast's price)
     grace: 1,               // s a chain's links can't snap after a daughter slots in (contact pushes the cells apart)
     maxChain: 32,           // hidden backstop: a new link may not make a group bigger than this
     // a chain holds at most this much cell volume (author 2026-11-02: "8 max or more depending on the size"): 8 cells

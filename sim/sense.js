@@ -82,12 +82,20 @@ export function padLevel(world, cell, pad) {
 // Alarm: how near a kin being drained is (interact.js keeps cell.alarm: 1 touching, 0 at PARAMS.alarm.range, fading)
 export const alarmLevel = (cell) => cell.alarm || 0;
 // Poisoned: how strong the other species' toxin clouds are where it is (sim/toxin.js; 1 at PARAMS.toxin.leak.full)
+// Trade (symbiosis, author 2026-11-17): which way things flow through its partner pads, smoothed over
+// PARAMS.pads.tradeTime (metab.js shareChains keeps cell.trade { in, out } in pJ/s, nitrogen at PARAMS.pads.tradeN):
+// 0 only giving, 0.5 even (or nothing flowing), 1 only receiving
+export function tradeLevel(cell) {
+  const t = cell.trade;
+  if (!t || t.in + t.out < 1e-9) return 0.5;
+  return t.in / (t.in + t.out);
+}
 export const tiedLevel = (cell) => ((cell.tethers || []).some((t) => t.link) ? 1 : 0);   // 1 while a tether's line holds something
 export const poisonedLevel = (cell) => (cell.poison ? Math.min(1, cell.poison.level / PARAMS.toxin.leak.full) : 0);
 export const sizeLevel = (cell) => ((cell.size || 1) - 1) / (PARAMS.grow.max - 1);
 // A reading by index: a sensor part, or one built in (-1 energy, -2 starch, -3 oil, -4 plastid health, -5 feeding)
 const reading = (world, cell, k) => (k >= 0 ? cell.sensors[k].value : k === -1 ? energyLevel(world, cell)
-  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : k === -7 ? drainedLevel(world, cell) : k === -8 ? neighboursLevel(cell) : k === -9 ? alarmLevel(cell) : k === -10 ? poisonedLevel(cell) : k === -11 ? tiedLevel(cell) : k <= -100 ? padLevel(world, cell, cell.pads[-100 - k]) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
+  : k === -4 ? plastidHealth(world, cell) : k === -5 ? feedingLevel(cell) : k === -6 ? sizeLevel(cell) : k === -7 ? drainedLevel(world, cell) : k === -8 ? neighboursLevel(cell) : k === -9 ? alarmLevel(cell) : k === -10 ? poisonedLevel(cell) : k === -11 ? tiedLevel(cell) : k === -12 ? tradeLevel(cell) : k <= -100 ? padLevel(world, cell, cell.pads[-100 - k]) : storeLevel(cell, k === -2 ? 'starch' : 'oil'));
 
 // One condition: is the reading inside its range? (with a little hysteresis)
 function holds(ctl, v) {

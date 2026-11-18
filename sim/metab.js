@@ -284,18 +284,36 @@ export function metabolize(world, cell) {
 // Chains share (author, 2026-11-02): kin joined by pads slowly even out how full their energy pools and their growth
 // meters' nitrogen are (PARAMS.pads.share of the difference a second), so a cell in the light feeds one in shade and a
 // resting cell lives on its neighbours. The dead and a peduncle's latch share nothing.
+// Partners (symbiosis, author 2026-11-17): two species joined by partner pads (l.partner) share the same way, so a fixer
+// (nitrogen full, energy short) and a cell in the light (the reverse) trade nitrogen for energy; what flows each way is
+// kept for the Trade reading (cell.trade { in, out }, pJ/s, nitrogen at PARAMS.pads.tradeN, smoothed over tradeTime).
 export function shareChains(world) {
   const k = P.pads.share * DT;
+  let now = null;
   for (const l of world.links || []) {
     if (l.feed || !l.padB) continue;
     const A = world.cells[l.a], B = world.cells[l.b];
-    if (!A || !B || A.dead || B.dead || A.species !== B.species) continue;
+    if (!A || !B || A.dead || B.dead || (A.species !== B.species) !== !!l.partner) continue;
     const a = A.metab, b = B.metab;
     const e = k * (a.E / a.C - b.E / b.C) * Math.min(a.C, b.C);
     a.E -= e; b.E += e;
+    let n = 0;
     if (A.grow && B.grow) {
-      const n = k * (A.grow.N / A.grow.Nneed - B.grow.N / B.grow.Nneed) * Math.min(A.grow.Nneed, B.grow.Nneed);
+      n = k * (A.grow.N / A.grow.Nneed - B.grow.N / B.grow.Nneed) * Math.min(A.grow.Nneed, B.grow.Nneed);
       A.grow.N -= n; B.grow.N += n;
     }
+    if (l.partner) {   // A gives e and n to B (a negative amount flows the other way)
+      now ||= new Map();
+      const give = ((e > 0 ? e : 0) + (n > 0 ? n : 0) * P.pads.tradeN) / DT, take = ((e < 0 ? -e : 0) + (n < 0 ? -n : 0) * P.pads.tradeN) / DT;
+      const ta = now.get(A) || { in: 0, out: 0 }, tb = now.get(B) || { in: 0, out: 0 };
+      ta.out += give; ta.in += take; tb.in += give; tb.out += take;
+      now.set(A, ta); now.set(B, tb);
+    }
+  }
+  const f = DT / P.pads.tradeTime;
+  for (const c of world.cells) {
+    if (!c.trade && !(now && now.has(c))) continue;
+    const t = (c.trade ||= { in: 0, out: 0 }), x = (now && now.get(c)) || { in: 0, out: 0 };
+    t.in += (x.in - t.in) * f; t.out += (x.out - t.out) * f;
   }
 }

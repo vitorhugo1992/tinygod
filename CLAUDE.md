@@ -471,7 +471,24 @@ and attracts across species only, not in kinGroup or the chain cap; a partner li
 death, or a pull over 40 pN), shareChains across species for partner links, the Trade reading (built-in -12, cell
 trade flow smoothed 30 s); plain designs bit for bit (bench fingerprints), check cases; (2) measured: a fixer and a
 light-living non-fixer alone, then joined (does each grow more?), a freeloader with and without a Trade rule, a swimmer
-towing a drifter; (3) the page: Sticks to: its own kind / anything / **a partner of another species**, the pad drawn
+towing a drifter; **STEP 1 BUILT (2026-11-17; author: "yes").** Pad kind 'partner' (build.js; cell.partners);
+interact.js: a partner pad sticks only to a free partner pad on a living cell of another species (link.partner, holds
+kinBreak), free partner pads attract across species (only between cells that both carry one), partner links are left
+out of kin groups (the chain cap), of a mouth's chain and of Neighbours and drag shielding; divide.js's kin chain skips
+them; metab.js shareChains shares across species on partner links and keeps cell.trade { in, out } (smoothed
+PARAMS.pads.tradeTime 30 s, N at tradeN 600 pJ); sense.js tradeLevel, built-in 'trade' (-12, BUILT_INS: takes a slot
+once wired); a partner pad reads 1 when joined. Bench fingerprints unchanged (44355f83 / 8d4b3d55 / 19ef0745 /
+90e36601); check 28aq (71 checks pass; the notes said 72 before, the run counted 70) and every mission case. **Measured (tools/_partners.mjs, tools/_rider.json:
+scratch, untracked; 3 days, full world, seeds 1 / 2):** Needle Drifter alone 12.0× / 11.2×; with Nutricline Bobber
+joined: **apart within ~half an hour** (each chamber steers its own depth: the pad snaps), so 12.2 / 12.5 and Bobber
+as alone (noise); a passenger (r 9, nucleus, 6% plastid, small starch, no chamber) alone starves on the floor by day
+0.5; joined and awake all night it grew to 1.5× and **starved the first night** (the host keeps its pool at ~30%: 5% a
+second of that difference covers ~0.9 of the passenger's upkeep); **resting at night (an eyespot, below 1%) it lived 3
+days joined, 1.8×, never divided**, Trade 0.86-1.00 (host 0.00-0.14); **but the host fell to 8.8× / 9.0×** (it feeds
+the passenger and is dragged deeper: ~1,200-1,400 µm at day 3 vs ~500-800 for its free daughters). So today a passenger
+on a fixer is a parasite: it gives nothing the host lacks. **The mutualism to test next:** a host that lives where
+nitrogen is poor (shallow, light-rich, no nitroplast) carrying a small chamberless FIXER (Richelia in Hemiaulus); and
+a host's Trade rule dropping a freeloader. (3) the page: Sticks to: its own kind / anything / **a partner of another species**, the pad drawn
 and its link, the Trade reading in the rule editor, numbers and log lines, the brief for AIs; (4) maybe a mission. Then: shapes step 4 (a mission that teaches lobes), then the Ocean's build plan.
 **IDEA FOR LATER (author, 2026-11-08): symbiosis**, species in relationships with each other (not planned yet). Pieces already there: pads that hold strangers (mucus), sharing between joined kin (shareChains: energy and growth N), stolen plastids, the nitroplast (itself an endosymbiont). Possible routes to discuss: a pad that shares with a stranger it holds (a fixer feeding N to a partner that gives energy, like diatom-diazotroph associations, e.g. Richelia in Hemiaulus); hosting a partner inside (an endosymbiont that divides with the host); cleaning or riding (a swimmer carrying a drifter). Needs two players' designs to agree, so it fits matches between species.
 

@@ -1,6 +1,7 @@
 // Cells meeting cells, found once a step and handed to each cell as cell.ext (physics.js applies them):
 // - contact: pieces of different cells push apart where their capsules overlap;
-// - pads: a kin pad sticks to a kin pad of the same species, a mucus pad to any surface of another cell;
+// - pads: a kin pad sticks to a kin pad of the same species, a mucus pad to any surface of another cell, a partner pad
+//   (symbiosis, author 2026-11-17) to a partner pad of ANOTHER species (link.partner: shared as kin, metab.js shareChains);
 //   a stuck pad is a spring that snaps when pulled harder than its pad holds;
 // - peduncles: a feeding tube's tip touching another species' body latches (paying PARAMS.feed.pierce), held like a
 //   pad link (it snaps past PARAMS.feed.hold; piercing costs PARAMS.feed.pierce per µm of tube); it lets go when its rule stops, its cell dies, or the prey is drained
@@ -87,7 +88,7 @@ function groups(world) {
   // (author 2026-11-05: mucus pads couldn't stick to giants)
   const kin = world.cells.map((_, i) => i);
   const findK = (i) => { while (kin[i] !== i) i = kin[i] = kin[kin[i]]; return i; };
-  for (const l of world.links) { if (l.feed || l.tether || !l.padB) continue; const a = findK(l.a), b = findK(l.b); if (a !== b) kin[Math.max(a, b)] = Math.min(a, b); }
+  for (const l of world.links) { if (l.feed || l.tether || !l.padB || l.partner) continue; const a = findK(l.a), b = findK(l.b); if (a !== b) kin[Math.max(a, b)] = Math.min(a, b); }
   world.cells.forEach((c, i) => { c.group = find(i); c.kinGroup = findK(i); size.set(c.group, (size.get(c.group) || 0) + 1); vol.set(c.kinGroup, (vol.get(c.kinGroup) || 0) + c.pieces[0].volume); });
   size.vol = vol;
   return size;
@@ -135,7 +136,7 @@ function chainOf(world, c) {
   while (todo.length) {
     const x = todo.pop();
     for (const l of world.links) {
-      if (l.feed || !l.padB) continue;
+      if (l.feed || !l.padB || l.partner) continue;   // a chain is kin: a partner is swallowed (or not) on its own
       const A = world.cells[l.a], B = world.cells[l.b], o = A === x ? B : B === x ? A : null;
       if (o && !seen.has(o)) { seen.add(o); todo.push(o); }
     }
@@ -223,7 +224,7 @@ export function interact(world) {
   world.links = kept;
   // shielding: each body's drag by how many kin it is joined to (PARAMS.pads.shield)
   const joins = new Map();
-  for (const l of kept) if (!l.feed && l.padB) for (const c of [cells[l.a], cells[l.b]]) joins.set(c, (joins.get(c) || 0) + 1);
+  for (const l of kept) if (!l.feed && l.padB && !l.partner) for (const c of [cells[l.a], cells[l.b]]) joins.set(c, (joins.get(c) || 0) + 1);
   for (const c of cells) { c.neighbours = joins.get(c) || 0; c.shield = PAD.shield[Math.min(c.neighbours, PAD.shield.length - 1)]; }
 
   // free peduncles whose rule holds latch onto another species' body their tip touches
@@ -376,20 +377,23 @@ export function interact(world) {
     }
   }
 
-  // free kin pads gently pull free kin pads of their species within PARAMS.pads.attract (kin find each other)
+  // free kin pads gently pull free kin pads of their species within PARAMS.pads.attract (kin find each other); free
+  // partner pads pull free partner pads of other species the same way (partners find each other)
   for (let a = 0; a < cells.length; a++) {
     const A = cells[a];
     if (A.dead) continue;
     for (let b = a + 1; b < cells.length; b++) {
       const B = cells[b];
-      if (B.dead || B.species !== A.species) continue;
+      if (B.dead) continue;
+      const want = B.species === A.species ? 'kin' : 'partner';
+      if (want === 'partner' && !(A.partners && B.partners)) continue;
       const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach + PAD.attract;
       if (dx * dx + dy * dy > r * r) continue;
       for (const pa of A.pads) {
-        if (pa.link || pa.kind !== 'kin' || pa.go === false) continue;
+        if (pa.link || pa.kind !== want || pa.go === false) continue;
         const [ax, ay] = padWorld(A, pa);
         for (const pb of B.pads) {
-          if (pb.link || pb.kind !== 'kin' || pb.go === false) continue;
+          if (pb.link || pb.kind !== want || pb.go === false) continue;
           const [bx, by] = padWorld(B, pb), d = Math.hypot(ax - bx, ay - by);
           if (d > PAD.attract || d < 1e-6) continue;
           const k = PAD.pull / d;   // a pull of PAD.pull pN toward the other pad
@@ -416,13 +420,15 @@ export function interact(world) {
           || pad.kind === 'kin' && A.kinGroup !== B.kinGroup
              && size.vol.get(A.kinGroup) + size.vol.get(B.kinGroup) > PAD.chainVolume)) continue;   // a full chain takes no more
         let link = null;
-        if (pad.kind === 'kin') {
-          if (B.species !== A.species) continue;
+        if (pad.kind === 'kin' || pad.kind === 'partner') {
+          const partner = pad.kind === 'partner';
+          if ((B.species !== A.species) !== partner || B.dead && partner) continue;   // kin: its own species; partner: another, alive
           for (const other of B.pads) {
-            if (other.link || other.kind !== 'kin' || other.go === false) continue;
+            if (other.link || other.kind !== pad.kind || other.go === false) continue;
             const [ox, oy] = padWorld(B, other);
             if (Math.hypot(x - ox, y - oy) <= pad.r + other.r) {
               link = { a: A.index, b: B.index, padA: pad, padB: other, holds: PAD.kinBreak };
+              if (partner) link.partner = true;
               other.link = link;
               break;
             }

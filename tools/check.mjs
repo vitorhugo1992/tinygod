@@ -13,7 +13,7 @@ import { buildCell as build } from '../sim/build.js';
 import { volumeOf } from '../sim/shape.js';
 import { moveTo, dragSpot, toOutline, ownPoints, relax } from '../sandbox/mould.js';
 import { DEG } from '../sim/dmath.js';
-import { feedingLevel, sizeLevel, padLevel } from '../sim/sense.js';
+import { feedingLevel, sizeLevel, padLevel, tradeLevel } from '../sim/sense.js';
 import { regrow, organelleGrowth } from '../sim/grow.js';
 
 const DT = PARAMS.time.dt;
@@ -1168,6 +1168,33 @@ const runDay = (design, y, seconds, opts = {}) => {
       && n.join() === '1,2,1' && pads.join() === '0.5,0.5,0' && runs.join() === 'true,true,false',
     `kin 5 µm apart: ${kin.joined ? 'joined' : 'apart'} (gap ${fmt(kin.gap)}); strangers: ${strangers.joined ? 'joined' : 'apart'} (${fmt(strangers.gap)}); mucus: ${mucus.joined ? 'joined' : 'apart'} (${fmt(mucus.gap)}); ` +
     `a chain of three: neighbours ${n.join(', ')}, front pads ${pads.join(', ')}; tails "front pad joined or 2+ neighbours": ${runs.map((r) => (r ? 'run' : 'stop')).join(', ')}`);
+}
+
+// 28aq. Partner pads (symbiosis, author 2026-11-17): a partner pad joins a partner pad of ANOTHER species only (drifting
+// together as kin pads do; same species or a kin pad: no), holds like a kin pad, doesn't count as a neighbour, and the
+// pair shares as kin do; the Trade reading tells the giver (below 0.5) from the receiver (above)
+{
+  const cellWith = (species, kind) => ({ species, body: { radius: 10 }, parts: [{ type: 'pad', id: 'pf', at: [10, 0], kind }, { type: 'pad', id: 'pb', at: [-10, 0], kind }] });
+  const meet = (a, b, gap = 5) => {
+    const w = makeWorld(1, { gravity: false, light: false });
+    const A = addCell(w, a, 800, 1000, 0), B = addCell(w, b, 800 + 20 + gap, 1000, 0);
+    for (let i = 0; i < 20000; i++) stepWorld(w);
+    return { w, A, B, joined: w.links.length > 0, partner: w.links.length > 0 && !!w.links[0].partner, gap: Math.hypot(A.q[0] - B.q[0], A.q[1] - B.q[1]) - 20 };
+  };
+  const two = meet(cellWith('a', 'partner'), cellWith('b', 'partner')), same = meet(cellWith('a', 'partner'), cellWith('a', 'partner')), mixed = meet(cellWith('a', 'partner'), cellWith('b', 'kin'));
+  // sharing: A has nitrogen and no energy, B the reverse
+  const w = makeWorld(1, { gravity: false, light: false, metab: true, grow: true });
+  const A = addCell(w, cellWith('a', 'partner'), 800, 1000, 0), B = addCell(w, cellWith('b', 'partner'), 820.5, 1000, 0);
+  for (let i = 0; i < 50; i++) stepWorld(w);
+  const linked = w.links.length === 1 && w.links[0].partner;
+  A.metab.E = 0; A.grow.N = A.grow.Nneed; B.metab.E = B.metab.C; B.grow.N = 0;
+  for (let i = 0; i < 5000; i++) stepWorld(w);
+  const eA = A.metab.E / A.metab.C, nB = B.grow.N / B.grow.Nneed, tA = tradeLevel(A), tB = tradeLevel(B);
+  check('partner pads: join another species only, hold, share as kin (nitrogen for energy); Trade tells giver from receiver',
+    two.joined && two.partner && two.gap < 1 && !same.joined && !mixed.joined && linked && A.neighbours === 0
+      && padLevel(w, A, A.pads[0]) === 1 && eA > 0.03 && nB > 0.15 && tA < 0.3 && tB > 0.7,
+    `two species 5 µm apart: ${two.joined ? 'joined' : 'apart'} (gap ${fmt(two.gap)}); same species: ${same.joined ? 'joined' : 'apart'}; partner and kin pad: ${mixed.joined ? 'joined' : 'apart'}; ` +
+    `after 5 s the empty pool is ${fmt(100 * eA, 0)}% full, the empty meter ${fmt(100 * nB, 0)}%; Trade: the giver of nitrogen ${fmt(tA, 2)}, its partner ${fmt(tB, 2)}`);
 }
 
 // 28ac. The alarm (author, 2026-11-02, swarm defence): kin near a cell being drained read how near (1 touching, 0 at
