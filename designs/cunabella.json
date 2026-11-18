@@ -1,0 +1,358 @@
+{
+ "name": "Cunabella",
+ "from": "Claude",
+ "design": {
+  "species": "Cunabella",
+  "body": {
+   "radius": 15
+  },
+  "parts": [
+   {
+    "type": "lobe",
+    "id": "arm0",
+    "at": [
+     0,
+     14.5
+    ],
+    "angle": 90,
+    "length": 34,
+    "radius": 3.4
+   },
+   {
+    "type": "lobe",
+    "id": "arm1",
+    "at": [
+     -13.79,
+     4.48
+    ],
+    "angle": 162,
+    "length": 34,
+    "radius": 3.4
+   },
+   {
+    "type": "lobe",
+    "id": "arm2",
+    "at": [
+     -8.52,
+     -11.73
+    ],
+    "angle": 234,
+    "length": 34,
+    "radius": 3.4
+   },
+   {
+    "type": "lobe",
+    "id": "arm3",
+    "at": [
+     8.52,
+     -11.73
+    ],
+    "angle": 306,
+    "length": 34,
+    "radius": 3.4
+   },
+   {
+    "type": "lobe",
+    "id": "arm4",
+    "at": [
+     13.79,
+     4.48
+    ],
+    "angle": 18,
+    "length": 34,
+    "radius": 3.4
+   },
+   {
+    "type": "sensor",
+    "id": "eye0",
+    "parent": "arm0",
+    "at": [
+     20.4,
+     0
+    ],
+    "angle": 0,
+    "kind": "light",
+    "cone": 180
+   },
+   {
+    "type": "sensor",
+    "id": "eye2",
+    "parent": "arm2",
+    "at": [
+     20.4,
+     0
+    ],
+    "angle": 0,
+    "kind": "light",
+    "cone": 180
+   },
+   {
+    "type": "sensor",
+    "id": "eye3",
+    "parent": "arm3",
+    "at": [
+     20.4,
+     0
+    ],
+    "angle": 0,
+    "kind": "light",
+    "cone": 180
+   },
+   {
+    "type": "inclusion",
+    "id": "armOil0",
+    "material": "oil",
+    "at": [
+     0,
+     42.55
+    ],
+    "angle": 90,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "armOil1",
+    "material": "oil",
+    "at": [
+     -40.47,
+     13.15
+    ],
+    "angle": 162,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "armOil2",
+    "material": "oil",
+    "at": [
+     -25.01,
+     -34.42
+    ],
+    "angle": 234,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "armOil3",
+    "material": "oil",
+    "at": [
+     25.01,
+     -34.42
+    ],
+    "angle": 306,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "armOil4",
+    "material": "oil",
+    "at": [
+     40.47,
+     13.15
+    ],
+    "angle": 18,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "armPlastid0",
+    "material": "plastid",
+    "at": [
+     0,
+     24
+    ],
+    "angle": 90,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "armPlastid1",
+    "material": "plastid",
+    "at": [
+     -22.83,
+     7.42
+    ],
+    "angle": 162,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "armPlastid2",
+    "material": "plastid",
+    "at": [
+     -14.11,
+     -19.42
+    ],
+    "angle": 234,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "armPlastid3",
+    "material": "plastid",
+    "at": [
+     14.11,
+     -19.42
+    ],
+    "angle": 306,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "armPlastid4",
+    "material": "plastid",
+    "at": [
+     22.83,
+     7.42
+    ],
+    "angle": 18,
+    "radius": 3,
+    "length": 12
+   },
+   {
+    "type": "inclusion",
+    "id": "nucleus",
+    "material": "nucleus",
+    "at": [
+     -8.5,
+     5.5
+    ],
+    "radius": 4.3,
+    "joint": {
+     "type": "rest",
+     "controls": [
+      {
+       "sensor": "eye0",
+       "also": [
+        {
+         "sensor": "eye2"
+        },
+        {
+         "sensor": "eye3"
+        }
+       ],
+       "min": 0,
+       "max": 0.005,
+       "all": true
+      }
+     ]
+    }
+   },
+   {
+    "type": "inclusion",
+    "id": "float",
+    "material": "chamber",
+    "at": [
+     3,
+     -3
+    ],
+    "radius": 9,
+    "joint": {
+     "type": "chamber",
+     "controls": [
+      {
+       "sensor": "eye0",
+       "also": [
+        {
+         "sensor": "eye2"
+        },
+        {
+         "sensor": "eye3"
+        }
+       ],
+       "min": 0,
+       "max": 0.3,
+       "all": true
+      },
+      {
+       "sensor": "eye0",
+       "also": [
+        {
+         "sensor": "eye2"
+        },
+        {
+         "sensor": "eye3"
+        }
+       ],
+       "min": 0,
+       "max": 1
+      },
+      {
+       "sensor": "eye0",
+       "also": [
+        {
+         "sensor": "eye2"
+        },
+        {
+         "sensor": "eye3"
+        }
+       ],
+       "min": 0.5,
+       "max": 1,
+       "stop": true
+      }
+     ]
+    }
+   },
+   {
+    "type": "pad",
+    "id": "nest126",
+    "label": "Partner pad",
+    "at": [
+     -8.82,
+     12.14
+    ],
+    "kind": "partner",
+    "joint": {
+     "type": "hold",
+     "controls": [
+      {
+       "sensor": "trade",
+       "min": 0.2,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "pad",
+    "id": "nest270",
+    "label": "Partner pad",
+    "at": [
+     0,
+     -15
+    ],
+    "kind": "partner",
+    "joint": {
+     "type": "hold",
+     "controls": [
+      {
+       "sensor": "trade",
+       "min": 0.2,
+       "max": 1
+      }
+     ]
+    }
+   },
+   {
+    "type": "rule",
+    "id": "divide",
+    "label": "Division",
+    "joint": {
+     "type": "divide"
+    }
+   }
+  ],
+  "name": "Cunabella"
+ },
+ "note": "A host (Claude, 2026-11-18): a five-armed star. Each arm holds a slim plastid near its root and oil near its tip, so the arms catch light, slow the fall and float it once the oil fills; the round body is a big buoyancy chamber and the nucleus. Floats while every eyespot (at three arm tips) sees less than 30% sun, sinks above 50%, rests in the dark. No nitroplast: two Partner pads in the crooks between its arms wait for a nitrogen fixer (they let go if Trade falls below 20%). Alone from the floor: never starving, about 700-1,500 µm, divides around day 3.3."
+}
