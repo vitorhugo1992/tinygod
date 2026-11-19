@@ -4,6 +4,7 @@
 // free. buildCell refuses a design whose nucleus is too small for its modules; a cell with no nucleus has no brain
 // (the sandbox strips its wiring, so every part simply runs); the physics itself reads wiring on any cell.
 import { PARAMS } from './params.js';
+import { dcbrt } from './dmath.js';
 import { volumeOf } from './shape.js';
 
 export const BUILT_INS = ['energy', 'starch', 'oil', 'health', 'feeding', 'size', 'drained', 'neighbours', 'alarm', 'poisoned', 'trade'];
@@ -15,7 +16,7 @@ export const nucleiOf = (design) => (design.parts || []).filter((p) => p.type ==
 export const slotsOf = (r) => Math.floor(Math.PI * r * r / PARAMS.brain.slotArea + 1e-9);
 
 // A nucleus part's slots: by its volume (a round nucleus of the same volume), so moulding it changes nothing
-export const nucleusSlots = (p) => slotsOf(Math.cbrt(volumeOf(p) * 3 / (4 * Math.PI)));
+export const nucleusSlots = (p) => slotsOf(dcbrt(volumeOf(p) * 3 / (4 * Math.PI)));
 
 // The smallest radius (0.1 µm steps) with at least n slots
 export function radiusFor(n) {

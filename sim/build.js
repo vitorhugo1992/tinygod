@@ -69,7 +69,7 @@
 //       it waits at `start` until released.
 import { PARAMS } from './params.js';
 import { legacyMaterial, material } from './materials.js';
-import { DEG, dlog, dcos, dsin } from './dmath.js';
+import { DEG, dlog, dcos, dsin, datan2, dhypot } from './dmath.js';
 import { brainProblem } from './brain.js';
 import { shapeOf, polysOverlap } from './shape.js';
 export { arcPoints } from './shape.js';
@@ -407,7 +407,7 @@ export function buildCell(design, opts = {}) {
     } else if (part.type === 'sensor') {
       const kind = part.kind || 'light';
       if (!['light', 'touch', 'near', 'hunger', 'chem', 'flow'].includes(kind)) throw new Error(`unknown sensor kind: ${kind}`);
-      const facing = part.angle !== undefined ? part.angle * DEG : Math.atan2(y, x);
+      const facing = part.angle !== undefined ? part.angle * DEG : datan2(y, x);
       const range = part.range || (kind === 'near' ? PARAMS.sensor.nearRange : PARAMS.sensor.touchRange);
       const cone = Math.min(Math.max(part.cone || 180, 10), 180) * DEG;
       const s = { id: part.id, piece: parent, x, y, facing, kind, range, cone, feels: part.feels || 'strangers', value: 0,
@@ -461,7 +461,7 @@ export function buildCell(design, opts = {}) {
   const reachOf = [];
   pieces.forEach((p, i) => {
     const len = p.ext ? p.ext.max : p.L;
-    reachOf[i] = p.parent < 0 ? len / 2 + p.a : reachOf[p.parent] + Math.hypot(p.ax, p.ay) + len + p.a;
+    reachOf[i] = p.parent < 0 ? len / 2 + p.a : reachOf[p.parent] + dhypot(p.ax, p.ay) + len + p.a;
   });
   const reach = Math.max(...reachOf) + Math.max(0, ...pads.map((pd) => pd.r));
 

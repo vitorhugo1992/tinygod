@@ -8,13 +8,14 @@
 // Growing rebuilds the cell in place (the same object: its journal, lineage and links stay), carrying its pose, energy,
 // stores (their energy, not their fill: a bigger store is emptier), plastid damage, chambers, motors and latches.
 import { PARAMS } from './params.js';
+import { dcbrt, dhypot } from './dmath.js';
 import { buildCell } from './build.js';
 import { planSubsteps, updatePose } from './physics.js';
 import { initMetab } from './metab.js';
 import { polyDist, insidePoly, volumeOf } from './shape.js';
 
 const G = PARAMS.grow, S = PARAMS.steal, WG = PARAMS.gravity * 1e-6, CYTO = PARAMS.cell.cytoplasm;
-const cbrt = (x) => Math.cbrt(x);
+const cbrt = dcbrt;
 
 // How much an organelle's volume has grown when the cell has grown `g` times its newborn volume
 export const organelleGrowth = (g) => (g <= 2 ? g : 2 + G.organelles * (g - 2));
@@ -172,7 +173,7 @@ function spotFor(body, r, taken, extra = []) {
 function clearance(x, y, wall, taken, extra) {
   let c = wall;
   for (const o of taken) { if (insidePoly(o, x, y)) return 0; c = Math.min(c, polyDist(o, x, y)); }
-  for (const [ex, ey, er] of extra) c = Math.min(c, Math.hypot(ex - x, ey - y) - er);
+  for (const [ex, ey, er] of extra) c = Math.min(c, dhypot(ex - x, ey - y) - er);
   return c;
 }
 const radiusOf = (v) => cbrt(3 * v / (4 * Math.PI));
@@ -205,10 +206,10 @@ export function refit(world, cell) {
   let changed = false;
   for (const s of cell.stolen) {
     const inc = body.inclusions.find((i) => i.stolen === s);
-    const wall = inc ? room - Math.hypot(Math.max(Math.abs(inc.x) - body.L / 2, 0), inc.y) : 0;
+    const wall = inc ? room - dhypot(Math.max(Math.abs(inc.x) - body.L / 2, 0), inc.y) : 0;
     if (inc && clearance(inc.x, inc.y, wall, taken, kept) >= s.r - 1e-9) { kept.push([inc.x, inc.y, s.r]); keep.push(s); continue; }
     changed = true;
-    const at = spotFor(body, radiusOf(s.v || 4 / 3 * Math.PI * s.r ** 3), taken, kept);
+    const at = spotFor(body, radiusOf(s.v || 4 / 3 * Math.PI * (s.r * s.r * s.r)), taken, kept);
     if (at) { s.at = [at[0] / w, at[1] / w]; s.r = at[2]; kept.push(at); keep.push(s); } else cell.digested = (cell.digested || 0) + 1;
   }
   if (!changed) return;

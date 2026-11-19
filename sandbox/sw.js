@@ -1,9 +1,9 @@
 // Offline: keeps a copy of the sandbox (this folder and ../sim/) so a phone that opened it once runs it with no
 // connection. Network first: online it always gets the newest files (and refreshes the copy); offline, or when the
 // network is too slow, the copy. Registered only on https (the website), not on the home server.
-const CACHE = 'tinygod-v10';
-const FILES = ['./', 'index.html', 'main.js', 'parts.js', 'missions.js', 'matches.js', 'match.js', 'match-worker.js', 'ocean.js', 'journal.js', 'mould.js', 'scene.js', 'sound.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
-  ...['params', 'rng', 'dmath', 'materials', 'build', 'physics', 'interact', 'sense', 'light', 'nutrient', 'divide', 'grow', 'death', 'metab', 'world', 'brain', 'shape', 'flow', 'toxin', 'shade', 'entry', 'match', 'record', 'start',
+const CACHE = 'tinygod-v11';
+const FILES = ['./', 'index.html', 'main.js', 'parts.js', 'missions.js', 'matches.js', 'match.js', 'match-worker.js', 'ocean.js', 'ocean-live.js', 'ocean-worker.js', 'journal.js', 'mould.js', 'scene.js', 'sound.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
+  ...['params', 'rng', 'dmath', 'materials', 'build', 'physics', 'interact', 'sense', 'light', 'nutrient', 'divide', 'grow', 'death', 'metab', 'world', 'brain', 'shape', 'flow', 'toxin', 'shade', 'entry', 'match', 'record', 'start', 'save',
     'presets'].map((f) => `../sim/${f}.js`),
   // the match ladder's rivals (matches.js)
   '../designs/noctilla.json', '../designs/plebella.json', '../designs/deepdweller2.json', '../tournament/bobber-blind-opus.json', '../tournament/fixer-blind-opus2.json'];

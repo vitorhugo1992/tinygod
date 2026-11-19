@@ -5,7 +5,7 @@
 // joined (chains, author 2026-11-02): where the pads sit and the body's shape decide the chain's form. It waits while the tank holds PARAMS.grow.cap cells, while it starves, or while there
 // is no room beside it (a wall, another cell), or while its DIVIDE rule doesn't hold (a 'rule' part; none: at once).
 import { PARAMS } from './params.js';
-import { DEG } from './dmath.js';
+import { DEG, dcos, dsin, datan2, dhypot } from './dmath.js';
 import { updatePose } from './physics.js';
 import { makeCell, regrow, refit } from './grow.js';
 
@@ -21,7 +21,7 @@ function segPoint(px, py, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
   let t = l2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
   t = t < 0 ? 0 : t > 1 ? 1 : t;
-  return Math.hypot(px - ax - dx * t, py - ay - dy * t);
+  return dhypot(px - ax - dx * t, py - ay - dy * t);
 }
 const cross = (ax, ay, bx, by, cx, cy) => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
 function segDist(a1x, a1y, a2x, a2y, b1x, b1y, b2x, b2y) {
@@ -70,7 +70,7 @@ function spotFor(world, cell) {
 // A pad's outward direction on the body (its own frame): across a rod's straight side, or out from an end's centre
 function padNormal(body, pad) {
   const h = body.L / 2;
-  const x = Math.abs(pad.x) <= h ? 0 : pad.x - Math.sign(pad.x) * h, y = pad.y, n = Math.hypot(x, y) || 1;
+  const x = Math.abs(pad.x) <= h ? 0 : pad.x - Math.sign(pad.x) * h, y = pad.y, n = dhypot(x, y) || 1;
   return [x / n, y / n];
 }
 // Is a posed cell clear of every other cell (pieces apart by `gap`; `skip`: cells it may overlap, its own chain when it
@@ -119,13 +119,13 @@ function chainSpot(world, p, d) {
   if (chain.size > 1 && (vol > PARAMS.pads.chainVolume || chain.size >= PARAMS.pads.maxChain)) return null;
   const freeOnes = p.pads.filter((x) => x.kind === 'kin' && !x.link && x.piece === 0);
   const tryPads = (free, insert) => {
-    const tp = p.q[2], cp = Math.cos(tp), sp = Math.sin(tp), pairs = [];
+    const tp = p.q[2], cp = dcos(tp), sp = dsin(tp), pairs = [];
     for (const A of free) for (const B of mine) {
       const twin = d.pads[p.pads.indexOf(A)];   // the daughter's copy of A: it takes A's old link when she slots in
       if (insert && (twin === B || !twin)) continue;
       const [ax, ay] = padNormal(p.pieces[0], A), [bx, by] = padNormal(d.pieces[0], B);
       const nx = cp * ax - sp * ay, ny = sp * ax + cp * ay;              // A's outward direction in the tank
-      let td = Math.atan2(-ny, -nx) - Math.atan2(by, bx);                 // B's must point back at it
+      let td = datan2(-ny, -nx) - datan2(by, bx);                 // B's must point back at it
       let turn = td - tp; turn -= 2 * Math.PI * Math.round(turn / (2 * Math.PI));
       pairs.push({ A, B, twin, nx, ny, td: tp + turn, turn: Math.abs(turn) });
     }
@@ -134,7 +134,7 @@ function chainSpot(world, p, d) {
     const skip = insert ? chainOf(world, p) : null;
     for (const { A, B, twin, nx, ny, td } of pairs) {
       const pax = p.cx[0] + p.cs[0] * A.x - p.sn[0] * A.y, pay = p.cy[0] + p.sn[0] * A.x + p.cs[0] * A.y;
-      const c = Math.cos(td), s = Math.sin(td), gap = 0.5;
+      const c = dcos(td), s = dsin(td), gap = 0.5;
       d.q[2] = td; d.q[0] = pax + nx * gap - (c * B.x - s * B.y); d.q[1] = pay + ny * gap - (s * B.x + c * B.y);
       updatePose(d);
       if (posedClear(world, d, 0.1, skip)) return { A, B, hand: insert ? { L: A.link, twin } : null };

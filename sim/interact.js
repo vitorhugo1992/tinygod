@@ -9,6 +9,7 @@
 // - groups: cells joined by pads. No chain rule: chains come from pads meeting. A hidden backstop
 //   (PARAMS.pads.maxChain) only blocks a new link that would make a group bigger than that.
 import { PARAMS } from './params.js';
+import { dcos, dsin, dcbrt, dhypot } from './dmath.js';
 import { drainEnergy, energyOf, fullness } from './metab.js';
 import { setSegmentLength } from './build.js';
 
@@ -69,7 +70,7 @@ function surfaceNear(cell, x, y, reach, only = -1) {
     let t = l2 > 0 ? ((x - ax) * dx + (y - ay) * dy) / l2 : 0;
     t = t < 0 ? 0 : t > 1 ? 1 : t;
     const px = ax + dx * t, py = ay + dy * t;
-    const d = Math.hypot(x - px, y - py) - cell.pieces[i].a;
+    const d = dhypot(x - px, y - py) - cell.pieces[i].a;
     if (d <= reach && (!best || d < best[3])) {
       const k = d + cell.pieces[i].a > 1e-9 ? cell.pieces[i].a / (d + cell.pieces[i].a) : 0;
       const [lx, ly] = toLocal(cell, i, px + (x - px) * k, py + (y - py) * k);
@@ -104,23 +105,23 @@ export function mouthSize(c) {
   const body = c.pieces[0], a = body.a, h = (body.L || 0) / 2, tips = [], round = [];
   for (const p of c.pieces) {
     if (p.kind === 'lobe') {   // a lobe: both ends of its axis, its thickness round them (body frame)
-      const f = p.frame, ux = Math.cos(f.dir) * p.L / 2, uy = Math.sin(f.dir) * p.L / 2;
+      const f = p.frame, ux = dcos(f.dir) * p.L / 2, uy = dsin(f.dir) * p.L / 2;
       round.push([f.x - ux, f.y - uy, p.a], [f.x + ux, f.y + uy, p.a]);
       continue;
     }
     if (p.kind !== 'segment' || p.L <= 0) continue;
     const j = p.joint >= 0 ? c.joints[p.joint] : null;
     if (j && j.type !== 'fire' && j.type !== 'tether' && j.type !== 'feed') continue;
-    if (p.parent === 0) { tips.push([p.ax + Math.cos(p.mount) * p.L, p.ay + Math.sin(p.mount) * p.L]); continue; }
+    if (p.parent === 0) { tips.push([p.ax + dcos(p.mount) * p.L, p.ay + dsin(p.mount) * p.L]); continue; }
     const host = c.pieces[p.parent];
     if (host.kind !== 'lobe') continue;   // on a lobe: its tip in the body's frame
-    const f = host.frame, fc = Math.cos(f.dir), fs = Math.sin(f.dir), d = f.dir + p.mount;
-    tips.push([f.x + fc * p.ax - fs * p.ay + Math.cos(d) * p.L, f.y + fs * p.ax + fc * p.ay + Math.sin(d) * p.L]);
+    const f = host.frame, fc = dcos(f.dir), fs = dsin(f.dir), d = f.dir + p.mount;
+    tips.push([f.x + fc * p.ax - fs * p.ay + dcos(d) * p.L, f.y + fs * p.ax + fc * p.ay + dsin(d) * p.L]);
   }
   if (!tips.length && !round.length) return a;
   let least = Infinity;
   for (let k = 0; k < 90; k++) {   // every 2°: the width across that direction
-    const u = k * Math.PI / 90, nx = Math.cos(u), ny = Math.sin(u), e = Math.abs(h * nx);
+    const u = k * Math.PI / 90, nx = dcos(u), ny = dsin(u), e = Math.abs(h * nx);
     let lo = -e - a, hi = e + a;
     for (const [x, y] of tips) { const d = x * nx + y * ny; if (d < lo) lo = d; if (d > hi) hi = d; }
     for (const [x, y, r] of round) { const d = x * nx + y * ny; if (d - r < lo) lo = d - r; if (d + r > hi) hi = d + r; }
@@ -218,7 +219,7 @@ export function interact(world) {
           const qx = b1x + (b2x - b1x) * t, qy = b1y + (b2y - b1y) * t;
           const rr = A.pieces[i].a + B.pieces[j].a;
           let nx = px - qx, ny = py - qy;
-          const d = Math.hypot(nx, ny);
+          const d = dhypot(nx, ny);
           if (d >= rr) continue;
           if (d > 1e-9) { nx /= d; ny /= d; } else { nx = 0; ny = 1; }
           // each side is pushed until it clears the other's surface, from where the other is now
@@ -240,7 +241,7 @@ export function interact(world) {
       return [B.cx[i] + c * l.bx - s * l.by, B.cy[i] + s * l.bx + c * l.by];
     })();
     if (l.tether) {   // a tether's line: a rope, slack until tight, then a spring; reeled in or out by its rules
-      const T = PARAMS.tether, t = l.padA, d = Math.hypot(ax - bx, ay - by);
+      const T = PARAMS.tether, t = l.padA, d = dhypot(ax - bx, ay - by);
       if (t.reelIn) l.len = Math.max(0, l.len - T.reel * PARAMS.time.dt); else if (t.reelOut) l.len = Math.min(T.max, l.len + T.reel * PARAMS.time.dt);
       const pull = d > l.len ? T.stiffness * (d - l.len) : 0;
       l.load += (pull - l.load) * Math.min(1, PARAMS.time.dt / T.loadTime);
@@ -254,7 +255,7 @@ export function interact(world) {
       }
       continue;
     }
-    const force = PAD.stiffness * Math.hypot(ax - bx, ay - by);
+    const force = PAD.stiffness * dhypot(ax - bx, ay - by);
     // a peduncle's link breaks under a sustained pull (averaged over PARAMS.feed.loadTime), not the jerk of each
     // stroke of its own tail (a swimmer's body bounces ~10 µm a stroke); a spring jump's long pull still snaps it
     if (l.feed) l.load = (l.load || 0) + (force - (l.load || 0)) * Math.min(1, PARAMS.time.dt / FEED.loadTime);
@@ -387,7 +388,7 @@ export function interact(world) {
     if (!V || V.dead) continue;
     for (const c of cells) {
       if (c === V || c.dead || c.species !== V.species) continue;
-      const d = Math.hypot(c.q[0] - V.q[0], c.q[1] - V.q[1]) - c.pieces[0].a - V.pieces[0].a - (c.pieces[0].L + V.pieces[0].L) / 2;
+      const d = dhypot(c.q[0] - V.q[0], c.q[1] - V.q[1]) - c.pieces[0].a - V.pieces[0].a - (c.pieces[0].L + V.pieces[0].L) / 2;
       const a = 1 - Math.max(d, 0) / PARAMS.alarm.range;
       if (a > c.alarm) c.alarm = a;
     }
@@ -418,7 +419,7 @@ export function interact(world) {
         let vol = 0, ext = 0;
         for (const c of chain) {
           vol += c.pieces[0].volume;
-          for (const o of chain) ext = Math.max(ext, Math.hypot(c.q[0] - o.q[0], c.q[1] - o.q[1]) + c.pieces[0].a + o.pieces[0].a + (c.pieces[0].L + o.pieces[0].L) / 2);
+          for (const o of chain) ext = Math.max(ext, dhypot(c.q[0] - o.q[0], c.q[1] - o.q[1]) + c.pieces[0].a + o.pieces[0].a + (c.pieces[0].L + o.pieces[0].L) / 2);
         }
         if (chain.size > 1 && (vol > free || ext > 2 * A.pieces[0].a || [...chain].some((c) => sizeOf(c) > E.gape * A.pieces[0].a))) continue;
         const price = E.price * vol;   // the food vacuole and its enzymes, paid at once
@@ -432,7 +433,7 @@ export function interact(world) {
           c.eatenBy = A.species; c.dead = true; c.diedAt = world.steps; c.diedWhy = `eaten whole by a ${A.species}`;
           (world.eatenOf ||= {})[c.species] = (world.eatenOf[c.species] || 0) + 1;   // (the missions' judge counts them)
         }
-        A.meal = { prey: B.species, n: chain.size, energy, N, t: 0, r: Math.cbrt(3 * vol / (4 * Math.PI)) };
+        A.meal = { prey: B.species, n: chain.size, energy, N, t: 0, r: dcbrt(3 * vol / (4 * Math.PI)) };
         {   // for the page only (no effect on results): where the mouth and the prey were, in the predator's body frame,
             // so the swallow can be drawn (the prey pulled in through the mouth, then digested where it lies)
           const c0 = A.cs[0], s0 = A.sn[0], lx = (x, y) => (x - A.cx[0]) * c0 + (y - A.cy[0]) * s0, ly = (x, y) => (y - A.cy[0]) * c0 - (x - A.cx[0]) * s0;
@@ -464,7 +465,7 @@ export function interact(world) {
         const [ax, ay] = padWorld(A, pa);
         for (const pb of B.pads) {
           if (pb.link || pb.kind !== want || pb.go === false) continue;
-          const [bx, by] = padWorld(B, pb), d = Math.hypot(ax - bx, ay - by);
+          const [bx, by] = padWorld(B, pb), d = dhypot(ax - bx, ay - by);
           if (d > PAD.attract || d < 1e-6) continue;
           const k = PAD.pull / d;   // a pull of PAD.pull pN toward the other pad
           const [lax, lay] = toLocal(A, pa.piece, ax, ay), [lbx, lby] = toLocal(B, pb.piece, bx, by);
@@ -497,7 +498,7 @@ export function interact(world) {
           for (const other of B.pads) {
             if (other.link || other.kind !== pad.kind || other.go === false) continue;
             const [ox, oy] = padWorld(B, other);
-            if (Math.hypot(x - ox, y - oy) <= pad.r + other.r) {
+            if (dhypot(x - ox, y - oy) <= pad.r + other.r) {
               link = { a: A.index, b: B.index, padA: pad, padB: other, holds: PAD.kinBreak };
               if (partner) link.partner = true;
               other.link = link;

@@ -542,6 +542,67 @@ predator), moments worth coming back for each morning, maybe notifications; what
 the design (cheer? name lineages? nothing at all?) is a question for the author. (6) **Release as a moment** and the
 nightly GitHub job (the old step 5). **First question for the author:** how the game opens and switches between the
 two halves (a home screen with two big doors, or open straight into the Ocean once you have a species there).
+**Decided (author, 2026-11-19, after first picking two doors: "wait... the ocean first"): OCEAN FIRST.** Once you
+have a species in the Ocean the game opens straight onto it, full screen, the camera on one of your cells, its line
+for the day; a big button to the Lab (and back). With no species there yet it opens in the Lab (missions).
+**Decided (author, 2026-11-19): LIVE, WITH A FALLBACK.** The page loads the last saved world (ocean/world.json.gz,
+loadState) and runs it on live, with the Lab's exact drawing and sound: you see tonight's events before the nightly
+run makes them official (same start, same code: they should match; Math.* drift between browsers may part them; the
+night is the record, re-synced each morning). If the device can't keep about half speed (at 60 cells this computer
+needs ~2.3 s per sim second; a phone more), it plays last night's recording instead (made rich enough to draw cells
+exactly). Not decided yet: what the record must carry for that, replays of past nights, infographics, attachment.
+**Decided (author, 2026-11-19): looking back = YOUR SPECIES' LIFE STORY first** (a line a night with its milestones:
+arrived, first division, first kill, 10 cells, escaped a predator, extinct and back; a tap opens that night's replay).
+Left for later: replays of any night as their own list, graphs over the nights, the Ocean's own timeline.
+**Decided (author, 2026-11-19): every cell drawn exactly, others' species too** (their look shows; their design and
+rules are never shown in the page; but a live run needs the whole world in the browser, rules included, so as with the
+ladder they are hidden by convention only: the repo is public).
+**Decided (author, 2026-11-19): in the Ocean you WATCH AND NAME** (no effect on the world: name your lines, a lineage
+keeping its name in the story; follow a favourite cell; pin moments to keep). Nudges (feeding, stirring) rejected for
+fairness.
+**Decided (author, 2026-11-19): RELEASE IS A SMALL CEREMONY** (in the Lab: full screen, the cell drawn big, you name
+it, "it can't be edited once out there", it drifts down out of the Lab into deep water; "waiting at the surface" until
+the night; next morning the Ocean opens on its arrival, 3 cells and the first line of its story).
+**THE OCEAN REDONE: BUILD PLAN PROPOSED (2026-11-19), WAITS FOR A GO:** (1) the live engine: the saved world loaded in a
+worker and run on, positions sent to the page each frame; its speed measured (cells and device) to choose live or the
+recording; (2) a richer night record (every cell's pieces, so the fallback draws exactly; measure the file size);
+(3) the Ocean screen: full screen, opens first when you have a species (until releases: the followed one), the Lab's
+own drawCell, a camera that pans and zooms reliably (pinch, wheel, double-tap, follow a cell), sound.js, a HUD with your
+badge and today's line, a big button to the Lab; (4) the life story (tools/ocean.mjs writes each species' milestones
+per night; the page lists them, a tap opens that night's replay); (5) naming lines, a favourite cell, pinned moments
+(kept in the browser at first); (6) the release ceremony and GitHub (the Release issue, the nightly Action). Also
+asked: the Lab's latched tube redrawn (the red line and dot "don't look convincing").
+**Added to step 3 (author, 2026-11-19: "make the ocean appealing with decorative or immersive elements too"; all four
+picked; drawing and sound only, never in the simulation):** (a) a living background in out-of-focus parallax layers:
+marine snow, sinking diatom shells and coccoliths, bacteria specks, now and then a passing copepod (~1 mm: a shadow
+bigger than the view, antennae sweeping; scenery, never eats); (b) a richer seabed: foraminifera and radiolarian
+shells, empty diatom cases, a microbial mat, sand, the dead settling and fading (each species' own trace); (c) sky and
+weather from the night's seed (the same for everyone): sunny (caustics, the sun's disc through the surface), overcast,
+rain (drops ringing the surface from below), moon and stars at night; (d) night glow and life cues: blue sparks where
+cells bump, faint wakes behind swimmers, a ripple at a division, a dark cloud at a death. Sound to match (rain on the
+surface, the copepod's passing).
+**STEP 1 BUILT (2026-11-19; author: "go"): the live engine.** sandbox/ocean-worker.js (a module worker: fetches
+ocean/world.json.gz, unpacks it, loadState, runs stepWorld at the asked speed in 30 ms slices, never more than 2 sim s
+behind; posts { type: 'frame', world (structured clone, what the Lab's drawing reads), ratio, cost } 8 times a second,
+then empties world.gone; 'steps' n / every / text for tests); sandbox/ocean-live.js startLive({ onFrame, onState })
+(states loading / live / slow / error: 'slow' when the ratio stays under half the asked speed for 6 s after a 6 s
+warm-up; speed, pause, resume, stop); sandbox/ocean-speed.html (open it on a phone: runs the Ocean a minute undrawn and
+shows how fast it keeps up). sw.js lists them and sim/save.js (cache v11). tools/ocean-live-check.mjs [steps]
+[--every= --text=] (Node's fingerprint of the same run). **Found: the browser drifted from Node within 5 sim seconds**
+(step 604,601, a cell growing: its length off in the last bit): **Edge 157 and Node 24 compute Math.cbrt, sin, cos,
+atan2, exp and log differently** (sqrt, pow, hypot the same; 200,000 inputs each). **Fixed: sim/ now uses only + − × ÷
+and √** (the project's old rule, broken in ~30 places): dmath.js dcbrt (a bit-trick guess, 6 Newton steps, ≤ 1 ulp),
+datan / datan2 (fdlibm's atan ported, ≤ 2 eps), dhypot (√(x² + y²)); brain, build, divide, entry, grow, interact,
+metab, presets, sense use them and dsin / dcos. **Now Edge and Node match bit for bit over 2 sim minutes of the Ocean
+(4734bd52; 32 -> 36 cells).** Bench fingerprints unchanged (44355f83 / 8d4b3d55 / 19ef0745 / 90e36601: those tanks
+never reach these calls in 10 s); 72 checks and every mission case pass; the Ocean's saved world carries on under it
+(differences in the last digits; not marked as a climate change). Not checked: Safari / Firefox (JavaScriptCore and
+SpiderMonkey: the same + − × ÷ √ rule should hold; the last x ** 3 in grow.js and entry.js became products). **Measured (this
+computer, normal speed, 32 cells):** live at 1.0× with ~530-590 ms of work per sim second (Node ~620-880); the most it
+keeps is ~1.6×; asked 5× it said 'slow' at 12 s; copying a frame ~8 ms on the page (8 a second: ~6% of the page's time;
+at 100 cells maybe ~25 ms: then fewer frames). A phone's speed not measured (CPU throttling doesn't reach workers):
+the author can open sandbox/ocean-speed.html on theirs. **Note:** tonight's run first adds arrivals and returns, then
+runs the day: the live view matches it only on nights where nothing arrives. **Next: step 2, the richer night record.**
 **Testing lesson from 2026-11-18:** a headless run can show an old cached ocean.js (disable the cache and rerun before
 chasing a bug). Untracked scratch: tools/_trial1, _trial2 (founders' trials), tools/_*.mjs.
 **Previous handoff (2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done

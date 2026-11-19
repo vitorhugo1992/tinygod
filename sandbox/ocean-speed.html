@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ocean speed test</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px; background: #07131f; color: #d8f0e0; font: 16px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  .big { font-size: 40px; font-weight: 700; }
+  .ok { color: #7ee2a8; } .slow { color: #ffb15c; } .err { color: #ff7a7a; }
+  button { font: inherit; padding: 8px 14px; margin: 4px 4px 0 0; border-radius: 8px; border: 1px solid #2c4a60; background: #12283a; color: inherit; }
+  p { margin: 6px 0; } small { color: #8fb3c4; }
+</style>
+</head>
+<body>
+<h1>🌊 Can this device run the Ocean live?</h1>
+<small>Runs last night's Ocean on this device for a minute, without drawing it, and shows how fast it keeps up. 1.0× = live.</small>
+<p class="big" id="ratio">…</p>
+<p id="state">loading the Ocean…</p>
+<p id="detail"></p>
+<p>Ask for: <button data-s="1">1×</button><button data-s="2">2×</button><button data-s="4">4×</button></p>
+<script type="module">
+  import { startLive } from './ocean-live.js';
+  const $ = (id) => document.getElementById(id);
+  let asked = 1;
+  const live = startLive({
+    onState: (s, i) => { $('state').textContent = s === 'live' ? 'running live' : s === 'slow' ? 'too slow for live here: the Ocean would play last night\'s recording' : s === 'error' ? `error: ${i.message}` : s; $('state').className = s === 'live' ? 'ok' : s === 'slow' ? 'slow' : s === 'error' ? 'err' : ''; },
+    onFrame: (w, i) => {
+      $('ratio').textContent = `${i.ratio.toFixed(2)}× of ${asked}×`;
+      $('ratio').className = i.ratio >= 0.5 * asked ? 'ok' : 'slow';
+      $('detail').textContent = `${i.cells} cells · ${Math.round(i.cost)} ms of work per Ocean second · ${navigator.hardwareConcurrency || '?'} cores`;
+    },
+  });
+  for (const b of document.querySelectorAll('button')) b.onclick = () => { asked = Number(b.dataset.s); live.speed(asked); };
+  setTimeout(() => { live.stop(); $('state').textContent += ' (stopped after a minute)'; }, 60000);
+</script>
+</body>
+</html>

@@ -19,7 +19,7 @@
 // condition changes state only a little inside or outside its range (hysteresis), so it
 // doesn't flicker.
 import { PARAMS } from './params.js';
-import { dcos, dsin } from './dmath.js';
+import { dcos, dsin, dhypot } from './dmath.js';
 import { fire } from './physics.js';
 import { lightAt } from './light.js';
 import { nitrogenAt } from './nutrient.js';
@@ -57,7 +57,7 @@ function nearest(world, cell, x, y, reach, anything) {
       const ex = 2 * c * h, ey = 2 * s * h, l2 = ex * ex + ey * ey;
       let t = l2 > 0 ? ((x - ax) * ex + (y - ay) * ey) / l2 : 0;
       t = t < 0 ? 0 : t > 1 ? 1 : t;
-      const d = Math.hypot(x - ax - ex * t, y - ay - ey * t) - p.a;
+      const d = dhypot(x - ax - ex * t, y - ay - ey * t) - p.a;
       if (d < best) best = d;
     }
   }
@@ -167,7 +167,7 @@ function flowFelt(world, cell, x, y, range) {
     const b = o.pieces[0], h = b.L / 2, ex = o.cs[0] * h, ey = o.sn[0] * h;
     const dx = x - o.cx[0], dy = y - o.cy[0], l2 = ex * ex + ey * ey;
     let t = l2 > 0 ? (dx * ex + dy * ey) / l2 : 0; t = t < -1 ? -1 : t > 1 ? 1 : t;
-    const d = Math.max(0, Math.hypot(dx - ex * t, dy - ey * t) - b.a);
+    const d = Math.max(0, dhypot(dx - ex * t, dy - ey * t) - b.a);
     if (d > range) continue;
     v += o.wake / S.flowWake * b.a / (b.a + d) * (1 - d / range);
   }
@@ -181,7 +181,7 @@ export function sense(world, cell) {
     let vx = (cell.q[0] - px) / dt, vy = (cell.q[1] - py) / dt;
     if (world.flowNow) { flowAt(world.flowNow, cell.q[0], cell.q[1], FU); vx -= FU[0]; vy -= FU[1]; }
     cell.svx = (cell.svx || 0) + (vx - (cell.svx || 0)) * k; cell.svy = (cell.svy || 0) + (vy - (cell.svy || 0)) * k;
-    cell.wake = Math.hypot(cell.svx, cell.svy); cell.lastX = cell.q[0]; cell.lastY = cell.q[1];
+    cell.wake = dhypot(cell.svx, cell.svy); cell.lastX = cell.q[0]; cell.lastY = cell.q[1];
   }
   for (const s of cell.sensors) {
     const i = s.piece, c = cell.cs[i], n = cell.sn[i];

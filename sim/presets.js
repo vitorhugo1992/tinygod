@@ -1,7 +1,8 @@
 // Starting designs for the sandbox and the checks. Plain JSON (see build.js for the format).
+import { dcos, dsin } from './dmath.js';
 const spines = (r, n, length, material, start = 45) => Array.from({ length: n }, (_, i) => {
   const deg = start + i * 360 / n, t = deg * Math.PI / 180;
-  return { type: 'segment', at: [r * Math.cos(t), r * Math.sin(t)], angle: deg, length, radius: 0.5, material };
+  return { type: 'segment', at: [r * dcos(t), r * dsin(t)], angle: deg, length, radius: 0.5, material };
 });
 
 export const PRESETS = {

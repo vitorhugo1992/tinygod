@@ -1,6 +1,7 @@
 // Tournament entries (docs/DESIGN-A-SPECIES.md): the rules an entry must keep, and a design made ready as the sandbox
 // loads it. Shared by the entry page (enter/), tools/trial.mjs and the tournament.
 import { PARAMS } from './params.js';
+import { dcos, dsin, dhypot } from './dmath.js';
 import { nucleiOf } from './brain.js';
 import { buildCell } from './build.js';
 import { volumeOf } from './shape.js';
@@ -30,14 +31,14 @@ export function entryProblem(design) {
   if (twice) return `two parts have the id "${twice}"`;
   const nuc = nucleiOf(d);
   // one size of nucleus for everyone, whatever its shape (it may be moulded, e.g. into a lobe): the volume of a round one
-  const nv = 4 / 3 * Math.PI * PARAMS.brain.radius ** 3;
+  const nv = 4 / 3 * Math.PI * (PARAMS.brain.radius * PARAMS.brain.radius * PARAMS.brain.radius);
   for (const n of nuc) { let v; try { v = volumeOf(n); } catch (e) { return 'the nucleus has no valid shape'; } if (Math.abs(v / nv - 1) > 0.02) return `the nucleus must keep its size: the volume of a round one of radius ${PARAMS.brain.radius} (${Math.round(nv)} µm³; it may be moulded to another shape)`; }
   const wired = d.parts.some((p) => p.joint && (p.joint.controls || p.joint.control || p.joint.speed));
   if (wired && !nuc.length) return 'rules need a nucleus (without one the game drops every rule)';
   let cell;
   try { cell = buildCell(prepEntry(d)); } catch (e) { return explain(d, e.message); }
   // with lobes: no bigger than the biggest plain body, and no wider than PARAMS.lobes.span tip to tip
-  const most = Math.PI * 50 * 50 * 200 + 4 / 3 * Math.PI * 50 ** 3, v = cell.pieces[0].volume;
+  const most = Math.PI * 50 * 50 * 200 + 4 / 3 * Math.PI * 125000, v = cell.pieces[0].volume;
   if (v > most + 1e-6) return `the cell is too big: ${Math.round(v)} µm³ with its lobes, at most ${Math.round(most)} (a body of radius 50, length 200)`;
   const span = spanOf(cell);
   if (span > PARAMS.lobes.span + 1e-9) return `the cell is too wide: ${r2(span)} µm tip to tip, at most ${PARAMS.lobes.span}`;
@@ -48,11 +49,11 @@ export function entryProblem(design) {
 export function spanOf(cell) {
   const pts = [];
   for (const p of cell.pieces) if (p.kind === 'body' || p.kind === 'lobe') {
-    const f = p.frame, ux = Math.cos(f.dir) * p.L / 2, uy = Math.sin(f.dir) * p.L / 2;
+    const f = p.frame, ux = dcos(f.dir) * p.L / 2, uy = dsin(f.dir) * p.L / 2;
     pts.push([f.x - ux, f.y - uy, p.a], [f.x + ux, f.y + uy, p.a]);
   }
   let most = 0;
-  for (const [x1, y1, a1] of pts) for (const [x2, y2, a2] of pts) most = Math.max(most, Math.hypot(x2 - x1, y2 - y1) + a1 + a2);
+  for (const [x1, y1, a1] of pts) for (const [x2, y2, a2] of pts) most = Math.max(most, dhypot(x2 - x1, y2 - y1) + a1 + a2);
   return most;
 }
 
@@ -61,12 +62,12 @@ export function spanOf(cell) {
 const r2 = (v) => Math.round(v * 100) / 100;
 function middle(p) {   // an inclusion's middle line, [x1, y1, x2, y2], in the body's frame
   const [x, y] = p.at || [0, 0], h = (p.material === 'statolith' ? 0 : p.length || 0) / 2, t = (p.angle || 0) * Math.PI / 180;
-  return [x - h * Math.cos(t), y - h * Math.sin(t), x + h * Math.cos(t), y + h * Math.sin(t)];
+  return [x - h * dcos(t), y - h * dsin(t), x + h * dcos(t), y + h * dsin(t)];
 }
 function pointSeg(px, py, ax, ay, bx, by) {
   const ex = bx - ax, ey = by - ay, l2 = ex * ex + ey * ey;
   const t = l2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * ex + (py - ay) * ey) / l2)) : 0;
-  return Math.hypot(px - ax - ex * t, py - ay - ey * t);
+  return dhypot(px - ax - ex * t, py - ay - ey * t);
 }
 const segSeg = (a, b) => Math.min(pointSeg(a[0], a[1], ...b), pointSeg(a[2], a[3], ...b), pointSeg(b[0], b[1], ...a), pointSeg(b[2], b[3], ...a));
 function explain(d, msg) {
@@ -88,8 +89,8 @@ function explain(d, msg) {
     }
   }
   if (/overfill/.test(msg)) {
-    const vol = Math.PI * a * a * L + 4 / 3 * Math.PI * a ** 3;
-    const used = inc.reduce((s, p) => s + Math.PI * p.radius ** 2 * (p.length || 0) + 4 / 3 * Math.PI * p.radius ** 3, 0);
+    const vol = Math.PI * a * a * L + 4 / 3 * Math.PI * (a * a * a);
+    const used = inc.reduce((s, p) => s + Math.PI * (p.radius * p.radius) * (p.length || 0) + 4 / 3 * Math.PI * (p.radius * p.radius * p.radius), 0);
     return `inclusions overfill the body: they take ${Math.round(100 * used / vol)}% of its volume, at most 90%`;
   }
   return msg;
