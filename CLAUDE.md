@@ -643,8 +643,13 @@ swaying microbial mat, forams, radiolarians, frustules, sand grains and the dead
 cells: a gold rim and halo. Night: blue sparks, faint wakes behind swimmers. A division: gold ripples; a death: a dark
 cloud. The story sheet: pinned moments on top, then a line a night with milestone chips (gold ★, red ✕), lineage names
 editable in place, a tap replays that night. The release: the cell big, its name, the warning, it sinks away with
-bubbles, "Waiting at the surface". Cells are sketched; the game draws them exactly. **NEXT CHAT STARTS HERE: the
-author's verdict on this mock-up (its seven questions), then build step 3 into the game.**
+bubbles, "Waiting at the surface". Cells are sketched; the game draws them exactly. **Author's verdict (2026-11-19):
+"looks good"; NO faint white geometric shapes in the background (the far diatom shells and coccoliths: removed; far
+specks stay), NO copepod (removed: the immersion list's "passing copepod" is dropped), and zooming out goes a little past
+the whole tank (minS = 0.85 × the scale that fits the tank and 160 µm more; past its sides the water goes on darker).
+Updated at the same link.** **NEXT CHAT STARTS HERE: build step 3 into the game, from the mock-up as amended.** (The
+other six questions got no objection: the HUD, the LIVE / "Last night" pill, weather and night, your cells' gold, the
+life story, the release: as shown.)
 **Testing lesson from 2026-11-18:** a headless run can show an old cached ocean.js (disable the cache and rerun before
 chasing a bug). Untracked scratch: tools/_trial1, _trial2 (founders' trials), tools/_*.mjs.
 **Previous handoff (2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done
