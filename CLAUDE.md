@@ -609,6 +609,25 @@ computer ~550). It showed "too slow" beside that number: a verdict was final onc
 test page logs each verdict. **What it means:** cost grows faster than the cells (at 60 cells this computer ~2,300 ms
 per sim second, ~4× the 32-cell cost), so at 60 cells that phone would manage ~0.3×: **with the Ocean at 60-100
 cells, phones will mostly see the recording** (step 2 matters most); live holds on phones while it stays ~30-40 cells.
+Author: "go" (the plan kept: ceiling 100, phones mostly on the recording).
+**STEP 2 BUILT (2026-11-19): the rich night record, sim/rich.js.** richRecord / richStep (every 1 s, RICH) / richDone,
+and replay(R).at(steps) -> a world-like object the Lab's drawing can read (cells, links, nitro, shade, toxins, seed).
+Per cell a frame keeps: uid, species, size, place and turn, EVERY joint's angle (a motor drives its joint toward its
+clock's angle, it doesn't set it: a stopped spring sat 0.7 rad from its clock's), each motor's clock and on / off,
+flags (dead, resting, stunned, starving, fixing), each store's fill, chamber's density and plastid's damage, and only
+when present: harpoons growing back, springs firing, a meal, stolen and lost plastids. Links: pad, partner, tube,
+tether (whose pad / tube, which piece, where, length, drilling). Every 30 s the nitrogen, shade and toxin fields packed
+to bytes. The night's designs once. The page rebuilds each cell with grow.js makeCell(design, size, stolen, lost)
+(cached per cell until its size changes) and poses it (updatePose); between frames place, turn and joints are eased, a
+beating motor moves on by its clock (the recorded angle plus the stroke since: exact at a frame). tools/ocean.mjs writes
+it as nights/<n>.rich.json.gz beside the old record. **Checked (tools/rich-check.mjs [s]): 150 sim s of the Ocean (32
+-> 38 cells), 5,127 cells rebuilt at the recorded moments against the real ones: none missing, the worst piece off by
+0.013 µm (rounding), stores within 0.0005, every link right; recording changes nothing (fingerprint 55bea4e6 either
+way).** (The real cell's pieces lag its joint angles by a step: the sim poses at the start of the next step; the check
+poses first.) **Size: ~0.4 MB gzipped a night at 32-38 cells** (so ~1 MB at 80-100). **Open for step 6 (GitHub):** a
+night a day in git is ~150-350 MB a year of history: keep the rich files out of git (a release asset, a branch that is
+rewritten, or only the last 7 nights) to decide then. sw.js lists sim/rich.js (cache v12). Not yet used by the page
+(step 3). **Next: step 3, the Ocean screen.**
 **Testing lesson from 2026-11-18:** a headless run can show an old cached ocean.js (disable the cache and rerun before
 chasing a bug). Untracked scratch: tools/_trial1, _trial2 (founders' trials), tools/_*.mjs.
 **Previous handoff (2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done

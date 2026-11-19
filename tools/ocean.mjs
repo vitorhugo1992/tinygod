@@ -22,6 +22,7 @@ import { prepEntry, entryProblem } from '../sim/entry.js';
 import { startSpots } from '../sim/start.js';
 import { takeOut } from '../sim/death.js';
 import { newRecord, recordStep, lifeSummary } from '../sim/record.js';
+import { richRecord, richStep, richDone } from '../sim/rich.js';
 import { saveState, loadState } from '../sim/save.js';
 import { clock } from '../sim/light.js';
 
@@ -139,10 +140,12 @@ function runNight() {
   const names = Object.values(st.species).filter((s) => s.status === 'living').map((s) => s.name);
   const m = { world, names };
   const R = newRecord(m); R.events.push(...rec.events);
+  const RR = richRecord(names);   // the rich record: every cell posed every second, for drawing the night exactly (sim/rich.js)
   const startDay = world.steps * DT / DAY, deaths = [];
   for (let k = 0; k < NIGHT; k++) {
     stepWorld(world);
     recordStep(R, m);
+    richStep(RR, world);
     if (world.gone && world.gone.length) { for (const c of world.gone) deaths.push({ species: c.species, why: c.diedWhy || 'starved', depth: Math.round(TH - c.q[1]) }); world.gone.length = 0; }
     if (k && k % Math.round(DAY / 4 / DT) === 0) process.stdout.write(`  night ${night}: ${Math.round(100 * k / NIGHT)}% · ${world.cells.length} cells · ${((performance.now() - t0) / 60000).toFixed(1)} min\n`);
   }
@@ -169,6 +172,7 @@ function runNight() {
   mkdirSync(NDIR, { recursive: true });
   writeFileSync(new URL(`${night}.json.gz`, NDIR), gzipSync(JSON.stringify({ night, from: startDay, to: world.steps * DT / DAY,
     names: R.names, events: R.events, life: R.life, frames: R.frames, summary: sum, deaths })));
+  writeFileSync(new URL(`${night}.rich.json.gz`, NDIR), gzipSync(JSON.stringify({ night, ...richDone(RR) })));
   saveAll(st, world);
   console.log(`Night ${night}: ${world.cells.length} cells, ${st.last.minutes} min. ${told.join('; ') || 'nothing arrived or died out'}.`);
 }
