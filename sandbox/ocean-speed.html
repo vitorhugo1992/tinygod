@@ -20,20 +20,22 @@
 <p class="big" id="ratio">…</p>
 <p id="state">loading the Ocean…</p>
 <p id="detail"></p>
+<ul id="log" style="padding-left:18px;color:#8fb3c4"></ul>
 <p>Ask for: <button data-s="1">1×</button><button data-s="2">2×</button><button data-s="4">4×</button></p>
 <script type="module">
   import { startLive } from './ocean-live.js';
   const $ = (id) => document.getElementById(id);
-  let asked = 1;
+  let asked = 1; const T0 = performance.now();
+  const note = (t) => { const li = document.createElement('li'); li.textContent = `${Math.round((performance.now() - T0) / 1000)} s: ${t}`; $('log').append(li); };
   const live = startLive({
-    onState: (s, i) => { $('state').textContent = s === 'live' ? 'running live' : s === 'slow' ? 'too slow for live here: the Ocean would play last night\'s recording' : s === 'error' ? `error: ${i.message}` : s; $('state').className = s === 'live' ? 'ok' : s === 'slow' ? 'slow' : s === 'error' ? 'err' : ''; },
+    onState: (s, i) => { note(s === 'slow' ? `too slow (${i.why})` : s === 'live' ? `live at ${asked}×` : s); $('state').textContent = s === 'live' ? 'running live' : s === 'slow' ? 'too slow for live here: the Ocean would play last night\'s recording' : s === 'error' ? `error: ${i.message}` : s; $('state').className = s === 'live' ? 'ok' : s === 'slow' ? 'slow' : s === 'error' ? 'err' : ''; },
     onFrame: (w, i) => {
       $('ratio').textContent = `${i.ratio.toFixed(2)}× of ${asked}×`;
       $('ratio').className = i.ratio >= 0.5 * asked ? 'ok' : 'slow';
       $('detail').textContent = `${i.cells} cells · ${Math.round(i.cost)} ms of work per Ocean second · ${navigator.hardwareConcurrency || '?'} cores`;
     },
   });
-  for (const b of document.querySelectorAll('button')) b.onclick = () => { asked = Number(b.dataset.s); live.speed(asked); };
+  for (const b of document.querySelectorAll('button')) b.onclick = () => { asked = Number(b.dataset.s); note(`asked for ${asked}×`); live.speed(asked); };
   setTimeout(() => { live.stop(); $('state').textContent += ' (stopped after a minute)'; }, 60000);
 </script>
 </body>

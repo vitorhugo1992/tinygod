@@ -603,6 +603,12 @@ keeps is ~1.6×; asked 5× it said 'slow' at 12 s; copying a frame ~8 ms on the 
 at 100 cells maybe ~25 ms: then fewer frames). A phone's speed not measured (CPU throttling doesn't reach workers):
 the author can open sandbox/ocean-speed.html on theirs. **Note:** tonight's run first adds arrivals and returns, then
 runs the day: the live view matches it only on nights where nothing arrives. **Next: step 2, the richer night record.**
+**The author's phone (Android, 8 cores, 2026-11-19): 1.06× live at 33 cells, 813 ms of work per sim second** (this
+computer ~550). It showed "too slow" beside that number: a verdict was final once given (likely 2× / 4× tapped, then
+1×). Fixed: a new speed or a resume judges afresh (ocean-live.js rejudge), the 'slow' state carries its reason, the
+test page logs each verdict. **What it means:** cost grows faster than the cells (at 60 cells this computer ~2,300 ms
+per sim second, ~4× the 32-cell cost), so at 60 cells that phone would manage ~0.3×: **with the Ocean at 60-100
+cells, phones will mostly see the recording** (step 2 matters most); live holds on phones while it stays ~30-40 cells.
 **Testing lesson from 2026-11-18:** a headless run can show an old cached ocean.js (disable the cache and rerun before
 chasing a bug). Untracked scratch: tools/_trial1, _trial2 (founders' trials), tools/_*.mjs.
 **Previous handoff (2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done

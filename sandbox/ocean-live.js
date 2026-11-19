@@ -17,6 +17,8 @@ export function startLive({ onFrame = () => {}, onState = () => {}, speed = 1, u
   let t0 = 0, slowSince = 0, stopped = false, currentSpeed = speed;
   const set = (s, extra) => { if (info.state === s) return; info.state = s; onState(s, { ...info, ...extra }); };
   onState('loading', info);
+  // a new speed or a pause judges afresh (a 'slow' verdict at 4× says nothing about 1×)
+  const rejudge = () => { slowSince = 0; t0 = performance.now(); if (info.state === 'slow') set('live'); };
   worker.onmessage = (e) => {
     const m = e.data;
     if (stopped) return;
@@ -25,7 +27,7 @@ export function startLive({ onFrame = () => {}, onState = () => {}, speed = 1, u
       Object.assign(info, { ratio: m.ratio, cost: m.cost, cells: m.world.cells.length, steps: m.steps });
       const now = performance.now();
       if (now - t0 > LIVE.judgeAfter && info.state === 'live') {   // after the warm-up (loading, the first slow steps)
-        if (m.ratio < LIVE.minRatio * currentSpeed) { slowSince = slowSince || now; if (now - slowSince > LIVE.judgeAfter) set('slow'); }
+        if (m.ratio < LIVE.minRatio * currentSpeed) { slowSince = slowSince || now; if (now - slowSince > LIVE.judgeAfter) set('slow', { why: `${m.ratio.toFixed(2)}× of ${currentSpeed}× for ${Math.round((now - slowSince) / 1000)} s` }); }
         else slowSince = 0;
       }
       onFrame(m.world, info);
@@ -35,9 +37,9 @@ export function startLive({ onFrame = () => {}, onState = () => {}, speed = 1, u
   worker.postMessage({ type: 'start', url: new URL(url, import.meta.url).href, speed, fps: LIVE.fps });
   return {
     info,
-    speed(x) { currentSpeed = x; slowSince = 0; worker.postMessage({ type: 'speed', speed: x }); },
+    speed(x) { currentSpeed = x; rejudge(); worker.postMessage({ type: 'speed', speed: x }); },
     pause() { worker.postMessage({ type: 'pause' }); },
-    resume() { slowSince = 0; t0 = performance.now(); worker.postMessage({ type: 'resume' }); },
+    resume() { rejudge(); worker.postMessage({ type: 'resume' }); },
     stop() { stopped = true; worker.terminate(); },
   };
 }
