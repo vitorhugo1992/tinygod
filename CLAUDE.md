@@ -628,6 +628,23 @@ poses first.) **Size: ~0.4 MB gzipped a night at 32-38 cells** (so ~1 MB at 80-1
 night a day in git is ~150-350 MB a year of history: keep the rich files out of git (a release asset, a branch that is
 rewritten, or only the last 7 nights) to decide then. sw.js lists sim/rich.js (cache v12). Not yet used by the page
 (step 3). **Next: step 3, the Ocean screen.**
+**STEP 3 MOCK-UP (2026-11-19; author: "mockup first, after that is settled, we start a fresh chat"):**
+https://claude.ai/artifact/RqJ2vHEC8PFXq7JEoq15LC (private; source in the chat's scratchpad, gone with it: the page
+itself is the reference, read it with the Artifact tool). A phone-sized Ocean you can drag, pinch, scroll and double-tap,
+with switches beside it (hour, weather, live / recording, a division, a death, the copepod, the life story, the release
+ceremony) and seven questions. What it shows: top left the night and clock (no depths), the weather, 🔇 sound; top right
+a LIVE pill (blue, pulsing) or "Last night" (amber, a faint amber cast on the view) and a minimap (tap to look there);
+toasts under it for your moments; bottom your badge (portrait, cells, growth, kills, nights, rank, the day in one line;
+tap: follow your next cell) and three buttons: 🧪 The Lab (biggest), 📖 Its story, 🔭 Whole / 🎯 Follow. Scenery: water by
+depth, hour and weather; the surface from below (a wavering film, the sun's disc on a clear day, rain rings; stars and a
+moon at night); light shafts and ripple light; marine snow; far parallax specks and out-of-focus sinking diatom shells
+and coccoliths; a copepod silhouette (antennae sweeping, legs kicking) crossing behind every ~2 min; the seabed with a
+swaying microbial mat, forams, radiolarians, frustules, sand grains and the dead fading in their tints; a vignette. Your
+cells: a gold rim and halo. Night: blue sparks, faint wakes behind swimmers. A division: gold ripples; a death: a dark
+cloud. The story sheet: pinned moments on top, then a line a night with milestone chips (gold ★, red ✕), lineage names
+editable in place, a tap replays that night. The release: the cell big, its name, the warning, it sinks away with
+bubbles, "Waiting at the surface". Cells are sketched; the game draws them exactly. **NEXT CHAT STARTS HERE: the
+author's verdict on this mock-up (its seven questions), then build step 3 into the game.**
 **Testing lesson from 2026-11-18:** a headless run can show an old cached ocean.js (disable the cache and rerun before
 chasing a bug). Untracked scratch: tools/_trial1, _trial2 (founders' trials), tools/_*.mjs.
 **Previous handoff (2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done
