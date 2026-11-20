@@ -26,6 +26,25 @@ export const PARAMS = {
       patch: 0.5,           // stronger in some places along the floor than others, by this share (it turns the cells)
     },
     mix: 4,                 // nitrogen layers even out up to 1 + this many times faster, as the water moves (night mixing)
+    // The Ocean's weather (author, 2026-11-20: "moments where it stays stagnant, moments with horizontal currents,
+    // upwelling, downwelling"; "dramatic should be once in a while"): only in a world with `weather` (the Ocean's), whose
+    // sides also join up (sim/wrap.js). Each sandbox day has 2-4 spells, picked from the world's seed and the day: still
+    // water, a current east or west (a surface layer sliding over still deep water: species at different depths
+    // meet, and cells in the thin shear layer between tilt and tumble), the rolls as above (two or four loops), upwelling (a broad rising column, slow
+    // sinking elsewhere: deep nitrogen carried up) or downwelling (the same, sinking). A day in four has one strong spell.
+    weather: {
+      spells: [2, 4],       // spells a day, at least and at most
+      blend: 0.025,         // of a day: spells cross-fade over twice this (~70 min of the 24 h)
+      dramatic: 0.25,       // the share of days with one strong spell
+      gentle: { still: 0.3, current: 0.3, rolls: 0.25, up: 0.075, down: 0.075 },   // the odds of each kind on a gentle spell
+      strong: { current: 0.35, up: 0.35, down: 0.3 },
+      current: [3, 7, 14, 22],   // µm/s at the surface: a gentle one between the first two, a strong one the last two
+      rise: [2, 4, 9, 14],
+      // a current is a surface layer over still deep water (author, 2026-11-20: "cells should tilt with the water drag"; real
+      // oceans shear in thin layers: plankton tilt and tumble there, swimmers get trapped, Durham et al. 2009): its shear layer lies
+      layer: [300, 700],    // µm below the surface (from the seed)
+      shear: [40, 80],      // µm thick (the speed drops from all to nothing over ~4 times this)       // µm/s: the fastest rising (or sinking) in an upwelling's (downwelling's) middle, the same way
+    },
   },
   time: {
     dt: 1 / 1000,           // fixed physics step (s), midpoint method; motors up to ~50 Hz get >= 20 steps a beat

@@ -7,6 +7,7 @@
 // held where they were at the start of the step, and each side takes the stiffness implicitly at twice the step,
 // so two cells pushing on each other never overshoot.
 import { PARAMS } from './params.js';
+import { WRAP } from './wrap.js';
 import { dsin, dcos } from './dmath.js';
 import { flowGradAt } from './flow.js';
 
@@ -118,6 +119,7 @@ function outside(cell) {
 function walls(cell, cols, ex, ey, a) {
   if (ey - a < 0) contact(cell, cols, ex, ey - a, 0, 1, a - ey);
   if (ey + a > TH) contact(cell, cols, ex, ey + a, 0, -1, ey + a - TH);
+  if (WRAP) return;   // the Ocean has no side walls (sim/wrap.js)
   if (ex - a < 0) contact(cell, cols, ex - a, ey, 1, 0, a - ex);
   if (ex + a > TW) contact(cell, cols, ex + a, ey, -1, 0, ex + a - TW);
 }

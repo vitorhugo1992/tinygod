@@ -6,9 +6,11 @@
 // for): the profile's richness varies across the tank, two rich patches wandering slowly over days (upwelling plumes,
 // remineralised snow), so finding the food pays: swimmers, feelers and nutrient sensors have something to look for.
 import { PARAMS } from './params.js';
+import { WRAP, inTank } from './wrap.js';
 import { dexp, dsin, TAU } from './dmath.js';
 import { hash01 } from './rng.js';
 import { worldTime } from './world.js';
+import { flowAt } from './flow.js';
 
 const N = PARAMS.nutrient, P = N.patches, TH = PARAMS.tank.h, TW = PARAMS.tank.w;
 const LH = TH / N.layers, CW = TW / N.columns, NL = N.layers, NC = N.columns;
@@ -36,7 +38,7 @@ export function patchAt(world, x) {
 
 const mid = (k) => (k + 0.5) * LH, colMid = (j) => (j + 0.5) * CW;
 const layerOf = (y) => Math.max(0, Math.min(NL - 1, Math.floor(y / LH)));
-const colOf = (x) => Math.max(0, Math.min(NC - 1, Math.floor(x / CW)));
+const colOf = (x) => Math.max(0, Math.min(NC - 1, Math.floor((WRAP ? inTank(x) : x) / CW)));
 
 // The field: c[k * NC + j], layer k (from the floor), column j (from the left)
 function setRef(world) {
@@ -56,7 +58,13 @@ export function nitrogenAt(world, y, x = TW / 2) {
   if (!world.nitro) return nutrientAt(y);
   const c = world.nitro.c;
   let fy = y / LH - 0.5, fx = x / CW - 0.5;
-  fy = fy < 0 ? 0 : fy > NL - 1 ? NL - 1 : fy; fx = fx < 0 ? 0 : fx > NC - 1 ? NC - 1 : fx;
+  fy = fy < 0 ? 0 : fy > NL - 1 ? NL - 1 : fy;
+  if (WRAP) {   // the Ocean: between the last column and the first across the seam
+    fx = inTank(x) / CW - 0.5; if (fx < 0) fx += NC;
+    const k = Math.min(Math.floor(fy), NL - 2), j = Math.floor(fx), j1 = j < NC - 1 ? j + 1 : 0, ty = fy - k, tx = fx - j;
+    return (c[k * NC + j] * (1 - tx) + c[k * NC + j1] * tx) * (1 - ty) + (c[(k + 1) * NC + j] * (1 - tx) + c[(k + 1) * NC + j1] * tx) * ty;
+  }
+  fx = fx < 0 ? 0 : fx > NC - 1 ? NC - 1 : fx;
   const k = Math.min(Math.floor(fy), NL - 2), j = Math.min(Math.floor(fx), NC - 2), ty = fy - k, tx = fx - j;
   const a = c[k * NC + j], b = c[k * NC + j + 1], d = c[(k + 1) * NC + j], e = c[(k + 1) * NC + j + 1];
   return (a * (1 - tx) + b * tx) * (1 - ty) + (d * (1 - tx) + e * tx) * ty;
@@ -82,10 +90,29 @@ export function mixNitrogen(world) {
   const back = dt / N.resupply, fade = dt / N.fade, up = dt * N.spread * stir, across = dt * N.spreadX * stir;
   const o = tmp.a && tmp.a.length === c.length ? tmp.a : (tmp.a = new Float64Array(c.length));
   o.set(c);
+  if (fs && fs.ocean) advect(fs, o, dt);   // the Ocean's weather carries the nitrogen: upwelling lifts the deep water's
   for (let k = 0; k < NL; k++) for (let j = 0; j < NC; j++) {
     const i = k * NC + j, here = o[i];
     const below = k > 0 ? o[i - NC] : here, above = k < NL - 1 ? o[i + NC] : here;
-    const left = j > 0 ? o[i - 1] : here, right = j < NC - 1 ? o[i + 1] : here;
+    const left = j > 0 ? o[i - 1] : WRAP ? o[i + NC - 1] : here, right = j < NC - 1 ? o[i + 1] : WRAP ? o[i - NC + 1] : here;
     c[i] = here + (f.ref[i] - here) * (here > f.ref[i] ? fade : back) + (below - here + above - here) * up + (left - here + right - here) * across;
   }
+}
+
+// The Ocean's water carries its nitrogen (2026-11-20): each square takes what was upstream of it (between squares'
+// middles; across the seam; nothing from beyond the surface or the floor)
+const FV = new Float64Array(3);
+let adv = null;
+function advect(fs, o, dt) {
+  if (!adv || adv.length !== o.length) adv = new Float64Array(o.length);
+  for (let k = 0; k < NL; k++) for (let j = 0; j < NC; j++) {
+    const x = colMid(j), y = mid(k);
+    flowAt(fs, x, y, FV);
+    let fy = (y - FV[1] * dt) / LH - 0.5, fx = (x - FV[0] * dt) / CW - 0.5;
+    fy = fy < 0 ? 0 : fy > NL - 1 ? NL - 1 : fy;
+    fx -= NC * Math.floor(fx / NC);
+    const k0 = Math.min(Math.floor(fy), NL - 2), j0 = Math.floor(fx) % NC, j1 = (j0 + 1) % NC, ty = fy - k0, tx = fx - Math.floor(fx);
+    adv[k * NC + j] = (o[k0 * NC + j0] * (1 - tx) + o[k0 * NC + j1] * tx) * (1 - ty) + (o[(k0 + 1) * NC + j0] * (1 - tx) + o[(k0 + 1) * NC + j1] * tx) * ty;
+  }
+  o.set(adv);
 }

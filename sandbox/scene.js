@@ -308,7 +308,7 @@ export function drawDrift(ctx, world, v, simT, t) {
   const { W, H, X, Y, s } = v, fs = flowState(world);
   const dt = bitT === null ? 0 : Math.max(0, Math.min(1, simT - bitT));
   bitT = simT;
-  const lx = Math.max(0, v.x0), hx = Math.min(TW, v.x1), ly = Math.max(0, v.y0), hy = Math.min(TH, v.y1);
+  const lx = world.wrap ? v.x0 : Math.max(0, v.x0), hx = world.wrap ? v.x1 : Math.min(TW, v.x1), ly = Math.max(0, v.y0), hy = Math.min(TH, v.y1);
   if (hx <= lx || hy <= ly) return;
   const vw = hx - lx, vh = hy - ly, mv = bitView;
   if (!mv || Math.abs(vw - mv.w) > 0.15 * mv.w || Math.abs(vh - mv.h) > 0.15 * mv.h || Math.abs(lx - mv.x) > 0.5 * vw || Math.abs(ly - mv.y) > 0.5 * vh) bits = [];

@@ -29,6 +29,7 @@ import { richRecord, richStep, richDone } from '../sim/rich.js';
 import { saveState, loadState } from '../sim/save.js';
 import { clock } from '../sim/light.js';
 import { storyNight } from './ocean-story.mjs';
+import { spellsOfDay } from '../sim/flow.js';
 
 export const OCEAN = { cap: 100, capSpecies: 25, arrive: 3, returnAfter: 3, releaseEvery: 3, houseUntil: 12, boardNights: 7, wipeouts: 3, seed: 20261118 };
 export const HOUSE = [
@@ -118,6 +119,15 @@ function runNight() {
   const told = [], t0 = performance.now();
   const rec = { events: [] };
   const ev = (e) => rec.events.push({ day: Math.round(world.steps * DT / DAY * 1000) / 1000, ...e });
+  // 0. the Ocean's weather and joined sides (author, 2026-11-20): its first climate change, from the first night run
+  //    under this code; marked on the timeline, nothing reset
+  if (!world.weather) {
+    world.weather = true; world.wrap = true;
+    const what = 'The Ocean gets weather (still water, currents, upwelling, downwelling) and its sides join up';
+    (st.climate ||= []).push({ night, what });
+    ev({ kind: 'climate', what });
+    told.push('climate change: weather and joined sides');
+  }
   // 1. releases: the player's old version taken out, the new one arrives
   for (const q of st.queue) {
     const sp = st.species[q.name];
@@ -181,7 +191,8 @@ function runNight() {
   st.night = night;
   st.last = { night, at: new Date().toISOString(), cells: world.cells.length, minutes: r2((performance.now() - t0) / 60000), told, clock: Math.round(clock(world) * 10) / 10 };
   mkdirSync(NDIR, { recursive: true });
-  const N = { night, from: startDay, to: world.steps * DT / DAY, names: R.names, events: R.events, life: R.life, frames: R.frames, summary: sum, deaths };
+  const k0 = Math.floor(startDay + 1e-9), weather = spellsOfDay(world.seed, k0).map((sp) => ({ kind: sp.kind, strong: sp.strong, east: sp.U > 0, from: sp.from, to: sp.to }));
+  const N = { night, from: startDay, to: world.steps * DT / DAY, names: R.names, events: R.events, life: R.life, frames: R.frames, summary: sum, deaths, weather };
   writeFileSync(new URL(`${night}.json.gz`, NDIR), gzipSync(JSON.stringify(N)));
   writeFileSync(new URL(`${night}.rich.json.gz`, NDIR), gzipSync(JSON.stringify({ night, ...richDone(RR) })));
   const keep = Number(opt('keepRich', 0));   // --keepRich=7: only the last 7 nights' recordings (the data branch on GitHub)

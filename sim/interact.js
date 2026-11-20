@@ -12,6 +12,7 @@ import { PARAMS } from './params.js';
 import { dcos, dsin, dcbrt, dhypot } from './dmath.js';
 import { drainEnergy, energyOf, fullness } from './metab.js';
 import { setSegmentLength } from './build.js';
+import { WRAP, shiftTo, across, lend, giveBack } from './wrap.js';
 
 const KCC = PARAMS.contact.cells;
 const PAD = PARAMS.pads, FEED = PARAMS.feed;
@@ -164,7 +165,8 @@ function nearLists(cells) {
     const xa = NX[a], ya = NY[a], ra = NR[a] + M;
     for (let b = 0; b < n; b++) {
       if (b === a) continue;
-      const dx = xa - NX[b], dy = ya - NY[b], r = ra + NR[b];
+      let dx = xa - NX[b]; if (WRAP) dx = across(dx);   // the Ocean: the shortest way round
+      const dy = ya - NY[b], r = ra + NR[b];
       if (dx * dx + dy * dy > r * r) continue;
       if (m >= NL.length) { const g = new Int32Array(2 * NL.length); g.set(NL); NL = g; }
       NL[m++] = b;
@@ -188,6 +190,9 @@ export function interact(world) {
       const b = near.list[k];
       if (b <= a) continue;
       const B = cells[b];
+      // across the Ocean's seam: B is lent to A's side of the tank for the test, its pushes aimed back on its own side
+      const sh = WRAP ? shiftTo(A.q[0], B.q[0]) : 0, lent = sh ? lend(B, sh) : null, e0 = B.ext.length;
+      try {
       const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
       if (dx * dx + dy * dy > r * r) continue;
       // (2026-11-18, the Ocean's speed) a piece pair whose middles lie farther apart than both half-lengths and both
@@ -228,6 +233,7 @@ export function interact(world) {
           B.ext.push({ type: 'push', piece: j, x: bx, y: by, nx: -nx, ny: -ny, tx: px - nx * rr, ty: py - ny * rr, k: KCC });
         }
       }
+      } finally { if (lent) { for (let q = e0; q < B.ext.length; q++) B.ext[q].tx -= sh; giveBack(B, lent); } }
     }
   }
 
@@ -236,10 +242,12 @@ export function interact(world) {
   for (const l of world.links) {
     const A = cells[l.a], B = cells[l.b];
     const [ax, ay] = padWorld(A, l.padA);
-    const [bx, by] = l.padB ? padWorld(B, l.padB) : (() => {
+    let [bx, by] = l.padB ? padWorld(B, l.padB) : (() => {
       const i = l.pieceB, c = B.cs[i], s = B.sn[i];
       return [B.cx[i] + c * l.bx - s * l.by, B.cy[i] + s * l.bx + c * l.by];
     })();
+    const sh = WRAP ? shiftTo(ax, bx) : 0;   // a link across the Ocean's seam: B's end seen on A's side
+    if (sh) bx += sh;
     if (l.tether) {   // a tether's line: a rope, slack until tight, then a spring; reeled in or out by its rules
       const T = PARAMS.tether, t = l.padA, d = dhypot(ax - bx, ay - by);
       if (t.reelIn) l.len = Math.max(0, l.len - T.reel * PARAMS.time.dt); else if (t.reelOut) l.len = Math.min(T.max, l.len + T.reel * PARAMS.time.dt);
@@ -249,9 +257,9 @@ export function interact(world) {
       if (why) { t.link = null; t.t = T.reload; A.lastTie = { what: B.species, why, step: world.steps }; continue; }
       kept.push(l);
       if (pull > 0) {   // each end pulled toward the point the line's length away from the other
-        const ux = (ax - bx) / d, uy = (ay - by) / d, [lax, lay] = toLocal(A, t.piece, ax, ay), [lbx, lby] = toLocal(B, l.pieceB, bx, by);
+        const ux = (ax - bx) / d, uy = (ay - by) / d, [lax, lay] = toLocal(A, t.piece, ax, ay), [lbx, lby] = toLocal(B, l.pieceB, bx - sh, by);
         A.ext.push({ type: 'pull', piece: t.piece, x: lax, y: lay, tx: bx + ux * l.len, ty: by + uy * l.len, k: T.stiffness });
-        B.ext.push({ type: 'pull', piece: l.pieceB, x: lbx, y: lby, tx: ax - ux * l.len, ty: ay - uy * l.len, k: T.stiffness });
+        B.ext.push({ type: 'pull', piece: l.pieceB, x: lbx, y: lby, tx: ax - ux * l.len - sh, ty: ay - uy * l.len, k: T.stiffness });
       }
       continue;
     }
@@ -271,8 +279,8 @@ export function interact(world) {
     const [lax, lay] = toLocal(A, l.padA.piece, ax, ay);
     A.ext.push({ type: 'pull', piece: l.padA.piece, x: lax, y: lay, tx: bx, ty: by, k: PAD.stiffness });
     const pb = l.padB ? l.padB.piece : l.pieceB;
-    const [lbx, lby] = toLocal(B, pb, bx, by);
-    B.ext.push({ type: 'pull', piece: pb, x: lbx, y: lby, tx: ax, ty: ay, k: PAD.stiffness });
+    const [lbx, lby] = toLocal(B, pb, bx - sh, by);
+    B.ext.push({ type: 'pull', piece: pb, x: lbx, y: lby, tx: ax - sh, ty: ay, k: PAD.stiffness });
   }
   world.links = kept;
   // shielding: each body's drag by how many kin it is joined to (PARAMS.pads.shield)
@@ -290,9 +298,12 @@ export function interact(world) {
       for (let k = near.start[A.index], kEnd = near.start[A.index + 1]; k < kEnd; k++) {
         const B = cells[near.list[k]];
         if (B === A || B.species === A.species || B.emptied) continue;
-        const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
-        if (dx * dx + dy * dy > r * r) continue;
-        const hit = surfaceNear(B, x, y, f.r, 'living');   // the body and its lobes only: spines and flagella keep it off
+        const sh = WRAP ? shiftTo(A.q[0], B.q[0]) : 0, lent = sh ? lend(B, sh) : null;   // across the Ocean's seam
+        let hit;
+        try {
+          const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
+          hit = dx * dx + dy * dy > r * r ? null : surfaceNear(B, x, y, f.r, 'living');   // the body and its lobes only: spines and flagella keep it off
+        } finally { if (lent) giveBack(B, lent); }
         if (!hit) continue;
         // the tube's own price at once (a predator that can't pay doesn't latch, and says so); what plates add is
         // drilled afterwards as a flow (PARAMS.feed.drill, metab.js), draining nothing until it is through
@@ -320,8 +331,11 @@ export function interact(world) {
       let best = null;
       for (const B of cells) {
         if (B === A) continue;
-        const dx = B.q[0] - x0, dy = B.q[1] - y0, r = HP.range + B.reach;
+        const sh = WRAP ? shiftTo(x0, B.q[0]) : 0;   // across the Ocean's seam
+        const dx = B.q[0] + sh - x0, dy = B.q[1] - y0, r = HP.range + B.reach;
         if (dx * dx + dy * dy > r * r) continue;
+        const lent = sh ? lend(B, sh) : null;
+        try {
         for (let k = 0; k < B.pieces.length; k++) {
           const [ax, ay, bx, by] = ends(B, k), a = B.pieces[k].a;
           for (let s = 0; s <= HP.range && (!best || s < best.s); s += 0.5) {   // walk along the dart's line
@@ -332,6 +346,7 @@ export function interact(world) {
             if (qx * qx + qy * qy <= a * a) { best = { s, B, k }; break; }
           }
         }
+        } finally { if (lent) giveBack(B, lent); }
       }
       const B = best && best.B, hit = B && living(B.pieces[best.k]) && !B.dead ? B : null, len = best ? best.s : HP.range;
       h.shot = { step: world.steps, x0, y0, x1: x0 + ux * len, y1: y0 + uy * len, hit: hit ? hit.species : null,
@@ -354,8 +369,11 @@ export function interact(world) {
       let best = null;
       for (const B of cells) {
         if (B === A || B.dead) continue;
-        const dx = B.q[0] - x0, dy = B.q[1] - y0, r = TP.range + B.reach;
+        const sh = WRAP ? shiftTo(x0, B.q[0]) : 0;   // across the Ocean's seam
+        const dx = B.q[0] + sh - x0, dy = B.q[1] - y0, r = TP.range + B.reach;
         if (dx * dx + dy * dy > r * r) continue;
+        const lent = sh ? lend(B, sh) : null;
+        try {
         for (let k = 0; k < B.pieces.length; k++) {
           const [ax, ay, bx, by] = ends(B, k), a = B.pieces[k].a;
           for (let s = 0; s <= TP.range && (!best || s < best.s); s += 0.5) {
@@ -363,9 +381,10 @@ export function interact(world) {
             let u = l2 > 0 ? ((px - ax) * ex + (py - ay) * ey) / l2 : 0;
             u = u < 0 ? 0 : u > 1 ? 1 : u;
             const qx = ax + ex * u - px, qy = ay + ey * u - py;
-            if (qx * qx + qy * qy <= a * a) { best = { s, B, k, px, py }; break; }
+            if (qx * qx + qy * qy <= a * a) { best = { s, B, k, px: px - sh, py }; break; }
           }
         }
+        } finally { if (lent) giveBack(B, lent); }
       }
       const len = best ? best.s : TP.range;
       t.shot = { step: world.steps, x0, y0, x1: x0 + ux * len, y1: y0 + uy * len, hit: best ? best.B.species : null, kin: !!best && best.B.species === A.species, tether: true };
@@ -388,7 +407,7 @@ export function interact(world) {
     if (!V || V.dead) continue;
     for (const c of cells) {
       if (c === V || c.dead || c.species !== V.species) continue;
-      const d = dhypot(c.q[0] - V.q[0], c.q[1] - V.q[1]) - c.pieces[0].a - V.pieces[0].a - (c.pieces[0].L + V.pieces[0].L) / 2;
+      const d = dhypot(WRAP ? across(c.q[0] - V.q[0]) : c.q[0] - V.q[0], c.q[1] - V.q[1]) - c.pieces[0].a - V.pieces[0].a - (c.pieces[0].L + V.pieces[0].L) / 2;
       const a = 1 - Math.max(d, 0) / PARAMS.alarm.range;
       if (a > c.alarm) c.alarm = a;
     }
@@ -411,6 +430,8 @@ export function interact(world) {
       for (let k = near.start[A.index], kEnd = near.start[A.index + 1]; k < kEnd; k++) {
         const B = cells[near.list[k]];
         if (B === A || B.eatenBy || B.species === A.species || B.pieces[0].a > E.gape * A.pieces[0].a || B.pieces[0].volume > free) continue;
+        const sh = WRAP ? shiftTo(A.q[0], B.q[0]) : 0, lent = sh ? lend(B, sh) : null;   // across the Ocean's seam
+        try {
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach + E.reach;   // (a mouth is no piece: it adds no reach)
         if (dx * dx + dy * dy > r * r || !surfaceNear(B, mx, my, E.reach, 'living') || sizeOf(B) > E.gape * A.pieces[0].a) continue;
         // a chain counts as one (author, 2026-11-02): to swallow a joined cell the mouth takes its whole chain, which must
@@ -442,6 +463,7 @@ export function interact(world) {
         }
         A.lastSwallow = { prey: B.species, n: chain.size, step: world.steps, price: world.metab ? price : 0 };
         break;
+        } finally { if (lent) giveBack(B, lent); }
       }
     }
   }
@@ -458,6 +480,8 @@ export function interact(world) {
       if (B.dead) continue;
       const want = B.species === A.species ? 'kin' : 'partner';
       if (want === 'partner' && !(A.partners && B.partners)) continue;
+      const sh = WRAP ? shiftTo(A.q[0], B.q[0]) : 0, lent = sh ? lend(B, sh) : null, e0 = B.ext.length;   // across the Ocean's seam
+      try {
       const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach + PAD.attract;
       if (dx * dx + dy * dy > r * r) continue;
       for (const pa of A.pads) {
@@ -473,6 +497,7 @@ export function interact(world) {
           B.ext.push({ type: 'pull', piece: pb.piece, x: lbx, y: lby, tx: ax, ty: ay, k });
         }
       }
+      } finally { if (lent) { for (let q = e0; q < B.ext.length; q++) B.ext[q].tx -= sh; giveBack(B, lent); } }
     }
   }
 
@@ -485,6 +510,8 @@ export function interact(world) {
       for (let k = near.start[A.index], kEnd = near.start[A.index + 1]; k < kEnd; k++) {
         const B = cells[near.list[k]];
         if (B === A || pad.link) continue;
+        const sh = WRAP ? shiftTo(A.q[0], B.q[0]) : 0, lent = sh ? lend(B, sh) : null;   // across the Ocean's seam
+        try {
         const dx = A.q[0] - B.q[0], dy = A.q[1] - B.q[1], r = A.reach + B.reach;
         if (dx * dx + dy * dy > r * r) continue;
         const joined = A.group === B.group;
@@ -510,6 +537,7 @@ export function interact(world) {
           if (hit) link = { a: A.index, b: B.index, padA: pad, pieceB: hit[0], bx: hit[1], by: hit[2], holds: PAD.mucusBreak };
         }
         if (link) { pad.link = link; world.links.push(link); size = groups(world); }
+        } finally { if (lent) giveBack(B, lent); }
       }
     }
   }

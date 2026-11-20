@@ -19,6 +19,7 @@ import { PARAMS } from './params.js';
 import { makeCell } from './grow.js';
 import { updatePose, motorAngle } from './physics.js';
 import { setSegmentLength } from './build.js';
+const TW = PARAMS.tank.w;
 
 const DT = PARAMS.time.dt;
 export const RICH = Math.round(1 / DT), FIELD = Math.round(30 / DT);
@@ -80,7 +81,7 @@ function unpack(p) {
 }
 
 export function richStep(R, w) {
-  if (R.seed === null) R.seed = w.seed;
+  if (R.seed === null) { R.seed = w.seed; if (w.weather) { R.weather = true; R.wrap = !!w.wrap; } }   // the Ocean's weather and joined sides (sim/flow.js, wrap.js)
   if (w.steps % R.every === 0) {
     for (const c of w.cells) if (!R.designs[c.species]) R.designs[c.species] = c.design;
     for (const c of w.cells) if (!R.names.includes(c.species)) R.names.push(c.species);
@@ -97,7 +98,7 @@ export function richStep(R, w) {
   }
 }
 
-export const richDone = (R) => ({ seed: R.seed, every: R.every, fieldEvery: R.fieldEvery, names: R.names, designs: R.designs, frames: R.frames, fields: R.fields });
+export const richDone = (R) => ({ seed: R.seed, weather: R.weather, wrap: R.wrap, every: R.every, fieldEvery: R.fieldEvery, names: R.names, designs: R.designs, frames: R.frames, fields: R.fields });
 
 // ---- the page's side: a recorded night, posed at any moment ----
 
@@ -120,7 +121,12 @@ export function replay(R, world = {}) {
   // a frame's cell posed: between frames A and B (u from 0 to 1), the place, turn and joints eased; motors by their clocks
   function pose(c, a, b, u, steps) {
     const q = c.q, lerp = (x, y) => x + (y - x) * u;
-    q[0] = (b ? lerp(a[3], b[3]) : a[3]) / 100;
+    {   // its place; a cell that came round the Ocean's seam between frames goes the short way (sim/wrap.js)
+      let bx = b ? b[3] : a[3]; const W100 = TW * 100;
+      if (bx - a[3] > W100 / 2) bx -= W100; else if (a[3] - bx > W100 / 2) bx += W100;
+      let x = (a[3] + (bx - a[3]) * u) / 100; if (x < 0) x += TW; else if (x >= TW) x -= TW;
+      q[0] = x;
+    }
     q[1] = (b ? lerp(a[4], b[4]) : a[4]) / 100;
     q[2] = (a[5] + (b ? angDiff(a[5] / 1e4, b[5] / 1e4) * 1e4 * u : 0)) / 1e4;
     const ex = a[10] || {}, on = ex.on || 0;
@@ -211,7 +217,7 @@ export function replay(R, world = {}) {
       links.push(l);
     }
     for (const id of [...built.keys()]) if (!byUid.has(id)) built.delete(id);   // gone: built afresh if it comes back
-    return { seed: R.seed, ...world, steps, day: true, light: true, metab: true, grow: true, flow: true, gravity: true, cells, links, ...field(steps) };
+    return { seed: R.seed, weather: R.weather, wrap: R.wrap, ...world, steps, day: true, light: true, metab: true, grow: true, flow: true, gravity: true, cells, links, ...field(steps) };
   }
   return { at, from: R.frames.length ? R.frames[0].s : 0, to: R.frames.length ? R.frames[R.frames.length - 1].s : 0 };
 }

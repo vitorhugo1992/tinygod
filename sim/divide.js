@@ -5,6 +5,7 @@
 // joined (chains, author 2026-11-02): where the pads sit and the body's shape decide the chain's form. It waits while the tank holds PARAMS.grow.cap cells, while it starves, or while there
 // is no room beside it (a wall, another cell), or while its DIVIDE rule doesn't hold (a 'rule' part; none: at once).
 import { PARAMS } from './params.js';
+import { WRAP, across } from './wrap.js';
 import { DEG, dcos, dsin, datan2, dhypot } from './dmath.js';
 import { updatePose } from './physics.js';
 import { makeCell, regrow, refit } from './grow.js';
@@ -38,10 +39,11 @@ function roomFor(world, cell, dx, dy) {
   const gap = 0.5;
   for (let i = 0; i < cell.pieces.length; i++) {
     const [x1, y1, x2, y2] = ends(cell, i, dx, dy), a = cell.pieces[i].a + gap;
-    if (Math.min(x1, x2) < a || Math.max(x1, x2) > TW - a || Math.min(y1, y2) < a || Math.max(y1, y2) > TH - a) return false;
+    if ((!WRAP && (Math.min(x1, x2) < a || Math.max(x1, x2) > TW - a)) || Math.min(y1, y2) < a || Math.max(y1, y2) > TH - a) return false;   // the Ocean has no side walls
   }
   for (const other of world.cells) {
     const ox = other.q[0] - cell.q[0] - dx, oy = other.q[1] - cell.q[1] - dy, r = cell.reach + other.reach;
+    if (WRAP && (ox > TW / 2 || ox < -TW / 2)) { const w = across(ox); if (w * w + oy * oy <= r * r) return false; continue; }   // near, across the seam: no room
     if (ox * ox + oy * oy > r * r) continue;
     for (let i = 0; i < cell.pieces.length; i++) {
       const A = ends(cell, i, dx, dy);
@@ -78,11 +80,12 @@ function padNormal(body, pad) {
 function posedClear(world, c, gap, skip = null) {
   for (let i = 0; i < c.pieces.length; i++) {
     const [x1, y1, x2, y2] = ends(c, i), a = c.pieces[i].a + gap;
-    if (Math.min(x1, x2) < a || Math.max(x1, x2) > TW - a || Math.min(y1, y2) < a || Math.max(y1, y2) > TH - a) return false;
+    if ((!WRAP && (Math.min(x1, x2) < a || Math.max(x1, x2) > TW - a)) || Math.min(y1, y2) < a || Math.max(y1, y2) > TH - a) return false;
   }
   for (const o of world.cells) {
     if (skip && skip.has(o)) continue;
     const ox = o.q[0] - c.q[0], oy = o.q[1] - c.q[1], rr = c.reach + o.reach;
+    if (WRAP && (ox > TW / 2 || ox < -TW / 2)) { const w = across(ox); if (w * w + oy * oy <= rr * rr) return false; continue; }
     if (ox * ox + oy * oy > rr * rr) continue;
     for (let i = 0; i < c.pieces.length; i++) {
       const A = ends(c, i);

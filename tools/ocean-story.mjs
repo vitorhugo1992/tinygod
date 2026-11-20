@@ -38,7 +38,20 @@ export function nightLine(N, sp, was, end) {
   return cap(bits.join(', ')) + '.';
 }
 
+// the night's water in a few words ("still water, then a strong current east")
+const WORD = { still: 'still water', rolls: 'turning water', up: 'upwelling', down: 'downwelling' };
+export function weatherLine(spells) {
+  const words = [];
+  for (const sp of spells || []) {
+    const w = (sp.strong ? 'a strong ' : '') + (sp.kind === 'current' ? `${sp.strong ? '' : 'a '}current ${sp.east ? 'east' : 'west'}` : WORD[sp.kind]);
+    if (words[words.length - 1] !== w) words.push(w);
+  }
+  return words.length ? cap(words.join(', then ')) + '.' : '';
+}
+
 export function storyNight(story, st, N) {
+  (story.weather ||= {})[N.night] = { line: weatherLine(N.weather), strong: (N.weather || []).some((sp) => sp.strong),
+    climate: (N.events.find((e) => e.kind === 'climate') || {}).what || null };
   const n = N.night, span = (N.to - N.from) || 1, T = (e) => Math.max(0, Math.min(1, Math.round((e.day - N.from) / span * 1000) / 1000));
   story.mem ||= {}; story.species ||= {};
   const before = rankAt(st, n - 1), after = rankAt(st, n);

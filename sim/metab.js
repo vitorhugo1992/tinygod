@@ -21,6 +21,7 @@
 //   predator keeps PARAMS.feed.keep of it. From a dead prey it sucks the stores directly; nothing left, it lets go.
 // Numbers are round and tuned for play (CLAUDE.md), not measured.
 import { PARAMS } from './params.js';
+import { WRAP, across } from './wrap.js';
 import { lightAt } from './light.js';
 import { nitrogenAt, takeNitrogen } from './nutrient.js';
 import { dexp, dcbrt, dhypot } from './dmath.js';
@@ -156,7 +157,7 @@ function burst(world, cell) {
   cell.burst = { step: world.steps, hit: 0 };
   for (const o of world.cells) {
     if (o === cell || o.dead || o.species === cell.species) continue;
-    const ob = o.pieces[0], gap = dhypot(o.q[0] - cell.q[0], o.q[1] - cell.q[1]) - body.a - ob.a - (body.L + ob.L) / 2;
+    const ob = o.pieces[0], gap = dhypot(WRAP ? across(o.q[0] - cell.q[0]) : o.q[0] - cell.q[0], o.q[1] - cell.q[1]) - body.a - ob.a - (body.L + ob.L) / 2;
     const f = 1 - Math.max(gap, 0) / T.range;
     if (f <= 0) continue;
     const dose = sac * f, lost = drainEnergy(o, dose * T.energy);

@@ -5,6 +5,7 @@
 // own square counted. A cell is never shaded by its own plastids (they are already counted in what it earns), so a cell
 // alone gets exactly the clear water's light. Columns are blended between their middles, so the shadow is soft sideways.
 import { PARAMS } from './params.js';
+import { WRAP, inTank } from './wrap.js';
 import { dexp } from './dmath.js';
 
 const S = PARAMS.shading, TW = PARAMS.tank.w, TH = PARAMS.tank.h, D = S.cell;
@@ -65,6 +66,7 @@ function ownAbove(cell, i, j) {
 export function shadeAt(world, x, y, cell) {
   const sh = world.shade;
   if (!sh) return 1;
+  if (WRAP) x = inTank(x);   // the Ocean: a place past a side is on the other
   let j = Math.floor(y / D); j = j < 0 ? 0 : j >= NY ? NY - 1 : j;
   let gx = x / D - 0.5; gx = gx < 0 ? 0 : gx > NX - 1 ? NX - 1 : gx;
   const i = Math.floor(gx), i1 = i < NX - 1 ? i + 1 : i, a = gx - i;

@@ -19,6 +19,7 @@
 // condition changes state only a little inside or outside its range (hysteresis), so it
 // doesn't flicker.
 import { PARAMS } from './params.js';
+import { WRAP, shiftTo, across } from './wrap.js';
 import { dcos, dsin, dhypot } from './dmath.js';
 import { fire } from './physics.js';
 import { lightAt } from './light.js';
@@ -41,12 +42,13 @@ function places(world) {
   for (let i = 0; i < n; i++) { const c = cells[i]; PX[i] = c.q[0]; PY[i] = c.q[1]; PR[i] = c.reach; PSP[i] = c.species; const b = c.pieces[0]; BX[i] = c.cx[0]; BY[i] = c.cy[0]; BHA[i] = b.L / 2 + b.a; }
   PAT = world.steps; PW = world; PN = n;
 }
-function nearest(world, cell, x, y, reach, anything) {
-  let best = anything ? Math.min(x, TW - x, y, TH - y) : Infinity;
+function nearest(world, cell, x0, y, reach, anything) {
+  let best = anything ? (WRAP ? Math.min(y, TH - y) : Math.min(x0, TW - x0, y, TH - y)) : Infinity;   // the Ocean: no side walls
   places(world);
   const cells = world.cells, sp = cell.species;
   for (let k = 0; k < cells.length; k++) {
     if (!anything && PSP[k] === sp) continue;
+    const x = WRAP ? x0 + shiftTo(PX[k], x0) : x0;   // across the Ocean's seam: the feeler's place on the other side
     const dx = PX[k] - x, dy = PY[k] - y;
     if (dx * dx + dy * dy > (PR[k] + reach) * (PR[k] + reach)) continue;
     const o = cells[k];
@@ -159,7 +161,9 @@ function flowFelt(world, cell, x, y, range) {
   if (world.flowNow) { const w = flowAt(world.flowNow, x, y, FU)[2]; v += (w < 0 ? -w : w) / S.flowCurl; }
   places(world);
   const cells = world.cells;
+  const x0 = x;
   for (let k = 0; k < cells.length; k++) {
+    if (WRAP) x = x0 + shiftTo(BX[k], x0);
     const gx = x - BX[k], gy = y - BY[k], gl = range + BHA[k] + 1e-6;
     if (gx * gx + gy * gy > gl * gl) continue;   // beyond its range: the same results, cheaper
     const o = cells[k];
@@ -177,7 +181,9 @@ function flowFelt(world, cell, x, y, range) {
 export function sense(world, cell) {
   // its speed through the water, averaged over PARAMS.sensor.flowSmooth (the wake others feel)
   {
-    const dt = PARAMS.time.dt, k = dt / S.flowSmooth, px = cell.lastX ?? cell.q[0], py = cell.lastY ?? cell.q[1];
+    const dt = PARAMS.time.dt, k = dt / S.flowSmooth, py = cell.lastY ?? cell.q[1];
+    let px = cell.lastX ?? cell.q[0];
+    if (WRAP) px = cell.q[0] - across(cell.q[0] - px);   // came round the Ocean's seam: not a leap
     let vx = (cell.q[0] - px) / dt, vy = (cell.q[1] - py) / dt;
     if (world.flowNow) { flowAt(world.flowNow, cell.q[0], cell.q[1], FU); vx -= FU[0]; vy -= FU[1]; }
     cell.svx = (cell.svx || 0) + (vx - (cell.svx || 0)) * k; cell.svy = (cell.svy || 0) + (vy - (cell.svy || 0)) * k;

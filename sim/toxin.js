@@ -4,6 +4,7 @@
 // moving water, spreading to neighbouring squares, fading by half every `half` s. Other species inside a cloud lose
 // energy through their surface and their plastids are damaged, in proportion to how strong it is; kin are immune.
 import { PARAMS } from './params.js';
+import { WRAP, inTank } from './wrap.js';
 import { dexp } from './dmath.js';
 import { flowAt } from './flow.js';
 
@@ -19,15 +20,17 @@ export function cloudOf(world, species) {
   return f;
 }
 const idx = (x, y) => {
-  let i = Math.floor(x / D), j = Math.floor(y / D);
+  let i = Math.floor((WRAP ? inTank(x) : x) / D), j = Math.floor(y / D);
   i = i < 0 ? 0 : i >= NX ? NX - 1 : i; j = j < 0 ? 0 : j >= NY ? NY - 1 : j;
   return j * NX + i;
 };
 // How strong a cloud is at (x, y): between the squares' middles
 export function sample(f, x, y) {
   let gx = x / D - 0.5, gy = y / D - 0.5;
-  gx = gx < 0 ? 0 : gx > NX - 1 ? NX - 1 : gx; gy = gy < 0 ? 0 : gy > NY - 1 ? NY - 1 : gy;
-  const i = Math.floor(gx), j = Math.floor(gy), i1 = i < NX - 1 ? i + 1 : i, j1 = j < NY - 1 ? j + 1 : j, a = gx - i, b = gy - j;
+  if (WRAP) { gx = inTank(x) / D - 0.5; if (gx < 0) gx += NX; }   // the Ocean: the last column runs into the first
+  else gx = gx < 0 ? 0 : gx > NX - 1 ? NX - 1 : gx;
+  gy = gy < 0 ? 0 : gy > NY - 1 ? NY - 1 : gy;
+  const i = Math.floor(gx), j = Math.floor(gy), i1 = i < NX - 1 ? i + 1 : WRAP ? 0 : i, j1 = j < NY - 1 ? j + 1 : j, a = gx - i, b = gy - j;
   return (f[j * NX + i] * (1 - a) + f[j * NX + i1] * a) * (1 - b) + (f[j1 * NX + i] * (1 - a) + f[j1 * NX + i1] * a) * b;
 }
 // Release `amount` into the square at (x, y)
@@ -54,8 +57,8 @@ export function stepToxins(world) {
     for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
       const c = f[j * NX + i];
       let s = 0, n = 0;
-      if (i > 0) { s += f[j * NX + i - 1]; n++; }
-      if (i < NX - 1) { s += f[j * NX + i + 1]; n++; }
+      if (i > 0) { s += f[j * NX + i - 1]; n++; } else if (WRAP) { s += f[j * NX + NX - 1]; n++; }
+      if (i < NX - 1) { s += f[j * NX + i + 1]; n++; } else if (WRAP) { s += f[j * NX]; n++; }
       if (j > 0) { s += f[(j - 1) * NX + i]; n++; }
       if (j < NY - 1) { s += f[(j + 1) * NX + i]; n++; }
       const v = (c + k * (s - n * c)) * fade;

@@ -17,6 +17,7 @@ import { replay } from '../sim/rich.js';
 import { updatePose, motorAngle } from '../sim/physics.js';
 import { PARAMS } from '../sim/params.js';
 import { fullness } from '../sim/metab.js';
+import { weatherNow, flowState } from '../sim/flow.js';
 import { daylight, clock, lightAt } from '../sim/light.js';
 import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, bedZone, speciesTint, twilight, waterColor, hexRGB, rgba, mix } from './scene.js';
 import { listen as soundListen, update as soundUpdate } from './sound.js';
@@ -36,6 +37,11 @@ const hash01 = (n) => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul
 const angDiff = (a, b) => { let d = b - a; d -= 2 * Math.PI * Math.round(d / (2 * Math.PI)); return d; };
 // the night's weather, from its number: the same for everyone (drawing only)
 const WEATHER = { sun: '☀ Clear', cloud: '☁ Overcast', rain: '🌧 Rain' };
+// the water's weather (sim/flow.js, PARAMS.flow.weather): its words on the HUD, and the alert when a strong spell starts
+const waterWords = (sp) => (!sp ? '' : sp.kind === 'still' ? '≈ Still water' : sp.kind === 'current' ? (sp.U > 0 ? '→ Current east' : '← Current west')
+  : sp.kind === 'rolls' ? '↻ Turning water' : sp.kind === 'up' ? '⬆ Upwelling' : '⬇ Downwelling');
+const strongWords = (sp) => (sp.kind === 'current' ? `A strong current is running ${sp.U > 0 ? 'east' : 'west'}: the shallows race past the deep`
+  : sp.kind === 'up' ? 'A strong upwelling: deep, rich water is rising to the light' : 'A strong downwelling: the water is dragging cells down into the dark');
 let forceWx = null;   // tests only (window.__ocean.wx)
 const weatherOf = (n) => { if (forceWx) return forceWx; const r = hash01(n * 7919 + 13); return r < 0.5 ? 'sun' : r < 0.8 ? 'cloud' : 'rain'; };
 
@@ -111,6 +117,8 @@ const CSS = `
 #oceanView .nightrow .n { font: 500 11px/1.3 ui-monospace, Menlo, monospace; color: #8eb0bf; }
 #oceanView .nightrow .n b { display: block; font: 700 18px/1 system-ui, sans-serif; color: #dcefe8; }
 #oceanView .nightrow p { margin: 0; font-size: 13px; }
+#oceanView .nightrow .wl, #oceanView .nightrow .clim { display: block; font-size: 11.5px; color: #7fb6cf; margin-bottom: 3px; }
+#oceanView .nightrow .wl.strong { color: #ffd27a; } #oceanView .nightrow .clim { color: #b9a6ff; }
 #oceanView .lostH { margin: 14px 4px 4px; font: 800 12px/1 system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #ff6b7a; }
 #oceanView .lost { padding: 8px 10px; margin: 4px 0; border-radius: 10px; background: linear-gradient(90deg, rgba(120,16,30,.55), rgba(60,10,18,.3)); border: 1px solid #8a2a36; color: #ffc4cb; font-size: 13px; }
 #oceanView .lost b { color: #ff8a96; } #oceanView .lost span { display: block; font-size: 11.5px; color: #d99aa3; margin-top: 2px; }
@@ -411,7 +419,9 @@ export function initOcean(art) {
     for (const c of C.w.cells) {
       const v = visOf(c.uid), b = C.sm.get(c.uid) || [c.q[0], c.q[1], c.q[2]], a = (P && P.sm.get(c.uid)) || b;
       const q = Float64Array.from(c.q);
-      q[0] = a[0] + (b[0] - a[0]) * u; q[1] = a[1] + (b[1] - a[1]) * u; q[2] = a[2] + angDiff(a[2], b[2]) * u;
+      let ddx = b[0] - a[0]; if (ddx > TW / 2) ddx -= TW; else if (ddx < -TW / 2) ddx += TW;   // came round the seam: the short way
+      q[0] = a[0] + ddx * u; if (q[0] < 0) q[0] += TW; else if (q[0] >= TW) q[0] -= TW;
+      q[1] = a[1] + (b[1] - a[1]) * u; q[2] = a[2] + angDiff(a[2], b[2]) * u;
       const pc = prevCells && prevCells.get(c.uid);
       if (pc && pc.q.length === q.length) for (let i = 3; i < q.length; i++) q[i] = pc.q[i] + (c.q[i] - pc.q[i]) * u;
       const d = Object.assign({}, c, { q, phi: new Float64Array(c.phi), cs: new Float64Array(c.cs), sn: new Float64Array(c.sn),
@@ -430,6 +440,7 @@ export function initOcean(art) {
     if (rec.steps > rp.to) { rec.steps = rp.from; primed = false; recEv = 0; corpses = []; }
     const w = rp.at(rec.steps);
     if (!w) return null;
+    if (w.flow && !w.flowNow) w.flowNow = flowState(w);   // the water in the recording: the motes drift with it
     for (const c of w.cells) {
       const v = visOf(c.uid);
       calmMotors(c, c, v, dt);
@@ -445,10 +456,11 @@ export function initOcean(art) {
 
   // ---- the camera: drag pans, two fingers pinch, the wheel zooms, a double-tap zooms in (or back out) ----
   let hudH = 160;   // px the bottom HUD covers (measured on resize)
+  let wrapView = false;   // the Ocean's sides join up: the camera pans round with no edge
   function clampCam() {
     cam.ts = clamp(cam.ts, minS(), maxS);
-    const hw = W / 2 / cam.ts, hh = H / 2 / cam.ts, below = 70 + (hudH + 140) / cam.ts;   // the seabed can come up above the HUD, its sediment showing   // the seabed can come up above the HUD
-    cam.tx = 2 * hw >= TW + 160 ? TW / 2 : clamp(cam.tx, hw - 80, TW - hw + 80);
+    const hw = W / 2 / cam.ts, hh = H / 2 / cam.ts, below = 70 + (hudH + 140) / cam.ts;   // the seabed can come up above the HUD, its sediment showing
+    if (!wrapView) cam.tx = 2 * hw >= TW + 160 ? TW / 2 : clamp(cam.tx, hw - 80, TW - hw + 80);
     cam.ty = 2 * hh >= TH + 130 + below ? (TH + 130 - below) / 2 : clamp(cam.ty, hh - below, TH + 130 - hh);
   }
   const mineOf = (w) => (w ? w.cells.filter((c) => c.species === follow && !c.dead) : []);
@@ -588,7 +600,7 @@ export function initOcean(art) {
     if (title) m.firstElementChild.innerHTML = `<b>${esc(title)}</b>${esc(text || '')}`;
   }
   const nightNo = () => (mode === 'rec' && rec ? rec.n : board ? board.night + 1 : 1);
-  let hudAt = 0, badgeKey = '';
+  let hudAt = 0, badgeKey = '', strongSeen = '';
   function hud(force) {
     const now = performance.now();
     if (!force && now - hudAt < 400) return;
@@ -597,7 +609,13 @@ export function initOcean(art) {
     q('.nt').textContent = `Night ${nightNo()}`;
     pickCard();
     if (w) { const h = clock(w); q('.ck').textContent = `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor(60 * (h % 1))).padStart(2, '0')}`; }
-    q('.wx').textContent = WEATHER[weatherOf(nightNo())];
+    const water = w && w.weather ? weatherNow(w).spell : null;
+    q('.wx').textContent = WEATHER[weatherOf(nightNo())] + (water ? ` · ${water.strong ? waterWords(water).replace(/ /, ' Strong ').replace(/Strong (\w)/, (m, a) => 'Strong ' + a.toLowerCase()) : waterWords(water)}` : '');
+    if (water) {   // a strong spell starting: said once
+      const key = `${Math.floor(w.steps * DT / DAY)}|${water.from}`;
+      if (water.strong && key !== strongSeen) toast(`🌊 ${strongWords(water)}.`, water.kind === 'down');
+      strongSeen = key;
+    }
     q('.snd').textContent = art.soundOn() ? '🔊' : '🔇';
     drawMini();
     const r = rowOf(follow), n = w ? count(w, follow) : r ? r.cells : 0;
@@ -689,7 +707,8 @@ export function initOcean(art) {
     const tonight = `<div class="nightrow" data-live="1" title="Back to the live Ocean"><div class="n">night<b>${board.night + 1}</b></div><p>Tonight, running now${slow ? ' (slowly, on this device)' : ''}: the nightly run makes it official.</p></div>`;
     if (story && follow) {   // the story file: every night it was here, newest first, each milestone a tap to its moment
       const mine = (story.species[follow] || []).slice().reverse();
-      box.innerHTML = tonight + mine.map((r) => `<div class="nightrow" data-n="${r.night}" title="Replay night ${r.night}"><div class="n">night<b>${r.night}</b>${r.rank ? `<span class="rk">${ord(r.rank)}</span>` : ''}</div><p>${esc(r.line)}<br>${r.ms.map((m) => `<span class="ms ${m.tone}" data-t="${m.t}" data-uid="${m.uid || ''}" title="Replay this moment">${m.tone === 'gold' ? '★' : m.tone === 'red' ? '✕' : '•'} ${esc(m.text)}</span>`).join('')}</p></div>`).join('')
+      const wl = (n) => { const x = story.weather && story.weather[n]; return x ? `${x.climate ? `<span class="clim">🌍 ${esc(x.climate)}</span>` : ''}${x.line ? `<span class="wl${x.strong ? ' strong' : ''}">🌊 ${esc(x.line)}</span>` : ''}` : ''; };
+      box.innerHTML = tonight + mine.map((r) => `<div class="nightrow" data-n="${r.night}" title="Replay night ${r.night}"><div class="n">night<b>${r.night}</b>${r.rank ? `<span class="rk">${ord(r.rank)}</span>` : ''}</div><p>${wl(r.night)}${esc(r.line)}<br>${r.ms.map((m) => `<span class="ms ${m.tone}" data-t="${m.t}" data-uid="${m.uid || ''}" title="Replay this moment">${m.tone === 'gold' ? '★' : m.tone === 'red' ? '✕' : '•'} ${esc(m.text)}</span>`).join('')}</p></div>`).join('')
         + `<p class="note">${mine.length ? 'A line a night. Tap a night to replay it, a milestone to see its moment.' : `${esc(follow)} has no nights here yet.`} Naming your lines and pinned moments come with releases.</p>`;
       box.querySelectorAll('.ms[data-t]').forEach((c) => (c.onclick = async (e) => {
         e.stopPropagation();
@@ -933,6 +952,7 @@ export function initOcean(art) {
         const vv = vis.get(c.uid); if (!vv) continue;
         const swim = c.joints.some((j) => j.type === 'motor' && j.on && !j.burst);
         const tr = vv.trail, last = tr[tr.length - 1];
+        if (last && Math.abs(last[0] - c.q[0]) > TW / 2) tr.length = 0;   // came round the seam: a new wake
         if (swim && !c.dead && (!last || Math.hypot(last[0] - c.q[0], last[1] - c.q[1]) > 2.5)) { tr.push([c.q[0], c.q[1]]); if (tr.length > 36) tr.shift(); }
         else if (!swim && tr.length && Math.random() < 0.2) tr.shift();
         if (tr.length > 3) { g.beginPath(); tr.forEach(([x, y], i) => (i ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))); g.stroke(); }
@@ -964,36 +984,55 @@ export function initOcean(art) {
       // the camera: on the followed cell (it sits a little above the middle: the HUD covers the bottom)
       const fc = cam.follow && shown.cells.find((c) => c.uid === cam.follow);
       if (cam.follow && (!fc || fc.dead)) { const ys = mineOf(shown); cam.follow = ys.length ? ys[0].uid : 0; camButton(); }
-      if (fc) { cam.tx = fc.q[0]; cam.ty = fc.q[1] - (hudH / 2 - 30) / cam.ts; clampCam(); }
+      wrapView = !!shown.wrap;
+      if (fc) { let fx = fc.q[0]; if (wrapView) { if (fx - cam.x > TW / 2) fx -= TW; else if (cam.x - fx > TW / 2) fx += TW; } cam.tx = fx; cam.ty = fc.q[1] - (hudH / 2 - 30) / cam.ts; clampCam(); }
       const k = Math.min(1, dt * (cam.follow ? 4 : 12));
       cam.x += (cam.tx - cam.x) * k; cam.y += (cam.ty - cam.y) * k; cam.s += (cam.ts - cam.s) * Math.min(1, dt * 12);
+      if (wrapView) { if (cam.x < 0) { cam.x += TW; cam.tx += TW; } else if (cam.x >= TW) { cam.x -= TW; cam.tx -= TW; } }   // round the Ocean
       const s = cam.s, X = (x) => W / 2 + (x - cam.x) * s, Y = (y) => H / 2 - (y - cam.y) * s;
       const v = { W, H, X, Y, s, x0: cam.x - W / 2 / s, x1: cam.x + W / 2 / s, y0: cam.y - H / 2 / s, y1: cam.y + H / 2 / s }, t = now / 1000;
-      drawAround(shown, v, t);
-      drawWater(g, shown, v, t);
+      // the Ocean's sides join up: the view shows the tank again past each side (images of it, shifted a tank across)
+      const views = [v];
+      if (shown.wrap) for (const o of [-TW, TW]) if (o < 0 ? v.x0 < 0 : v.x1 > TW) views.push(Object.assign({}, v, { X: (x) => v.X(x + o), x0: v.x0 - o, x1: v.x1 - o }));
+      if (!shown.wrap) drawAround(shown, v, t);
+      for (const vo of views) {   // the water, seabed, shade and toxins of each image, kept to its own span
+        g.save();
+        if (views.length > 1) { const l = Math.max(0, vo.X(0)), r = Math.min(W, vo.X(TW)); g.beginPath(); g.rect(l, 0, Math.max(0, r - l), H); g.clip(); }
+        drawWater(g, shown, vo, t);
+        drawBedLife(shown, vo, t);
+        if (shown.shade) drawShade(g, shown, vo);
+        if (shown.toxins) drawToxins(g, shown, vo);
+        g.restore();
+      }
       drawSky(shown, v, t);
-      drawBedLife(shown, v, t);
-      if (shown.shade) drawShade(g, shown, v);
-      if (shown.toxins) drawToxins(g, shown, v);
       drawDrift(g, shown, v, (shown.steps || 0) * DT, t);
       drawWeather(shown, v, t);
-      drawHalos(shown, v);
-      art.cells(g, shown, v, (c) => c.species === follow);
+      for (const vo of views) {   // cells drawn whole in every image (one crossing the seam shows on both sides)
+        drawHalos(shown, vo);
+        art.cells(g, shown, vo, (c) => c.species === follow);
+      }
       keepVis(shown);
       drawFx(shown, v, dt);
-      drawPick(shown, v);
+      for (const vo of views) drawPick(shown, vo);
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawVignette(g, W, H);
       if (mode === 'rec') { g.fillStyle = 'rgba(255,177,92,.05)'; g.fillRect(0, 0, W, H); }   // the recording: a faint amber cast
       // the sound: the water where the camera looks, and what happens in it
       const depth = clamp(1 - cam.y / TH, 0, 1);
-      soundUpdate({ x: cam.x, y: cam.y, s, W, H }, { depth, light: daylight(shown), flow: shown.flow ? 1 - daylight(shown) : 0, playing: true, speed: 1, world: shown });
+      soundUpdate({ x: cam.x, y: cam.y, s, W, H }, { depth, light: daylight(shown), flow: waterLoud(shown), playing: true, speed: 1, world: shown });
       if (mode === 'rec') soundListen(shown, soundKey);
     }
     hud();
     raf = requestAnimationFrame(frame);
   }
 
+  // how loud the moving water is (0-1): the Ocean's weather (a strong current or upwelling roars, still water is quiet)
+  function waterLoud(w) {
+    if (!w.flow) return 0;
+    if (!w.weather) return 1 - daylight(w);
+    const sp = weatherNow(w).spell;
+    return clamp(sp.kind === 'still' ? 0.05 : sp.kind === 'rolls' ? 1 - daylight(w) : sp.kind === 'current' ? Math.abs(sp.U) / 18 : Math.abs(sp.A) * 2.25 / 11, 0, 1);
+  }
   // ---- opening and closing ----
   async function openOcean() {
     if (open) return;

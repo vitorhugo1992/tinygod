@@ -14,7 +14,7 @@ import { PARAMS } from '../sim/params.js';
 import { stepWorld } from '../sim/world.js';
 import { loadState, saveState } from '../sim/save.js';
 
-const DT = PARAMS.time.dt;
+const DT = PARAMS.time.dt, TW = PARAMS.tank.w;
 let world = null, speed = 1, fps = 8, paused = false, timer = 0;
 let realT = 0, simDue = 0, lastFrame = 0;
 const hist = [];   // [real ms, steps, busy ms] samples for the ratio and cost
@@ -24,9 +24,10 @@ const avg = new Map();
 function average() {
   for (const c of world.cells) {
     let a = avg.get(c.uid);
-    if (!a) { a = [0, 0, 0, 0, c.q[2]]; avg.set(c.uid, a); }
+    if (!a) { a = [0, 0, 0, 0, c.q[2], c.q[0]]; avg.set(c.uid, a); }
     let d = c.q[2] - a[4]; d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));
-    a[0]++; a[1] += c.q[0]; a[2] += c.q[1]; a[3] += d;
+    let dx = c.q[0] - a[5]; if (dx > TW / 2) dx -= TW; else if (dx < -TW / 2) dx += TW;   // round the Ocean's seam: the short way
+    a[0]++; a[1] += a[5] + dx; a[2] += c.q[1]; a[3] += d;
   }
 }
 
@@ -72,7 +73,7 @@ function postFrame() {
   for (const [, n, b] of hist) { steps += n; busy += b; }
   const simS = steps * DT;
   const smooth = [];
-  for (const [uid, a] of avg) if (a[0]) smooth.push(uid, a[1] / a[0], a[2] / a[0], a[4] + a[3] / a[0]);
+  for (const [uid, a] of avg) if (a[0]) { let x = a[1] / a[0]; if (x < 0) x += TW; else if (x >= TW) x -= TW; smooth.push(uid, x, a[2] / a[0], a[4] + a[3] / a[0]); }
   avg.clear();
   postMessage({ type: 'frame', world, smooth, steps: world.steps, ratio: simS / span, cost: simS ? busy / simS : 0 });
   if (world.gone) world.gone.length = 0;   // the cells removed since the last frame went with it (sound, toasts: step 3)
