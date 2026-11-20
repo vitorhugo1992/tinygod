@@ -1,0 +1,43 @@
+# A release into the Ocean (2026-11-20, step 6): the game's 🌊 Release opens an issue "Release: <name>" with the design's
+# code; this queues it under the issue's author (tools/ocean-inbox.mjs), answers on the issue, closes it, and publishes
+# the Ocean's state on the branch ocean-data. It arrives at the next night (ocean-night.yml).
+name: Ocean release
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+concurrency:
+  group: ocean
+  cancel-in-progress: false
+permissions:
+  contents: write
+  issues: write
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, 'Release:')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ocean-data
+          path: data
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Queue the waiting releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/ocean-inbox.mjs --dir=data/ocean
+      - name: Publish
+        working-directory: data
+        run: |
+          git config user.name "TinyGod Ocean"
+          git config user.email "vitorhugo1992@users.noreply.github.com"
+          if [ -z "$(git status --porcelain)" ]; then echo "nothing changed"; exit 0; fi
+          N=$(node -e "console.log(require('./ocean/state.json').night)")
+          git checkout --orphan next
+          git add -A
+          git commit -q -m "Ocean after night $N (a release queued)"
+          git push -f origin next:ocean-data

@@ -25,7 +25,9 @@ const TW = PARAMS.tank.w, TH = PARAMS.tank.h, DT = PARAMS.time.dt, DAY = PARAMS.
 const VIS_BEATS = 2.5;            // beating parts drawn at most this many strokes a real second (as the Lab's calm drawing)
 // ?ocean=<folder> reads a scratch Ocean under ocean/ (tests: tools/ocean.mjs --dir=ocean/<folder>)
 const TEST = (new URLSearchParams(location.search).get('ocean') || '').replace(/[^\w-]/g, '');
-const KEY = 'tinygod.ocean', BASE = TEST ? `../ocean/${TEST}/` : '../ocean/';
+// on the website the Ocean is read from its data branch (ocean-data: rewritten each night by GitHub, .github/workflows)
+const DATA = 'https://raw.githubusercontent.com/vitorhugo1992/tinygod/ocean-data/ocean/';
+const KEY = 'tinygod.ocean', BASE = TEST ? `../ocean/${TEST}/` : /github\.io$/.test(location.hostname) ? DATA : '../ocean/';
 const GOLD = '#f2c14e';
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);

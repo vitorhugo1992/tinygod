@@ -6,6 +6,7 @@
 //   node tools/ocean.mjs board                                   print the board
 //   node tools/ocean.mjs story                                   rebuild every species' life story (story.json) from the nights
 //   --dir=<folder> (default ocean/: a scratch Ocean for tests) · --seconds=<n> (a shorter night, for tests)
+//   --keepRich=<n> keep only the last n nights' rich recordings (GitHub's nightly run: 7)
 // The rules: the tank of the Lab (1,600 × 2,000 µm, moving water, days, shading); a species arrives as 3 cells at random
 // spots; at most 100 cells and 25 of one species (at its ceiling a species can't divide but still grows and stores;
 // nothing is removed by a rule); one species per player: a new release replaces the old one (its cells taken out that
@@ -16,7 +17,7 @@
 // sim/save.js), board.json (for the page: no designs), nights/<n>.json.gz (the night's timeline, each species' life,
 // replay frames: sim/record.js), nights/<n>.rich.json.gz (every cell posed, sim/rich.js), story.json (each species' line
 // and milestones a night: tools/ocean-story.mjs; public like the board).
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { gzipSync, gunzipSync, inflateRawSync } from 'node:zlib';
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld } from '../sim/world.js';
@@ -46,7 +47,10 @@ const vol = (c) => c.pieces[0].volume;
 const r2 = (v) => Math.round(v * 100) / 100;
 
 function readDesign(src) {
-  if (src.startsWith('TG1.')) { const g = JSON.parse(inflateRawSync(Buffer.from(src.slice(4), 'base64url')).toString('utf8')); return { name: g.name, design: g.design || g }; }
+  if (src.startsWith('TG1.')) {
+    let g; try { g = JSON.parse(inflateRawSync(Buffer.from(src.slice(4), 'base64url')).toString('utf8')); } catch (e) { throw new Error('not released: the design code is broken (copy it again from the game)'); }
+    return { name: g.name, design: g.design || g };
+  }
   const g = JSON.parse(readFileSync(src, 'utf8'));
   return { name: g.name || (g.design && g.design.species), design: g.design || g };
 }
@@ -180,6 +184,8 @@ function runNight() {
   const N = { night, from: startDay, to: world.steps * DT / DAY, names: R.names, events: R.events, life: R.life, frames: R.frames, summary: sum, deaths };
   writeFileSync(new URL(`${night}.json.gz`, NDIR), gzipSync(JSON.stringify(N)));
   writeFileSync(new URL(`${night}.rich.json.gz`, NDIR), gzipSync(JSON.stringify({ night, ...richDone(RR) })));
+  const keep = Number(opt('keepRich', 0));   // --keepRich=7: only the last 7 nights' recordings (the data branch on GitHub)
+  if (keep) for (let k = night - keep; k > 0; k--) { const old = new URL(`${k}.rich.json.gz`, NDIR); if (!existsSync(old)) break; unlinkSync(old); }
   saveAll(st, world);
   // the life stories: this night added (or all rebuilt if the file is missing or behind)
   let story = existsSync(STORY) ? JSON.parse(readFileSync(STORY, 'utf8')) : null;

@@ -1,0 +1,43 @@
+# The Ocean's night (2026-11-20, step 6): every day at 04:00 UTC (ready ~05:00-07:00 in the author's time, GMT/BST),
+# one ocean day is run on the shared tank and published. The Ocean's files live on the branch ocean-data (one commit,
+# rewritten each night, so the recordings don't pile up in the history); the website reads them from there.
+name: Ocean night
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+concurrency:
+  group: ocean          # one Ocean job at a time (a release waits for the night, and the night for a release)
+  cancel-in-progress: false
+permissions:
+  contents: write
+  issues: write
+jobs:
+  night:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ocean-data
+          path: data
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Releases still waiting
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/ocean-inbox.mjs --dir=data/ocean
+      - name: One ocean day
+        run: node tools/ocean.mjs night --dir=data/ocean --keepRich=7
+      - name: Publish
+        working-directory: data
+        run: |
+          git config user.name "TinyGod Ocean"
+          git config user.email "vitorhugo1992@users.noreply.github.com"
+          N=$(node -e "console.log(require('./ocean/state.json').night)")
+          git checkout --orphan next
+          git add -A
+          git commit -q -m "Ocean after night $N"
+          git push -f origin next:ocean-data
