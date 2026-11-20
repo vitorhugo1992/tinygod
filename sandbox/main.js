@@ -281,6 +281,7 @@ function showShape() {
   $('lobeBranch').disabled = $('lobeMirror').disabled = !shapeSel || lobes.length >= LOBE_MAX;
   $('lobeRemove').disabled = !shapeSel;
   $('lobeSel').hidden = !shapeSel;
+  $('shapeHint').textContent = !lobes.length ? 'Tap the edge of the cell to grow a lobe there' : shapeSel ? 'Drag the gold tip to aim and stretch it, the orange dot for thickness' : lobes.length < LOBE_MAX ? 'Tap a lobe to select it, or the edge to grow another' : 'Tap a lobe to select it';
   if (shapeSel) {
     const l = lobeById(d, shapeSel);
     $('lobeLen').value = l.length; $('lobeLenOut').textContent = `${Math.round(l.length)} µm`;
@@ -319,6 +320,15 @@ function drawShape(d) {
   const tint = { plastid: 'rgba(110,190,90,.9)', nucleus: 'rgba(160,120,220,.9)', starch: 'rgba(240,228,190,.9)', oil: 'rgba(242,201,76,.9)',
     chamber: 'rgba(170,215,240,.6)', nitroplast: 'rgba(60,190,180,.9)', toxin: 'rgba(208,80,138,.9)', statolith: 'rgba(200,200,200,.9)' };
   for (const inc of c.pieces[0].inclusions) { outlineOn(g, inc.outline.map(P)); g.fillStyle = tint[inc.material] || 'rgba(200,210,220,.7)'; g.fill(); }
+  // a round cell: faint + grips round its edge (a tap on the edge grows a lobe there)
+  if (!lobeFrames(c).length) {
+    g.strokeStyle = 'rgba(242,184,75,.85)'; g.lineWidth = 3;
+    for (let a = 0; a < 360; a += 45) {
+      const [x, y] = surfacePoint(d.body, a), [px, py] = P([x, y]);
+      g.fillStyle = 'rgba(242,184,75,.22)'; g.beginPath(); g.arc(px, py, 22, 0, 2 * Math.PI); g.fill();
+      g.beginPath(); g.moveTo(px - 10, py); g.lineTo(px + 10, py); g.moveTo(px, py - 10); g.lineTo(px, py + 10); g.stroke();
+    }
+  }
   // handles: every lobe's tip; the selected one's thickness dot and axis
   for (const f of lobeFrames(c)) {
     const ux = Math.cos(f.dir), uy = Math.sin(f.dir), tip = P([f.root[0] + ux * f.L, f.root[1] + uy * f.L]), on = f.id === shapeSel;
@@ -360,14 +370,15 @@ const free = (d) => {   // where the body has most room: the angle farthest from
   }
   return best;
 };
-$('lobeAdd').onclick = () => {
+function addLobe(ang) {   // a new lobe on the body, aimed at ang (degrees)
   const d = JSON.parse(JSON.stringify(design));
   if (lobesOf(d).length >= LOBE_MAX) return;
   const id = lobeId(d), a = d.body.radius;
   d.parts.unshift({ type: 'lobe', id, parent: 'body', at: [0, 0], angle: 0, length: Math.round(Math.max(8, 1.6 * a)), radius: Math.max(1, Math.round(Math.min(4, 0.45 * a) * 2) / 2) });
-  aimLobe(d, id, free(design));
+  aimLobe(d, id, ang);
   shapeSel = id; commitShape(d);
-};
+}
+$('lobeAdd').onclick = () => addLobe(free(design));
 $('lobeBranch').onclick = () => {
   if (!shapeSel) return;
   const d = JSON.parse(JSON.stringify(design)), p = lobeById(d, shapeSel);
@@ -417,6 +428,10 @@ $('shapeCv').addEventListener('pointerdown', (e) => {
   }
   const hit = frames.find((f) => { const ux = Math.cos(f.dir), uy = Math.sin(f.dir), t = Math.max(0, Math.min(f.L, (x - f.root[0]) * ux + (y - f.root[1]) * uy));
     return Math.hypot(x - f.root[0] - ux * t, y - f.root[1] - uy * t) <= f.r + 1; });
+  if (!hit && lobesOf(design).length < LOBE_MAX) {   // a tap on the body's edge grows a lobe pointing there
+    const b = design.body, dx = Math.max(Math.abs(x) - (b.length || 0) / 2, 0), edge = Math.abs(Math.hypot(dx, y) - b.radius) * shapeXf.s;
+    if (edge < 34) { addLobe(((Math.round(Math.atan2(y, x) * 180 / Math.PI / SNAP) * SNAP) % 360 + 360) % 360); return; }
+  }
   shapeSel = hit ? hit.id : null; showShape();
 });
 $('shapeCv').addEventListener('pointermove', (e) => {
@@ -4104,6 +4119,22 @@ const kept = (() => {
 })();
 load(asked && PRESETS[asked] ? preset(asked) : kept || preset('Round cell'));   // the design from last time, else an empty cell to build on
 setInterval(keepCurrent, 3000);
+// The Lab opens on a start card while there is nothing being built yet (author, 2026-11-20: "there should be an option
+// to make a new cell, and then the empty cell appears"); ＋ New cell (here or in the Tank section) starts a fresh one
+const bare = (d) => !(d.parts || []).some((p) => p.type !== 'rule' && !(p.type === 'inclusion' && p.material === 'nucleus'));
+function newCell() {
+  $('labStart').hidden = true;
+  if (mission) leaveMission();
+  const old = design;
+  load(preset('Round cell'));
+  if (old && !bare(old)) { remember(old); $('buildErr').textContent = 'a new cell (↶ Undo brings back the one you were building)'; }
+  showSection('body');
+}
+$('newCell').onclick = newCell;
+$('newCellBtn').onclick = newCell;
+$('startSaved').onclick = () => { $('labStart').hidden = true; showSection('tank'); };
+$('startMiss').onclick = () => { $('labStart').hidden = true; showSection('missions'); };
+if (!asked && !new URLSearchParams(location.search).get('design') && !mission && bare(design)) $('labStart').hidden = false;
 addEventListener('pagehide', keepCurrent);
 document.addEventListener('visibilitychange', () => { if (document.hidden) keepCurrent(); });
 placeLayout();   // after the first design: the docked patch view draws it

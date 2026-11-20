@@ -16,8 +16,9 @@ import { startLive } from './ocean-live.js';
 import { replay } from '../sim/rich.js';
 import { updatePose, motorAngle } from '../sim/physics.js';
 import { PARAMS } from '../sim/params.js';
+import { fullness } from '../sim/metab.js';
 import { daylight, clock, lightAt } from '../sim/light.js';
-import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, speciesTint, twilight, waterColor, hexRGB, rgba, mix } from './scene.js';
+import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, bedZone, speciesTint, twilight, waterColor, hexRGB, rgba, mix } from './scene.js';
 import { listen as soundListen, update as soundUpdate } from './sound.js';
 
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h, DT = PARAMS.time.dt, DAY = PARAMS.metab.day;
@@ -31,7 +32,8 @@ const hash01 = (n) => { n = Math.imul(n ^ (n >>> 15), 0x2c1b3c6d); n = Math.imul
 const angDiff = (a, b) => { let d = b - a; d -= 2 * Math.PI * Math.round(d / (2 * Math.PI)); return d; };
 // the night's weather, from its number: the same for everyone (drawing only)
 const WEATHER = { sun: '☀ Clear', cloud: '☁ Overcast', rain: '🌧 Rain' };
-const weatherOf = (n) => { const r = hash01(n * 7919 + 13); return r < 0.5 ? 'sun' : r < 0.8 ? 'cloud' : 'rain'; };
+let forceWx = null;   // tests only (window.__ocean.wx)
+const weatherOf = (n) => { if (forceWx) return forceWx; const r = hash01(n * 7919 + 13); return r < 0.5 ? 'sun' : r < 0.8 ? 'cloud' : 'rain'; };
 
 async function fetchJSON(path) {
   const got = await fetch(BASE + path, { cache: 'no-cache' });
@@ -71,6 +73,14 @@ const CSS = `
 @keyframes otin { from { opacity: 0; transform: translateY(-8px); } }
 @keyframes otout { to { opacity: 0; transform: translateY(-6px); } }
 #oceanView .obot { position: absolute; left: max(10px, env(safe-area-inset-left, 0px)); right: max(10px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; max-width: 520px; margin: 0 auto; }
+#oceanView .pick { display: flex; gap: 10px; align-items: center; background: linear-gradient(180deg, rgba(10,30,46,.95), rgba(5,19,31,.95)); border: 1px solid #5f8fa8; border-radius: 16px; padding: 9px 11px; }
+#oceanView .pick[hidden] { display: none; }
+#oceanView .pick canvas { width: 54px; height: 54px; flex: none; border-radius: 12px; background: #031019; border: 1px solid #3c6278; }
+#oceanView .pick .t { min-width: 0; flex: 1; }
+#oceanView .pick b { font: 700 14px/1.2 system-ui, sans-serif; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#oceanView .pick .who { font: 500 11px/1.3 system-ui, sans-serif; color: #8eb0bf; }
+#oceanView .pick .st { font: 500 12px/1.4 system-ui, sans-serif; color: #d6e6ee; font-variant-numeric: tabular-nums; margin-top: 2px; }
+#oceanView .pick .x { flex: none; align-self: flex-start; padding: 2px 8px; }
 #oceanView .badge { display: flex; gap: 10px; align-items: center; background: linear-gradient(180deg, rgba(7,26,41,.92), rgba(4,17,28,.92)); border: 1px solid #2a4a60; border-radius: 16px; padding: 9px 11px; cursor: pointer; }
 #oceanView .badge canvas { width: 46px; height: 46px; flex: none; border-radius: 12px; background: #031019; border: 1px solid rgba(242,193,78,.35); }
 #oceanView .badge .t { min-width: 0; flex: 1; }
@@ -122,6 +132,7 @@ const HTML = `<canvas class="sea" aria-label="The Ocean: drag to look around, pi
   </div>
   <div class="toasts" aria-live="polite"></div>
   <div class="obot">
+    <div class="pick" hidden><canvas width="108" height="108"></canvas><div class="t"><b></b><div class="who"></div><div class="st"></div></div><button class="x" type="button" title="Close">✕</button></div>
     <div class="badge" title="Follow your next cell"><canvas width="92" height="92"></canvas>
       <div class="t"><b></b><div class="st"></div><div class="ln"></div></div><div class="rk"></div></div>
     <div class="row"><button class="lab" type="button" title="Back to the Lab: build, test, missions, matches">🧪 The Lab</button>
@@ -380,7 +391,7 @@ export function initOcean(art) {
   let hudH = 160;   // px the bottom HUD covers (measured on resize)
   function clampCam() {
     cam.ts = clamp(cam.ts, minS(), maxS);
-    const hw = W / 2 / cam.ts, hh = H / 2 / cam.ts, below = 70 + hudH / cam.ts;   // the seabed can come up above the HUD
+    const hw = W / 2 / cam.ts, hh = H / 2 / cam.ts, below = 70 + (hudH + 140) / cam.ts;   // the seabed can come up above the HUD, its sediment showing   // the seabed can come up above the HUD
     cam.tx = 2 * hw >= TW + 160 ? TW / 2 : clamp(cam.tx, hw - 80, TW - hw + 80);
     cam.ty = 2 * hh >= TH + 130 + below ? (TH + 130 - below) / 2 : clamp(cam.ty, hh - below, TH + 130 - hh);
   }
@@ -432,6 +443,9 @@ export function initOcean(art) {
     if (pts.size < 2) pinch = null;
     if (e.type === 'pointerup' && moved < 6 && pts.size === 0) {
       const now = performance.now(), r = cv.getBoundingClientRect();
+      const hitUid = cellAt(e.clientX - r.left, e.clientY - r.top);
+      if (hitUid) { pickCell(hitUid); lastTap = 0; return; }
+      if (pick) { pickCell(0); }
       if (now - lastTap < 320) { zoomAt(e.clientX - r.left, e.clientY - r.top, cam.ts > Math.min(W, H) / 160 ? 1 / 3 : 2.2); lastTap = 0; } else lastTap = now;
     }
   };
@@ -444,6 +458,66 @@ export function initOcean(art) {
     clampCam(); cam.x = cam.tx; cam.y = cam.ty; camButton();
   });
 
+  // ---- a tapped cell: the camera follows it and a card says what it is and how it is doing (any species: what is
+  // public on the board and in the water; never its design or rules) ----
+  let pick = 0, pickKey = '';
+  function cellAt(px, py) {
+    if (!shown) return 0;
+    let best = 0, bd = Infinity;
+    for (const c of shown.cells) {
+      if (c.dead) continue;
+      const dx = W / 2 + (c.q[0] - cam.x) * cam.s - px, dy = H / 2 - (c.q[1] - cam.y) * cam.s - py, d = Math.hypot(dx, dy);
+      const reach = Math.max(24, (c.pieces[0].a + c.pieces[0].L / 2) * cam.s + 8);
+      if (d < reach && d < bd) { bd = d; best = c.uid; }
+    }
+    return best;
+  }
+  function pickCell(uid) {
+    pick = uid; pickKey = '';
+    q('.pick').hidden = !uid;
+    if (uid) { cam.follow = uid; if (cam.ts < Math.min(W, H) / 400) cam.ts = clamp(Math.min(W, H) / 260, minS(), maxS); camButton(); }
+    setTimeout(() => { hudH = (q('.obot').offsetHeight || 140) + 16; }, 0);
+    pickCard();
+  }
+  function pickCard() {
+    if (!pick || !shown) return;
+    const c = shown.cells.find((x) => x.uid === pick);
+    if (!c) { q('.pick .st').textContent = 'Gone from the water.'; return; }
+    const r = rowOf(c.species), mine = c.species === follow;
+    const states = [];
+    if (c.dead) states.push('dead');
+    else {
+      if (c.metab && c.metab.starving) states.push('starving');
+      if (c.resting) states.push('resting');
+      if (c.stunT > 0) states.push('stunned');
+      if ((c.feeders || []).some((f) => f.link)) states.push('feeding through its tube');
+      const i = shown.cells.indexOf(c);
+      if ((shown.links || []).some((l) => l.feed && l.b === i)) states.push('being drained');
+      if (c.meal) states.push('digesting a meal');
+      if (c.neighbours) states.push(`joined to ${c.neighbours}`);
+      if (c.metab && c.metab.fixing) states.push('fixing nitrogen');
+      if (!states.length) states.push(c.joints && c.joints.some((j) => j.type === 'motor' && j.on && !j.burst) ? 'swimming' : 'drifting');
+    }
+    let energy = '';
+    if (c.metab && c.metab.C) energy = ` · energy ${Math.round(100 * Math.min(1, fullness(c)))}%`;
+    const key = `${pick}|${states.join()}|${energy}|${(c.size || 1).toFixed(1)}|${r && r.rank}`;
+    if (key === pickKey) return;
+    pickKey = key;
+    q('.pick b').textContent = c.species;
+    q('.pick b').style.color = mine ? GOLD : speciesTint(c.species);
+    q('.pick .who').textContent = `${mine ? 'yours · ' : ''}${r ? (r.house ? 'house species' : r.player) + ` · ${ord(r.rank)} of ${board.rows.length} · ${count(shown, c.species)} cells · growth ${r.score.toFixed(2)}×` : ''}`;
+    q('.pick .st').textContent = `${states.join(', ').replace(/^./, (ch) => ch.toUpperCase())} · ${(c.size || 1).toFixed(1)}× its newborn size${energy}${c.gen ? ` · generation ${c.gen + 1}` : ''}`;
+    portrait(q('.pick canvas'), c.species, mine, c.uid);
+  }
+  // the ring round a tapped cell
+  function drawPick(w, v) {
+    if (!pick) return;
+    const c = w.cells.find((x) => x.uid === pick); if (!c) return;
+    const R = (c.pieces[0].a + c.pieces[0].L / 2) * v.s + 10, x = v.X(c.q[0]), y = v.Y(c.q[1]);
+    g.save(); g.strokeStyle = 'rgba(230,244,250,.8)'; g.lineWidth = 1.5; g.setLineDash([5, 5]); g.lineDashOffset = -performance.now() / 60;
+    g.beginPath(); g.arc(x, y, R, 0, 7); g.stroke(); g.restore();
+  }
+  q('.pick .x').onclick = () => pickCell(0);
   // ---- the HUD ----
   function toast(text, bad) {
     const box = q('.toasts'), t = document.createElement('div');
@@ -465,6 +539,7 @@ export function initOcean(art) {
     hudAt = now;
     const w = shown;
     q('.nt').textContent = `Night ${nightNo()}`;
+    pickCard();
     if (w) { const h = clock(w); q('.ck').textContent = `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor(60 * (h % 1))).padStart(2, '0')}`; }
     q('.wx').textContent = WEATHER[weatherOf(nightNo())];
     q('.snd').textContent = art.soundOn() ? '🔊' : '🔇';
@@ -481,12 +556,12 @@ export function initOcean(art) {
     portrait(q('.badge canvas'), follow, true);
   }
   // a species drawn small: one of its living cells, posed level, by the Lab's own drawing
-  function portrait(c2, sp, own) {
+  function portrait(c2, sp, own, uid) {
     const pg = c2.getContext('2d'), Wp = c2.width, Hp = c2.height;
     pg.setTransform(1, 0, 0, 1, 0, 0);
     const bg = pg.createRadialGradient(Wp / 2, Hp / 2, 2, Wp / 2, Hp / 2, Wp * 0.7);
     bg.addColorStop(0, '#0e3346'); bg.addColorStop(1, '#03101a'); pg.fillStyle = bg; pg.fillRect(0, 0, Wp, Hp);
-    const src = shown && shown.cells.find((c) => c.species === sp && !c.dead);
+    const src = shown && shown.cells.find((c) => (uid ? c.uid === uid : c.species === sp && !c.dead));
     if (!src) { pg.fillStyle = rgba(hexRGB(speciesTint(sp || 'x')), 0.6); pg.beginPath(); pg.arc(Wp / 2, Hp / 2, Wp * 0.18, 0, 7); pg.fill(); return; }
     const y0 = TH * 0.6, d = Object.assign({}, src, { q: Float64Array.from(src.q), phi: new Float64Array(src.phi), cs: new Float64Array(src.cs), sn: new Float64Array(src.sn),
       cx: new Float64Array(src.cx), cy: new Float64Array(src.cy), jx: new Float64Array(src.jx), jy: new Float64Array(src.jy), meal: null });
@@ -570,8 +645,10 @@ export function initOcean(art) {
   document.addEventListener('visibilitychange', () => { if (!open || !live) return; if (document.hidden) live.pause(); else if (mode === 'live') live.resume(); });
 
   // ---- drawing: the scenery round the water, the seabed's life, effects, your cells' halo ----
-  const BED = Array.from({ length: 90 }, (_, i) => ({ k: ['foram', 'radio', 'foram', 'radio', 'grain'][i % 5], x: hash01(i + 9001) * TW, y: -1 - hash01(i + 9101) * 9, r: 3 + hash01(i + 9201) * 8, a: hash01(i + 9301) * 6.28 }));
-  const MAT = Array.from({ length: 420 }, (_, i) => ({ x: hash01(i + 9401) * TW, h: 3 + hash01(i + 9501) * 13, c: hash01(i + 9601) }));
+  const BED = Array.from({ length: 150 }, (_, i) => ({ k: ['foram', 'radio', 'centric', 'shell', 'foram', 'burrow', 'spicule', 'pebble', 'centric', 'shell'][Math.floor(hash01(i + 8901) * 10)], x: hash01(i + 9001) * TW, y: -1 - hash01(i + 9101) * 9, r: 3 + hash01(i + 9201) * 8, a: hash01(i + 9301) * 6.28 }));
+  const MAT = Array.from({ length: 700 }, (_, i) => ({ x: hash01(i + 9401) * TW, h: 3 + hash01(i + 9501) * 13, c: hash01(i + 9601) })).filter((m) => hash01(m.x * 7 + 3) < bedZone(m.x).mat);
+  // films of coloured bacteria on the sediment's top here and there (purple, orange-pink, white sulphur)
+  const FILMS = Array.from({ length: 14 }, (_, i) => ({ x: hash01(i + 9951) * TW, w: 20 + 60 * hash01(i + 9952), col: [[150, 70, 150], [210, 120, 90], [225, 225, 210]][Math.floor(hash01(i + 9953) * 3)] }));
   const STARS = Array.from({ length: 80 }, (_, i) => ({ x: hash01(i + 9701), y: hash01(i + 9801), r: 0.4 + hash01(i + 9901) * 1.1 }));
   let rings = [];
   function drawAround(w, v, t) {
@@ -596,10 +673,50 @@ export function initOcean(art) {
         for (const st of STARS) { const y = st.y * top; if (y > top - 4) continue; g.globalAlpha = a * (0.35 + 0.55 * Math.sin(t * 1.7 + st.x * 40) ** 2); g.beginPath(); g.arc(st.x * W, y, st.r, 0, 7); g.fill(); }
         g.globalAlpha = a; g.fillStyle = '#f4f1dc'; g.beginPath(); g.arc(W * 0.72, Math.min(top * 0.45, top - 18), 11, 0, 7); g.fill(); g.globalAlpha = 1;
       }
-      if (wx !== 'sun' && day > 0.05) {   // clouds: soft grey shapes drifting
-        g.fillStyle = `rgba(190,200,206,${0.25 * day})`;
-        for (let i = 0; i < 6; i++) { const cx = ((hash01(i + 77) * W * 1.6 + t * 4) % (W * 1.6)) - W * 0.3, cy = top * (0.2 + 0.5 * hash01(i + 88)); g.beginPath(); g.ellipse(cx, cy, 70 + 40 * hash01(i + 99), 14 + 8 * hash01(i + 66), 0, 0, 7); g.fill(); }
-      }
+      drawClouds(top, day, wx, t);
+    }
+  }
+  // clouds of every night their own (author, 2026-11-20: "could be a little better and more variated"): each a heap of
+  // puffs on a flat base, lit from above, in two layers drifting at their own speeds; a clear night a few small fair-weather
+  // ones, overcast a grey deck, rain dark and low; pink and gold at dawn and dusk, dim shapes against the night sky
+  let cloudSet = null, cloudN = -1;
+  function cloudsOf(n, wx) {
+    const h = (k) => hash01(n * 131 + k);
+    const many = wx === 'sun' ? 2 + Math.floor(h(1) * 4) : wx === 'cloud' ? 8 + Math.floor(h(2) * 6) : 12 + Math.floor(h(3) * 6);
+    return Array.from({ length: many }, (_, i) => {
+      const r = (k) => h(i * 17 + k + 5), far = r(1) < 0.5, size = (far ? 0.6 : 1) * (wx === 'sun' ? 40 + 50 * r(2) : 70 + 110 * r(2));
+      const np = 4 + Math.floor(r(3) * 6);
+      const puffs = Array.from({ length: np }, (_, k) => {
+        const u = (k + 0.5) / np - 0.5, hump = 1 - 4 * u * u;
+        return { dx: u * size * (1.6 + r(k + 30)), r: size * (0.18 + 0.22 * hump * (0.6 + 0.6 * r(k + 40))), up: hump * size * (0.1 + 0.25 * r(k + 50)) };
+      });
+      return { x: r(4), y: far ? 0.15 + 0.3 * r(5) : 0.35 + 0.4 * r(5), speed: (far ? 1.5 : 4) * (0.6 + 0.8 * r(6)), far, puffs, size, grey: r(8) };
+    });
+  }
+  function drawClouds(top, day, wx, t) {
+    const n = nightNo();
+    if (cloudN !== n) { cloudN = n; cloudSet = cloudsOf(n, wx); }
+    const dusk = Math.max(0, 1 - Math.abs(day - 0.35) / 0.3);   // dawn and dusk colours
+    const base = wx === 'sun' ? [240, 244, 248] : wx === 'cloud' ? [196, 204, 212] : [128, 136, 146];
+    const night = [26, 32, 44];
+    for (const layer of [true, false]) for (const c of cloudSet) {
+      if (c.far !== layer) continue;
+      const span = W + 4 * c.size, cx = ((c.x * span + t * c.speed) % span) - c.size * 2, cy = top * c.y;
+      if (cy - c.size > top) continue;
+      let lit = mix(night, base.map((q) => q * (0.9 + 0.1 * c.grey)), Math.min(1, day * 1.5));
+      lit = mix(lit, [250, 170, 140], dusk * 0.45);
+      const shade = lit.map((q) => q * (wx === 'rain' ? 0.62 : 0.74)), a = (c.far ? 0.55 : 0.85) * (0.35 + 0.65 * Math.min(1, day * 2));
+      // soft puffs: the shaded underside first, then the lit tops, each fading at its edge
+      const puff = (x, y, r, col, al) => { const pg = g.createRadialGradient(x, y, r * 0.2, x, y, r); pg.addColorStop(0, rgba(col, al)); pg.addColorStop(0.65, rgba(col, al * 0.85)); pg.addColorStop(1, rgba(col, 0)); g.fillStyle = pg; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); };
+      for (let k = -2; k <= 2; k++) puff(cx + k * c.size * 0.4, cy, c.size * 0.32, shade, a * 0.8);
+      for (const p of c.puffs) puff(cx + p.dx, cy - p.up, p.r * 1.1, shade, a);
+      for (const p of c.puffs) puff(cx + p.dx - p.r * 0.15, cy - p.up - p.r * 0.25, p.r * 0.85, lit, a);
+    }
+    if (wx === 'rain' && day > 0.05) {   // rain falling from the deck: faint streaks
+      g.strokeStyle = `rgba(170,185,200,${0.18 * day})`; g.lineWidth = 1;
+      g.beginPath();
+      for (let i = 0; i < 60; i++) { const x = (hash01(i + 333) * W + t * 30) % W, y = ((hash01(i + 444) + t * 0.9) % 1) * top; g.moveTo(x, y); g.lineTo(x - 3, y + 12); }
+      g.stroke();
     }
   }
   function drawWeather(w, v, t) {
@@ -637,10 +754,33 @@ export function initOcean(art) {
       const sway = Math.sin(t * 0.8 + m.x) * 2.2 * s;
       g.beginPath(); g.moveTo(x, Y(-0.5)); g.quadraticCurveTo(x + sway * 0.5, Y(m.h * 0.5), x + sway, Y(m.h)); g.stroke();
     }
+    for (const f of FILMS) {   // bacterial films: thin coloured bands along the top
+      const x0 = X(f.x - f.w / 2), x1 = X(f.x + f.w / 2); if (x1 < 0 || x0 > Wv) continue;
+      const fg = g.createLinearGradient(x0, 0, x1, 0), c = f.col.map((q) => q * bright);
+      fg.addColorStop(0, rgba(c, 0)); fg.addColorStop(0.2, rgba(c, 0.45)); fg.addColorStop(0.8, rgba(c, 0.45)); fg.addColorStop(1, rgba(c, 0));
+      g.fillStyle = fg; g.fillRect(x0, Y(-0.6), x1 - x0, Math.max(1.5, 1.6 * s));
+    }
     for (const b of BED) {   // forams (chambered spirals), radiolarians (spiky glass), grains
       const x = X(b.x), y = Y(b.y), r = b.r * s; if (x < -2 * r || x > Wv + 2 * r || r < 1) continue;
       g.save(); g.translate(x, y); g.rotate(b.a);
-      if (b.k === 'grain') { g.fillStyle = rgba([107, 96, 74].map((c) => c * bright), 0.8); g.beginPath(); g.ellipse(0, 0, r * 0.6, r * 0.42, 0, 0, 7); g.fill(); }
+      const C = (c, a) => rgba(c.map((q) => q * bright), a);
+      if (b.k === 'pebble') { const pc = mix(bedZone(b.x).col, [160, 150, 140], 0.4); g.fillStyle = C(pc, 0.95); g.beginPath(); g.ellipse(0, 0, r * 1.1, r * 0.7, 0, 0, 7); g.fill(); g.fillStyle = C([255, 245, 225], 0.2); g.beginPath(); g.ellipse(-r * 0.25, -r * 0.25, r * 0.55, r * 0.25, 0, 0, 7); g.fill(); }
+      else if (b.k === 'centric') {   // a round diatom valve: a glassy disc with rays
+        g.strokeStyle = C([230, 236, 222], 0.6); g.fillStyle = C([210, 220, 205], 0.18); g.lineWidth = Math.max(0.5, r * 0.06);
+        g.beginPath(); g.ellipse(0, 0, r, r * 0.45, 0, 0, 7); g.fill(); g.stroke();
+        if (r > 5) { g.globalAlpha = 0.5; g.beginPath(); for (let k = 0; k < 16; k++) { const a = k / 16 * 6.28; g.moveTo(Math.cos(a) * r * 0.2, Math.sin(a) * r * 0.09); g.lineTo(Math.cos(a) * r * 0.92, Math.sin(a) * r * 0.41); } g.stroke(); g.globalAlpha = 1; }
+      } else if (b.k === 'shell') {   // a broken shell: a pale curved fragment with a growth line
+        g.fillStyle = C([226, 214, 190], 0.75); g.strokeStyle = C([160, 146, 120], 0.6); g.lineWidth = Math.max(0.5, r * 0.06);
+        g.beginPath(); g.arc(0, r * 0.5, r, Math.PI * 1.15, Math.PI * 1.85); g.arc(0, r * 0.5, r * 0.6, Math.PI * 1.8, Math.PI * 1.2, true); g.closePath(); g.fill(); g.stroke();
+        if (r > 4) { g.beginPath(); g.arc(0, r * 0.5, r * 0.8, Math.PI * 1.2, Math.PI * 1.8); g.stroke(); }
+      } else if (b.k === 'burrow') {   // a worm's burrow: a little mound with a dark mouth
+        g.rotate(-b.a); g.fillStyle = C(mix(bedZone(b.x).col, [70, 60, 46], 0.3), 0.95);
+        g.beginPath(); g.ellipse(0, r * 0.2, r * 1.4, r * 0.7, 0, Math.PI, 0); g.fill();
+        g.fillStyle = 'rgba(8,6,4,.85)'; g.beginPath(); g.ellipse(0, -r * 0.3, r * 0.32, r * 0.18, 0, 0, 7); g.fill();
+      } else if (b.k === 'spicule') {   // a sponge's glass needle
+        g.strokeStyle = C([236, 240, 236], 0.55); g.lineWidth = Math.max(0.6, r * 0.08);
+        g.beginPath(); g.moveTo(-r * 1.8, 0); g.lineTo(r * 1.8, 0); g.stroke();
+      } else if (b.k === 'grain') { g.fillStyle = rgba([107, 96, 74].map((c) => c * bright), 0.8); g.beginPath(); g.ellipse(0, 0, r * 0.6, r * 0.42, 0, 0, 7); g.fill(); }
       else if (b.k === 'foram') {
         g.strokeStyle = rgba([216, 204, 176].map((c) => c * bright), 0.8); g.fillStyle = rgba([220, 205, 170].map((c) => c * bright), 0.3); g.lineWidth = Math.max(0.7, r * 0.07);
         for (let k = 0; k < 6; k++) { const a = k * 0.9, rr = r * (0.3 + k * 0.12); g.beginPath(); g.arc(Math.cos(a) * rr * 0.6, Math.sin(a) * rr * 0.6, rr * 0.5, 0, 7); g.fill(); g.stroke(); }
@@ -752,6 +892,7 @@ export function initOcean(art) {
       art.cells(g, shown, v, (c) => c.species === follow);
       keepVis(shown);
       drawFx(shown, v, dt);
+      drawPick(shown, v);
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawVignette(g, W, H);
       if (mode === 'rec') { g.fillStyle = 'rgba(255,177,92,.05)'; g.fillRect(0, 0, W, H); }   // the recording: a faint amber cast
@@ -793,6 +934,6 @@ export function initOcean(art) {
   // Ocean first (author, 2026-11-19): once you follow a species there, the game opens on it
   if (saved.follow && !/[?&](design|preset)=/.test(location.search)) openOcean();
   // for headless tests (as window.__tg in the Lab): the live run's speed, and what is shown
-  window.__ocean = { speed: (x) => live && live.speed(x), recAt: (f) => { if (rec) { rec.steps = rec.rp.from + f * (rec.rp.to - rec.rp.from); primed = false; } }, play: (n) => playNight(n), state: () => ({ mode, slow, cells: shown ? shown.cells.length : 0, clock: shown ? clock(shown) : null, info: live && live.info }) };
+  window.__ocean = { wx: (x) => { forceWx = x; cloudN = -1; }, pick: (uid) => pickCell(uid), look: (x, y, z) => { cam.follow = 0; cam.ts = z; cam.tx = cam.x = x; cam.ty = cam.y = y; clampCam(); camButton(); }, cells: () => (shown ? shown.cells.filter((c) => !c.dead).map((c) => [c.uid, c.species, W / 2 + (c.q[0] - cam.x) * cam.s, H / 2 - (c.q[1] - cam.y) * cam.s]) : []), speed: (x) => live && live.speed(x), recAt: (f) => { if (rec) { rec.steps = rec.rp.from + f * (rec.rp.to - rec.rp.from); primed = false; } }, play: (n) => playNight(n), state: () => ({ mode, slow, cells: shown ? shown.cells.length : 0, clock: shown ? clock(shown) : null, info: live && live.info }) };
   return { open: openOcean, close: closeOcean };
 }

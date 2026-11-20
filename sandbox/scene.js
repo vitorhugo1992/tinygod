@@ -86,6 +86,21 @@ function blurOf(tint) {
 // the water volume, soft light beams that belong to the water (they slide as you pan), a far layer of specks with
 // parallax, a surface seen from below, a seabed with an uneven top, layered sediment, grains, old diatom shells and fluff.
 const BED_TOP = (x) => -1.5 + 1.1 * Math.sin(x / 53 + 0.4) + 0.7 * Math.sin(x / 19 + 1.3) + 0.5 * Math.sin(x / 211);   // µm, about -3.8..0.8
+// The bed changes along the tank (author, 2026-11-20: "the bottom soil could be more variated"): patches of sand, grey
+// mud, ochre gravel, green diatom ooze and pale shell sand, blended over ~150 µm. bedZone(x) -> { col, coarse, mat }
+const BEDS = [
+  { col: [150, 132, 96], coarse: 1, mat: 0.25 },     // sand
+  { col: [88, 84, 74], coarse: 0.35, mat: 0.8 },     // grey mud
+  { col: [134, 96, 58], coarse: 1.9, mat: 0.1 },     // ochre gravel
+  { col: [74, 82, 52], coarse: 0.5, mat: 1 },        // green diatom ooze
+  { col: [182, 168, 136], coarse: 0.8, mat: 0 },     // pale shell sand
+];
+const KNOT = 150;
+export function bedZone(x) {
+  const k = Math.floor(x / KNOT), u = x / KNOT - k, w = u * u * (3 - 2 * u);
+  const a = BEDS[Math.floor(rnd(k * 3.7 + 500) * BEDS.length)], b = BEDS[Math.floor(rnd((k + 1) * 3.7 + 500) * BEDS.length)];
+  return { col: a.col.map((c, i) => c + (b.col[i] - c) * w), coarse: a.coarse + (b.coarse - a.coarse) * w, mat: a.mat + (b.mat - a.mat) * w };
+}
 let BEAM = null, MURK_D = null, MURK_L = null, NOISE = null;
 function waterSprites() {
   if (BEAM) return;
@@ -227,10 +242,15 @@ function drawBed(ctx, world, v, t, tw) {
   const edge = () => { for (let x = left; x <= right + step; x += step) { const xx = Math.min(x, right), y = Y(BED_TOP((xx - X(0)) / s)); x === left ? ctx.moveTo(xx, y) : ctx.lineTo(xx, y); } };
   ctx.save();
   ctx.beginPath(); edge(); ctx.lineTo(right, H + 10); ctx.lineTo(left, H + 10); ctx.closePath();
-  const deep = Math.max(1, (H - Y(0)) / s), bg = ctx.createLinearGradient(0, Y(1), 0, Y(-Math.max(deep, 40)));
-  bg.addColorStop(0, C([118, 104, 78])); bg.addColorStop(0.08, C([92, 80, 60])); bg.addColorStop(0.4, C([62, 52, 40])); bg.addColorStop(1, C([30, 25, 20]));
-  ctx.fillStyle = bg; ctx.fill();
+  const deep = Math.max(1, (H - Y(0)) / s);
   ctx.clip();
+  // in strips a few pixels wide, each its patch's colour, darkening downward
+  const sw = Math.max(6, (right - left) / 140);
+  for (let x = left; x < right; x += sw) {
+    const col = bedZone((x + sw / 2 - X(0)) / s).col, bg = ctx.createLinearGradient(0, Y(1), 0, Y(-Math.max(deep, 40)));
+    bg.addColorStop(0, C(col)); bg.addColorStop(0.08, C(col.map((c) => c * 0.78))); bg.addColorStop(0.4, C(col.map((c) => c * 0.52))); bg.addColorStop(1, C(col.map((c) => c * 0.25)));
+    ctx.fillStyle = bg; ctx.fillRect(x, Math.min(Y(4), H), sw + 0.6, H + 10);
+  }
   // the texture, fixed to the bed (scaled with the zoom within limits)
   const pat = ctx.createPattern(NOISE, 'repeat'), k = clamp(s * 1.2, 0.5, 2);
   if (pat.setTransform) pat.setTransform(new DOMMatrix([k, 0, 0, k, X(0), Y(0)]));
@@ -240,7 +260,8 @@ function drawBed(ctx, world, v, t, tw) {
   const COLS = [[132, 116, 88], [92, 80, 62], [150, 138, 112], [66, 55, 44], [112, 96, 74], [78, 70, 60]];
   for (let i = Math.max(0, i0); i <= Math.min(Math.ceil(TW / G), i1); i++) for (let j = 0; j < j1; j++) for (let n = 0; n < 3; n++) {
     const h = i * 7.31 + j * 13.7 + n * 3.11, gx = (i + rnd(h)) * G, gy = j === 0 ? BED_TOP(gx) - rnd(h + 1) * 12 : -(j + rnd(h + 1)) * G;
-    const r = 0.6 + Math.pow(rnd(h + 2), 3) * 5, R = r * s;
+    const z = bedZone(gx), r = (0.6 + Math.pow(rnd(h + 2), 3) * 5) * z.coarse, R = r * s;
+    if (n === 2 && z.coarse < 0.6) continue;   // mud: fewer grains
     if (R < 0.4) continue;
     const x = X(gx), y = Y(gy); if (x < -R || x > W + R || y < -R || y > H + R) continue;
     const c = COLS[Math.floor(rnd(h + 3) * COLS.length)], fade = Math.max(0.25, 1 - j * 0.12);
