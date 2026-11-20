@@ -23,7 +23,9 @@ import { listen as soundListen, update as soundUpdate } from './sound.js';
 
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h, DT = PARAMS.time.dt, DAY = PARAMS.metab.day;
 const VIS_BEATS = 2.5;            // beating parts drawn at most this many strokes a real second (as the Lab's calm drawing)
-const KEY = 'tinygod.ocean', BASE = '../ocean/';
+// ?ocean=<folder> reads a scratch Ocean under ocean/ (tests: tools/ocean.mjs --dir=ocean/<folder>)
+const TEST = (new URLSearchParams(location.search).get('ocean') || '').replace(/[^\w-]/g, '');
+const KEY = 'tinygod.ocean', BASE = TEST ? `../ocean/${TEST}/` : '../ocean/';
 const GOLD = '#f2c14e';
 const esc = (s) => String(s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -107,6 +109,8 @@ const CSS = `
 #oceanView .nightrow .n { font: 500 11px/1.3 ui-monospace, Menlo, monospace; color: #8eb0bf; }
 #oceanView .nightrow .n b { display: block; font: 700 18px/1 system-ui, sans-serif; color: #dcefe8; }
 #oceanView .nightrow p { margin: 0; font-size: 13px; }
+#oceanView .nightrow .n .rk { display: block; margin-top: 4px; color: ${GOLD}; font-weight: 700; }
+#oceanView .ms[data-t] { cursor: pointer; }
 #oceanView .ms { display: inline-flex; align-items: center; gap: 4px; font: 600 10.5px/1 system-ui, sans-serif; padding: 4px 7px; border-radius: 999px; margin: 5px 4px 0 0; background: #14324a; color: #bfe3f5; }
 #oceanView .ms.gold { background: #3a2f12; color: ${GOLD}; } #oceanView .ms.red { background: #3a1820; color: #ff9aa8; }
 #oceanView .brow { display: grid; grid-template-columns: 24px 40px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 8px; border-radius: 12px; border: 1px solid transparent; cursor: pointer; margin-top: 4px; background: rgba(255,255,255,.03); }
@@ -155,7 +159,7 @@ export function initOcean(art) {
 
   // ---- the state ----
   let open = false, raf = 0, W = 1, H = 1, dpr = 1, lastT = 0;
-  let board = null, nights = {}, follow = saved.follow || null;
+  let board = null, story = null, nights = {}, follow = saved.follow || null;
   let mode = 'loading';            // 'loading' | 'live' | 'rec' | 'none'
   let live = null, slow = false;   // slow: this device can't keep the live Ocean going at half speed
   let F = { cur: null, prev: null, dt: 125 };   // the live frames: the last two from the worker
@@ -176,6 +180,25 @@ export function initOcean(art) {
     if (!follow || !rowOf(follow)) follow = board.rows.length ? board.rows[0].name : null;
   }
   const rowOf = (sp) => board && board.rows.find((r) => r.name === sp);
+  // the life stories (tools/ocean-story.mjs): a line and milestones a night for every species
+  async function loadStory() { try { story = await fetchJSON('story.json'); } catch (e) { story = null; } }
+  const storyOf = (sp, n) => (story && story.species[sp] ? story.species[sp].find((r) => r.night === n) : null);
+  // last night's milestones for the species you follow, once each morning (the reason to come back)
+  function morning() {
+    if (!board || !story || !follow || saved.seen === board.night) return;
+    const r = storyOf(follow, board.night);
+    saved.seen = board.night; remember();
+    if (!r) return;
+    const ms = r.ms.filter((m) => m.tone).slice(0, 3);
+    ms.forEach((m, i) => setTimeout(() => toast(`Last night: ${m.tone === 'gold' ? '★' : '✕'} ${m.text}`, m.tone === 'red'), 1200 + i * 1600));
+  }
+  // a milestone replayed: the night's recording from a little before its moment, the camera on the cell if known
+  async function replayMoment(n, t, uid) {
+    if (!(await playNight(n))) return;
+    rec.steps = rec.rp.from + Math.max(0, t - 0.01) * (rec.rp.to - rec.rp.from); primed = false;
+    recEv = (rec.steps - rec.rp.from) * DT / DAY;   // the moments before it are not toasted again
+    if (uid) { cam.follow = uid; cam.ts = clamp(Math.min(W, H) / 260, minS(), maxS); camButton(); }
+  }
   async function loadNight(n) {
     if (n in nights) return nights[n];
     try {
@@ -226,6 +249,7 @@ export function initOcean(art) {
   function startLiveOcean() {
     if (live) return;
     live = startLive({
+      url: BASE + 'world.json.gz',
       onState(s, info) {
         if (s === 'live') { if (mode === 'loading') setMode('live'); else if (slow) { slow = false; if (mode === 'live') setMode('live'); } }   // a new speed judges afresh
         else if (s === 'slow') { slow = true; fallBack(`too slow here (${info.why || 'under half speed'})`); }
@@ -551,7 +575,8 @@ export function initOcean(art) {
     badgeKey = key;
     q('.badge b').textContent = follow || 'No species yet';
     q('.badge .st').textContent = r ? `${n} cell${n === 1 ? '' : 's'} · growth ${r.score.toFixed(2)}× · ${r.kills} kill${r.kills === 1 ? '' : 's'} · ${r.nightsAlive} night${r.nightsAlive === 1 ? '' : 's'}` : 'Pick one to follow on the board (📖)';
-    q('.badge .ln').textContent = N && follow ? `Last night: ${nightLine(N, follow, true).replace(/^./, (ch) => ch.toLowerCase())}` : '';
+    const SL = board && follow && storyOf(follow, board.night);
+    q('.badge .ln').textContent = SL ? `Last night: ${SL.line.replace(/^./, (ch) => ch.toLowerCase())}` : N && follow ? `Last night: ${nightLine(N, follow, true).replace(/^./, (ch) => ch.toLowerCase())}` : '';
     q('.badge .rk').innerHTML = r ? `${ord(r.rank)}<small>of ${board.rows.length}</small>` : '';
     portrait(q('.badge canvas'), follow, true);
   }
@@ -611,6 +636,22 @@ export function initOcean(art) {
         portrait(row.querySelector('canvas'), row.dataset.sp, row.dataset.sp === follow);
         row.onclick = () => { follow = row.dataset.sp; saved.follow = follow; remember(); cam.follow = 0; badgeKey = ''; primed = false; hud(true); hideSheet(); followNext(true); };
       });
+      return;
+    }
+    const tonight = `<div class="nightrow" data-live="1" title="Back to the live Ocean"><div class="n">night<b>${board.night + 1}</b></div><p>Tonight, running now${slow ? ' (slowly, on this device)' : ''}: the nightly run makes it official.</p></div>`;
+    if (story && follow) {   // the story file: every night it was here, newest first, each milestone a tap to its moment
+      const mine = (story.species[follow] || []).slice().reverse();
+      box.innerHTML = tonight + mine.map((r) => `<div class="nightrow" data-n="${r.night}" title="Replay night ${r.night}"><div class="n">night<b>${r.night}</b>${r.rank ? `<span class="rk">${ord(r.rank)}</span>` : ''}</div><p>${esc(r.line)}<br>${r.ms.map((m) => `<span class="ms ${m.tone}" data-t="${m.t}" data-uid="${m.uid || ''}" title="Replay this moment">${m.tone === 'gold' ? '★' : m.tone === 'red' ? '✕' : '•'} ${esc(m.text)}</span>`).join('')}</p></div>`).join('')
+        + `<p class="note">${mine.length ? 'A line a night. Tap a night to replay it, a milestone to see its moment.' : `${esc(follow)} has no nights here yet.`} Naming your lines and pinned moments come with releases.</p>`;
+      box.querySelectorAll('.ms[data-t]').forEach((c) => (c.onclick = async (e) => {
+        e.stopPropagation();
+        const n = Number(c.closest('.nightrow').dataset.n);
+        await replayMoment(n, Number(c.dataset.t), Number(c.dataset.uid) || 0); hideSheet(); toast(`Night ${n}: ${c.textContent.trim()}`);
+      }));
+      box.querySelectorAll('.nightrow').forEach((r) => (r.onclick = async () => {
+        if (r.dataset.live) { hideSheet(); if (mode !== 'live') { setMode('live'); message(null); } return; }
+        if (await playNight(Number(r.dataset.n))) { hideSheet(); toast(`Replaying night ${r.dataset.n}.`); }
+      }));
       return;
     }
     const rows = [];
@@ -915,6 +956,7 @@ export function initOcean(art) {
       try { await loadBoard(); } catch (e) { setMode('none'); message('The Ocean can\'t be reached', `${e.message}. It lives on the website and on the home server.`); hud(true); raf = requestAnimationFrame(frame); return; }
       message(null);
       loadNight(board.night).then(() => { badgeKey = ''; hud(true); });
+      loadStory().then(() => { badgeKey = ''; hud(true); morning(); });
       startLiveOcean();
       setTimeout(() => { if (mode === 'loading' && !F.cur) fallBack('slow to start'); }, 20000);
     } else if (live && mode === 'live') live.resume();

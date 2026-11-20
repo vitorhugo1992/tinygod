@@ -4,6 +4,7 @@
 //   node tools/ocean.mjs release <player> <design.json | TG1.code> [--name=]   queue a release for the next night
 //   node tools/ocean.mjs night [n = 1]                           run n nights
 //   node tools/ocean.mjs board                                   print the board
+//   node tools/ocean.mjs story                                   rebuild every species' life story (story.json) from the nights
 //   --dir=<folder> (default ocean/: a scratch Ocean for tests) · --seconds=<n> (a shorter night, for tests)
 // The rules: the tank of the Lab (1,600 × 2,000 µm, moving water, days, shading); a species arrives as 3 cells at random
 // spots; at most 100 cells and 25 of one species (at its ceiling a species can't divide but still grows and stores;
@@ -13,7 +14,8 @@
 // since arrival (living biomass ÷ what its 3 cells arrived with, 0 while extinct) averaged over the last 7 nights.
 // Files in the folder: state.json (species, designs, history, the queue), world.json.gz (the tank saved exactly,
 // sim/save.js), board.json (for the page: no designs), nights/<n>.json.gz (the night's timeline, each species' life,
-// replay frames: sim/record.js).
+// replay frames: sim/record.js), nights/<n>.rich.json.gz (every cell posed, sim/rich.js), story.json (each species' line
+// and milestones a night: tools/ocean-story.mjs; public like the board).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { gzipSync, gunzipSync, inflateRawSync } from 'node:zlib';
 import { PARAMS } from '../sim/params.js';
@@ -25,6 +27,7 @@ import { newRecord, recordStep, lifeSummary } from '../sim/record.js';
 import { richRecord, richStep, richDone } from '../sim/rich.js';
 import { saveState, loadState } from '../sim/save.js';
 import { clock } from '../sim/light.js';
+import { storyNight } from './ocean-story.mjs';
 
 export const OCEAN = { cap: 100, capSpecies: 25, arrive: 3, returnAfter: 3, releaseEvery: 3, houseUntil: 12, boardNights: 7, seed: 20261118 };
 export const HOUSE = [
@@ -35,7 +38,7 @@ export const HOUSE = [
 
 const opt = (k, v) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : v; };
 const ROOT = new URL('../', import.meta.url), DIR = new URL(opt('dir', 'ocean').replace(/\/?$/, '/'), ROOT), NDIR = new URL('nights/', DIR);
-const STATE = new URL('state.json', DIR), WORLD = new URL('world.json.gz', DIR), BOARD = new URL('board.json', DIR);
+const STATE = new URL('state.json', DIR), WORLD = new URL('world.json.gz', DIR), BOARD = new URL('board.json', DIR), STORY = new URL('story.json', DIR);
 const DT = PARAMS.time.dt, DAY = PARAMS.metab.day, TH = PARAMS.tank.h;
 const NIGHT = Math.round(Number(opt('seconds', DAY)) / DT);
 const hash = (s) => { let h = 2166136261; for (const ch of String(s)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0) % 1000000 + 1; };
@@ -170,11 +173,26 @@ function runNight() {
   st.night = night;
   st.last = { night, at: new Date().toISOString(), cells: world.cells.length, minutes: r2((performance.now() - t0) / 60000), told, clock: Math.round(clock(world) * 10) / 10 };
   mkdirSync(NDIR, { recursive: true });
-  writeFileSync(new URL(`${night}.json.gz`, NDIR), gzipSync(JSON.stringify({ night, from: startDay, to: world.steps * DT / DAY,
-    names: R.names, events: R.events, life: R.life, frames: R.frames, summary: sum, deaths })));
+  const N = { night, from: startDay, to: world.steps * DT / DAY, names: R.names, events: R.events, life: R.life, frames: R.frames, summary: sum, deaths };
+  writeFileSync(new URL(`${night}.json.gz`, NDIR), gzipSync(JSON.stringify(N)));
   writeFileSync(new URL(`${night}.rich.json.gz`, NDIR), gzipSync(JSON.stringify({ night, ...richDone(RR) })));
   saveAll(st, world);
+  // the life stories: this night added (or all rebuilt if the file is missing or behind)
+  let story = existsSync(STORY) ? JSON.parse(readFileSync(STORY, 'utf8')) : null;
+  if (story && story.night === night - 1) writeFileSync(STORY, JSON.stringify(storyNight(story, st, N))); else rebuildStory(st);
   console.log(`Night ${night}: ${world.cells.length} cells, ${st.last.minutes} min. ${told.join('; ') || 'nothing arrived or died out'}.`);
+}
+
+// Every species' story from night 1, from the nights' records (node tools/ocean.mjs story)
+function rebuildStory(st = loadSt()) {
+  const story = { night: 0, species: {}, mem: {} };
+  for (let n = 1; n <= st.night; n++) {
+    const file = new URL(`${n}.json.gz`, NDIR);
+    if (existsSync(file)) storyNight(story, st, JSON.parse(gunzipSync(readFileSync(file)).toString('utf8')));
+  }
+  story.night = st.night;
+  writeFileSync(STORY, JSON.stringify(story));
+  return story;
 }
 
 // What a species carries, counted (the page draws its cells with them; described, never given: no layout, no rules)
@@ -226,4 +244,5 @@ if (cmd === 'found') found();
 else if (cmd === 'release') release(rest[0], rest[1]);
 else if (cmd === 'night') { const n = Number(rest[0] || 1); for (let i = 0; i < n; i++) runNight(); printBoard(); }
 else if (cmd === 'board') { const st = loadSt(); writeFileSync(BOARD, JSON.stringify(board(st), null, 1)); printBoard(); }
-else console.log('node tools/ocean.mjs found | release <player> <design> | night [n] | board   [--dir= --seconds=]');
+else if (cmd === 'story') { const s = rebuildStory(); for (const [sp, rows] of Object.entries(s.species)) for (const r of rows) console.log(`night ${r.night} ${sp}: ${r.line} ${r.ms.map((m) => `[${m.text} @${m.t}]`).join(' ')}`); }
+else console.log('node tools/ocean.mjs found | release <player> <design> | night [n] | board | story   [--dir= --seconds=]');
