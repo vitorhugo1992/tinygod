@@ -109,6 +109,14 @@ const CSS = `
 #oceanView .nightrow .n { font: 500 11px/1.3 ui-monospace, Menlo, monospace; color: #8eb0bf; }
 #oceanView .nightrow .n b { display: block; font: 700 18px/1 system-ui, sans-serif; color: #dcefe8; }
 #oceanView .nightrow p { margin: 0; font-size: 13px; }
+#oceanView .lostH { margin: 14px 4px 4px; font: 800 12px/1 system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #ff6b7a; }
+#oceanView .lost { padding: 8px 10px; margin: 4px 0; border-radius: 10px; background: linear-gradient(90deg, rgba(120,16,30,.55), rgba(60,10,18,.3)); border: 1px solid #8a2a36; color: #ffc4cb; font-size: 13px; }
+#oceanView .lost b { color: #ff8a96; } #oceanView .lost span { display: block; font-size: 11.5px; color: #d99aa3; margin-top: 2px; }
+#oceanView .extinct { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; pointer-events: none; background: radial-gradient(70% 50% at 50% 45%, rgba(90,0,12,.55), rgba(10,0,4,.75)); animation: tgxin 5.5s ease forwards; }
+#oceanView .extinct div { text-align: center; color: #ff4d5e; font: 900 clamp(28px, 9vw, 52px)/1.05 system-ui, sans-serif; letter-spacing: .04em; text-shadow: 0 0 24px rgba(255,40,60,.75), 0 0 3px #000; animation: tgxpulse 1.6s ease-in-out 3; }
+#oceanView .extinct small { display: block; margin-top: 10px; font: 600 13px/1.4 system-ui, sans-serif; color: #ffb3bb; letter-spacing: .02em; text-shadow: none; }
+@keyframes tgxin { 0% { opacity: 0; } 10% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes tgxpulse { 50% { transform: scale(1.06); text-shadow: 0 0 44px rgba(255,40,60,1), 0 0 3px #000; } }
 #oceanView .nightrow .n .rk { display: block; margin-top: 4px; color: ${GOLD}; font-weight: 700; }
 #oceanView .ms[data-t] { cursor: pointer; }
 #oceanView .ms { display: inline-flex; align-items: center; gap: 4px; font: 600 10.5px/1 system-ui, sans-serif; padding: 4px 7px; border-radius: 999px; margin: 5px 4px 0 0; background: #14324a; color: #bfe3f5; }
@@ -175,20 +183,40 @@ export function initOcean(art) {
   const maxS = 14;
 
   // ---- data: the board, the nights' records, the nights' rich recordings ----
+  // yours: the species released under your GitHub name (release.js asks it once); a release not yet arrived waits
+  const PLAYER = (() => { try { return (localStorage.getItem('tinygod.player') || '').toLowerCase(); } catch (e) { return ''; } })();
+  let waiting = (() => { try { return JSON.parse(localStorage.getItem('tinygod.release') || 'null'); } catch (e) { return null; } })();
+  function whoIsMine() {
+    if (!board || !PLAYER) return;
+    const own = (r) => !r.house && String(r.player).toLowerCase() === PLAYER;
+    const mine = board.rows.find(own) || (board.lost || []).filter(own).pop();   // living, else the last one lost
+    if (waiting && board.rows.some((r) => r.name === waiting.name || (r.name.startsWith(waiting.name) && String(r.player).toLowerCase() === PLAYER))) {
+      waiting = null; try { localStorage.removeItem('tinygod.release'); } catch (e) { /* fine */ }
+    }
+    if (mine && !waiting) { follow = mine.name; saved.follow = follow; remember(); }
+  }
   async function loadBoard() {
     board = await fetchJSON('board.json');
-    if (!follow || !rowOf(follow)) follow = board.rows.length ? board.rows[0].name : null;
+    whoIsMine();
+    if (!follow || !(rowOf(follow) || lostOf(follow))) follow = board.rows.length ? board.rows[0].name : null;
   }
   const rowOf = (sp) => board && board.rows.find((r) => r.name === sp);
+  const lostOf = (sp) => board && (board.lost || []).find((r) => r.name === sp);
   // the life stories (tools/ocean-story.mjs): a line and milestones a night for every species
   async function loadStory() { try { story = await fetchJSON('story.json'); } catch (e) { story = null; } }
   const storyOf = (sp, n) => (story && story.species[sp] ? story.species[sp].find((r) => r.night === n) : null);
   // last night's milestones for the species you follow, once each morning (the reason to come back)
+  function extinctBanner(name) {
+    const b = document.createElement('div'); b.className = 'extinct';
+    b.innerHTML = `<div>${esc(name)} extinct<small>wiped out three times: it is gone from the Ocean for good</small></div>`;
+    el.appendChild(b); setTimeout(() => b.remove(), 5600);
+  }
   function morning() {
     if (!board || !story || !follow || saved.seen === board.night) return;
     const r = storyOf(follow, board.night);
     saved.seen = board.night; remember();
     if (!r) return;
+    if (r.ms.some((m) => m.k === 'extinct')) { setTimeout(() => extinctBanner(follow), 900); return; }
     const ms = r.ms.filter((m) => m.tone).slice(0, 3);
     ms.forEach((m, i) => setTimeout(() => toast(`Last night: ${m.tone === 'gold' ? '★' : '✕'} ${m.text}`, m.tone === 'red'), 1200 + i * 1600));
   }
@@ -225,7 +253,7 @@ export function initOcean(art) {
     const arrived = ev.some((e) => e.kind === 'arrived' && e.species === sp);
     const bits = [];
     if (arrived) bits.push(`arrived as ${was} cells`);
-    bits.push(end > was ? `grew from ${was} cells to ${end}` : end === was ? `held its ${was} cells` : end ? `fell from ${was} cells to ${end}` : 'died out');
+    bits.push(end > was ? `grew from ${was} cells to ${end}` : end === was ? `held its ${was} cells` : end ? `fell from ${was} cells to ${end}` : 'all its cells died');
     if (kills.length) bits.push(kills.map((k) => `${/^drained/.test(k.why) ? 'drained' : /^eaten|swallow/.test(k.why) ? 'swallowed' : 'killed'} a ${k.species}`).join(', '));
     if (lost.length) bits.push(`lost ${lost.length} (${[...new Set(lost.map((d) => d.why))].join(', ')})`);
     if (!born && !kills.length && !lost.length && end && !short) bits.push('a quiet night');
@@ -235,7 +263,7 @@ export function initOcean(art) {
   function milestones(N, sp) {
     if (!N || !sp) return [];
     const out = [], ev = N.events;
-    if (ev.some((e) => e.kind === 'arrived' && e.species === sp)) out.push([ev.find((e) => e.kind === 'arrived' && e.species === sp).returned ? 'Back from extinction' : 'Arrived', '']);
+    if (ev.some((e) => e.kind === 'arrived' && e.species === sp)) out.push([ev.find((e) => e.kind === 'arrived' && e.species === sp).returned ? 'Back in the Ocean' : 'Arrived', '']);
     const born = ev.filter((e) => e.kind === 'born' && e.species === sp).length;
     if (born) out.push([`${born} division${born > 1 ? 's' : ''}`, 'gold']);
     const kills = ev.filter((e) => e.kind === 'died' && e.by === sp && e.species !== sp).length;
@@ -350,6 +378,8 @@ export function initOcean(art) {
   function recMoments(day) {
     const N = rec && nights[rec.n];
     if (!N || !follow) return;
+    const xs = storyOf(follow, rec.n), span = (N.to - N.from) || 1;   // its extinction, when the replay reaches it
+    if (xs) for (const m of xs.ms) if (m.k === 'extinct' && m.t * span > recEv && m.t * span <= day) extinctBanner(follow);
     for (const e of N.events) {
       if (e.day <= recEv || e.day > day) continue;
       const sp = follow;
@@ -574,6 +604,21 @@ export function initOcean(art) {
     if (key === badgeKey && !force) return;
     badgeKey = key;
     q('.badge b').textContent = follow || 'No species yet';
+    const L = lostOf(follow);
+    if (L && !waiting) {   // extinct: gone for good
+      q('.badge .st').innerHTML = `<span style="color:#ff6b7a;font-weight:700">Extinct</span> on night ${L.night} · wiped out ${L.times.length} times`;
+      q('.badge .ln').textContent = 'Release a new version from the Lab: it can go out at once.';
+      q('.badge .rk').innerHTML = '';
+      portrait(q('.badge canvas'), follow, true);
+      return;
+    }
+    if (waiting) {   // your release, not here yet
+      q('.badge b').textContent = waiting.name;
+      q('.badge .st').textContent = `Waiting at the surface: arrives at night ${board ? board.night + 1 : 'next'}`;
+      q('.badge .ln').textContent = follow ? `Meanwhile you are watching ${follow}.` : '';
+      q('.badge .rk').innerHTML = '';
+      return;
+    }
     q('.badge .st').textContent = r ? `${n} cell${n === 1 ? '' : 's'} · growth ${r.score.toFixed(2)}× · ${r.kills} kill${r.kills === 1 ? '' : 's'} · ${r.nightsAlive} night${r.nightsAlive === 1 ? '' : 's'}` : 'Pick one to follow on the board (📖)';
     const SL = board && follow && storyOf(follow, board.night);
     q('.badge .ln').textContent = SL ? `Last night: ${SL.line.replace(/^./, (ch) => ch.toLowerCase())}` : N && follow ? `Last night: ${nightLine(N, follow, true).replace(/^./, (ch) => ch.toLowerCase())}` : '';
@@ -628,9 +673,10 @@ export function initOcean(art) {
     if (which === 'board') {
       const top = Math.max(...board.rows.map((r) => r.score), 0.01);
       box.innerHTML = board.rows.map((r) => `<div class="brow ${r.name === follow ? 'mine' : ''}" data-sp="${esc(r.name)}" title="Follow ${esc(r.name)}"><div class="pos">${r.rank}</div><canvas width="80" height="80"></canvas>
-        <div class="nm"><b>${esc(r.name)}</b><span>${r.house ? 'house species' : esc(r.player)} · ${r.cells} cells${r.kills ? ` · ${r.kills} kill${r.kills > 1 ? 's' : ''}` : ''} · ${r.status === 'living' ? `${r.nightsAlive} night${r.nightsAlive > 1 ? 's' : ''} here` : `extinct, back on night ${r.returns}`}</span>
+        <div class="nm"><b>${esc(r.name)}</b><span>${r.house ? 'house species' : esc(r.player)} · ${r.cells} cells${r.kills ? ` · ${r.kills} kill${r.kills > 1 ? 's' : ''}` : ''} · ${r.status === 'living' ? `${r.nightsAlive} night${r.nightsAlive > 1 ? 's' : ''} here` : `wiped out, back on night ${r.returns}`}${r.wipeouts ? ` · wiped out ${r.wipeouts} of 3` : ''}</span>
         <div class="gb"><i style="width:${(100 * Math.max(0, r.score) / top).toFixed(0)}%;background:${r.name === follow ? GOLD : speciesTint(r.name)}"></i></div></div>
         <div class="sc">${r.score.toFixed(2)}×<small>growth</small></div></div>`).join('') +
+        ((board.lost || []).length ? `<h3 class="lostH">Extinct</h3>` + board.lost.map((l) => `<div class="lost"><b>${esc(l.name)}</b> extinct <span>night ${l.night} · ${esc(l.player)} · wiped out ${l.times.length} times (${esc(l.times.map((x) => x.why).join('; '))})${l.kills ? ` · ${l.kills} kills` : ''}</span></div>`).join('') : '') +
         `<p class="note">Ranked by growth since arrival: living biomass ÷ what its 3 cells arrived with, over the last 7 nights. Tap a species to follow it${saved.follow ? '' : ' (then the game opens here)'}. Releasing your own comes next.</p>`;
       box.querySelectorAll('.brow').forEach((row) => {
         portrait(row.querySelector('canvas'), row.dataset.sp, row.dataset.sp === follow);
@@ -974,7 +1020,7 @@ export function initOcean(art) {
   const btn = document.getElementById('oceanBtn');
   if (btn) btn.onclick = (e) => { e.stopPropagation(); openOcean(); };
   // Ocean first (author, 2026-11-19): once you follow a species there, the game opens on it
-  if (saved.follow && !/[?&](design|preset)=/.test(location.search)) openOcean();
+  if ((saved.follow || waiting || PLAYER) && !/[?&](design|preset)=/.test(location.search)) openOcean();
   // for headless tests (as window.__tg in the Lab): the live run's speed, and what is shown
   window.__ocean = { wx: (x) => { forceWx = x; cloudN = -1; }, pick: (uid) => pickCell(uid), look: (x, y, z) => { cam.follow = 0; cam.ts = z; cam.tx = cam.x = x; cam.ty = cam.y = y; clampCam(); camButton(); }, cells: () => (shown ? shown.cells.filter((c) => !c.dead).map((c) => [c.uid, c.species, W / 2 + (c.q[0] - cam.x) * cam.s, H / 2 - (c.q[1] - cam.y) * cam.s]) : []), speed: (x) => live && live.speed(x), recAt: (f) => { if (rec) { rec.steps = rec.rp.from + f * (rec.rp.to - rec.rp.from); primed = false; } }, play: (n) => playNight(n), state: () => ({ mode, slow, cells: shown ? shown.cells.length : 0, clock: shown ? clock(shown) : null, info: live && live.info }) };
   return { open: openOcean, close: closeOcean };

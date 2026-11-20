@@ -60,6 +60,7 @@
   #labStart .s { font-size: 13px; color: #9fb5c6; }
   #labStart .big { padding: 12px; font-size: 17px; font-weight: 700; border-color: #6fd3c4; background: linear-gradient(#1f5a55, #15403d); }
   #labStart .row2 { display: flex; gap: 8px; } #labStart .row2 button { flex: 1; }
+  #releaseBtn { width: 100%; margin: 4px 0 8px; padding: 11px; font-weight: 700; border-color: #f2c14e; background: linear-gradient(#3a2f12, #241c08); color: #f2c14e; }
   #cellDel { position: absolute; z-index: 5; width: 38px; height: 38px; padding: 0; border-radius: 50%; font-size: 17px; background: rgba(20,28,40,.92); border: 1px solid #ff8a7a; }
   #toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); max-width: min(92%, 460px); z-index: 6;
     background: rgba(40,14,18,.92); border: 1px solid #a9444f; color: #ffd9dc; border-radius: 10px; padding: 8px 12px;
@@ -597,6 +598,7 @@
       <button id="testDay" title="Run this design a whole day ahead, from where it is now, and show the forecast in the graph">⏩ Test a day</button>
     </div>
     <h2>Designs</h2>
+    <button id="releaseBtn" title="Let this species go into the shared Ocean, where every player's species lives (it can't be edited once out there)">🌊 Release into the Ocean</button>
     <div class="row" id="files">
       <button id="saveDesign" title="Save this design in this browser (it survives a reload)">💾 Save</button>
       <button id="getDesigns" title="Get the designs Claude left for you: they go into your saved designs">📥 From Claude</button>

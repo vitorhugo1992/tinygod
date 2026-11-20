@@ -29,7 +29,7 @@ import { saveState, loadState } from '../sim/save.js';
 import { clock } from '../sim/light.js';
 import { storyNight } from './ocean-story.mjs';
 
-export const OCEAN = { cap: 100, capSpecies: 25, arrive: 3, returnAfter: 3, releaseEvery: 3, houseUntil: 12, boardNights: 7, seed: 20261118 };
+export const OCEAN = { cap: 100, capSpecies: 25, arrive: 3, returnAfter: 3, releaseEvery: 3, houseUntil: 12, boardNights: 7, wipeouts: 3, seed: 20261118 };
 export const HOUSE = [
   ['Noctilla', 'designs/noctilla.json'], ['Plebella', 'designs/plebella.json'], ['Nutricline Bobber', 'tournament/bobber-blind-opus.json'],
   ['Deepdweller II', 'designs/deepdweller2.json'], ['Needle Drifter', 'tournament/fixer-blind-opus2.json'], ['Laqueella', 'designs/laqueella.json'],
@@ -98,7 +98,7 @@ function release(player, src) {
     delete st.species[old.name];
     old = old.replaces ? st.species[old.replaces] : null;
   }
-  if (old && next - old.released < OCEAN.releaseEvery) throw new Error(`not released: ${player} released ${old.name} on night ${old.released}; the next release can arrive on night ${old.released + OCEAN.releaseEvery}`);
+  if (old && old.status !== 'gone' && next - old.released < OCEAN.releaseEvery) throw new Error(`not released: ${player} released ${old.name} on night ${old.released}; the next release can arrive on night ${old.released + OCEAN.releaseEvery}`);
   let name = String(opt('name', n0 || `${player}'s species`)).slice(0, 40);
   if (st.species[name] && st.species[name].player !== player) name = `${name} (${player})`;
   if (st.species[name] && st.species[name].player === player) name = `${name} v${(old ? old.version : 1) + 1}`;   // a name keeps one history
@@ -120,7 +120,8 @@ function runNight() {
     if (sp.replaces && st.species[sp.replaces]) {
       const old = st.species[sp.replaces], n = takeOut(world, old.name, 'taken out: a new version was released');
       if (old.status === 'living') { const stay = old.stays[old.stays.length - 1]; stay.to = night - 1; stay.why = 'replaced'; }
-      old.status = 'replaced'; old.replacedBy = sp.name;
+      if (old.status !== 'gone') old.status = 'replaced';   // an extinct one stays extinct in the history
+      old.replacedBy = sp.name;
       ev({ kind: 'replaced', species: old.name, by: sp.name, cells: n });
       told.push(`${old.name} replaced by ${sp.name} (${n} cells taken out)`);
     }
@@ -165,8 +166,11 @@ function runNight() {
       const stay = sp.stays[sp.stays.length - 1];
       const corpse = world.cells.find((c) => c.dead && c.species === sp.name);   // its last cells may still lie dead in the tank
       stay.to = night; stay.why = last ? last.why : corpse ? corpse.diedWhy || 'starved' : 'died out';
-      sp.status = 'extinct'; sp.lastDied = night;
-      told.push(`${sp.name} died out (${stay.why})`);
+      sp.lastDied = night;
+      // wiped out: back in 3 nights; the third time (a player's species) extinct, gone for good (author, 2026-11-20)
+      const times = sp.stays.filter((x) => x.why && x.why !== 'replaced').length;
+      sp.status = !sp.house && times >= OCEAN.wipeouts ? 'gone' : 'extinct';
+      told.push(sp.status === 'gone' ? `${sp.name} EXTINCT (${stay.why}; wiped out ${times} times)` : `${sp.name} wiped out (${stay.why})`);
     }
   }
   // 5. save: the tank, the state, the board, the night's record
@@ -218,7 +222,8 @@ function board(st) {
       cells: now.cells || 0, share: now.share || 0, growth: now.growth || 0, kills: s.kills,
       nightsAlive: s.status === 'living' && stay ? st.night - stay.from + 1 : 0,
       returns: s.status === 'extinct' ? s.lastDied + OCEAN.returnAfter : null,
-      extinctions: s.stays.filter((x) => x.why && x.why !== 'replaced').map((x) => ({ from: x.from, to: x.to, why: x.why })),
+      extinctions: s.stays.filter((x) => x.why && x.why !== 'replaced').map((x) => ({ from: x.from, to: x.to, why: x.why })),   // wipe-outs (the 3rd: extinct)
+      wipeouts: s.house ? null : s.stays.filter((x) => x.why && x.why !== 'replaced').length,
       size: `${Math.round(2 * s.design.body.radius)} × ${Math.round(2 * s.design.body.radius + (s.design.body.length || 0))} µm`, parts: partsOf(s.design) };
   }).sort((a, b) => b.score - a.score || b.share - a.share);
   rows.forEach((r, i) => { r.rank = i + 1; });
@@ -229,14 +234,18 @@ function board(st) {
     for (const s of Object.values(st.species)) { const x = s.nights.find((y) => y.night === n); if (x && x.share) row.s[s.name] = x.share; }
     bands.push(row);
   }
+  // the extinct: gone for good, kept as history
+  const lost = Object.values(st.species).filter((s) => s.status === 'gone').map((s) => ({ name: s.name, player: s.player, night: s.lastDied, times: s.stays.filter((x) => x.why && x.why !== 'replaced').map((x) => ({ from: x.from, to: x.to, why: x.why })), kills: s.kills }));
   const past = Object.values(st.species).filter((s) => s.status === 'replaced').map((s) => ({ name: s.name, player: s.player, replacedBy: s.replacedBy, nights: s.nights.filter((n) => n.cells).length, kills: s.kills }));
-  return { night: st.night, updated: st.last ? st.last.at : st.created, rules: OCEAN, last: st.last || null, rows, bands, past };
+  return { night: st.night, updated: st.last ? st.last.at : st.created, rules: OCEAN, last: st.last || null, rows, bands, past, lost,
+    queue: st.queue.map((q) => ({ name: q.name, player: st.species[q.name].player, night: st.night + 1 })) };
 }
 
 function printBoard() {
   const b = board(loadSt());
+  for (const l of b.lost || []) console.log(`  EXTINCT: ${l.name} (${l.player}) on night ${l.night}`);
   console.log(`The Ocean after night ${b.night}${b.last ? ` (${b.last.cells} cells)` : ''}:`);
-  for (const r of b.rows) console.log(`${String(r.rank).padStart(3)}. ${r.name.padEnd(22)} ${(r.house ? 'house' : r.player).padEnd(12)} score ${r.score.toFixed(2).padStart(6)}  ${String(r.cells).padStart(3)} cells  ${String(Math.round(100 * r.share)).padStart(3)}% of biomass  ${r.kills} kills  ${r.status === 'living' ? `${r.nightsAlive} nights` : `extinct, back on night ${r.returns}`}${r.extinctions.length ? `  died out ${r.extinctions.length}× (${r.extinctions.map((x) => x.why).join('; ')})` : ''}`);
+  for (const r of b.rows) console.log(`${String(r.rank).padStart(3)}. ${r.name.padEnd(22)} ${(r.house ? 'house' : r.player).padEnd(12)} score ${r.score.toFixed(2).padStart(6)}  ${String(r.cells).padStart(3)} cells  ${String(Math.round(100 * r.share)).padStart(3)}% of biomass  ${r.kills} kills  ${r.status === 'living' ? `${r.nightsAlive} nights` : `wiped out, back on night ${r.returns}`}${r.extinctions.length ? `  wiped out ${r.extinctions.length}× (${r.extinctions.map((x) => x.why).join('; ')})` : ''}`);
 }
 
 const [cmd, ...rest] = process.argv.slice(2).filter((a) => !a.startsWith('--'));

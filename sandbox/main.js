@@ -19,6 +19,7 @@ import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, speciesTint,
 import { MISSIONS, CHAPTERS, judge, stepsAt, partOpen, missionOpen, coreDone, addRivals } from './missions.js';
 import { initMatch } from './match.js';
 import { initOcean } from './ocean.js';
+import { initRelease } from './release.js';
 import { listen as soundListen, update as soundUpdate, setSound, soundOn, wanted as soundWanted } from './sound.js';
 import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CONTROLS, CONTENT_TIPS, PIGMENT_TIPS, flipPart, mirrorGroup } from './parts.js';
 
@@ -4365,4 +4366,13 @@ const oceanArt = {
   setSound(on) { setSound(on); soundIcon(); },
   soundOn,
 };
-initOcean(oceanArt);   // 🌊 the Ocean (ocean.js): last night in one line, the leaderboard, ▶ Watch full screen   // ⚔ Matches: the design being built against the house rivals (match.js)
+initOcean(oceanArt);
+// 🌊 Release: the ceremony (release.js) that lets this species go into the shared Ocean
+const releaser = initRelease({
+  design: () => { const d = JSON.parse(JSON.stringify(withoutTimers(design))); delete d.species; return d; },
+  name: () => (design.species && !PRESETS[design.species] && !/^Round cell$/.test(design.species) ? design.species : ''),
+  pack: (o) => packDesign(o),
+  portrait: (g, w, c, X, Y, s) => oceanArt.portrait(g, w, c, X, Y, s),
+  onDone: (r) => { $('buildErr').textContent = `${r.name} is waiting at the surface: it arrives in the Ocean at the next night`; },
+});
+$('releaseBtn').onclick = () => { if (mission) { $('buildErr').textContent = 'leave the mission first: release your own species'; return; } releaser.open(); };   // 🌊 the Ocean (ocean.js): last night in one line, the leaderboard, ▶ Watch full screen   // ⚔ Matches: the design being built against the house rivals (match.js)

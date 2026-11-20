@@ -31,7 +31,7 @@ export function nightLine(N, sp, was, end) {
   const arrived = ev.find((e) => e.kind === 'arrived' && e.species === sp);
   const bits = [];
   if (arrived) bits.push(`${arrived.returned ? 'came back' : 'arrived'} as ${was} cells`);
-  bits.push(end > was ? `grew from ${was} cells to ${end}` : end === was ? `held its ${was} cells` : end ? `fell from ${was} cells to ${end}` : 'died out');
+  bits.push(end > was ? `grew from ${was} cells to ${end}` : end === was ? `held its ${was} cells` : end ? `fell from ${was} cells to ${end}` : 'all its cells died');
   if (kills.length) bits.push(kills.map((k) => `${verb(k.why)} a ${k.species}`).join(', '));
   if (lost.length) bits.push(`lost ${lost.length} (${[...new Set(lost.map((d) => d.why))].join(', ')})`);
   if (!born && !kills.length && !lost.length && end) bits.push('a quiet night');
@@ -50,9 +50,10 @@ export function storyNight(story, st, N) {
     const m = story.mem[sp] ||= { divided: false, killed: false, lostTo: [], top: 0, steps: [], staysSeen: 0 };
     const prev = s.nights.find((x) => x.night === n - 1), was = arrivedEv ? arrivedEv.cells : prev ? prev.cells : 0;   // where the night started
     const end = row.cells, ms = [];
+    if (!arrivedEv && !was && !end) continue;   // only a corpse from the night before, removed
     const add = (k, text, tone, e) => ms.push({ k, text, tone: tone || '', t: e ? T(e) : 0, uid: e && e.uid ? e.uid : undefined });
     if (arrivedEv) {
-      if (arrivedEv.returned) { add('returned', 'Back from extinction', 'gold', arrivedEv); m.steps = []; }
+      if (arrivedEv.returned) { add('returned', 'Back in the Ocean', 'gold', arrivedEv); m.steps = []; }
       else add('arrived', s.version > 1 ? `Released: version ${s.version}` : 'Arrived in the Ocean', 'gold', arrivedEv);
     }
     for (const e of ev) {
@@ -72,7 +73,9 @@ export function storyNight(story, st, N) {
     }
     if (!end && row.cells === 0 && s.stays.some((x) => x.to === n && x.why && x.why !== 'replaced')) {
       const stay = s.stays.find((x) => x.to === n), last = ev.filter((e) => e.kind === 'died' && e.species === sp).pop();
-      add('extinct', `Died out (${stay.why})`, 'red', last || { day: N.to });
+      const times = s.stays.filter((x) => x.to && x.to <= n && x.why && x.why !== 'replaced').length, max = (st.rules && st.rules.wipeouts) || 3;
+      if (!s.house && times >= max) add('extinct', `${sp} extinct`, 'red', last || { day: N.to });   // the third time: gone for good
+      else add('wiped', `Wiped out: all its cells died (${stay.why}); back on night ${n + ((st.rules && st.rules.returnAfter) || 3)}`, 'red', last || { day: N.to });
     }
     const r0 = before.get(sp), r1 = after.get(sp);
     if (r1 === 1 && r0 !== 1) add('rank', 'Rose to 1st', 'gold', { day: N.to });
