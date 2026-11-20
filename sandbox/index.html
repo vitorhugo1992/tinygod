@@ -417,12 +417,12 @@
     #panelTop { grid-column: 1 / -1; }
     .sec[data-sec=missions] { grid-column: 1 / -1; grid-row: 2; }
     .sec[data-sec=match] { grid-column: 1 / -1; grid-row: 6; }
-    .sec[data-sec=ocean] { grid-column: 1 / -1; grid-row: 7; }
     .sec[data-sec=body] { grid-column: 1; grid-row: 3; }
     .sec[data-sec=add] { grid-column: 1; grid-row: 4 / span 2; }
     .sec[data-sec=parts] { grid-column: 2; grid-row: 3 / span 2; border-left: 1px solid var(--line); }
     .sec[data-sec=tank] { grid-column: 2; grid-row: 5; border-left: 1px solid var(--line); }
   }
+    #bar #oceanBtn { background: linear-gradient(180deg, #1c6a86, #0b3247); border-color: #ffc952; color: #ffe7a8; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -451,6 +451,7 @@
     </div>
   </div>
   <div id="bar">
+    <button id="oceanBtn" title="The Ocean: where species go to live, the shared tank that never resets (the Lab waits here, as you left it)">🌊<span class="lbl"> Ocean</span></button>
     <button id="play" class="big" title="Play / pause">▶</button>
     <button id="speedBtn" class="rail" title="Speed: tap for the next (0.1×, 1×, 5×, 20×)">1×</button>
     <button id="reset" title="Start again (re-cocks springs)">↺<span class="lbl"> Reset</span></button>
@@ -501,7 +502,6 @@
   <nav id="tabs">
     <button data-sec="missions" style="--hue: var(--h-miss)" title="Missions: short goals, each teaching one part; finishing one opens its part for free building">Missions</button>
     <button data-sec="match" style="--hue: var(--h-match)" title="Matches: the species you are building against a rival species, in one tank">Match</button>
-    <button data-sec="ocean" style="--hue: var(--h-ocean)" title="The Ocean: the shared tank that never resets; one ocean day every night">Ocean</button>
     <button data-sec="body" style="--hue: var(--h-body)" title="The cell's body: size, shape, wall">Body</button>
     <button data-sec="add" style="--hue: var(--h-add)" title="Add a part to the body">Add</button>
     <button data-sec="parts" style="--hue: var(--h-parts)" title="The parts on this body, their rules, arranging, the nucleus">Parts</button>
@@ -517,10 +517,6 @@
     <div id="matchTotal"></div>
     <div id="matchRun" hidden></div>
     <div id="matchList"></div>
-  </section>
-  <section class="sec" data-sec="ocean" data-fold style="--hue: var(--h-ocean)">
-    <h2 title="Fold or open the Ocean">🌊 The Ocean</h2>
-    <div id="oceanBox"><p class="onote">Loading the Ocean…</p></div>
   </section>
   <section class="sec" data-sec="body" style="--hue: var(--h-body)">
     <h2>Body</h2>

@@ -6,8 +6,8 @@
 //      { type: 'steps', n, every, text }   (test: run exactly n steps flat out, then report the state's fingerprint;
 //        every: also every that many steps; text: the saved state itself)
 // Out: { type: 'ready', cells, steps } once loaded
-//      { type: 'frame', world, steps, ratio, cost } fps times a second: the whole world (structured clone: what the
-//        Lab's drawing reads), ratio = sim seconds run per real second over the last few seconds, cost = ms of
+//      { type: 'frame', world, smooth, steps, ratio, cost } fps times a second: the whole world (structured clone:
+//        what the Lab's drawing reads), smooth = [uid, x, y, turn, …] each cell averaged since the last frame, ratio = sim seconds run per real second over the last few seconds, cost = ms of
 //        computing per sim second
 //      { type: 'fingerprint', steps, hash, hashes, ms, text } after 'steps' · { type: 'error', message }
 import { PARAMS } from '../sim/params.js';
@@ -18,6 +18,17 @@ const DT = PARAMS.time.dt;
 let world = null, speed = 1, fps = 8, paused = false, timer = 0;
 let realT = 0, simDue = 0, lastFrame = 0;
 const hist = [];   // [real ms, steps, busy ms] samples for the ratio and cost
+// each cell's place and turn averaged over the steps since the last frame (a swimmer's body bounces ~10 µm with every
+// stroke, 20 times a second: a frame caught anywhere in that would make the drawing jitter); uid -> [n, Σx, Σy, Σturn, turn0]
+const avg = new Map();
+function average() {
+  for (const c of world.cells) {
+    let a = avg.get(c.uid);
+    if (!a) { a = [0, 0, 0, 0, c.q[2]]; avg.set(c.uid, a); }
+    let d = c.q[2] - a[4]; d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));
+    a[0]++; a[1] += c.q[0]; a[2] += c.q[1]; a[3] += d;
+  }
+}
 
 async function load(url) {
   const got = await fetch(url, { cache: 'no-cache' });
@@ -47,7 +58,7 @@ function tick() {
   simDue = Math.min(simDue + dtReal / 1000 * speed / DT, 2 / DT);   // steps owed; never more than 2 sim s behind
   const until = now + 30;   // work in slices, so messages get through
   let n = 0;
-  while (simDue >= 1 && performance.now() < until) { stepWorld(world); simDue--; n++; }
+  while (simDue >= 1 && performance.now() < until) { stepWorld(world); average(); simDue--; n++; }
   const busy = performance.now() - now;
   hist.push([now, n, busy]);
   while (hist.length > 2 && now - hist[0][0] > 4000) hist.shift();
@@ -60,7 +71,10 @@ function postFrame() {
   let steps = 0, busy = 0;
   for (const [, n, b] of hist) { steps += n; busy += b; }
   const simS = steps * DT;
-  postMessage({ type: 'frame', world, steps: world.steps, ratio: simS / span, cost: simS ? busy / simS : 0 });
+  const smooth = [];
+  for (const [uid, a] of avg) if (a[0]) smooth.push(uid, a[1] / a[0], a[2] / a[0], a[4] + a[3] / a[0]);
+  avg.clear();
+  postMessage({ type: 'frame', world, smooth, steps: world.steps, ratio: simS / span, cost: simS ? busy / simS : 0 });
   if (world.gone) world.gone.length = 0;   // the cells removed since the last frame went with it (sound, toasts: step 3)
 }
 

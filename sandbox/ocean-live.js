@@ -30,7 +30,7 @@ export function startLive({ onFrame = () => {}, onState = () => {}, speed = 1, u
         if (m.ratio < LIVE.minRatio * currentSpeed) { slowSince = slowSince || now; if (now - slowSince > LIVE.judgeAfter) set('slow', { why: `${m.ratio.toFixed(2)}× of ${currentSpeed}× for ${Math.round((now - slowSince) / 1000)} s` }); }
         else slowSince = 0;
       }
-      onFrame(m.world, info);
+      onFrame(m.world, info, m.smooth);
     } else if (m.type === 'error') set('error', { message: m.message });
   };
   worker.onerror = (e) => set('error', { message: e.message || 'the live Ocean could not start' });

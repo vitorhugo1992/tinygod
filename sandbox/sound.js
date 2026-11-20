@@ -236,19 +236,24 @@ function cueOf(c, controls) {
 }
 
 // ----- what happened in the world since we last looked (read only) -----
-let seenWorld = null, seen = new Set(), links = new Set();
-const marks = new WeakMap();
-export function listen(world) {
-  if (!on) { seenWorld = null; return; }   // off: no work; turned on, what is there is not news
-  if (world !== seenWorld) {   // a new tank (reset, a mission): what is there now is not news
-    seenWorld = world; seen = new Set(world.cells.map((c) => c.uid)); links = new Set(world.links || []);
-    for (const c of world.cells) marks.set(c, snapshot(c));
+// Cells are known by uid and their moments by value (a step), not by object: the Ocean's live view gets a fresh copy of
+// its world every frame. key: what says "the same tank" (default the world object; the Ocean passes its own).
+let seenKey = null, seen = new Set(), links = new Set();
+let marks = new Map();
+const linkKey = (w, l) => `${w.cells[l.a] && w.cells[l.a].uid}>${w.cells[l.b] && w.cells[l.b].uid}`;
+const stepOf = (x) => (x ? x.step ?? x : null);
+export function listen(world, key = world) {
+  if (!on) { seenKey = null; return; }   // off: no work; turned on, what is there is not news
+  if (key !== seenKey) {   // a new tank (reset, a mission): what is there now is not news
+    seenKey = key; seen = new Set(world.cells.map((c) => c.uid)); links = new Set((world.links || []).filter((l) => l.feed).map((l) => linkKey(world, l)));
+    marks = new Map();
+    for (const c of world.cells) marks.set(c.uid, snapshot(c));
     return;
   }
   for (const c of world.cells) {
     if (!seen.has(c.uid)) { seen.add(c.uid); if (c.mother !== undefined) play('divide', c.q[0], c.q[1]); }
-    const was = marks.get(c) || snapshot(c), now = snapshot(c), x = c.q[0], y = c.q[1];
-    marks.set(c, now);
+    const was = marks.get(c.uid) || snapshot(c), now = snapshot(c), x = c.q[0], y = c.q[1];
+    marks.set(c.uid, now);
     if (c.dead) {
       if (!was.dead) {
         if (c.burst || /burst itself/.test(c.diedWhy || '')) play('burst', x, y);
@@ -256,8 +261,8 @@ export function listen(world) {
       }
       continue;
     }
-    if (c.lastSwallow && c.lastSwallow !== was.sw) play('gulp', x, y);
-    if (c.lastShot && c.lastShot !== was.shot) play(c.lastShot.tether ? 'tether' : 'harpoon', c.lastShot.x0, c.lastShot.y0, { hit: !!c.lastShot.hit, cue: cueOf(c, c.lastShot.tether ? null : (c.harpoons || []).find((h) => h.shot === c.lastShot)?.controls) });
+    if (c.lastSwallow && stepOf(c.lastSwallow) !== was.sw) play('gulp', x, y);
+    if (c.lastShot && stepOf(c.lastShot) !== was.shot) play(c.lastShot.tether ? 'tether' : 'harpoon', c.lastShot.x0, c.lastShot.y0, { hit: !!c.lastShot.hit, cue: cueOf(c, c.lastShot.tether ? null : (c.harpoons || []).find((h) => h.shot === c.lastShot)?.controls) });
     if (now.fire > was.fire) play('spring', x, y, { cue: cueOf(c, c.joints.find((j) => j.burst && j.burst.state === 'firing')?.controls) });
     if (now.resting !== was.resting) play(now.resting ? 'rest' : 'wake', x, y, { cue: cueOf(c, c.rest && c.rest.controls) });
     else if (!(c.metab && c.metab.starving) && !c.stunT) {   // a tail switched by its rule (not by resting, starving or a stun)
@@ -269,11 +274,16 @@ export function listen(world) {
     });
     if (now.nb > was.nb) play('join', x, y);
   }
-  for (const l of world.links || []) if (l.feed && !links.has(l)) {
-    links.add(l);
+  const nowLinks = new Set();
+  for (const l of world.links || []) {
+    if (!l.feed) continue;
+    const k = linkKey(world, l);
+    nowLinks.add(k);
+    if (links.has(k)) continue;
     const B = world.cells[l.b]; if (B) play('latch', B.q[0], B.q[1], { cue: cueOf(world.cells[l.a], l.padA && l.padA.controls) });
   }
-  if (links.size > 500) links = new Set(world.links || []);
+  links = nowLinks;   // a tube that lets go and latches again sounds again
+  if (marks.size > world.cells.length + 200) { const keep = new Set(world.cells.map((c) => c.uid)); for (const k of [...marks.keys()]) if (!keep.has(k)) marks.delete(k); }
 }
 function snapshot(c) {
   let fire = 0;
@@ -281,12 +291,12 @@ function snapshot(c) {
   c.joints.forEach((j, i) => { if (j.burst) { if (j.burst.state === 'firing') fire++; } else if (j.type === 'motor') { motors.push(!!j.on); motorIx.push(i); } });
   const chamberInc = c.pieces[0].inclusions.filter((i) => i.material === 'chamber');
   const chambers = chamberInc.map((i) => (i.target < NEUTRAL - 1 ? -1 : i.target > NEUTRAL + 1 ? 1 : 0));
-  return { dead: !!c.dead, sw: c.lastSwallow, shot: c.lastShot, fire, motors, motorIx, chambers, chamberInc, resting: !!c.resting, nb: c.neighbours || 0 };
+  return { dead: !!c.dead, sw: stepOf(c.lastSwallow), shot: stepOf(c.lastShot), fire, motors, motorIx, chambers, chamberInc, resting: !!c.resting, nb: c.neighbours || 0 };
 }
 
 // ----- every frame: the water where the camera looks, the strokes of swimmers near the middle, tubes drinking -----
 // v: { x, y, s, W, H } the view; env: { depth 0 surface .. 1 floor, light 0-1 at the surface (day), flow 0-1, playing, speed, world }
-const strokeAt = new WeakMap(), sipAt = new WeakMap();
+const strokeAt = new Map(), sipAt = new Map();   // by cell uid and by tube (its two cells): the Ocean's cells are fresh copies each frame
 export function update(v, env) {
   view = v; playing = env.playing; speed = env.speed;
   if (!on || !A || !nodes) return;
@@ -325,9 +335,9 @@ export function update(v, env) {
   }
   swimmers.sort((a, b) => a.d - b.d);
   for (const { c, rate, pan } of swimmers.slice(0, 3)) {
-    const per = 1 / Math.min(rate * speed, 2.5), due = strokeAt.get(c);
+    const per = 1 / Math.min(rate * speed, 2.5), due = strokeAt.get(c.uid);
     if (due !== undefined && t < due) continue;
-    strokeAt.set(c, (due !== undefined && t - due < per ? due : t) + per);
+    strokeAt.set(c.uid, (due !== undefined && t - due < per ? due : t) + per);
     const size = Math.max(0.35, Math.min(1, c.pieces[0].a * view.s / 30)), f = 340 + ((c.uid || 1) * 37) % 160;
     FOLEY.swish({ k: size, pan, f, t: t + Math.random() * 0.02 });
   }
@@ -336,10 +346,10 @@ export function update(v, env) {
     if (!l.feed) continue;
     const B = w.cells[l.b];
     if (!B || near(B.q[0], B.q[1]).k < 1) continue;
-    const due = sipAt.get(l);
-    if (due === undefined) { sipAt.set(l, t + 0.8); continue; }
+    const lk = linkKey(w, l), due = sipAt.get(lk);
+    if (due === undefined) { sipAt.set(lk, t + 0.8); continue; }
     if (t < due) continue;
-    sipAt.set(l, t + 1.2 + Math.random() * 0.8);
+    sipAt.set(lk, t + 1.2 + Math.random() * 0.8);
     play('sip', B.q[0], B.q[1]);
   }
 }

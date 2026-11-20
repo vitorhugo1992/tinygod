@@ -650,6 +650,37 @@ the whole tank (minS = 0.85 × the scale that fits the tank and 160 µm more; pa
 Updated at the same link.** **NEXT CHAT STARTS HERE: build step 3 into the game, from the mock-up as amended.** (The
 other six questions got no objection: the HUD, the LIVE / "Last night" pill, weather and night, your cells' gold, the
 life story, the release: as shown.)
+**STEP 3 BUILT (2026-11-20; author: "lets go"): THE OCEAN SCREEN.** sandbox/ocean.js rewritten: not a tab any more
+(the Ocean tab and section are gone; a gold 🌊 Ocean button tops the Lab's rail / header), its own full-screen layer
+(#oceanView) that **opens first when you follow a species** (localStorage tinygod.ocean.follow, set by tapping a row of
+the board; until releases), else the Lab; 🧪 The Lab closes it and the Lab, frozen while it was open (main.js
+oceanOpen), carries on. **Live:** ocean-live.js / ocean-worker.js run last night's saved world; the worker now also sends
+each cell's place and turn averaged since the last frame (smooth: a swimmer's stroke bounce would jitter at 8 frames a
+second); the page eases between frames, beating parts drawn calm (2.5 strokes a second, as the Lab). **Drawn by the Lab
+itself:** main.js oceanArt (cells, portrait) swaps the Lab's ctx and world for the Ocean's (ctx is now let) and calls
+drawCell / drawLinks; a gold rim (bodyOutline) on yours; one design object per species and each cell's mouth and meal
+state kept across frames (the Lab caches by object). Scenery: scene.js water, shade, toxins, drift; the sky above the
+surface (stars and a moon at night, clouds when overcast); past the tank's sides darker water, below the floor sediment;
+weather from the night number (weatherOf: clear 50%, overcast 30%, rain 20%; the sun's disc, a grey veil, rain rings);
+the seabed's mat, forams, radiolarians and the dead fading where they lay; at night a blue spark when two unjoined cells
+first touch and faint wakes behind swimmers; a gold ripple at your divisions, a dark cloud at a death; a gold halo under
+yours. **Camera:** drag, pinch, wheel (at the pointer), double-tap in / out, minimap tap; zoom is applied at once (the
+draft eased it: "zoom sometimes doesn't work"); follow sits the cell above the HUD; Whole fits the tank above the HUD;
+zoom out to 0.85 × the tank's fit. **HUD:** night (live = last official + 1) and clock, weather, 🔇/🔊 (the Lab's
+sound.js, now keyed by cell uid and moments by their step, since the live world is a fresh copy every frame), the pill
+(LIVE blue; "Last night" amber with a faint amber cast; tap to switch), minimap, toasts for your moments (live: from
+frame diffs; recording: the night's record events), the badge (portrait by the Lab's drawing, cells, growth, kills,
+nights, rank, last night in one line; tap: your next cell), 🧪 The Lab · 📖 Its story (a line a night with milestone
+chips, tap to replay it; the board, tap to follow) · 🔭 Whole / 🎯 Follow. **Recording:** a 'slow' verdict (or an error)
+plays nights/<n>.rich.json.gz via sim/rich.js replay if it exists, else stays live ("Live · slow"); a new speed clears
+the verdict. **No rich file exists yet for night 1** (it ran before rich.js): the fallback and the pill's "Last night"
+work from night 2 on (tested on scratch nights copied in for the test and removed). window.__ocean { speed, recAt, play,
+state } for headless tests. sw.js v13. **Seen in headless Edge** at 400×860 (live close-up, Whole, story, board, the Lab
+and back, the recording by day and by night, wheel zoom) and 1400×900. **Also fixed (the Lab):** on a computer the page
+crashed at start whenever the design used under half its slots (slotMeter returns nothing then, drawPatch appended it:
+since "slots earned by stars"); this was the old "headless Edge draws the tank blank on a computer". **Not built:** a
+rain sound; naming lines, pinned moments, milestones written by tools/ocean.mjs (step 4-5); the release ceremony and
+GitHub (step 6). **Next: step 4, the life story** (tools/ocean.mjs writes each species' milestones a night).
 **Testing lesson from 2026-11-18:** a headless run can show an old cached ocean.js (disable the cache and rerun before
 chasing a bug). Untracked scratch: tools/_trial1, _trial2 (founders' trials), tools/_*.mjs.
 **Previous handoff (2026-11-18; author: "tomorrow i open a new chat for the ocean"): THE OCEAN.** Done

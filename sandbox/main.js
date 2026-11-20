@@ -24,7 +24,8 @@ import { PART_TEMPLATES, partGroups, surfacePoint, insideRadius, CATEGORIES, CON
 
 const DT = PARAMS.time.dt, TW = PARAMS.tank.w, TH = PARAMS.tank.h, M_START = PARAMS.metab.start;
 const $ = (id) => document.getElementById(id);
-const canvas = $('c'), ctx = canvas.getContext('2d');
+const canvas = $('c');
+let ctx = canvas.getContext('2d');   // let: the Ocean (ocean.js) borrows the Lab's drawing for its own canvas (oceanArt)
 
 const COLOR = {
   water: '#0b1322', outside: '#060a12', grid: '#132036', gridMajor: '#1f3352', label: '#4d6a86',
@@ -1684,7 +1685,8 @@ function drawPatch() {
   $('patchHint').textContent = 'tap a coloured word to change it · + and / + unless to add';
   const nuc = nucleiOf(design)[0];
   if (!nuc) { area.innerHTML = '<p class="bnote">This cell has no nucleus, so no brain: every part runs all the time. Add a 🧬 Nucleus (Inside the cell) to give its parts rules.</p>'; return; }
-  area.appendChild(slotMeter());
+  const meter = slotMeter();   // (none while it is hidden: a design using under half its slots)
+  if (meter) area.appendChild(meter);
   const all = partGroups(design.parts || []);
   const groups = all.filter((g) => targetsOf(g).length);
   if (!groups.length) { const p = document.createElement('p'); p.className = 'bnote'; p.textContent = 'No parts to give rules yet: add a flagellum, a spring or a buoyancy chamber.'; area.appendChild(p); return; }
@@ -2049,7 +2051,9 @@ function calmPose(c, realDt, speed) {
 
 let last = performance.now();
 let budgetAt = 0, mapsAt = 0, barAt = 0;
+let oceanOpen = false;   // the Ocean is on screen: the Lab stands still (its tank, its sound) until you come back
 function frame(now) {
+  if (oceanOpen) { last = now; requestAnimationFrame(frame); return; }
   const elapsed = Math.min((now - last) / 1000, 0.1);
   last = now;
   lastReal = elapsed;
@@ -3872,7 +3876,7 @@ $('zoomOut').onclick = () => zoomBy(1 / 1.4);
 // The game opens the one it sends you to: tapping a part in the tank opens Parts, picking or editing a part opens Add.
 const SECTION_KEY = 'tinygod.section';
 function showSection(name) {
-  if (!['missions', 'match', 'ocean', 'body', 'add', 'parts', 'tank'].includes(name)) name = 'missions';
+  if (!['missions', 'match', 'body', 'add', 'parts', 'tank'].includes(name)) name = 'missions';
   for (const el of document.querySelectorAll('.sec')) el.classList.toggle('show', el.dataset.sec === name);
   for (const b of $('tabs').querySelectorAll('button')) b.classList.toggle('on', b.dataset.sec === name);
   try { localStorage.setItem(SECTION_KEY, name); } catch (e) { /* private mode: not remembered */ }
@@ -4301,4 +4305,33 @@ function skipMission() {
 $('openAllBtn').onclick = () => { progress.all = !progress.all; saveProgress(); syncChips(); showShape(); };
 showMissions(); syncChips();
 initMatch({ getDesign: () => design, inMission: () => !!mission, leave: leaveMission });
-initOcean();   // 🌊 the Ocean (ocean.js): last night in one line, the leaderboard, ▶ Watch full screen   // ⚔ Matches: the design being built against the house rivals (match.js)
+// The Ocean draws every cell with the Lab's own drawing (author, 2026-11-19: exact, others' species too): ctx and world
+// are swapped for its canvas and its world while it draws. cells: the world-like object's cells as posed for drawing;
+// mine(c): one of the species you follow (a gold rim).
+function borrow(g, w, fn) {
+  const keepC = ctx, keepW = world;
+  ctx = g; world = w;
+  try { fn(); } finally { ctx = keepC; world = keepW; }
+}
+const oceanArt = {
+  cells(g, w, v, mine) {
+    borrow(g, w, () => {
+      rememberCells();
+      for (const c of w.cells) {
+        ctx.globalAlpha = c.dead ? 0.45 : 1;
+        drawCell(c, v.X, v.Y, v.s, c);
+        if (mine(c) && !c.dead) {   // yours: a gold rim just outside its membrane
+          outlinePath(grow(bodyOutline(c, 0, 0, 0).map(bodyXf(c, v.X, v.Y)), 1.5));
+          ctx.strokeStyle = 'rgba(242,193,78,.9)'; ctx.lineWidth = Math.max(1.2, Math.min(2.4, 0.35 * v.s)); ctx.stroke();
+        }
+      }
+      ctx.globalAlpha = 1;
+      drawLinks(v.X, v.Y, v.s);
+    });
+  },
+  portrait(g, w, c, X, Y, s) { borrow(g, w, () => drawCell(c, X, Y, s, c)); },
+  open(on) { oceanOpen = on; soundIcon(); },
+  setSound(on) { setSound(on); soundIcon(); },
+  soundOn,
+};
+initOcean(oceanArt);   // 🌊 the Ocean (ocean.js): last night in one line, the leaderboard, ▶ Watch full screen   // ⚔ Matches: the design being built against the house rivals (match.js)
