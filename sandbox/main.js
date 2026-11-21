@@ -50,7 +50,7 @@ const MISSION_KEY = 'tinygod.missions';
 let progress = (() => { try { return Object.assign({ best: {}, all: false }, JSON.parse(localStorage.getItem(MISSION_KEY) || '{}')); } catch (e) { return { best: {}, all: false }; } })();
 const saveProgress = () => { try { localStorage.setItem(MISSION_KEY, JSON.stringify(progress)); } catch (e) { /* private mode: not kept */ } };
 // For headless page tests (CDP scripts): read the live world and the selected cell; nothing in the page uses it
-window.__tg = { get world() { return world; }, get cell() { return cell; }, get cam() { return cam; } };
+window.__tg = { get world() { return world; }, get cell() { return cell; }, get cam() { return cam; }, get arrange() { return arrange; }, hit: (x, y) => arrangeHit({ clientX: x, clientY: y }) };
 
 // ----- loading and resetting -----
 const addSelect = $('addWhat');
@@ -2532,6 +2532,17 @@ function draw() {
       ctx.strokeStyle = '#5fd0ff'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
       ctx.beginPath(); ctx.arc(X(wx), Y(wy), 14, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
     }
+    const LH = placing ? [] : lobeHandles(s);
+    if (LH.length) {   // the selected lobe: its axis dashed, a gold tip, a white side dot
+      const f = LH[0].f, [ax, ay] = toW(f.root), [bx, by] = toW([f.root[0] + Math.cos(f.dir) * f.L, f.root[1] + Math.sin(f.dir) * f.L]);
+      ctx.setLineDash([6, 5]); ctx.strokeStyle = 'rgba(242,184,75,.85)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(X(ax), Y(ay)); ctx.lineTo(X(bx), Y(by)); ctx.stroke(); ctx.setLineDash([]);
+      for (const h of LH) {
+        const [wx, wy] = toW(h.at);
+        ctx.fillStyle = h.kind === 'ltip' ? '#ffc952' : '#ffffff'; ctx.strokeStyle = '#08111f'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(X(wx), Y(wy), 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+    }
     const H = !placing && arrangeHandle(s);
     if (H) {   // the orange dot: drag it
       const [wx, wy] = toW(H.at), hx = X(wx), hy = Y(wy);
@@ -3617,10 +3628,25 @@ function bodyPoint(e) {
 // view. Nothing selected: a part on the rim or the cell's wall is dragged; anywhere else the finger pans the view, and a
 // tap (no slide) on an organelle selects it (author, 2026-10-29: edge reshaping was dropped, it caught the grab).
 function arrangeHit(e) {
-  const P = bodyPoint(e), s = Number($('zoom').value), d = arrange.trial, tol = 16 / s;   // about a fingertip
+  const P = bodyPoint(e), s = Number($('zoom').value);
   if (placing) return { kind: 'place' };   // a part picked in Build: the tap puts it there
   const H = arrangeHandle(s);
   if (H && Math.hypot(P[0] - H.at[0], P[1] - H.at[1]) < 22 / s) return { kind: H.kind, k: H.k };
+  for (const h of lobeHandles(s)) if (Math.hypot(P[0] - h.at[0], P[1] - h.at[1]) < 22 / s) return { kind: h.kind, lobeId: arrange.lobe };
+  const hit = arrangeHit0(P, s);
+  if (hit.kind === 'pan' && lobesOf(arrange.trial).length) {   // a tap on a lobe (or just outside its membrane, when it is full) selects it
+    const c = shapeCell(arrange.trial), frames = c ? lobeFrames(c) : [], b = arrange.trial.body;
+    const axis = (f) => { const ux = Math.cos(f.dir), uy = Math.sin(f.dir), q = Math.max(0, Math.min(f.L, (P[0] - f.root[0]) * ux + (P[1] - f.root[1]) * uy)); return Math.hypot(P[0] - f.root[0] - ux * q, P[1] - f.root[1] - uy * q); };
+    const inCell = Math.hypot(Math.max(Math.abs(P[0]) - (b.length || 0) / 2, 0), P[1]) <= b.radius || frames.some((f) => axis(f) <= f.r);
+    const out = !inCell && frames.find((f) => axis(f) - f.r < 20 / s);
+    const none = (hit.tapK === undefined || hit.tapK === null) && (hit.tapRim === undefined || hit.tapRim === null);
+    const f = out || (none ? holderOf(frames, b, P) : null);
+    if (f) { hit.tapLobe = f.id; hit.tapK = null; hit.tapRim = null; }
+  }
+  return hit;
+}
+function arrangeHit0(P, s) {
+  const d = arrange.trial, tol = 16 / s;   // about a fingertip
   let inc = null, incD = tol, rim = null, rimD = tol;
   d.parts.forEach((p, k) => {
     if (isInc(p)) { const g = polyDist(bodyPoints(p), P[0], P[1]); if (g < incD) { incD = g; inc = k; } }
@@ -3653,6 +3679,7 @@ function placeRim(d, k, where) {
 // follow the finger (from the shapes at the start of the gesture)
 function arrangeTo(e) {
   const a = arrange, P = bodyPoint(e), d = JSON.parse(JSON.stringify(a.base)), g = a.drag;
+  if (g.kind === 'ltip' || g.kind === 'lside') { lobeTo(d, g.kind, g.lobeId, P); setTrial(carryOrganelles(a.base, d)); return; }
   if (g.kind === 'rim') { placeRim(d, g.k, (Math.round(Math.atan2(P[1], P[0]) * 180 / Math.PI) + 360) % 360); setTrial(d); return; }
   if (g.kind === 'tip') {   // an outside part's tip: as long as the finger is far, turned toward it (its Length and Tilt)
     const p = d.parts[g.k], b = p.build, c = CONTROLS[b.tpl] || {}, dx = P[0] - p.at[0], dy = P[1] - p.at[1];
@@ -3757,7 +3784,7 @@ $('arrRedo').onclick = () => { if (arrange) arrangeTravel(future, past); };
 function startArrange() {
   if (arrange || !cell || cell.design !== design) return;
   const W = canvas.clientWidth, H = canvas.clientHeight, b = design.body;
-  arrange = { prev: { view: $('viewMode').value, zoom: $('zoom').value }, trial: JSON.parse(JSON.stringify(design)), cell: null, sel: null, selRim: null, drag: null, base: null, pinchF: null, problems: { over: new Set(), msg: '' } };
+  arrange = { prev: { view: $('viewMode').value, zoom: $('zoom').value }, trial: JSON.parse(JSON.stringify(design)), cell: null, sel: null, selRim: null, lobe: null, drag: null, base: null, pinchF: null, problems: { over: new Set(), msg: '' } };
   playing = false; $('play').textContent = '▶'; document.body.classList.add('arranging'); $('barMore').classList.remove('open');
   $('viewMode').value = 'follow';
   const whole = shapeCell(design);   // the whole cell in view, lobes included
@@ -3851,10 +3878,12 @@ function arrangeUp(e) {
   if (g && g.kind === 'pan' && !g.moved) {   // a tap (no slide, one finger): select what is there and look at it; open water lets go
     if (g.tapK !== undefined && g.tapK !== null) { a.sel = g.tapK; a.selRim = null; lookAt(a.trial.parts[g.tapK].at); }
     else if (g.tapRim !== undefined && g.tapRim !== null) { a.selRim = g.tapRim; a.sel = null; tipInView(); }
+    else if (g.tapLobe) { selectLobe(g.tapLobe); }
     else { a.sel = null; a.selRim = null; }
+    if (!g.tapLobe) a.lobe = null;
     showTurn();
   }
-  if (g && g.kind === 'rim') { a.selRim = g.k; a.sel = null; showTurn(); }
+  if (g && g.kind === 'rim') { a.selRim = g.k; a.sel = null; a.lobe = null; showTurn(); }
   a.drag = null; a.pinchF = null; a.zoomPinch = null;
   commitIfFits();
 }
@@ -3863,15 +3892,23 @@ let placing = null;   // the template picked, waiting for its tap
 function startPlacing(name) {
   if (!partAllowed(name)) { $('buildErr').textContent = 'that part opens in 🎯 Missions'; return; }
   if (placing === name) { stopPlacing(); return; }
-  placing = name; $('partWhat').value = name; $('partWhat').dispatchEvent(new Event('change'));
+  placing = name;
+  if (name !== 'Lobe') { $('partWhat').value = name; $('partWhat').dispatchEvent(new Event('change')); }
   previewOn = false; updatePreview();
-  arrange.sel = null; arrange.selRim = null; showTurn();
+  arrange.sel = null; arrange.selRim = null; arrange.lobe = null; showTurn();
   const inside = (CONTROLS[name] || {}).inside;
   $('placeBar').innerHTML = `<span>Tap ${inside ? 'inside the cell' : "the cell's edge"} to put the <b>${SHORT[name] || name}</b> there</span><button id="placeCancel" title="Don't add it">✕</button>`;
   $('placeBar').hidden = false; $('placeCancel').onclick = stopPlacing;
 }
 function stopPlacing() { placing = null; $('placeBar').hidden = true; }
 function placeAt(P) {
+  if (placing === 'Lobe') {   // a lobe grows where the finger is, pointing out from the middle
+    stopPlacing();
+    if (lobesOf(design).length >= LOBE_MAX) { $('buildErr').textContent = `${LOBE_MAX} lobes at most`; return; }
+    addLobe(((Math.round(Math.atan2(P[1], P[0]) * 180 / Math.PI / SNAP) * SNAP) % 360 + 360) % 360);
+    if (arrange && shapeSel && lobeById(design, shapeSel)) selectLobe(shapeSel);
+    return;
+  }
   const name = placing, c = CONTROLS[name] || {}, id = `p${Date.now() % 100000}_${++partCount}`;
   const builds = (ps) => { try { const d = withPart(JSON.parse(JSON.stringify(design)), ps); buildCell(JSON.parse(JSON.stringify(d))); return d; } catch (e) { return null; } };
   const whole = lobesOf(design).length ? shapeCell(design) : null, frames = whole ? lobeFrames(whole) : [];
@@ -3879,6 +3916,21 @@ function placeAt(P) {
   if (c.inside) {   // where the finger is; else a little nearer the middle of the body or lobe holding it; else anywhere with room
     const f = holderOf(frames, design.body, P), mid = f ? [f.root[0] + Math.cos(f.dir) * f.L / 2, f.root[1] + Math.sin(f.dir) * f.L / 2] : [0, 0];
     for (let t = 0; t <= 1.001 && !d; t += 0.125) d = builds(makePart(design.body, id, { at: [r2(P[0] + (mid[0] - P[0]) * t), r2(P[1] + (mid[1] - P[1]) * t)] }));
+    if (!d && f) {   // a lobe too narrow for it: a rod lying along the lobe, its volume kept (smaller only if even that won't fit)
+      const p0 = makePart(design.body, id, { at: P })[0], V = 4 / 3 * Math.PI * p0.radius ** 3 + Math.PI * p0.radius ** 2 * (p0.length || 0);
+      const room = Math.max(0.5, f.r - PARAMS.cell.wallThickness - 0.3), ux = Math.cos(f.dir), uy = Math.sin(f.dir);
+      const along = (P[0] - f.root[0]) * ux + (P[1] - f.root[1]) * uy;
+      for (const k of [1, 0.8, 0.6, 0.45]) {
+        const r = Math.min(p0.radius, room), L = Math.max(0, (V * k - 4 / 3 * Math.PI * r ** 3) / (Math.PI * r * r));
+        for (const t of [along, f.L * 0.6, f.L * 0.45, f.L * 0.75, f.L * 0.3]) {
+          const ps = makePart(design.body, id, { at: [r2(f.root[0] + ux * t), r2(f.root[1] + uy * t)] });
+          Object.assign(ps[0], { radius: r2(r), length: r2(L), angle: Math.round(f.dir * 180 / Math.PI) });
+          if (!ps[0].length) delete ps[0].angle;
+          if ((d = builds(ps))) break;
+        }
+        if (d) { placeAt.note = k < 1 ? `made smaller to fit the lobe (${Math.round(k * 100)}% of its volume)` : 'a rod along the lobe, to fit it'; break; }
+      }
+    }
     if (!d) { const spot = findFit(id); if (spot) d = builds(makePart(design.body, id, spot)); }
   } else {   // on the rim of the body or of the lobe nearest the finger, pointing out there
     const b = design.body, h = (b.length || 0) / 2;
@@ -3900,8 +3952,10 @@ function placeAt(P) {
   if (!d) { $('buildErr').textContent = `no room there for the ${SHORT[name] || name}: try another spot, or make it smaller under "Where and exactly how"`; return; }
   if (slotsShort(d)) return;
   stopPlacing();
-  if (!applyDesign(d)) return;
+  if (!applyDesign(d)) { placeAt.note = ''; return; }
+  if (placeAt.note) { $('buildErr').textContent = placeAt.note; placeAt.note = ''; }
   const k = design.parts.findIndex((p) => p.build && p.build.id === id);
+  if (arrange) arrange.lobe = null;
   if (k >= 0 && arrange) {
     const p = design.parts[k];
     if (isInc(p)) { arrange.sel = k; arrange.selRim = null; }
@@ -3911,7 +3965,7 @@ function placeAt(P) {
 }
 // a long part's tip off the screen: zoom out until its dot can be grabbed
 function tipInView() {
-  const s = Number($('zoom').value), H = arrangeHandle(s);
+  const s = Number($('zoom').value), H = arrangeHandle(s) || lobeHandles(s)[0];
   if (!H) return;
   const r = canvas.getBoundingClientRect(), half = Math.min(r.width, r.height) / 2 / s;
   if (Math.hypot(H.at[0] - arrange.pan[0], H.at[1] - arrange.pan[1]) < half * 0.6) return;
@@ -3939,11 +3993,56 @@ function arrangeHandle(s) {
   }
   return null;
 }
+// lobes in Build: the selected lobe (arrange.lobe, shared with the Body editor's shapeSel) has a gold tip (aim and
+// length; a body lobe's root slides round the rim, a branch turns round its parent's tip) and a white side dot
+// (thickness). Organelles in a lobe go with it (carryOrganelles).
+function lobeHandles(s) {
+  const a = arrange;
+  if (!a || !a.lobe) return [];
+  const c = shapeCell(a.trial), f = c && lobeFrames(c).find((q) => q.id === a.lobe);
+  if (!f) return [];
+  const ux = Math.cos(f.dir), uy = Math.sin(f.dir);
+  return [{ kind: 'ltip', at: [f.root[0] + ux * (f.L + f.r + 8 / s), f.root[1] + uy * (f.L + f.r + 8 / s)], f },
+    { kind: 'lside', at: [f.root[0] + ux * f.L / 2 - uy * (f.r + 8 / s), f.root[1] + uy * f.L / 2 + ux * (f.r + 8 / s)], f }];
+}
+function lobeTo(d, kind, id, P) {   // the Body editor's drag, on the main view
+  const c = shapeCell(d), l = lobeById(d, id), f = c && lobeFrames(c).find((q) => q.id === id);
+  if (!l || !f) return;
+  if (kind === 'ltip') {
+    if (!l.parent || l.parent === 'body') {
+      const ang = Math.round(Math.atan2(P[1], P[0]) * 180 / Math.PI / SNAP) * SNAP, [sx, sy] = surfacePoint(d.body, ang);
+      aimLobe(d, id, ang, Math.max(2, Math.min(80, Math.hypot(P[0] - sx, P[1] - sy) - l.radius + 0.5)));
+    } else {
+      const pf = lobeFrames(c).find((q) => q.id === l.parent), tx = pf.root[0] + Math.cos(pf.dir) * pf.L, ty = pf.root[1] + Math.sin(pf.dir) * pf.L;
+      const w = Math.round(Math.atan2(P[1] - ty, P[0] - tx) * 180 / Math.PI / SNAP) * SNAP;
+      aimLobe(d, id, w - pf.dir * 180 / Math.PI, Math.max(2, Math.min(80, Math.hypot(P[0] - tx, P[1] - ty) - l.radius)));
+    }
+  } else {
+    const ux = Math.cos(f.dir), uy = Math.sin(f.dir), t = Math.max(0, Math.min(f.L, (P[0] - f.root[0]) * ux + (P[1] - f.root[1]) * uy));
+    l.radius = Math.max(1, Math.min(10, d.body.radius, Math.round(Math.hypot(P[0] - f.root[0] - ux * t, P[1] - f.root[1] - uy * t) * 2) / 2));
+  }
+}
+function selectLobe(id) {
+  arrange.lobe = id; arrange.sel = null; arrange.selRim = null; shapeSel = id;
+  if (id) { showShape(); tipInView(); }
+  showTurn();
+}
 // how long an outside part is (Length, or a spine's Size: 100 µm at 100%); null: nothing to lengthen
 const tipLength = (b, c) => (c.length ? b.length ?? c.length.def : b.tpl === 'Spine' ? Math.round((b.size ?? 0.2) * 100) : null);
 // the selected part's card (its row from the parts list: its rule, Edit, mirrors, Remove) on top of the Build tab
 function updateSelCard() {
   const box = $('selCard');
+  if (arrange && arrange.lobe && lobeById(design, arrange.lobe)) {   // a lobe: its own tools (the Body editor's buttons)
+    const n = lobesOf(design).findIndex((l) => l.id === arrange.lobe) + 1, l = lobeById(design, arrange.lobe);
+    box.innerHTML = `<div class="selHead"><span>Lobe ${n}: ${Math.round(l.length)} µm long, ${l.radius} µm thick · drag the gold tip to aim and stretch it, the white dot for thickness</span><button class="desel" title="Let go of it">✕</button></div>`
+      + '<div class="row"><button class="lb" data-b="lobeBranch">＋ On this lobe</button><button class="lb" data-b="lobeMirror">⇅ Mirror</button><button class="lb" data-b="lobeRemove">🗑 Remove</button></div>';
+    box.hidden = false;
+    if (updateSelCard.last !== arrange.lobe) box.scrollIntoView({ block: 'nearest' });
+    updateSelCard.last = arrange.lobe;
+    for (const b of box.querySelectorAll('.lb')) b.onclick = () => { $(b.dataset.b).click(); if (arrange) { if (shapeSel && lobeById(design, shapeSel)) selectLobe(shapeSel); else selectLobe(null); } };
+    box.querySelector('.desel').onclick = () => selectLobe(null);
+    return;
+  }
   const k = arrange ? (arrange.sel !== null ? arrange.sel : arrange.selRim) : null;
   const p = k !== null && k !== undefined ? arrange.trial.parts[k] : null;
   const same = (m) => p && ((m.build && p.build && m.build.id === p.build.id) || (m.id && m.id === p.id));
@@ -4189,6 +4288,16 @@ for (const [cat, names] of Object.entries(SHOWN)) {
   }
   $('chips').append(head, chips);
 }
+{   // the shape: a lobe grows where the cell's edge is tapped (on a computer, without arranging: the Body editor)
+  const head = document.createElement('div'); head.className = 'cat'; head.textContent = 'Shape';
+  const chips = document.createElement('div'); chips.className = 'chips';
+  const b = document.createElement('button');
+  b.className = 'pbtn'; b.dataset.v = 'Lobe'; b.title = 'A lobe: an arm of living cell (room for organelles, surface for nitrogen); tap it, then the cell\'s edge';
+  b.innerHTML = '<svg viewBox="0 0 34 24" width="34" height="24"><circle cx="12" cy="14" r="8" fill="rgba(95,208,255,.18)" stroke="#5fd0ff" stroke-width="1.4"/><path d="M17 9 L27 4" stroke="#5fd0ff" stroke-width="6" stroke-linecap="round" opacity=".55"/></svg><span>Lobe</span>';
+  b.onclick = () => (arrange && !editing ? startPlacing('Lobe') : showSection('body'));
+  chips.appendChild(b);
+  $('chips').append(head, chips);
+}
 
 // Light up the buttons that match the current state (cheap; once a frame)
 function syncButtons() {
@@ -4386,7 +4495,7 @@ function syncChips() {
   $('lockNote').hidden = !locked;
   $('lockNote').textContent = `🔒 ${locked} more part${locked === 1 ? '' : 's'} open as you finish missions (🎯 Missions)`;
   if (!partAllowed($('partWhat').value)) {
-    const first = [...$('chips').querySelectorAll('.pbtn')].find((b) => !b.hidden);
+    const first = [...$('chips').querySelectorAll('.pbtn')].find((b) => !b.hidden && b.dataset.v !== 'Lobe');
     if (first) { $('partWhat').value = first.dataset.v; showControls(); }
   }
 }
