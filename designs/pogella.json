@@ -1,0 +1,385 @@
+{
+ "name": "Pogella",
+ "from": "Claude",
+ "note": "A pogo stick hanging upside down: a round body below, one long leg standing up (the springs at its tip are its feathers: their drag keeps that end on top). Two mirrored springs fold back down along the leg and kick the cell upward, but only while the statolith says the body is underneath, so it never jumps sideways or down. By day it hops up whenever the eyespot at the leg tip sees the light fading below 15%. At night a feeler set to Anything (on the body's underside, 200 µm) feels the floor coming, and together with the nutrient sensor (richer water than at the surface: the floor, not the surface, which a feeler feels too) it kicks the cell back up, so it never lands. A plastid in the body and one in the leg; a starch ballast in the body. Alone in moving water: 2 cells by day 5 on two seeds, never starving.",
+ "design": {
+  "species": "Pogella",
+  "body": {
+   "radius": 14
+  },
+  "parts": [
+   {
+    "type": "lobe",
+    "id": "leg",
+    "parent": "body",
+    "at": [
+     -13.5,
+     0
+    ],
+    "angle": 180,
+    "length": 48,
+    "radius": 3.6
+   },
+   {
+    "type": "inclusion",
+    "id": "legPlastid",
+    "label": "Plastid",
+    "material": "plastid",
+    "at": [
+     -31.1,
+     0
+    ],
+    "angle": 180,
+    "radius": 2.9000000000000004,
+    "length": 16
+   },
+   {
+    "type": "inclusion",
+    "id": "nucleus",
+    "label": "Nucleus",
+    "material": "nucleus",
+    "at": [
+     -5.8,
+     4.7
+    ],
+    "radius": 4.3,
+    "joint": {
+     "type": "rest",
+     "controls": [
+      {
+       "sensor": "eye",
+       "min": 0,
+       "max": 0.01
+      }
+     ]
+    }
+   },
+   {
+    "type": "inclusion",
+    "id": "plastid",
+    "label": "Plastid",
+    "material": "plastid",
+    "at": [
+     5.8,
+     -3.5
+    ],
+    "angle": 90,
+    "radius": 3.8,
+    "length": 6
+   },
+   {
+    "type": "inclusion",
+    "id": "ballast",
+    "label": "Starch store",
+    "material": "starch",
+    "fill": 0.5,
+    "at": [
+     4.5,
+     7.8
+    ],
+    "radius": 4.3
+   },
+   {
+    "type": "inclusion",
+    "id": "stato",
+    "label": "Statolith",
+    "at": [
+     -4.7,
+     -7
+    ],
+    "radius": 1.5,
+    "material": "statolith",
+    "angle": 0,
+    "name": "Statolith (springs down?)"
+   },
+   {
+    "type": "sensor",
+    "id": "eye",
+    "label": "Light sensor",
+    "at": [
+     27.6,
+     0
+    ],
+    "angle": 0,
+    "kind": "light",
+    "cone": 180,
+    "parent": "leg",
+    "name": "Eyespot (leg tip)"
+   },
+   {
+    "type": "sensor",
+    "id": "floor",
+    "label": "Feeler",
+    "at": [
+     14,
+     0
+    ],
+    "kind": "near",
+    "range": 200,
+    "feels": "anything",
+    "name": "Feeler (floor)"
+   },
+   {
+    "type": "sensor",
+    "id": "taste",
+    "label": "Nutrient sensor",
+    "at": [
+     7.000000000000002,
+     -12.12435565298214
+    ],
+    "kind": "chem",
+    "name": "Nutrient sensor"
+   },
+   {
+    "type": "segment",
+    "id": "kick_0",
+    "parent": "leg",
+    "at": [
+     2.0784609690826534,
+     3.6
+    ],
+    "angle": 180,
+    "length": 5,
+    "radius": 0.3,
+    "material": "protein",
+    "joint": {
+     "type": "motor",
+     "rate": 500,
+     "swing": 40,
+     "phase": 0,
+     "burst": {
+      "duration": 0.8,
+      "recharge": 3,
+      "group": "kick"
+     },
+     "controls": [
+      {
+       "sensor": "stato",
+       "min": 0,
+       "max": 0.25
+      },
+      {
+       "sensor": "eye",
+       "min": 0.015,
+       "max": 0.15
+      },
+      {
+       "sensor": "floor",
+       "min": 0.05,
+       "max": 1,
+       "or": true
+      },
+      {
+       "sensor": "stato",
+       "min": 0,
+       "max": 0.25
+      },
+      {
+       "sensor": "taste",
+       "min": 0.12,
+       "max": 1
+      }
+     ]
+    },
+    "label": "Spring"
+   },
+   {
+    "type": "segment",
+    "id": "kick_1",
+    "parent": "kick_0",
+    "at": [
+     2.5,
+     0
+    ],
+    "angle": 0,
+    "length": 5,
+    "radius": 0.3,
+    "material": "protein",
+    "joint": {
+     "type": "motor",
+     "rate": 500,
+     "swing": 40,
+     "phase": -0.2,
+     "burst": {
+      "duration": 0.8,
+      "recharge": 3,
+      "group": "kick"
+     }
+    }
+   },
+   {
+    "type": "segment",
+    "id": "kick_2",
+    "parent": "kick_1",
+    "at": [
+     2.5,
+     0
+    ],
+    "angle": 0,
+    "length": 5,
+    "radius": 0.3,
+    "material": "protein",
+    "joint": {
+     "type": "motor",
+     "rate": 500,
+     "swing": 40,
+     "phase": -0.4,
+     "burst": {
+      "duration": 0.8,
+      "recharge": 3,
+      "group": "kick"
+     }
+    }
+   },
+   {
+    "type": "segment",
+    "id": "kick_3",
+    "parent": "kick_2",
+    "at": [
+     2.5,
+     0
+    ],
+    "angle": 0,
+    "length": 5,
+    "radius": 0.3,
+    "material": "protein",
+    "joint": {
+     "type": "motor",
+     "rate": 500,
+     "swing": 40,
+     "phase": -0.6000000000000001,
+     "burst": {
+      "duration": 0.8,
+      "recharge": 3,
+      "group": "kick"
+     }
+    }
+   },
+   {
+    "type": "segment",
+    "id": "kick2_0",
+    "parent": "leg",
+    "at": [
+     2.0784609690826534,
+     -3.6
+    ],
+    "angle": -180,
+    "length": 5,
+    "radius": 0.3,
+    "material": "protein",
+    "joint": {
+     "type": "motor",
+     "rate": 500,
+     "swing": -40,
+     "phase": 0,
+     "burst": {
+      "duration": 0.8,
+      "recharge": 3,
+      "group": "kick2_burst"
+     },
+     "controls": [
+      {
+       "sensor": "stato",
+       "min": 0,
+       "max": 0.25
+      },
+      {
+       "sensor": "eye",
+       "min": 0.015,
+       "max": 0.15
+      },
+      {
+       "sensor": "floor",
+       "min": 0.05,
+       "max": 1,
+       "or": true
+      },
+      {
+       "sensor": "stato",
+       "min": 0,
+       "max": 0.25
+      },
+      {
+       "sensor": "taste",
+       "min": 0.12,
+       "max": 1
+      }
+     ]
+    },
+    "label": "Spring"
+   },
+   {
+    "type": "segment",
+    "id": "kick2_1",
+    "parent": "kick2_0",
+    "at": [
+     2.5,
+     0
+    ],
+    "angle": 0,
+    "length": 5,
+    "radius": 0.3,
+    "material": "protein",
+    "joint": {
+     "type": "motor",
+     "rate": 500,
+     "swing": -40,
+     "phase": -0.2,
+     "burst": {
+      "duration": 0.8,
+      "recharge": 3,
+      "group": "kick2_burst"
+     }
+    }
+   },
+   {
+    "type": "segment",
+    "id": "kick2_2",
+    "parent": "kick2_1",
+    "at": [
+     2.5,
+     0
+    ],
+    "angle": 0,
+    "length": 5,
+    "radius": 0.3,
+    "material": "protein",
+    "joint": {
+     "type": "motor",
+     "rate": 500,
+     "swing": -40,
+     "phase": -0.4,
+     "burst": {
+      "duration": 0.8,
+      "recharge": 3,
+      "group": "kick2_burst"
+     }
+    }
+   },
+   {
+    "type": "segment",
+    "id": "kick2_3",
+    "parent": "kick2_2",
+    "at": [
+     2.5,
+     0
+    ],
+    "angle": 0,
+    "length": 5,
+    "radius": 0.3,
+    "material": "protein",
+    "joint": {
+     "type": "motor",
+     "rate": 500,
+     "swing": -40,
+     "phase": -0.6000000000000001,
+     "burst": {
+      "duration": 0.8,
+      "recharge": 3,
+      "group": "kick2_burst"
+     }
+    }
+   }
+  ]
+ }
+}
