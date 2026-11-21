@@ -1,10 +1,15 @@
-# The Ocean's night (2026-11-20, step 6): every day at 04:00 UTC (ready ~05:00-07:00 in the author's time, GMT/BST),
+# The Ocean's night (2026-11-20, step 6): every day early (tries from 02:17 UTC) (ready ~05:00-07:00 in the author's time, GMT/BST),
 # one ocean day is run on the shared tank and published. The Ocean's files live on the branch ocean-data (one commit,
 # rewritten each night, so the recordings don't pile up in the history); the website reads them from there.
 name: Ocean night
 on:
+  # GitHub may start a scheduled job hours late on a busy day (night 3 started at 12:06 for 04:00): several tries, off the
+  # top of the hour; each first checks whether today's night has run (by hand, it always runs)
   schedule:
-    - cron: '0 4 * * *'
+    - cron: '17 2 * * *'
+    - cron: '17 3 * * *'
+    - cron: '17 4 * * *'
+    - cron: '47 4 * * *'
   workflow_dispatch:
 concurrency:
   group: ocean          # one Ocean job at a time (a release waits for the night, and the night for a release)
@@ -25,13 +30,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Has today's night run?
+        id: due
+        run: |
+          LAST=$(node -e "const s=require('./data/ocean/state.json');console.log(((s.last&&s.last.at)||'').slice(0,10))")
+          TODAY=$(date -u +%Y-%m-%d)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$LAST" = "$TODAY" ]; then echo "run=no" >> $GITHUB_OUTPUT; echo "today's night ran already ($LAST)"; else echo "run=yes" >> $GITHUB_OUTPUT; fi
       - name: Releases still waiting
+        if: steps.due.outputs.run == 'yes'
         env:
           GH_TOKEN: ${{ github.token }}
         run: node tools/ocean-inbox.mjs --dir=data/ocean
       - name: One ocean day
+        if: steps.due.outputs.run == 'yes'
         run: node tools/ocean.mjs night --dir=data/ocean --keepRich=7
       - name: Publish
+        if: steps.due.outputs.run == 'yes'
         working-directory: data
         run: |
           git config user.name "TinyGod Ocean"
