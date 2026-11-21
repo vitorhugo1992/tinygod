@@ -1,0 +1,263 @@
+{
+ "name": "Vagastella",
+ "from": "Claude",
+ "note": "A five-armed star with no chamber, no tail and no rule for depth. Each arm: a phycobilin plastid near its root, an oil store toward its tip. The oil keeps it close to weightless and the long arms make it sink very slowly (about 1 µm/s), so the water carries it: in still water it floats near the surface; in moving water it rides the loops up into the light and down to the nitrogen, its phycobilins earning in the dim deep. Its arms give it about 1.6× the surface of a ball (faster nitrogen uptake) and make it too wide for most mouths. Rests at night (eyespots on three arms). Alone in moving water: 2 cells by day 5, never starving.",
+ "design": {
+  "species": "Vagastella",
+  "body": {
+   "radius": 7
+  },
+  "parts": [
+   {
+    "type": "lobe",
+    "id": "arm0",
+    "parent": "body",
+    "at": [
+     0,
+     6.5
+    ],
+    "angle": 90,
+    "length": 48,
+    "radius": 3.8
+   },
+   {
+    "type": "inclusion",
+    "id": "pl0",
+    "material": "plastid",
+    "pigment": "shade",
+    "at": [
+     0,
+     16
+    ],
+    "angle": 90,
+    "radius": 3,
+    "length": 14
+   },
+   {
+    "type": "inclusion",
+    "id": "oil0",
+    "material": "oil",
+    "at": [
+     0,
+     41.6
+    ],
+    "angle": 90,
+    "radius": 3,
+    "length": 24
+   },
+   {
+    "type": "sensor",
+    "id": "eye0",
+    "parent": "arm0",
+    "at": [
+     27.8,
+     0
+    ],
+    "angle": 0,
+    "kind": "light",
+    "cone": 180
+   },
+   {
+    "type": "lobe",
+    "id": "arm1",
+    "parent": "body",
+    "at": [
+     -6.18,
+     2.01
+    ],
+    "angle": 162,
+    "length": 48,
+    "radius": 3.8
+   },
+   {
+    "type": "inclusion",
+    "id": "pl1",
+    "material": "plastid",
+    "pigment": "shade",
+    "at": [
+     -15.22,
+     4.95
+    ],
+    "angle": 162,
+    "radius": 3,
+    "length": 14
+   },
+   {
+    "type": "inclusion",
+    "id": "oil1",
+    "material": "oil",
+    "at": [
+     -39.56,
+     12.86
+    ],
+    "angle": 162,
+    "radius": 3,
+    "length": 24
+   },
+   {
+    "type": "lobe",
+    "id": "arm2",
+    "parent": "body",
+    "at": [
+     -3.82,
+     -5.26
+    ],
+    "angle": 234,
+    "length": 48,
+    "radius": 3.8
+   },
+   {
+    "type": "inclusion",
+    "id": "pl2",
+    "material": "plastid",
+    "pigment": "shade",
+    "at": [
+     -9.4,
+     -12.95
+    ],
+    "angle": 234,
+    "radius": 3,
+    "length": 14
+   },
+   {
+    "type": "inclusion",
+    "id": "oil2",
+    "material": "oil",
+    "at": [
+     -24.45,
+     -33.66
+    ],
+    "angle": 234,
+    "radius": 3,
+    "length": 24
+   },
+   {
+    "type": "sensor",
+    "id": "eye2",
+    "parent": "arm2",
+    "at": [
+     27.8,
+     0
+    ],
+    "angle": 0,
+    "kind": "light",
+    "cone": 180
+   },
+   {
+    "type": "lobe",
+    "id": "arm3",
+    "parent": "body",
+    "at": [
+     3.82,
+     -5.26
+    ],
+    "angle": 306,
+    "length": 48,
+    "radius": 3.8
+   },
+   {
+    "type": "inclusion",
+    "id": "pl3",
+    "material": "plastid",
+    "pigment": "shade",
+    "at": [
+     9.4,
+     -12.95
+    ],
+    "angle": 306,
+    "radius": 3,
+    "length": 14
+   },
+   {
+    "type": "inclusion",
+    "id": "oil3",
+    "material": "oil",
+    "at": [
+     24.45,
+     -33.66
+    ],
+    "angle": 306,
+    "radius": 3,
+    "length": 24
+   },
+   {
+    "type": "lobe",
+    "id": "arm4",
+    "parent": "body",
+    "at": [
+     6.18,
+     2.01
+    ],
+    "angle": 18,
+    "length": 48,
+    "radius": 3.8
+   },
+   {
+    "type": "inclusion",
+    "id": "pl4",
+    "material": "plastid",
+    "pigment": "shade",
+    "at": [
+     15.22,
+     4.95
+    ],
+    "angle": 18,
+    "radius": 3,
+    "length": 14
+   },
+   {
+    "type": "inclusion",
+    "id": "oil4",
+    "material": "oil",
+    "at": [
+     39.56,
+     12.86
+    ],
+    "angle": 18,
+    "radius": 3,
+    "length": 24
+   },
+   {
+    "type": "sensor",
+    "id": "eye4",
+    "parent": "arm4",
+    "at": [
+     27.8,
+     0
+    ],
+    "angle": 0,
+    "kind": "light",
+    "cone": 180
+   },
+   {
+    "type": "inclusion",
+    "id": "nucleus",
+    "material": "nucleus",
+    "at": [
+     0,
+     0
+    ],
+    "radius": 4.3,
+    "joint": {
+     "type": "rest",
+     "controls": [
+      {
+       "sensor": "eye0",
+       "also": [
+        {
+         "sensor": "eye2"
+        },
+        {
+         "sensor": "eye4"
+        }
+       ],
+       "all": true,
+       "min": 0,
+       "max": 0.01
+      }
+     ]
+    }
+   }
+  ]
+ }
+}
