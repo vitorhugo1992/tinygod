@@ -7,7 +7,7 @@ import { PRESETS } from '../sim/presets.js';
 import { updatePose, fire, motorAngle, toWorld as pieceToWorld } from '../sim/physics.js';
 import { rewire, respeed, controlsOf, buildCell, plateMax } from '../sim/build.js';
 import { regrow } from '../sim/grow.js';
-import { polyDist, polysOverlap, inscribed } from '../sim/shape.js';
+import { polyDist, polysOverlap, inscribed, shapeOf } from '../sim/shape.js';
 import { rigid, isInc, bodyPoints, outOfWall, toOutline, scaleBy, moveTo, fitWall, relax, roomFor } from './mould.js';
 import { lightAt, daylight, clock, depthLight } from '../sim/light.js';
 import { energyLevel, storeLevel, plastidHealth, feedingLevel, sizeLevel, drainedLevel, neighboursLevel, padLevel, alarmLevel, poisonedLevel, tradeLevel } from '../sim/sense.js';
@@ -212,6 +212,7 @@ let shapeXf = null;       // body frame <-> canvas: { s, ox, oy }
 const lobesOf = (d) => (d.parts || []).filter((p) => p.type === 'lobe');
 const lobeById = (d, id) => (d.parts || []).find((p) => p.type === 'lobe' && p.id === id);
 const r2 = (v) => Math.round(v * 100) / 100;
+const lobeNumber = (id) => lobesOf(design).findIndex((l) => l.id === id) + 1;
 function lobeId(d) { let k = 1; while ((d.parts || []).some((p) => p.id === `lobe${k}`)) k++; return `lobe${k}`; }
 // each lobe's frame in the body's (from the built cell): { id, root, dir, L, r }
 function lobeFrames(c) {
@@ -525,8 +526,8 @@ $('pullBtn').onclick = () => { $('partPull').checked = !$('partPull').checked; $
 // Make a part from the Build controls; its first piece remembers how (build), so it can be edited later
 function makePart(body, id, spot) {   // spot: { where, depth } instead of the sliders' (a nudge into free room)
   const c = CONTROLS[$('partWhat').value] || {};
-  const b = { tpl: $('partWhat').value, where: spot ? spot.where : Number($('partAngle').value), tilt: Number($('partTilt').value),
-    size: Number($('partSize').value) / 100, depth: spot ? spot.depth : Number($('partInside').value) / 100, feels: $('partFeels').value,
+  const b = { tpl: $('partWhat').value, where: spot && spot.where !== undefined ? spot.where : Number($('partAngle').value), tilt: Number($('partTilt').value),
+    size: Number($('partSize').value) / 100, depth: spot && spot.depth !== undefined ? spot.depth : Number($('partInside').value) / 100, feels: $('partFeels').value,
     flip: !!c.flip && $('partFlip').checked, id };
   if (c.pull && $('partPull').checked) b.pull = true;
   if (c.length) b.length = Number($('partLength').value);
@@ -541,6 +542,10 @@ function makePart(body, id, spot) {   // spot: { where, depth } instead of the s
   const parts = PART_TEMPLATES[b.tpl](body, b.where, id, b.size, b.tilt, b.depth, b.feels, b.length, b.strength, b.content, b.pull);
   if (lobe) for (const p of parts) if (!p.parent || p.parent === 'body') p.parent = lobe.id;
   if (b.flip) flipPart(parts);
+  if (spot && spot.at && parts[0].type === 'inclusion') {   // into a lobe (findFit): placed there, along it if it is a rod
+    parts[0].at = spot.at;
+    if (parts[0].length && spot.angle !== undefined) parts[0].angle = spot.angle;
+  }
   parts[0].build = b;
   return parts;
 }
@@ -561,10 +566,12 @@ $('addPart').onclick = () => {
   if (editing) { stopEditing(); return; }
   if (!partAllowed($('partWhat').value)) { $('buildErr').textContent = 'that part opens in 🎯 Missions'; return; }
   previewOn = true; updatePreview();   // find the free spot now: with no ghost shown yet, a first tap used to add nothing
-  if (nudge) {   // it goes where the ghost showed it fits
-    $('partAngle').value = nudge.where; $('partInside').value = Math.round(nudge.depth * 100); showAngle(); showInside(); nudge = null;
+  const into = nudge && nudge.at ? nudge : null;   // into a lobe: placed there by hand, not by the sliders
+  if (nudge && !into) {   // it goes where the ghost showed it fits
+    $('partAngle').value = nudge.where; $('partInside').value = Math.round(nudge.depth * 100); showAngle(); showInside();
   }
-  const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, `p${Date.now() % 100000}_${++partCount}`));
+  nudge = null;
+  const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, `p${Date.now() % 100000}_${++partCount}`, into));
   if (slotsShort(d)) return;
   previewOn = false;
   if (!applyDesign(d)) { previewOn = true; updatePreview(); }
@@ -579,6 +586,10 @@ function updateEdited() {
   try { buildCell(JSON.parse(JSON.stringify(next))); } catch (e) { fits = false; }
   const spot = !fits && (CONTROLS[$('partWhat').value] || {}).inside ? findFit(editing) : null;
   if (!spot) { applyDesign(next); return; }
+  if (spot.at) {   // only a lobe has room for it now
+    if (applyDesign(withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, editing, spot)))) $('buildErr').textContent = `moved into lobe ${lobeNumber(spot.lobe)}, where it fits`;
+    return;
+  }
   $('partAngle').value = spot.where; $('partInside').value = Math.round(spot.depth * 100); showAngle(); showInside();
   if (applyDesign(withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, editing)))) $('buildErr').textContent = `moved to where it fits: ${spot.where}°, inside ${Math.round(spot.depth * 100)}%`;
 }
@@ -641,6 +652,18 @@ function findFit(id) {
     try { const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, id, spot)); if (d) { buildCell(d); return spot; } }
     catch (e) { /* not here */ }
   }
+  // no room in the body: along each lobe, from its tip toward its root, lying along it or as asked (author,
+  // 2026-11-21: "u can't add the organelle despite having space in the lobes")
+  const whole = lobesOf(design).length ? shapeCell(design) : null;
+  if (!whole) return null;
+  for (const f of lobeFrames(whole)) {
+    const ux = Math.cos(f.dir), uy = Math.sin(f.dir), along = Math.round(f.dir * 180 / Math.PI);
+    for (const t of [0.85, 0.65, 0.45, 0.25, 0.05]) for (const angle of [along, undefined]) {
+      const spot = { at: [r2(f.root[0] + ux * f.L * t), r2(f.root[1] + uy * f.L * t)], angle, lobe: f.id };
+      try { const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, id, spot)); if (d) { buildCell(d); return spot; } }
+      catch (e) { /* not here */ }
+    }
+  }
   return null;
 }
 function updatePreview() {
@@ -651,7 +674,8 @@ function updatePreview() {
   try { const d = withPart(JSON.parse(JSON.stringify(design)), makePart(design.body, id)); if (d) buildCell(d); }
   catch (e) { bad = e.message; }
   nudge = bad && (CONTROLS[$('partWhat').value] || {}).inside ? findFit(id) : null;
-  $('buildErr').textContent = nudge ? `no room there: nudged to ${nudge.where}°, inside ${Math.round(nudge.depth * 100)}% (Add puts it there)`
+  $('buildErr').textContent = nudge && nudge.at ? `no room in the body: it goes into lobe ${lobeNumber(nudge.lobe)} (Add puts it there)`
+    : nudge ? `no room there: nudged to ${nudge.where}°, inside ${Math.round(nudge.depth * 100)}% (Add puts it there)`
     : bad && (CONTROLS[$('partWhat').value] || {}).inside && /overlap|sticks out|overfill/.test(bad)
       ? "won't fit: no free spot big enough anywhere inside (try a smaller size)" : bad ? `won't fit: ${bad}` : '';
   if (nudge) bad = '';
@@ -3630,6 +3654,7 @@ function arrangeTo(e) {
 function showTurn() {
   const a = arrange, p = a && a.sel !== null ? a.trial.parts[a.sel] : null;
   $('arrTurn').disabled = !p; $('arrDeselect').disabled = !p; $('arrRemove').disabled = !p;
+  $('arrRound').disabled = !p || rigid(p) || !(p.outline || p.bend || p.length);
   if (p) $('arrTurn').value = Math.round(((p.angle || 0) + 540) % 360 - 180);
   $('arrTurnOut').textContent = p ? `${$('arrTurn').value}°` : 'select one';
 }
@@ -3651,6 +3676,16 @@ $('arrTurn').oninput = () => {
 };
 $('arrTurn').onchange = () => { if (arrange) commitIfFits(); };
 $('arrDeselect').onclick = () => { if (arrange) { arrange.sel = null; showTurn(); } };
+// the selected organelle round again (author, 2026-11-21: a moulded one was very hard to get back to a ball): a ball of
+// the same volume where its middle was; red if it no longer fits there (Fit packs it)
+$('arrRound').onclick = () => {
+  const a = arrange;
+  if (!a || a.sel === null) return;
+  const d = JSON.parse(JSON.stringify(a.trial)), p = d.parts[a.sel], sh = shapeOf(p);
+  p.at = [r2(sh.cx), r2(sh.cy)]; p.radius = r2(Math.cbrt(3 * sh.volume / (4 * Math.PI)));
+  delete p.outline; delete p.bend; delete p.length; delete p.angle;
+  setTrial(d); commitIfFits(); showTurn();
+};
 // the selected organelle removed (its cables unplugged; one Undo step once the rest fits)
 $('arrRemove').onclick = () => {
   const a = arrange;
