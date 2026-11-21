@@ -50,7 +50,7 @@ const MISSION_KEY = 'tinygod.missions';
 let progress = (() => { try { return Object.assign({ best: {}, all: false }, JSON.parse(localStorage.getItem(MISSION_KEY) || '{}')); } catch (e) { return { best: {}, all: false }; } })();
 const saveProgress = () => { try { localStorage.setItem(MISSION_KEY, JSON.stringify(progress)); } catch (e) { /* private mode: not kept */ } };
 // For headless page tests (CDP scripts): read the live world and the selected cell; nothing in the page uses it
-window.__tg = { get world() { return world; }, get cell() { return cell; } };
+window.__tg = { get world() { return world; }, get cell() { return cell; }, get cam() { return cam; } };
 
 // ----- loading and resetting -----
 const addSelect = $('addWhat');
@@ -2532,6 +2532,14 @@ function draw() {
       ctx.strokeStyle = '#5fd0ff'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
       ctx.beginPath(); ctx.arc(X(wx), Y(wy), 14, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
     }
+    const H = !placing && arrangeHandle(s);
+    if (H) {   // the orange dot: drag it
+      const [wx, wy] = toW(H.at), hx = X(wx), hy = Y(wy);
+      ctx.fillStyle = '#ffc952'; ctx.strokeStyle = '#08111f'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(hx, hy, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#08111f'; ctx.font = '700 11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('↔', hx, hy + 0.5); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    }
   }
   drawPreview(X, Y, s);
   drawLinks(X, Y, s);
@@ -3611,6 +3619,8 @@ function bodyPoint(e) {
 function arrangeHit(e) {
   const P = bodyPoint(e), s = Number($('zoom').value), d = arrange.trial, tol = 16 / s;   // about a fingertip
   if (placing) return { kind: 'place' };   // a part picked in Build: the tap puts it there
+  const H = arrangeHandle(s);
+  if (H && Math.hypot(P[0] - H.at[0], P[1] - H.at[1]) < 22 / s) return { kind: H.kind, k: H.k };
   let inc = null, incD = tol, rim = null, rimD = tol;
   d.parts.forEach((p, k) => {
     if (isInc(p)) { const g = polyDist(bodyPoints(p), P[0], P[1]); if (g < incD) { incD = g; inc = k; } }
@@ -3644,6 +3654,27 @@ function placeRim(d, k, where) {
 function arrangeTo(e) {
   const a = arrange, P = bodyPoint(e), d = JSON.parse(JSON.stringify(a.base)), g = a.drag;
   if (g.kind === 'rim') { placeRim(d, g.k, (Math.round(Math.atan2(P[1], P[0]) * 180 / Math.PI) + 360) % 360); setTrial(d); return; }
+  if (g.kind === 'tip') {   // an outside part's tip: as long as the finger is far, turned toward it (its Length and Tilt)
+    const p = d.parts[g.k], b = p.build, c = CONTROLS[b.tpl] || {}, dx = P[0] - p.at[0], dy = P[1] - p.at[1];
+    if (c.length) { const st = Number(c.length.step) || 1; b.length = Math.max(c.length.min, Math.min(c.length.max, Math.round(Math.hypot(dx, dy) / st) * st)); }
+    else if (b.tpl === 'Spine') b.size = Math.max(10, Math.min(100, Math.round(Math.hypot(dx, dy) / 5) * 5)) / 100;
+    const [t0, t1] = c.tiltRange || [-90, 90];
+    b.tilt = Math.max(t0, Math.min(t1, Math.round(((Math.atan2(dy, dx) * 180 / Math.PI - b.where + 540) % 360 - 180) / 5) * 5));
+    placeRim(d, g.k, b.where); setTrial(d); return;
+  }
+  if (g.kind === 'stretch') {   // a round or rod organelle drawn out (or back) toward the finger, its volume kept
+    const p = d.parts[g.k], B = a.base.parts[g.k], V = Math.PI * B.radius ** 2 * (B.length || 0) + 4 / 3 * Math.PI * B.radius ** 3;
+    const e = Math.hypot(P[0] - B.at[0], P[1] - B.at[1]), rs = Math.cbrt(3 * V / (4 * Math.PI));
+    let r = rs;
+    if (e > rs) {   // half its span e = length/2 + r: 2πe·r² − (2/3)π·r³ = V
+      let lo = 0, hi = rs;
+      for (let n = 0; n < 40; n++) { const m = (lo + hi) / 2; if (2 * Math.PI * e * m * m - 2 / 3 * Math.PI * m ** 3 < V) lo = m; else hi = m; }
+      r = (lo + hi) / 2;
+    }
+    p.radius = r2(r); p.length = r2(Math.max(0, 2 * (e - r)));
+    if (p.length > 0.05) p.angle = Math.round(Math.atan2(P[1] - B.at[1], P[0] - B.at[0]) * 180 / Math.PI / 5) * 5; else { p.length = 0; delete p.angle; }
+    setTrial(d); return;
+  }
   if (g.kind === 'wall') {   // the cell bigger or smaller; organelles keep their size (flattened on the wall if they no longer fit)
     const [cx, cy] = wallCentre(d.body, P[0]);
     d.body.radius = Math.round(Math.max(3, Math.min(50, a.base.body.radius + Math.hypot(P[0] - cx, P[1] - cy) - g.r0)) * 2) / 2;
@@ -3785,7 +3816,7 @@ function arrangeMove(e) {
   const a = arrange;
   if (a.zoomPinch && touches.size === 2) {
     const [p, q] = [...touches.values()];
-    $('arrZoom').value = Math.max(1, Math.min(4, a.zoomPinch.z0 * Math.hypot(p.x - q.x, p.y - q.y) / Math.max(a.zoomPinch.d0, 1)));
+    $('arrZoom').value = Math.max(0.15, Math.min(4, a.zoomPinch.z0 * Math.hypot(p.x - q.x, p.y - q.y) / Math.max(a.zoomPinch.d0, 1)));
     $('arrZoom').oninput();
     return;
   }
@@ -3819,7 +3850,7 @@ function arrangeUp(e) {
   if (g && g.kind === 'place') { a.drag = null; a.pinchF = null; a.zoomPinch = null; placeAt(bodyPoint(e)); return; }
   if (g && g.kind === 'pan' && !g.moved) {   // a tap (no slide, one finger): select what is there and look at it; open water lets go
     if (g.tapK !== undefined && g.tapK !== null) { a.sel = g.tapK; a.selRim = null; lookAt(a.trial.parts[g.tapK].at); }
-    else if (g.tapRim !== undefined && g.tapRim !== null) { a.selRim = g.tapRim; a.sel = null; }
+    else if (g.tapRim !== undefined && g.tapRim !== null) { a.selRim = g.tapRim; a.sel = null; tipInView(); }
     else { a.sel = null; a.selRim = null; }
     showTurn();
   }
@@ -3874,10 +3905,42 @@ function placeAt(P) {
   if (k >= 0 && arrange) {
     const p = design.parts[k];
     if (isInc(p)) { arrange.sel = k; arrange.selRim = null; }
-    else { arrange.sel = null; arrange.selRim = !p.parent || p.parent === 'body' ? k : null; }
+    else { arrange.sel = null; arrange.selRim = !p.parent || p.parent === 'body' ? k : null; tipInView(); }
   }
   showTurn();
 }
+// a long part's tip off the screen: zoom out until its dot can be grabbed
+function tipInView() {
+  const s = Number($('zoom').value), H = arrangeHandle(s);
+  if (!H) return;
+  const r = canvas.getBoundingClientRect(), half = Math.min(r.width, r.height) / 2 / s;
+  if (Math.hypot(H.at[0] - arrange.pan[0], H.at[1] - arrange.pan[1]) < half * 0.6) return;
+  const mid = [H.at[0] / 2, H.at[1] / 2], far = Math.hypot(H.at[0] - mid[0], H.at[1] - mid[1]) + 6;   // the cell and the tip both in view, clear of the sliders
+  lookAt(mid);
+  if (far > half * 0.6) { $('arrZoom').value = Math.max(0.15, Number($('arrZoom').value) * half * 0.6 / far); $('arrZoom').oninput(); }
+}
+// the orange dot on what is selected (body frame; s: the view's scale): an outside part's tip (aim and length), or the
+// end of a round or rod organelle (stretch and turn it; a moulded one is rounded first, ◯ Round)
+function arrangeHandle(s) {
+  const a = arrange;
+  if (!a) return null;
+  if (a.sel !== null) {
+    const p = a.trial.parts[a.sel];
+    if (!p || !isInc(p) || rigid(p) || p.material === 'nucleus' || p.outline || p.bend) return null;
+    const ang = (p.angle || 0) * Math.PI / 180, ux = Math.cos(ang), uy = Math.sin(ang), e = (p.length || 0) / 2 + p.radius + 12 / s;
+    return { kind: 'stretch', k: a.sel, at: [p.at[0] + ux * e, p.at[1] + uy * e] };
+  }
+  if (a.selRim !== null && a.selRim !== undefined) {
+    const p = a.trial.parts[a.selRim], b = p && p.build, c = b && CONTROLS[b.tpl];
+    const L = p && p.at && c ? tipLength(b, c) : null;
+    if (L === null) return null;
+    const ang = (b.where + (b.tilt || 0)) * Math.PI / 180;
+    return { kind: 'tip', k: a.selRim, at: [p.at[0] + Math.cos(ang) * L, p.at[1] + Math.sin(ang) * L] };
+  }
+  return null;
+}
+// how long an outside part is (Length, or a spine's Size: 100 µm at 100%); null: nothing to lengthen
+const tipLength = (b, c) => (c.length ? b.length ?? c.length.def : b.tpl === 'Spine' ? Math.round((b.size ?? 0.2) * 100) : null);
 // the selected part's card (its row from the parts list: its rule, Edit, mirrors, Remove) on top of the Build tab
 function updateSelCard() {
   const box = $('selCard');
@@ -3907,7 +3970,7 @@ function commitIfFits() {
 // the mouse wheel resizes the selected organelle (as a pinch would)
 function arrangeWheel(e) {
   const a = arrange;
-  if (a.sel === null) { $('arrZoom').value = Math.max(1, Math.min(4, Number($('arrZoom').value) * (e.deltaY < 0 ? 1.1 : 1 / 1.1))); $('arrZoom').oninput(); return; }
+  if (a.sel === null) { $('arrZoom').value = Math.max(0.15, Math.min(4, Number($('arrZoom').value) * (e.deltaY < 0 ? 1.1 : 1 / 1.1))); $('arrZoom').oninput(); return; }
   a.base = JSON.parse(JSON.stringify(a.trial));
   a.drag = { kind: 'inc', k: a.sel, off: [0, 0], id: -1 };
   a.pinchF = e.deltaY < 0 ? 1.08 : 1 / 1.08;
