@@ -48,6 +48,17 @@
     .sec[data-fold].folded > :not(h2) { display: none !important; }
   }
   .sec > button { align-self: flex-start; }
+  .bsub { display: flex; flex-direction: column; gap: 8px; } .bsub > * { flex-shrink: 0; } .bsub > button { align-self: flex-start; }
+  .bsub h2 { color: var(--hue); }
+  #exactBox { display: flex; flex-direction: column; gap: 8px; } #exactBox > summary { margin-bottom: 2px; }
+  #exactBox:not([open]) > :not(summary) { display: none; }
+  #selCard { border: 1px solid #5fd0ff; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: rgba(95,208,255,.06); }
+  #selCard[hidden] { display: none; }
+  #selCard .selHead { display: flex; gap: 6px; align-items: center; color: #9fe2ff; font-size: 12px; }
+  #selCard .selHead span { flex: 1; }
+  #placeBar { position: absolute; left: 40px; right: 40px; top: 58px; z-index: 7; display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 10px; background: rgba(8,14,26,.9); border: 1px solid #ffc952; font-size: 13px; }
+  #placeBar[hidden] { display: none; }
+  #placeBar b { color: #ffc952; } #placeBar button { margin-left: auto; }
   #panelTop { display: flex; flex-direction: column; gap: 6px; }
   #savedList { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 10px; }
   #savedList .sv { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #22394f; border-radius: 9px; background: rgba(16,32,47,.6); }
@@ -138,7 +149,7 @@
   #missionCard .mcgo { background: var(--h-miss); color: #1a1406; border-color: var(--h-miss); }
   #patchBtn { display: none; }   /* a phone or a narrow screen: the rules are in the Parts tab already */
   #partList .bslots { margin-bottom: 6px; }
-  body.arranging #missionBar, body.arranging #missionCard { display: none !important; }   /* arranging: the bar steps aside for the arrange buttons */
+  body.arranging #missionBar { display: none !important; }   /* arranging: the bar steps aside for the arrange buttons */
   #stats { position: absolute; top: 52px; left: 8px; font: 11.5px/1.45 ui-monospace, Consolas, monospace; white-space: pre;
     background: rgba(8,14,26,.78); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; pointer-events: none; }
 
@@ -353,6 +364,7 @@
     /* arranging: the rail steps aside for the arrange view's sliders and buttons */
     body.arranging #view { padding-left: 0; }
     body.arranging #bar { display: none; }
+    #arrangeBtn { display: none; }   /* a phone: the Build tab is the arranging view */
     #arrButtons { top: 6px; }
     /* the panel: section tabs down its left edge, one section at a time; Undo / Redo and messages pinned on top */
     #panel { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); padding: 0; gap: 0; overflow: hidden; }
@@ -428,10 +440,8 @@
     #panelTop { grid-column: 1 / -1; }
     .sec[data-sec=missions] { grid-column: 1 / -1; grid-row: 2; }
     .sec[data-sec=match] { grid-column: 1 / -1; grid-row: 6; }
-    .sec[data-sec=body] { grid-column: 1; grid-row: 3; }
-    .sec[data-sec=add] { grid-column: 1; grid-row: 4 / span 2; }
-    .sec[data-sec=parts] { grid-column: 2; grid-row: 3 / span 2; border-left: 1px solid var(--line); }
-    .sec[data-sec=tank] { grid-column: 2; grid-row: 5; border-left: 1px solid var(--line); }
+    .sec[data-sec=build] { grid-column: 1; grid-row: 3 / span 3; }
+    .sec[data-sec=tank] { grid-column: 2; grid-row: 3 / span 3; border-left: 1px solid var(--line); }
   }
     #bar #oceanBtn { background: linear-gradient(180deg, #1c6a86, #0b3247); border-color: #ffc952; color: #ffe7a8; font-weight: 700; }
 </style>
@@ -491,6 +501,7 @@
   </div>
   <div id="stats"></div>
   <div id="toast" hidden></div>
+  <div id="placeBar" hidden></div>
   <div id="labStart" hidden><div class="card"><div class="t">🧪 The Lab</div><div class="s">Design a phytoplankton species from parts and test it here.</div>
     <button id="newCell" class="big">＋ New cell</button>
     <div class="row2"><button id="startSaved">📂 My designs</button><button id="startMiss">🎯 Missions</button></div><button id="startOcean" class="toOcean">🌊 Back to the Ocean</button></div></div>
@@ -517,9 +528,7 @@
   <nav id="tabs">
     <button data-sec="missions" style="--hue: var(--h-miss)" title="Missions: short goals, each teaching one part; finishing one opens its part for free building">Missions</button>
     <button data-sec="match" style="--hue: var(--h-match)" title="Matches: the species you are building against a rival species, in one tank">Match</button>
-    <button data-sec="body" style="--hue: var(--h-body)" title="The cell's body: size, shape, wall">Body</button>
-    <button data-sec="add" style="--hue: var(--h-add)" title="Add a part to the body">Add</button>
-    <button data-sec="parts" style="--hue: var(--h-parts)" title="The parts on this body, their rules, arranging, the nucleus">Parts</button>
+    <button data-sec="build" style="--hue: var(--h-add)" title="Build the cell: tap a part, then the cell where it goes; tap what is on the cell to move, shape or wire it">Build</button>
     <button data-sec="tank" style="--hue: var(--h-tank)" title="Cells in the tank, saved designs, sending to Claude">Tank</button>
   </nav>
   <section class="sec" data-sec="missions" data-fold style="--hue: var(--h-miss)">
@@ -533,7 +542,44 @@
     <div id="matchRun" hidden></div>
     <div id="matchList"></div>
   </section>
-  <section class="sec" data-sec="body" style="--hue: var(--h-body)">
+  <section class="sec" data-sec="build" style="--hue: var(--h-add)">
+    <div id="selCard" hidden></div>
+  <div class="bsub" data-sub="add">
+    <h2>Add a part</h2>
+    <div id="chips"></div>
+    <div id="lockNote" hidden></div>
+    <details id="exactBox"><summary>Where and exactly how (sliders, ＋ Add to body)</summary>
+    <div class="row" id="onRow" title="Put the part on the body or on one of its lobes (Where then goes round that lobe: 0° its tip, 180° where it joins)">On <select id="partOn"><option value="body">the body</option></select></div>
+    <div class="slider" title="Where on the body: 0° front (right), 180° back">Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180"><span id="partAngleOut"></span></div>
+    <div class="slider" id="tiltRow" title="Turn the part away from pointing straight out (a side flagellum needs tilt to turn the cell)"><span id="tiltLabel">Tilt</span> <input type="range" id="partTilt" min="-90" max="90" step="5" value="0"><span id="partTiltOut"></span></div>
+    <div class="slider" id="lengthRow" title="How long the part is: longer pushes harder, but drags more and costs more upkeep">Length <input type="range" id="partLength" min="10" max="100" step="5" value="40"><span id="partLengthOut"></span></div>
+    <div class="slider" id="insideRow" title="0 = centre, 100 = against the wall; droplets and vacuoles can't overlap">Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100"><span id="partInsideOut"></span></div>
+    <div class="slider" id="sizeRow"><span id="sizeLabel">Size</span> <input type="range" id="partSize" min="10" max="100" step="5" value="40"><span id="partSizeOut"></span></div>
+    <button id="addPart">＋ Add to body</button>
+    <button id="cancelEdit" hidden>Stop editing</button>
+    </details>
+    <div class="row" id="flipRow"><button id="flipBtn" title="Mirror the part about its own line: it beats the other way (a spring's jump curves to the other side)">⇅ Flip</button>
+      <button id="pullBtn" title="Pull: the wave runs from the tip toward the body, so the tail pulls the cell after it instead of pushing">⇠ Pull</button></div>
+    <div class="row" id="feelsRow" title="What a touch or proximity sensor reacts to">Feels <span class="seg" id="feelsSeg"></span></div>
+    <div class="row" id="pigmentRow" title="What the plastid catches light with">Pigment <span class="seg" id="pigmentSeg"></span></div>
+    <div class="row" id="materialRow" title="A plain spine, a harpoon that fires a dart along itself, or a tether: a dart on a line that ties it to what it hits and reels it in">Kind <span class="seg" id="materialSeg"></span></div>
+    <div class="row" id="sticksRow" title="A kin pad holds only its own species, strongly; a mucus pad holds anything, weakly; a partner pad holds only a partner pad of another species, strongly, and the two share energy and nitrogen">Sticks to <span class="seg" id="sticksSeg"></span></div>
+    <div class="row" id="toxRow" title="Burst: the cell dies poisoning those close by. Leak: it releases toxin into the water while its rule holds">Kind <span class="seg" id="toxSeg"></span></div>
+    <div class="row" id="contentRow" title="What the vacuole holds decides what it does">Content <span class="seg" id="contentSeg"></span></div>
+    <div id="contentTip" class="tip"></div>
+  </div>
+  <div class="bsub" data-sub="parts">
+    <h2>On this body</h2>
+    <button id="clearParts" title="Remove every part, keep the body (Undo brings them back)">🗑 Delete all</button>
+    <button id="arrangeBtn" title="Hold the cell still and large: slide to look around; tap an organelle to select it, then drag it, pinch anywhere to resize it; drag the wall to resize the cell">✋ Arrange inside the cell</button>
+    <button id="squishBtn" hidden title="Make the overlapping organelles give way: they flatten against each other and the wall">🫧 Squish to fit</button>
+    <div id="arrangeTools" hidden>
+      <div class="slider" title="Turn the selected organelle (a statolith: the way it reads)">Turn <input type="range" id="arrTurn" min="-180" max="180" step="5" value="0"><span id="arrTurnOut"></span></div>
+    </div>
+    <button id="patchBtn" title="Open the nucleus, the cell's brain: every part's rule in one place (or tap the nucleus in the tank)">🧬 Open the nucleus (rules)</button>
+    <div id="partList"></div>
+  </div>
+  <div class="bsub" data-sub="body">
     <h2>Body</h2>
     <div id="shapeBox">
       <div class="shapeHead"><b>Shape</b><span id="lobeCount"></span></div>
@@ -557,39 +603,7 @@
     <div class="row" title="Plain: a thin protein wall. Plates: cellulose armour (like armoured dinoflagellates): a peduncle pays more to pierce it, but plates are heavy and each division must build them">Wall <span class="seg" id="wallSeg"></span></div>
     <div class="slider" id="platesRow" title="How thick the plates are: thicker, dearer to pierce (×1 + 2 per µm) and softer harpoon wounds (÷1 + 2 per µm), heavier and costlier to build at each division. Up to 2 µm, or a tenth of the radius on big cells">Thickness <input type="range" id="bodyPlates" min="0.25" max="2" step="0.25" value="0.5"><span id="bodyPlatesOut"></span></div>
     <div class="tip" id="platesNote"></div>
-  </section>
-  <section class="sec" data-sec="add" style="--hue: var(--h-add)">
-    <h2>Add a part</h2>
-    <div id="chips"></div>
-    <div id="lockNote" hidden></div>
-    <div class="row" id="onRow" title="Put the part on the body or on one of its lobes (Where then goes round that lobe: 0° its tip, 180° where it joins)">On <select id="partOn"><option value="body">the body</option></select></div>
-    <div class="slider" title="Where on the body: 0° front (right), 180° back">Where <input type="range" id="partAngle" min="0" max="355" step="5" value="180"><span id="partAngleOut"></span></div>
-    <div class="slider" id="tiltRow" title="Turn the part away from pointing straight out (a side flagellum needs tilt to turn the cell)"><span id="tiltLabel">Tilt</span> <input type="range" id="partTilt" min="-90" max="90" step="5" value="0"><span id="partTiltOut"></span></div>
-    <div class="slider" id="lengthRow" title="How long the part is: longer pushes harder, but drags more and costs more upkeep">Length <input type="range" id="partLength" min="10" max="100" step="5" value="40"><span id="partLengthOut"></span></div>
-    <div class="row" id="flipRow"><button id="flipBtn" title="Mirror the part about its own line: it beats the other way (a spring's jump curves to the other side)">⇅ Flip</button>
-      <button id="pullBtn" title="Pull: the wave runs from the tip toward the body, so the tail pulls the cell after it instead of pushing">⇠ Pull</button></div>
-    <div class="slider" id="insideRow" title="0 = centre, 100 = against the wall; droplets and vacuoles can't overlap">Inside <input type="range" id="partInside" min="0" max="100" step="5" value="100"><span id="partInsideOut"></span></div>
-    <div class="row" id="feelsRow" title="What a touch or proximity sensor reacts to">Feels <span class="seg" id="feelsSeg"></span></div>
-    <div class="slider" id="sizeRow"><span id="sizeLabel">Size</span> <input type="range" id="partSize" min="10" max="100" step="5" value="40"><span id="partSizeOut"></span></div>
-    <div class="row" id="pigmentRow" title="What the plastid catches light with">Pigment <span class="seg" id="pigmentSeg"></span></div>
-    <div class="row" id="materialRow" title="A plain spine, a harpoon that fires a dart along itself, or a tether: a dart on a line that ties it to what it hits and reels it in">Kind <span class="seg" id="materialSeg"></span></div>
-    <div class="row" id="sticksRow" title="A kin pad holds only its own species, strongly; a mucus pad holds anything, weakly; a partner pad holds only a partner pad of another species, strongly, and the two share energy and nitrogen">Sticks to <span class="seg" id="sticksSeg"></span></div>
-    <div class="row" id="toxRow" title="Burst: the cell dies poisoning those close by. Leak: it releases toxin into the water while its rule holds">Kind <span class="seg" id="toxSeg"></span></div>
-    <div class="row" id="contentRow" title="What the vacuole holds decides what it does">Content <span class="seg" id="contentSeg"></span></div>
-    <div id="contentTip" class="tip"></div>
-    <button id="addPart">＋ Add to body</button>
-    <button id="cancelEdit" hidden>Stop editing</button>
-  </section>
-  <section class="sec" data-sec="parts" style="--hue: var(--h-parts)">
-    <h2>On this body</h2>
-    <button id="clearParts" title="Remove every part, keep the body (Undo brings them back)">🗑 Delete all</button>
-    <button id="arrangeBtn" title="Hold the cell still and large: slide to look around; tap an organelle to select it, then drag it, pinch anywhere to resize it; drag the wall to resize the cell">✋ Arrange inside the cell</button>
-    <button id="squishBtn" hidden title="Make the overlapping organelles give way: they flatten against each other and the wall">🫧 Squish to fit</button>
-    <div id="arrangeTools" hidden>
-      <div class="slider" title="Turn the selected organelle (a statolith: the way it reads)">Turn <input type="range" id="arrTurn" min="-180" max="180" step="5" value="0"><span id="arrTurnOut"></span></div>
-    </div>
-    <button id="patchBtn" title="Open the nucleus, the cell's brain: every part's rule in one place (or tap the nucleus in the tank)">🧬 Open the nucleus (rules)</button>
-    <div id="partList"></div>
+  </div>
   </section>
   <section class="sec" data-sec="tank" style="--hue: var(--h-tank)">
     <h2>Tank</h2>

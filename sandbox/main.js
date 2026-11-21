@@ -607,6 +607,7 @@ function startEditing(b) {
   else if (b.tpl === 'Toxin sac') $('partToxKind').value = b.content === 'leak' ? 'leak' : 'burst';
   else if (b.content) $('partContent').value = b.content;
   $('partWhat').value = b.tpl; fillOn(); $('partOn').value = b.on && lobeById(design, b.on) ? b.on : 'body'; showControls(); showSection('add');
+  $('exactBox').open = true;
   $('partAngle').value = b.where; $('partTilt').value = b.tilt;
   $('partSize').value = Math.round(b.size * 100); $('partInside').value = Math.round(b.depth * 100);
   if (b.feels) $('partFeels').value = b.feels;
@@ -1836,6 +1837,7 @@ function listParts() {
       const gone = new Set([...g.members, ...ownRules(g).flatMap((x) => x.members)].map((m) => design.parts.indexOf(m)));
       d.parts = d.parts.filter((_, i) => !gone.has(i));
       unplug(d, new Set(g.members.map((m) => m.id).filter(Boolean)));
+      if (arrange) { arrange.sel = null; arrange.selRim = null; }
       applyDesign(d);
     };
     box.appendChild(row);
@@ -1843,6 +1845,7 @@ function listParts() {
   if (!box.children.length) box.textContent = 'No parts yet: just a body.';
   drawPatch();   // the patch view follows every change (when open)
   showBudget();
+  try { if (arrange) updateSelCard(); } catch (e) { /* the page still loading: arranging isn't set up yet */ }
 }
 
 // A new tank with the design. Rebuilding after an edit (carry: the old world, its selected cell and design) keeps the
@@ -2522,6 +2525,12 @@ function draw() {
       const tx = X(wx), ty = top - 12, w = ctx.measureText(name).width + 12;
       ctx.fillStyle = 'rgba(6,10,18,.8)'; ctx.fillRect(tx - w / 2, ty - 13, w, 18);
       ctx.fillStyle = '#ffffff'; ctx.fillText(name, tx, ty); ctx.textAlign = 'left';
+    }
+    const rp = arrange.selRim !== null && arrange.selRim !== undefined ? arrange.trial.parts[arrange.selRim] : null;
+    if (rp && rp.at) {   // a selected outside part: a dashed ring where it joins the body
+      const [wx, wy] = toW(rp.at);
+      ctx.strokeStyle = '#5fd0ff'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.arc(X(wx), Y(wy), 14, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
     }
   }
   drawPreview(X, Y, s);
@@ -3601,16 +3610,19 @@ function bodyPoint(e) {
 // tap (no slide) on an organelle selects it (author, 2026-10-29: edge reshaping was dropped, it caught the grab).
 function arrangeHit(e) {
   const P = bodyPoint(e), s = Number($('zoom').value), d = arrange.trial, tol = 16 / s;   // about a fingertip
-  const sel = arrange.sel !== null ? d.parts[arrange.sel] : null;
-  if (sel) {
-    if (polyDist(bodyPoints(sel), P[0], P[1]) < tol) return { k: arrange.sel, kind: 'inc', off: [sel.at[0] - P[0], sel.at[1] - P[1]] };
-    return { kind: 'pan' };
-  }
+  if (placing) return { kind: 'place' };   // a part picked in Build: the tap puts it there
   let inc = null, incD = tol, rim = null, rimD = tol;
   d.parts.forEach((p, k) => {
     if (isInc(p)) { const g = polyDist(bodyPoints(p), P[0], P[1]); if (g < incD) { incD = g; inc = k; } }
     else if ((!p.parent || p.parent === 'body') && p.at) { const g = Math.hypot(p.at[0] - P[0], p.at[1] - P[1]) - 2; if (g < rimD) { rimD = g; rim = k; } }
   });
+  // one selected: on it the finger moves it; elsewhere it pans, and a tap selects what is there (open water: lets go)
+  const sel = arrange.sel !== null ? d.parts[arrange.sel] : null;
+  if (sel) {
+    if (polyDist(bodyPoints(sel), P[0], P[1]) < tol) return { k: arrange.sel, kind: 'inc', off: [sel.at[0] - P[0], sel.at[1] - P[1]] };
+    const onRim = rim !== null && (inc === null || (incD >= 0 && rimD < incD));
+    return { kind: 'pan', tapK: onRim ? null : inc, tapRim: onRim ? rim : null };
+  }
   if (incD < 0) return { kind: 'pan', tapK: inc };   // inside an organelle
   if (rim !== null && rimD < incD) return { k: rim, kind: 'rim' };
   const [cx, cy] = wallCentre(d.body, P[0]), r = Math.hypot(P[0] - cx, P[1] - cy);
@@ -3653,10 +3665,12 @@ function arrangeTo(e) {
 // the Zoom slider (closer than the arrange view starts) and the selected organelle's Turn
 function showTurn() {
   const a = arrange, p = a && a.sel !== null ? a.trial.parts[a.sel] : null;
-  $('arrTurn').disabled = !p; $('arrDeselect').disabled = !p; $('arrRemove').disabled = !p;
+  const rimSel = a && a.selRim !== null && a.selRim !== undefined;
+  $('arrTurn').disabled = !p; $('arrDeselect').disabled = !p && !rimSel; $('arrRemove').disabled = !p && !rimSel;
   $('arrRound').disabled = !p || rigid(p) || !(p.outline || p.bend || p.length);
   if (p) $('arrTurn').value = Math.round(((p.angle || 0) + 540) % 360 - 180);
   $('arrTurnOut').textContent = p ? `${$('arrTurn').value}°` : 'select one';
+  updateSelCard();
 }
 $('arrZoom').oninput = () => { if (!arrange) return; $('zoom').value = Math.min(40, arrange.zoom0 * Number($('arrZoom').value)); };
 // the view's centre in the body's frame: X / Y sliders (a share of the cell's size each way); selecting centres on it
@@ -3675,7 +3689,7 @@ $('arrTurn').oninput = () => {
   setTrial(d); $('arrTurnOut').textContent = `${$('arrTurn').value}°`;
 };
 $('arrTurn').onchange = () => { if (arrange) commitIfFits(); };
-$('arrDeselect').onclick = () => { if (arrange) { arrange.sel = null; showTurn(); } };
+$('arrDeselect').onclick = () => { if (arrange) { arrange.sel = null; arrange.selRim = null; showTurn(); } };
 // the selected organelle round again (author, 2026-11-21: a moulded one was very hard to get back to a ball): a ball of
 // the same volume where its middle was; red if it no longer fits there (Fit packs it)
 $('arrRound').onclick = () => {
@@ -3689,6 +3703,9 @@ $('arrRound').onclick = () => {
 // the selected organelle removed (its cables unplugged; one Undo step once the rest fits)
 $('arrRemove').onclick = () => {
   const a = arrange;
+  if (a && a.sel === null && a.selRim !== null && a.selRim !== undefined) {   // an outside part: as its card's Remove (its own rules go too)
+    const btn = $('selCard').querySelector('.remove'); a.selRim = null; if (btn) btn.click(); showTurn(); return;
+  }
   if (!a || a.sel === null) return;
   const d = JSON.parse(JSON.stringify(a.trial)), p = d.parts[a.sel];
   d.parts.splice(a.sel, 1);
@@ -3709,7 +3726,7 @@ $('arrRedo').onclick = () => { if (arrange) arrangeTravel(future, past); };
 function startArrange() {
   if (arrange || !cell || cell.design !== design) return;
   const W = canvas.clientWidth, H = canvas.clientHeight, b = design.body;
-  arrange = { prev: { view: $('viewMode').value, zoom: $('zoom').value }, trial: JSON.parse(JSON.stringify(design)), cell: null, sel: null, drag: null, base: null, pinchF: null, problems: { over: new Set(), msg: '' } };
+  arrange = { prev: { view: $('viewMode').value, zoom: $('zoom').value }, trial: JSON.parse(JSON.stringify(design)), cell: null, sel: null, selRim: null, drag: null, base: null, pinchF: null, problems: { over: new Set(), msg: '' } };
   playing = false; $('play').textContent = '▶'; document.body.classList.add('arranging'); $('barMore').classList.remove('open');
   $('viewMode').value = 'follow';
   const whole = shapeCell(design);   // the whole cell in view, lobes included
@@ -3730,7 +3747,7 @@ function stopArrange(force) {
   }
   if (!force && JSON.stringify(arrange.trial) !== JSON.stringify(design)) applyDesign(JSON.parse(JSON.stringify(arrange.trial)));
   $('viewMode').value = arrange.prev.view; $('zoom').value = arrange.prev.zoom;
-  arrange = null; document.body.classList.remove('arranging');
+  arrange = null; document.body.classList.remove('arranging'); stopPlacing(); updateSelCard();
   $('arrangeTools').hidden = true; $('arrangeView').hidden = true;
   $('arrangeBtn').textContent = '✋ Arrange inside the cell';
   $('squishBtn').hidden = true;
@@ -3773,6 +3790,9 @@ function arrangeMove(e) {
     return;
   }
   if (!a.drag) return;
+  if (a.drag.kind === 'place') {   // a slide, not a tap: it looks around instead
+    if (Math.hypot(e.clientX - a.drag.x, e.clientY - a.drag.y) > 10) a.drag.kind = 'pan'; else return;
+  }
   if (a.pinchF && touches.size === 2) {
     const [p, q] = [...touches.values()];
     a.pinchF = Math.max(0.3, Math.min(3, Math.hypot(p.x - q.x, p.y - q.y) / Math.max(a.pinch0, 1)));
@@ -3795,12 +3815,84 @@ function arrangeUp(e) {
   touches.delete(e.pointerId);
   const a = arrange;
   if (touches.size > 0) return;
-  const g = a.drag;   // a tap on an organelle (no slide, one finger): select it and look at it
-  if (g && g.kind === 'pan' && !g.moved && g.tapK !== undefined && g.tapK !== null && a.sel === null) {
-    a.sel = g.tapK; lookAt(a.trial.parts[g.tapK].at); showTurn();
+  const g = a.drag;
+  if (g && g.kind === 'place') { a.drag = null; a.pinchF = null; a.zoomPinch = null; placeAt(bodyPoint(e)); return; }
+  if (g && g.kind === 'pan' && !g.moved) {   // a tap (no slide, one finger): select what is there and look at it; open water lets go
+    if (g.tapK !== undefined && g.tapK !== null) { a.sel = g.tapK; a.selRim = null; lookAt(a.trial.parts[g.tapK].at); }
+    else if (g.tapRim !== undefined && g.tapRim !== null) { a.selRim = g.tapRim; a.sel = null; }
+    else { a.sel = null; a.selRim = null; }
+    showTurn();
   }
+  if (g && g.kind === 'rim') { a.selRim = g.k; a.sel = null; showTurn(); }
   a.drag = null; a.pinchF = null; a.zoomPinch = null;
   commitIfFits();
+}
+// ----- Build on the cell (author, 2026-11-21): a part button picks the part, a tap on the cell puts it there -----
+let placing = null;   // the template picked, waiting for its tap
+function startPlacing(name) {
+  if (!partAllowed(name)) { $('buildErr').textContent = 'that part opens in 🎯 Missions'; return; }
+  if (placing === name) { stopPlacing(); return; }
+  placing = name; $('partWhat').value = name; $('partWhat').dispatchEvent(new Event('change'));
+  previewOn = false; updatePreview();
+  arrange.sel = null; arrange.selRim = null; showTurn();
+  const inside = (CONTROLS[name] || {}).inside;
+  $('placeBar').innerHTML = `<span>Tap ${inside ? 'inside the cell' : "the cell's edge"} to put the <b>${SHORT[name] || name}</b> there</span><button id="placeCancel" title="Don't add it">✕</button>`;
+  $('placeBar').hidden = false; $('placeCancel').onclick = stopPlacing;
+}
+function stopPlacing() { placing = null; $('placeBar').hidden = true; }
+function placeAt(P) {
+  const name = placing, c = CONTROLS[name] || {}, id = `p${Date.now() % 100000}_${++partCount}`;
+  const builds = (ps) => { try { const d = withPart(JSON.parse(JSON.stringify(design)), ps); buildCell(JSON.parse(JSON.stringify(d))); return d; } catch (e) { return null; } };
+  const whole = lobesOf(design).length ? shapeCell(design) : null, frames = whole ? lobeFrames(whole) : [];
+  let d = null;
+  if (c.inside) {   // where the finger is; else a little nearer the middle of the body or lobe holding it; else anywhere with room
+    const f = holderOf(frames, design.body, P), mid = f ? [f.root[0] + Math.cos(f.dir) * f.L / 2, f.root[1] + Math.sin(f.dir) * f.L / 2] : [0, 0];
+    for (let t = 0; t <= 1.001 && !d; t += 0.125) d = builds(makePart(design.body, id, { at: [r2(P[0] + (mid[0] - P[0]) * t), r2(P[1] + (mid[1] - P[1]) * t)] }));
+    if (!d) { const spot = findFit(id); if (spot) d = builds(makePart(design.body, id, spot)); }
+  } else {   // on the rim of the body or of the lobe nearest the finger, pointing out there
+    const b = design.body, h = (b.length || 0) / 2;
+    let best = null, bd = Math.abs(Math.hypot(Math.max(Math.abs(P[0]) - h, 0), P[1]) - b.radius);
+    for (const f of frames) {
+      const ux = Math.cos(f.dir), uy = Math.sin(f.dir), t = Math.max(0, Math.min(f.L, (P[0] - f.root[0]) * ux + (P[1] - f.root[1]) * uy));
+      const g = Math.abs(Math.hypot(P[0] - f.root[0] - ux * t, P[1] - f.root[1] - uy * t) - f.r);
+      if (g < bd) { bd = g; best = f; }
+    }
+    fillOn();
+    let deg;
+    if (best) {   // a lobe's own frame: x along it from its middle (0°: its tip)
+      const ux = Math.cos(best.dir), uy = Math.sin(best.dir), mx = P[0] - best.root[0] - ux * best.L / 2, my = P[1] - best.root[1] - uy * best.L / 2;
+      $('partOn').value = best.id; deg = Math.atan2(-uy * mx + ux * my, ux * mx + uy * my) * 180 / Math.PI;
+    } else { $('partOn').value = 'body'; deg = Math.atan2(P[1], P[0]) * 180 / Math.PI; }
+    $('partAngle').value = ((Math.round(deg / 5) * 5) % 360 + 360) % 360; showAngle();
+    d = builds(makePart(design.body, id));
+  }
+  if (!d) { $('buildErr').textContent = `no room there for the ${SHORT[name] || name}: try another spot, or make it smaller under "Where and exactly how"`; return; }
+  if (slotsShort(d)) return;
+  stopPlacing();
+  if (!applyDesign(d)) return;
+  const k = design.parts.findIndex((p) => p.build && p.build.id === id);
+  if (k >= 0 && arrange) {
+    const p = design.parts[k];
+    if (isInc(p)) { arrange.sel = k; arrange.selRim = null; }
+    else { arrange.sel = null; arrange.selRim = !p.parent || p.parent === 'body' ? k : null; }
+  }
+  showTurn();
+}
+// the selected part's card (its row from the parts list: its rule, Edit, mirrors, Remove) on top of the Build tab
+function updateSelCard() {
+  const box = $('selCard');
+  const k = arrange ? (arrange.sel !== null ? arrange.sel : arrange.selRim) : null;
+  const p = k !== null && k !== undefined ? arrange.trial.parts[k] : null;
+  const same = (m) => p && ((m.build && p.build && m.build.id === p.build.id) || (m.id && m.id === p.id));
+  const g = p ? partGroups(design.parts || []).find((x) => x.members.some(same)) : null;
+  const row = g ? document.querySelector(`#partList .part[data-key="${CSS.escape(partKey(g.members[0]))}"]`) : null;
+  if (!row) { box.hidden = true; box.innerHTML = ''; updateSelCard.last = null; return; }
+  box.innerHTML = '<div class="selHead"><span>Selected: drag it on the cell · tap open water to let go</span><button class="desel" title="Let go of it">✕</button></div>';
+  box.appendChild(row); box.hidden = false;
+  const key = partKey(g.members[0]);
+  if (key !== updateSelCard.last) box.scrollIntoView({ block: 'nearest' });   // a new selection: its card in view
+  updateSelCard.last = key;
+  box.querySelector('.desel').onclick = () => { arrange.sel = null; arrange.selRim = null; showTurn(); };
 }
 // what fits becomes the design at once (one Undo step); what doesn't waits, red, until it fits or ✓ Done
 function commitIfFits() {
@@ -3926,11 +4018,29 @@ $('zoomOut').onclick = () => zoomBy(1 / 1.4);
 // The panel's sections: on a phone one at a time, picked from the tabs down its left edge (a computer shows them all).
 // The game opens the one it sends you to: tapping a part in the tank opens Parts, picking or editing a part opens Add.
 const SECTION_KEY = 'tinygod.section';
+// Body, Add and Parts are one Build tab (author, 2026-11-21; mock-up https://claude.ai/artifact/MGEX8boAPXAuXxUWjdjonm):
+// on a phone it is the arranging view itself (the tank paused, the cell big): tap a part, then the cell where it goes;
+// tap what is on the cell to move, shape or wire it. Code still asks for 'body', 'add' or 'parts': Build, scrolled there.
+const PHONE = window.matchMedia('(max-width: 760px)');
+if (!PHONE.matches) $('exactBox').open = true;   // a computer: the sliders stay the usual way to place a part
 function showSection(name) {
-  if (!['missions', 'match', 'body', 'add', 'parts', 'tank'].includes(name)) name = 'missions';
+  let sub = null;
+  if (['body', 'add', 'parts'].includes(name)) { sub = name; name = 'build'; }
+  if (!['missions', 'match', 'build', 'tank'].includes(name)) name = 'missions';
   for (const el of document.querySelectorAll('.sec')) el.classList.toggle('show', el.dataset.sec === name);
   for (const b of $('tabs').querySelectorAll('button')) b.classList.toggle('on', b.dataset.sec === name);
   try { localStorage.setItem(SECTION_KEY, name); } catch (e) { /* private mode: not remembered */ }
+  if (sub) { const el = document.querySelector(`.bsub[data-sub="${sub}"]`); if (el && el.offsetParent) el.scrollIntoView({ block: 'nearest' }); }
+  buildMode(name === 'build');
+}
+// on a phone the Build tab arranges; leaving it lets go (what didn't fit yet is dropped, what fitted is the design already)
+function buildMode(on) {
+  if (!PHONE.matches) return;
+  if (on && !arrange) requestAnimationFrame(() => { if (!arrange && cell && design && cell.design === design && document.querySelector('.sec[data-sec="build"].show')) startArrange(); });
+  if (!on && arrange) {
+    stopPlacing(); stopArrange();
+    if (arrange) { stopArrange(true); $('buildErr').textContent = 'what was red in Build was dropped (it did not fit)'; }
+  }
 }
 for (const b of $('tabs').querySelectorAll('button')) b.onclick = () => showSection(b.dataset.sec);
 // On a computer the Missions and Matches sections fold to their heading (author, 2026-11-09: "so it doesn't take too
@@ -4007,6 +4117,7 @@ for (const [cat, names] of Object.entries(SHOWN)) {
     b.className = 'pbtn'; b.title = name; b.dataset.v = name;
     b.innerHTML = `${partIcon(name)}<span>${SHORT[name] || name}</span>`;
     b.onclick = () => {   // picking a part shows its ghost; tapping the lit one again hides it
+      if (arrange && !editing) { startPlacing(name); return; }   // building on the cell: tap where it goes
       if (!editing && previewOn && $('partWhat').value === name) { previewOn = false; updatePreview(); return; }
       previewOn = true; showSection('add');
       $('partWhat').value = name; $('partWhat').dispatchEvent(new Event('change'));
@@ -4247,7 +4358,7 @@ function startMission(i) {
   missionBar(true); syncChips(); showMissions(); missionCard('intro');
   const tpl = m.teaches[0] || (m.builder && m.builder.tpl);   // the part it teaches, or the one it is about
   if (tpl && !tpl.startsWith('Light sensor')) {
-    showSection('add'); $('partWhat').value = tpl;
+    showSection('add'); $('partWhat').value = tpl; $('exactBox').open = true;   // its preset (Where, Pull…) and ＋ Add to body in view
     if (m.builder && m.builder.where !== undefined) { $('partAngle').value = m.builder.where; showAngle(); }
     if (m.builder && m.builder.pull !== undefined) $('partPull').checked = m.builder.pull;
     $('partWhat').dispatchEvent(new Event('change'));
