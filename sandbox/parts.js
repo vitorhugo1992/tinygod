@@ -236,7 +236,7 @@ export const CONTROLS = {
   'Toxin sac': { size: (s) => `${Math.round(100 * s)}% thick`, inside: true, sizeDefault: 30, toxkind: true, ...ROD,
     tip: () => 'Burst: its rule BURSTS when… (e.g. when it is being drained); bursting kills the cell and poisons other species within 30 µm. Leak: its rule LEAKS when… (no rule: always); it releases toxin into the water, a cloud that drifts with the currents, spreads and fades; other species in it lose energy and their plastids are damaged. Kin are immune to both. Leaking costs energy and nitrogen (a bigger sac leaks more); currents carry a lone cell\'s cloud away, a crowd\'s builds up' },
   'Statolith (which way is up)': { size: room, inside: true, tilt: true, tiltLabel: 'Faces', tiltRange: [-180, 180], sizeDefault: 20 },
-  'Nutrient sensor': { tip: () => 'Reads the nitrogen in the water where it is: poor in the upper half, rich below the nutricline (~1 mm down), less where cells have used it up. A sense of depth (keep a resting cell off the floor) and of where the food for growth is.' },
+  'Nutrient sensor': { tip: () => 'Reads the nitrogen right where it is: poor near the top, richer below the nutricline (~1.4 mm down), less where cells have used it up. It also changes across the tank: rich patches wander about (2-3× richer), poor stretches between them (as low as 0.3×), so it finds food rather than depth: in a poor patch even the floor reads low.' },
   'Wave tail (swims)': { tilt: true, flip: true, pull: true, length: { min: 16, max: 96, step: 8, def: 48 } },
   'Flexible oar (swims)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },
   'Stiff flap (goes nowhere)': { tilt: true, flip: true, length: { min: 10, max: 100, step: 5, def: 40 } },

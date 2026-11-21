@@ -1,7 +1,7 @@
 // Offline: keeps a copy of the sandbox (this folder and ../sim/) so a phone that opened it once runs it with no
 // connection. Network first: online it always gets the newest files (and refreshes the copy); offline, or when the
 // network is too slow, the copy. Registered only on https (the website), not on the home server.
-const CACHE = 'tinygod-v23';
+const CACHE = 'tinygod-v24';
 const FILES = ['./', 'index.html', 'main.js', 'parts.js', 'missions.js', 'matches.js', 'match.js', 'match-worker.js', 'ocean.js', 'release.js', 'ocean-live.js', 'ocean-worker.js', 'journal.js', 'mould.js', 'scene.js', 'sound.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
   ...['params', 'rng', 'dmath', 'materials', 'build', 'physics', 'interact', 'sense', 'light', 'nutrient', 'divide', 'grow', 'death', 'metab', 'world', 'brain', 'shape', 'flow', 'toxin', 'shade', 'entry', 'match', 'record', 'start', 'save', 'rich',
     'presets'].map((f) => `../sim/${f}.js`),

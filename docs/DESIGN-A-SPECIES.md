@@ -173,7 +173,7 @@ formulas: e.g. a rod's front tip is (L/2 + radius, 0)); `at` is where it senses.
 | `touch` | 1 while another species' cell is within 2 µm of it. |
 | `near` | How close the nearest other-species cell is: 1 touching, 0 at `range` µm (up to 200). `"feels": "anything"` also feels kin, walls, floor and surface. |
 | `flow` | How rough the water is there, plus the wakes of cells swimming through the water within `range` µm (20-200), any species: the water alone reads up to ~0.2-0.3 (night loops, a stirred floor), a swimmer passing close up to ~0.8. A still or drifting cell makes no wake. |
-| `chem` (nutrient sensor) | The nitrogen in the water there (less where cells used it up). Untouched water by depth (the tank's mean across): 0 µm 0.06 · 500 0.06 · 1,000 0.13 · 1,100 0.18 · 1,200 0.27 · 1,300 0.39 · 1,400 0.53 · 1,500 0.67 · 1,600 0.79 · 1,750 0.91 · floor 0.98; in a rich patch up to 2-3× that, but the reading tops out at 1. A depth gauge for the lower half, and a way to tell a rich patch from a poor one. |
+| `chem` (nutrient sensor) | The nitrogen in the water there (less where cells used it up). Untouched water by depth (the tank's mean across): 0 µm 0.06 · 500 0.06 · 1,000 0.13 · 1,100 0.18 · 1,200 0.27 · 1,300 0.39 · 1,400 0.53 · 1,500 0.67 · 1,600 0.79 · 1,750 0.91 · floor 0.98; but across the tank the richness wanders from 0.3× (a poor stretch) to 2-3× (a rich patch), and the reading tops out at 1: in a poor stretch even the floor reads ~0.3, in a rich patch mid-water can read 1. It tells a rich patch from a poor one; as a depth gauge it is unreliable. |
 
 **Built-in readings** need no part; each takes one slot once you use it in a rule. Name them as the sensor:
 
