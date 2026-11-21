@@ -4134,6 +4134,7 @@ function newCell() {
 $('newCell').onclick = newCell;
 $('newCellBtn').onclick = newCell;
 $('startSaved').onclick = () => { $('labStart').hidden = true; showSection('tank'); };
+$('startOcean').onclick = () => $('oceanBtn').click();
 $('startMiss').onclick = () => { $('labStart').hidden = true; showSection('missions'); };
 if (!asked && !new URLSearchParams(location.search).get('design') && !mission && bare(design)) $('labStart').hidden = false;
 addEventListener('pagehide', keepCurrent);
