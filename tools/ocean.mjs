@@ -47,6 +47,10 @@ export const HOUSE = [
 // with the host; with no host alive it arrives at random spots like any species
 const BESIDE = { Cunabella: { dx: 34.71, dy: 27.47, angle: -72 } };
 
+// The Ocean's climate changes after its weather (marked on the timeline the first night they apply; nothing reset)
+const CLIMATE = [
+  { id: 'fix-price-3000', what: 'Nitrogen fixing costs five times the energy (3,000 pJ a unit, was 600): fixers keep the nitrogen-poor surface but grow slower where nitrogen is plentiful' },
+];
 const opt = (k, v) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : v; };
 const ROOT = new URL('../', import.meta.url), DIR = new URL(opt('dir', 'ocean').replace(/\/?$/, '/'), ROOT), NDIR = new URL('nights/', DIR);
 const STATE = new URL('state.json', DIR), WORLD = new URL('world.json.gz', DIR), BOARD = new URL('board.json', DIR), STORY = new URL('story.json', DIR);
@@ -156,6 +160,12 @@ function runNight() {
     (st.climate ||= []).push({ night, what });
     ev({ kind: 'climate', what });
     told.push('climate change: weather and joined sides');
+  }
+  // later climate changes: a rule of the simulation changed under the Ocean; the first night run under it marks it once
+  for (const c of CLIMATE) if (!(st.climate ||= []).some((x) => x.id === c.id)) {
+    st.climate.push({ night, id: c.id, what: c.what });
+    ev({ kind: 'climate', what: c.what });
+    told.push(`climate change: ${c.id}`);
   }
   // 1. releases: the player's old version taken out, the new one arrives
   for (const q of st.queue) {

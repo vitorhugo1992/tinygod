@@ -218,7 +218,10 @@ export const PARAMS = {
   // into nitrogen: up to rate units/s per µm³ of it, cost pJ per unit (600, was 300 until 2026-11-07: fixers took every
   // tank; a division's nitrogen now costs twice the energy
   // of the division itself; it pays where light is plenty and nitrogen short, the upper water)
-  fix: { rate: 0.03, cost: 600 },
+  // rate 0.03 -> 0.001 (2026-11-24; author: "bigger cells should divide slower… why not here?"): at 0.03 a nitroplast
+  // made a division's nitrogen in minutes, so a fixer was limited by light alone (Needle Drifter held at 600 µm divided in
+  // 0.23 days vs 4.27 without it); now a fixer keeps an edge only in nitrogen-poor water (3.3 days there, 2.1 at 1 mm)
+  fix: { rate: 0.03, cost: 3000 },
   toxin: {
     range: 30,
     energy: 5000,           // a sac 5% of an r 10 cell (~210 µm³) at contact: ~1 million pJ

@@ -36,7 +36,7 @@ const CASES = [
   ['m7', 'floats below 35%', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.35 }]; }), 2],
   ['m7', 'floats below 25%', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.25 }]; }), 3],
   ['m7', 'floats below 10%: too deep', (m) => withRule(m, (d) => { d.parts.find((p) => p.id === 'chamber').joint.controls = [{ sensor: 'eye', min: 0, max: 0.1 }]; }), 0],
-  ...[[0, 0, 'as handed over'], [0.3, 1, 'the default nitroplast (0.5%)'], [0.4, 1, 'a small one (1.2%)'], [0.5, 3, '2.3%'], [0.6, 3, '3.9%'], [0.65, 2, '5.0%'], [0.75, 0, 'too big (7.9%)']]
+  ...[[0, 0, 'as handed over'], [0.3, 1, 'the default nitroplast (0.5%)'], [0.35, 1, 'a small one (0.8%)'], [0.4, 2, '1.2%'], [0.45, 3, '1.7%'], [0.48, 2, '2.0%'], [0.6, 0, 'too big (3.9%)'], [0.75, 0, 'too big (7.9%)']]
     .map(([size, want, what]) => ['m8', what, (m) => (size ? withNitroplast(m, size) : plus(m)), want]),
   ...[[[], 0, 'no spines'], [[0, 180], 0, 'two spines, front and back'], [[90, 270], 0, 'two spines, the sides'],
     [[90, 210, 330], 3, 'three 40 µm spines', 0.4], [[90, 210, 330], 3, 'three 10 µm spines', 0.1], [[90, 210, 330], 3, 'three 25 µm spines (the default)', 0.25],

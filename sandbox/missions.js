@@ -45,7 +45,8 @@ const surfaceDrifter = () => {
   const n = nucleus(LONG, 180, 0.01), c = part(LONG, 'Buoyancy chamber', 0, 'chamber', 1, 1, { len: 4 });
   c[0].joint.controls = rule('eye', 0, 0.6);
   return [...n,
-    { type: 'inclusion', id: 'plastid', label: 'Plastid', at: [-14, 4], radius: 4.5, length: 16, material: 'plastid', pigment: 'sun' },
+    // a bigger plastid since nitrogen fixing costs 3,000 pJ a unit (2026-11-24; was 600 with a 9 × 25 µm plastid)
+    { type: 'inclusion', id: 'plastid', label: 'Plastid', at: [-14.5, 3.6], radius: 5.5, length: 13, material: 'plastid', pigment: 'sun' },
     { type: 'inclusion', id: 'store', label: 'Energy store', at: [-13, -6.3], radius: 3, length: 14, material: 'starch' },
     ...part(LONG, 'Light sensor (eyespot)', 0, 'eye', 1), ...c];
 };
@@ -176,6 +177,8 @@ export const MISSIONS = [
   // never two cells; 1.2% of the cell 1.9×; 2.3% two cells at day 3.30, 3.1% at 3.02, 3.9% at 3.33, 5.0% at 4.37; 6.3% and
   // up: the nitrogen bar fills, the energy bar empties (the nitroplast spends what the plastid earns), never two cells. By
   // day 3: none 1.2×, the default (0.5%) 1.3×: hence ★ at 1.3×.
+  // Remeasured (2026-11-24, fixing at 3,000 pJ a unit, the plastid 11 × 24 µm), days from the start to 1.3× / two cells:
+  // none 3.7 / -; 0.5% 2.4 / 7.1; 0.8% 2.1 / 5.4; 1.2% 1.4 / 4.3; 1.7% 1.3 / 4.0; 2.0% 1.3 / 4.3; 2.3-7.9% 5.0 / 7.3+.
   { id: 'm8', chapter: 2, title: 'Make your own nitrogen', teaches: ['Nitroplast (fixes nitrogen)'],
     story: 'This one lives in the bright upper water and has energy to spare, but the water up here has almost no nitrogen, and it has no way to fetch it from the deep.',
     task: 'Add a nitroplast: it turns spare energy into nitrogen. Watch both bars of its growth meter (🌱): too small does little, too big eats all its energy.',
@@ -186,8 +189,8 @@ export const MISSIONS = [
         hint: 'Its nitrogen bar barely moves: Add → Nitroplast, then ＋ Add to body. Already has one? Make it bigger (Size).' },
       { text: 'Two cells by 19:00 on day 5', all: [{ cells: 2, by: 19, day: 4 }],
         hint: 'Watch the growth meter: if the nitrogen bar (N) still lags, make the nitroplast bigger; if the energy bar (⚡) sits empty, it is too big: smaller.' },
-      { text: 'Two cells by 19:00 on day 4', all: [{ cells: 2, by: 19, day: 3 }],
-        hint: 'Close: find the size where both bars fill together (about 2-4% of the cell; the line under Size says how much it is).' },
+      { text: 'Two cells by 12:00 on day 5', all: [{ cells: 2, by: 12, day: 4 }],
+        hint: 'Close: find the size where both bars fill together (just under 2% of the cell; the line under Size says how much it is).' },
     ] },
   // Measured (2026-11-10): eaten at once with no spines, two (front and back, or the sides), or four at 60/120/240/300
   // (a gap front and back); three spread round (90/210/330), 6-100 µm, are safe, all climb by ~08:00-10:30 and live two
@@ -327,6 +330,8 @@ export const MISSIONS = [
   // kin pad: no partner, never two cells in 4 days (0); a Partner pad on one of those arms: joined at once, two cells at
   // day 3.75 (★★); on both: day 3.17 (★★★). An Azotella can join only a pad ~10 µm out along an arm: nearer the body its
   // horns bump into it first (Where 19° on that arm).
+  // Remeasured (2026-11-24, nitrogen fixing at 3,000 pJ a unit, was 600): no partner, no division in 8 days (1.9×, both
+  // Azotellas starve alone); one partner two cells at day 6.58; both 6.17. The stars moved to days 7-8 (missions run 8 days).
   { id: 'm16', chapter: 3, title: 'Find a partner', teaches: [], about: 'the Partner pad (a Pad that sticks to a partner)',
     builder: { tpl: 'Pad', sticks: 'partner', on: 'arm4', where: 19 },
     story: 'This star lives in bright water where nitrogen is scarce: its energy bar fills by noon, its nitrogen bar hardly moves, and it may never divide. Two Azotellas rest against its arms: small crescents that make nitrogen but can’t stay up on their own.',
@@ -336,9 +341,9 @@ export const MISSIONS = [
     stars: [
       { text: 'Joined to a partner by noon', all: [{ partner: 12 }],
         hint: 'Add tab: Pad, Sticks to "A partner", On the arm an Azotella rests against, Where about 19° (on the arm’s side, out from its middle). Its pad must meet yours.' },
-      { text: 'Two cells by 07:00 on day 5', all: [{ cells: 2, by: 7, day: 3 }],
+      { text: 'Two cells by 07:00 on day 8', all: [{ cells: 2, by: 7, day: 6 }],
         hint: 'Joined, the fixer’s nitrogen fills its growth meter. If it never joined, the pad is on the wrong arm or the wrong side of it.' },
-      { text: 'Two cells by 17:00 on day 4', all: [{ cells: 2, by: 17, day: 3 }],
+      { text: 'Two cells by 19:00 on day 7', all: [{ cells: 2, by: 19, day: 6 }],
         hint: 'One fixer can’t make nitrogen fast enough. The other Azotella rests against another arm: give that arm a Partner pad too.' },
     ] },
 ];
@@ -353,8 +358,8 @@ const BRIEF = {
   m5: ['A tail at the front, pulling', ['up by noon', 'up by 09:00', 'up again']],
   m6: ['Run the tail in dim light', ['up by noon', 'out of the glare', 'up by 09:00']],
   m7: ['Float only in dim light', ['1.5×', '2 cells', 'by day 3']],
-  m16: ['A Partner pad where a fixer rests', ['joined', '2 cells', 'by day 4']],
-  m8: ['Add a nitroplast', ['1.3×', '2 cells', 'by day 4']],
+  m16: ['A Partner pad where a fixer rests', ['joined', '2 cells', 'by day 7']],
+  m8: ['Add a nitroplast', ['1.3×', '2 cells', 'by day 5 noon']],
   m9: ['Spines, so it won\u2019t fit', ['not eaten', '≤ 4 spines', '3 spines']],
   m10: ['Wait to divide until big', ['not eaten', '2 cells', 'wide newborns']],
   m11: ['A spring that fires when drained', ['alive at dawn', 'free fast', '1 spring']],
@@ -509,7 +514,7 @@ export function judge(m, world, cell) {
 }
 
 // A whole attempt without drawing (the check; ⏩ in the page steps the live tank instead)
-export function runMission(m, design, stepWorld, maxS = 5 * M.day) {
+export function runMission(m, design, stepWorld, maxS = 8 * M.day) {
   const { world, cell } = startWorld(m, JSON.parse(JSON.stringify(design)));
   const J = judge(m, world, cell);
   const every = Math.round(1 / DT);
