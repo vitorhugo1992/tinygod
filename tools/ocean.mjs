@@ -2,6 +2,7 @@
 // never resets, advanced one ocean day (dawn to dawn) a night, every player's species living in it.
 //   node tools/ocean.mjs found                                   a new Ocean: the house species arrive (refuses if one exists)
 //   node tools/ocean.mjs release <player> <design.json | TG1.code> [--name=]   queue a release for the next night
+//   node tools/ocean.mjs house <name> <design.json> [--with=<host>]   queue a new house species for the next night
 //   node tools/ocean.mjs night [n = 1]                           run n nights
 //   node tools/ocean.mjs board                                   print the board
 //   node tools/ocean.mjs story                                   rebuild every species' life story (story.json) from the nights
@@ -30,13 +31,20 @@ import { saveState, loadState } from '../sim/save.js';
 import { clock } from '../sim/light.js';
 import { storyNight } from './ocean-story.mjs';
 import { spellsOfDay } from '../sim/flow.js';
+import { dsin, dcos, DEG } from '../sim/dmath.js';
 
 export const OCEAN = { cap: 100, capSpecies: 25, arrive: 3, returnAfter: 3, releaseEvery: 3, houseUntil: 12, boardNights: 7, wipeouts: 3, seed: 20261118 };
 export const HOUSE = [
   ['Noctilla', 'designs/noctilla.json'], ['Plebella', 'designs/plebella.json'], ['Nutricline Bobber', 'tournament/bobber-blind-opus.json'],
   ['Deepdweller II', 'designs/deepdweller2.json'], ['Needle Drifter', 'tournament/fixer-blind-opus2.json'], ['Laqueella', 'designs/laqueella.json'],
   ['Bloomeater', 'designs/_gulper.json'], ['Raptilla 2', 'designs/raptilla2.json'],
+  // joined the Ocean on night 4 (2026-11-21; author: "place the new pogella and vagastella in the ocean, maybe also the symbiotic species")
+  ['Pogella', 'designs/pogella.json'], ['Vagastella', 'designs/vagastella.json'], ['Cunabella', 'designs/cunabella.json'], ['Azotella', 'designs/azotella.json', 'Cunabella'],
 ];
+// A partner species arriving WITH its host: each of its cells beside one of the host's living cells, pad to pad (the
+// placing of mission 16, Find a partner: an Azotella 3 µm off Cunabella's fifth arm, its pad facing the arm's pad), turned
+// with the host; with no host alive it arrives at random spots like any species
+const BESIDE = { Cunabella: { dx: 34.71, dy: 27.47, angle: -72 } };
 
 const opt = (k, v) => { const a = process.argv.find((x) => x.startsWith(`--${k}=`)); return a ? a.slice(k.length + 3) : v; };
 const ROOT = new URL('../', import.meta.url), DIR = new URL(opt('dir', 'ocean').replace(/\/?$/, '/'), ROOT), NDIR = new URL('nights/', DIR);
@@ -75,7 +83,13 @@ function arrive(st, world, sp, night) {
   d.name = d.species = sp.name;
   const spots = startSpots(hash(`${st.seed}|${night}|${sp.name}|${sp.stays.length}`), OCEAN.arrive);
   let bio = 0;
-  for (const s of spots) bio += vol(addCell(world, d, s.x, s.y, 0));
+  const off = sp.with && BESIDE[sp.with], hosts = off ? world.cells.filter((c, i) => !c.dead && c.species === sp.with && !world.links.some((l) => l.partner && (l.a === i || l.b === i))).slice(0, OCEAN.arrive) : [];
+  if (hosts.length) for (const h of hosts) {
+    const a = h.q[2], ca = dcos(a), sa = dsin(a);
+    let x = h.q[0] + ca * off.dx - sa * off.dy, W = PARAMS.tank.w; x -= W * Math.floor(x / W);
+    bio += vol(addCell(world, d, x, h.q[1] + sa * off.dx + ca * off.dy, a / DEG + off.angle));
+  }
+  else for (const s of spots) bio += vol(addCell(world, d, s.x, s.y, 0));
   sp.status = 'living'; sp.bio0 = bio;
   sp.stays.push({ from: night, to: null, why: null });
 }
@@ -91,6 +105,18 @@ function found() {
   }
   writeFileSync(STATE, JSON.stringify(st));
   console.log(`Founded an Ocean in ${DIR.pathname}: ${HOUSE.length} house species arrive on night 1.`);
+}
+
+// A new house species after the founding: it arrives on the next night (it and its returns follow the house rules)
+function addHouse(name, file, host) {
+  const st = loadSt();
+  if (st.species[name]) throw new Error(`${name} is in the Ocean already`);
+  const design = JSON.parse(readFileSync(file, 'utf8')).design, problem = entryProblem(design);
+  if (problem) throw new Error(`not added: ${problem}`);
+  st.species[name] = { name, player: 'house', house: true, design, version: 1, released: st.night + 1, status: 'queued', stays: [], nights: [], kills: 0, ...(host ? { with: host } : {}) };
+  st.queue.push({ name });
+  writeFileSync(STATE, JSON.stringify(st));
+  console.log(`${name} (house) arrives on night ${st.night + 1}${host ? `, beside ${host}` : ''}.`);
 }
 
 function release(player, src) {
@@ -140,7 +166,7 @@ function runNight() {
       told.push(`${old.name} replaced by ${sp.name} (${n} cells taken out)`);
     }
     arrive(st, world, sp, night);
-    ev({ kind: 'arrived', species: sp.name, cells: OCEAN.arrive, released: true });
+    ev({ kind: 'arrived', species: sp.name, cells: OCEAN.arrive, released: !sp.house });
     told.push(`${sp.name} (${sp.player}) arrived`);
   }
   st.queue = [];
@@ -267,6 +293,7 @@ function printBoard() {
 
 const [cmd, ...rest] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 if (cmd === 'found') found();
+else if (cmd === 'house') addHouse(rest[0], rest[1], opt('with', null));
 else if (cmd === 'release') release(rest[0], rest[1]);
 else if (cmd === 'night') { const n = Number(rest[0] || 1); for (let i = 0; i < n; i++) runNight(); printBoard(); }
 else if (cmd === 'board') { const st = loadSt(); writeFileSync(BOARD, JSON.stringify(board(st), null, 1)); printBoard(); }

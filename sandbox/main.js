@@ -3899,6 +3899,17 @@ function startPlacing(name) {
   const inside = (CONTROLS[name] || {}).inside;
   $('placeBar').innerHTML = `<span>Tap ${inside ? 'inside the cell' : "the cell's edge"} to put the <b>${SHORT[name] || name}</b> there</span><button id="placeCancel" title="Don't add it">✕</button>`;
   $('placeBar').hidden = false; $('placeCancel').onclick = stopPlacing;
+  // the whole cell in view, clear of the buttons on top (author, 2026-11-21: "can't place the eyespot": a view panned to a
+  // long part's tip had left the body under the old banner at the top, which took the tap)
+  const b = design.body, h = (b.length || 0) / 2, box = [-h - b.radius, -b.radius, h + b.radius, b.radius];
+  const whole = lobesOf(design).length ? shapeCell(design) : null;
+  for (const fr of whole ? lobeFrames(whole) : []) for (const t of [0, fr.L]) {
+    const x = fr.root[0] + Math.cos(fr.dir) * t, y = fr.root[1] + Math.sin(fr.dir) * t;
+    box[0] = Math.min(box[0], x - fr.r); box[1] = Math.min(box[1], y - fr.r); box[2] = Math.max(box[2], x + fr.r); box[3] = Math.max(box[3], y + fr.r);
+  }
+  const r = canvas.getBoundingClientRect(), fit = Math.min(0.8 * (r.width - 90) / (box[2] - box[0]), 0.85 * (r.height - 130) / (box[3] - box[1]));
+  lookAt([(box[0] + box[2]) / 2, (box[1] + box[3]) / 2]);
+  $('arrZoom').value = Math.max(0.15, Math.min(4, fit / arrange.zoom0)); $('arrZoom').oninput();
 }
 function stopPlacing() { placing = null; $('placeBar').hidden = true; }
 function placeAt(P) {
