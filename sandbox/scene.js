@@ -244,19 +244,19 @@ function drawBed(ctx, world, v, t, tw) {
   ctx.beginPath(); edge(); ctx.lineTo(right, H + 10); ctx.lineTo(left, H + 10); ctx.closePath();
   const deep = Math.max(1, (H - Y(0)) / s);
   ctx.clip();
-  // in strips a few pixels wide, each its patch's colour, darkening downward
-  const sw = Math.max(6, (right - left) / 140);
-  for (let x = left; x < right; x += sw) {
-    const col = bedZone((x + sw / 2 - X(0)) / s).col, bg = ctx.createLinearGradient(0, Y(1), 0, Y(-Math.max(deep, 40)));
-    bg.addColorStop(0, C(col)); bg.addColorStop(0.08, C(col.map((c) => c * 0.78))); bg.addColorStop(0.4, C(col.map((c) => c * 0.52))); bg.addColorStop(1, C(col.map((c) => c * 0.25)));
-    ctx.fillStyle = bg; ctx.fillRect(x, Math.min(Y(4), H), sw + 0.6, H + 10);
-  }
+  // each patch's colour blended smoothly along the bed, then darkening downward (author, 2026-11-24: strips showed as lines)
+  const hg = ctx.createLinearGradient(left, 0, right, 0), n = 48;
+  for (let k = 0; k <= n; k++) hg.addColorStop(k / n, C(bedZone((left + (right - left) * k / n - X(0)) / s).col));
+  ctx.fillStyle = hg; ctx.fillRect(left, Math.min(Y(4), H), right - left, H + 10);
+  const dg = ctx.createLinearGradient(0, Y(1), 0, Y(-Math.max(deep, 40)));
+  dg.addColorStop(0, 'rgba(0,0,0,0)'); dg.addColorStop(0.08, 'rgba(0,0,0,.22)'); dg.addColorStop(0.4, 'rgba(0,0,0,.48)'); dg.addColorStop(1, 'rgba(0,0,0,.75)');
+  ctx.fillStyle = dg; ctx.fillRect(left, Math.min(Y(4), H), right - left, H + 10);
   // the texture, fixed to the bed (scaled with the zoom within limits)
   const pat = ctx.createPattern(NOISE, 'repeat'), k = clamp(s * 1.2, 0.5, 2);
   if (pat.setTransform) pat.setTransform(new DOMMatrix([k, 0, 0, k, X(0), Y(0)]));
   ctx.globalAlpha = 0.55; ctx.fillStyle = pat; ctx.fillRect(left, Y(2), right - left, H - Y(2) + 10); ctx.globalAlpha = 1;
   // grains: a few in every 25 µm square, bigger ones with a lit top
-  const G = 25, i0 = Math.floor(v.x0 / G) - 1, i1 = Math.ceil(v.x1 / G) + 1, j1 = Math.min(24, Math.ceil(deep / G) + 1);
+  const G = 25, i0 = Math.floor(v.x0 / G) - 1, i1 = Math.ceil(v.x1 / G) + 1, j1 = s < 0.8 ? 0 : Math.min(24, Math.ceil(deep / G) + 1);   // zoomed far out: grains under a pixel, not drawn
   const COLS = [[132, 116, 88], [92, 80, 62], [150, 138, 112], [66, 55, 44], [112, 96, 74], [78, 70, 60]];
   for (let i = Math.max(0, i0); i <= Math.min(Math.ceil(TW / G), i1); i++) for (let j = 0; j < j1; j++) for (let n = 0; n < 3; n++) {
     const h = i * 7.31 + j * 13.7 + n * 3.11, gx = (i + rnd(h)) * G, gy = j === 0 ? BED_TOP(gx) - rnd(h + 1) * 12 : -(j + rnd(h + 1)) * G;

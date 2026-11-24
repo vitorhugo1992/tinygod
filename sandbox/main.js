@@ -2860,6 +2860,15 @@ function plastidColor(inc) {
   const mix = (a, z) => Math.round(a + (z - a) * t);
   return `rgb(${mix(r, 236)},${mix(g, 228)},${mix(b, 170)})`;
 }
+// a nucleus's widest inside spot, by its outline's numbers (the Ocean's cells are fresh copies or rebuilt: finding it is
+// costly, ~1/6 of a replay's frame when done every frame)
+const CORES = new Map();
+function coreOf(P) {
+  const n = P.length, key = `${n}|${P[0][0].toFixed(3)},${P[0][1].toFixed(3)}|${P[n >> 2][0].toFixed(3)},${P[n >> 2][1].toFixed(3)}|${P[n >> 1][0].toFixed(3)},${P[n >> 1][1].toFixed(3)}`;
+  let c = CORES.get(key);
+  if (!c) { if (CORES.size > 2000) CORES.clear(); c = inscribed(P, true); CORES.set(key, c); }
+  return c;
+}
 // The nucleus: a pale violet sphere in its envelope, specks of chromatin and a dark nucleolus (they turn with the cell)
 function drawNucleus(inc, xf, s, rot) {
   const r = Math.max(inc.r * s, 2);
@@ -2870,7 +2879,7 @@ function drawNucleus(inc, xf, s, rot) {
     ctx.strokeStyle = 'rgba(235,225,255,.6)'; ctx.lineWidth = Math.max(1, 0.3 * s); ctx.stroke();
   }
   // specks spread round its widest inside spot, each as far out as the outline allows that way (a round one: its centre)
-  const P = inc.outline.map(xf), core = inc.core || (inc.core = inscribed(inc.outline, true)), [cx, cy] = xf([core[1], core[2]]);
+  const P = inc.outline.map(xf), core = inc.core || (inc.core = coreOf(inc.outline)), [cx, cy] = xf([core[1], core[2]]);
   const at = (t, a, d) => {
     const dx = Math.cos(a - rot), dy = Math.sin(a - rot);
     let reach = Infinity;   // the ray from the core to the outline
@@ -4683,6 +4692,21 @@ const oceanArt = {
     borrow(g, w, () => {
       rememberCells();
       for (const c of w.cells) {
+        if (v.x0 !== undefined) {   // off screen: not drawn (author, 2026-11-24: the Ocean lagged; every cell was drawn in full)
+          let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+          c.pieces.forEach((p, i) => { const h = p.L / 2 + p.a + 2; if (c.cx[i] - h < x0) x0 = c.cx[i] - h; if (c.cx[i] + h > x1) x1 = c.cx[i] + h; if (c.cy[i] - h < y0) y0 = c.cy[i] - h; if (c.cy[i] + h > y1) y1 = c.cy[i] + h; });
+          if (x1 < v.x0 || x0 > v.x1 || y1 < v.y0 || y0 > v.y1) continue;
+          if (Math.max(x1 - x0, y1 - y0) * v.s < 28 || c.pieces[0].a * v.s < 4) {   // tiny or thin on screen: its pieces as tinted capsules, no organelles
+            ctx.globalAlpha = c.dead ? 0.35 : 0.85; ctx.lineCap = 'round';
+            ctx.strokeStyle = mine(c) && !c.dead ? '#f2c14e' : c.dead ? '#8a8f98' : speciesTint(c.species);
+            c.pieces.forEach((p, i) => {
+              const hx = c.cs[i] * p.L / 2, hy = c.sn[i] * p.L / 2;
+              ctx.lineWidth = Math.max(1, 2 * p.a * v.s); ctx.beginPath();
+              ctx.moveTo(v.X(c.cx[i] - hx), v.Y(c.cy[i] - hy)); ctx.lineTo(v.X(c.cx[i] + hx) + 0.01, v.Y(c.cy[i] + hy)); ctx.stroke();
+            });
+            continue;
+          }
+        }
         ctx.globalAlpha = c.dead ? 0.45 : 1;
         drawCell(c, v.X, v.Y, v.s, c);
         if (mine(c) && !c.dead) {   // yours: a gold rim just outside its membrane

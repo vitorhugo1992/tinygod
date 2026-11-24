@@ -863,7 +863,7 @@ export function initOcean(art) {
     if (Y(-12) < 0 || Y(30) > Hv) return;
     const bright = 0.35 + 0.65 * twilight(w);
     g.lineCap = 'round'; g.lineWidth = Math.max(0.8, 0.6 * s);
-    for (const m of MAT) {   // the microbial mat: fine olive filaments swaying
+    if (s >= 0.6) for (const m of MAT) {   // the microbial mat: fine olive filaments swaying (zoomed far out: too small to see)
       const x = X(m.x); if (x < -10 || x > Wv + 10) continue;
       g.strokeStyle = rgba(mix([84, 104, 58], [118, 88, 50], m.c).map((c) => c * bright), 0.55);
       const sway = Math.sin(t * 0.8 + m.x) * 2.2 * s;
@@ -991,8 +991,10 @@ export function initOcean(art) {
       // the camera: on the followed cell (it sits a little above the middle: the HUD covers the bottom)
       const fc = cam.follow && shown.cells.find((c) => c.uid === cam.follow);
       if (cam.follow && (!fc || fc.dead)) { const ys = mineOf(shown); cam.follow = ys.length ? ys[0].uid : 0; camButton(); }
-      wrapView = !!shown.wrap;
-      if (fc) { let fx = fc.q[0]; if (wrapView) { if (fx - cam.x > TW / 2) fx -= TW; else if (cam.x - fx > TW / 2) fx += TW; } cam.tx = fx; cam.ty = fc.q[1] - (hudH / 2 - 30) / cam.ts; clampCam(); }
+      // one tank with its edges, as before the sides joined (author, 2026-11-24: the repeated tank showed seams): a cell
+      // leaving by one side comes in at the other, and a camera following it jumps across with it
+      wrapView = false;
+      if (fc) { const fx = fc.q[0]; if (Math.abs(fx - cam.tx) > TW / 2) { cam.x = fx; } cam.tx = fx; cam.ty = fc.q[1] - (hudH / 2 - 30) / cam.ts; clampCam(); }
       const k = Math.min(1, dt * (cam.follow ? 4 : 12));
       cam.x += (cam.tx - cam.x) * k; cam.y += (cam.ty - cam.y) * k; cam.s += (cam.ts - cam.s) * Math.min(1, dt * 12);
       if (wrapView) { if (cam.x < 0) { cam.x += TW; cam.tx += TW; } else if (cam.x >= TW) { cam.x -= TW; cam.tx -= TW; } }   // round the Ocean
@@ -1000,8 +1002,8 @@ export function initOcean(art) {
       const v = { W, H, X, Y, s, x0: cam.x - W / 2 / s, x1: cam.x + W / 2 / s, y0: cam.y - H / 2 / s, y1: cam.y + H / 2 / s }, t = now / 1000;
       // the Ocean's sides join up: the view shows the tank again past each side (images of it, shifted a tank across)
       const views = [v];
-      if (shown.wrap) for (const o of [-TW, TW]) if (o < 0 ? v.x0 < 0 : v.x1 > TW) views.push(Object.assign({}, v, { X: (x) => v.X(x + o), x0: v.x0 - o, x1: v.x1 - o }));
-      if (!shown.wrap) drawAround(shown, v, t);
+      if (wrapView) for (const o of [-TW, TW]) if (o < 0 ? v.x0 < 0 : v.x1 > TW) views.push(Object.assign({}, v, { X: (x) => v.X(x + o), x0: v.x0 - o, x1: v.x1 - o }));
+      if (!wrapView) drawAround(shown, v, t);
       for (const vo of views) {   // the water, seabed, shade and toxins of each image, kept to its own span
         g.save();
         if (views.length > 1) { const l = Math.max(0, vo.X(0)), r = Math.min(W, vo.X(TW)); g.beginPath(); g.rect(l, 0, Math.max(0, r - l), H); g.clip(); }
