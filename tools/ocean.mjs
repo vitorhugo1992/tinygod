@@ -7,7 +7,8 @@
 //   node tools/ocean.mjs board                                   print the board
 //   node tools/ocean.mjs story                                   rebuild every species' life story (story.json) from the nights
 //   --dir=<folder> (default ocean/: a scratch Ocean for tests) · --seconds=<n> (a shorter night, for tests)
-//   --keepRich=<n> keep only the last n nights' rich recordings (GitHub's nightly run: 7)
+//   --rich: also write the night's rich recording (replays were removed from the page, 2026-11-24) · --keepRich=<n> keep
+//   only the last n nights' rich recordings (old ones are cleared even without --rich)
 // The rules: the tank of the Lab (1,600 × 2,000 µm, moving water, days, shading); a species arrives as 3 cells at random
 // spots; at most 100 cells and 25 of one species (at its ceiling a species can't divide but still grows and stores;
 // nothing is removed by a rule); one species per player: a new release replaces the old one (its cells taken out that
@@ -18,7 +19,7 @@
 // sim/save.js), board.json (for the page: no designs), nights/<n>.json.gz (the night's timeline, each species' life,
 // replay frames: sim/record.js), nights/<n>.rich.json.gz (every cell posed, sim/rich.js), story.json (each species' line
 // and milestones a night: tools/ocean-story.mjs; public like the board).
-import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, unlinkSync, readdirSync } from 'node:fs';
 import { gzipSync, gunzipSync, inflateRawSync } from 'node:zlib';
 import { PARAMS } from '../sim/params.js';
 import { makeWorld, addCell, stepWorld } from '../sim/world.js';
@@ -186,12 +187,12 @@ function runNight() {
   const names = Object.values(st.species).filter((s) => s.status === 'living').map((s) => s.name);
   const m = { world, names };
   const R = newRecord(m); R.events.push(...rec.events);
-  const RR = richRecord(names);   // the rich record: every cell posed every second, for drawing the night exactly (sim/rich.js)
+  const RR = opt('rich', null) !== null || process.argv.includes('--rich') ? richRecord(names) : null;   // the rich record: every cell posed every second, for drawing the night exactly (sim/rich.js)
   const startDay = world.steps * DT / DAY, deaths = [];
   for (let k = 0; k < NIGHT; k++) {
     stepWorld(world);
     recordStep(R, m);
-    richStep(RR, world);
+    if (RR) richStep(RR, world);
     if (world.gone && world.gone.length) { for (const c of world.gone) deaths.push({ species: c.species, why: c.diedWhy || 'starved', depth: Math.round(TH - c.q[1]) }); world.gone.length = 0; }
     if (k && k % Math.round(DAY / 4 / DT) === 0) process.stdout.write(`  night ${night}: ${Math.round(100 * k / NIGHT)}% · ${world.cells.length} cells · ${((performance.now() - t0) / 60000).toFixed(1)} min\n`);
   }
@@ -222,9 +223,10 @@ function runNight() {
   const k0 = Math.floor(startDay + 1e-9), weather = spellsOfDay(world.seed, k0).map((sp) => ({ kind: sp.kind, strong: sp.strong, east: sp.U > 0, from: sp.from, to: sp.to }));
   const N = { night, from: startDay, to: world.steps * DT / DAY, names: R.names, events: R.events, life: R.life, frames: R.frames, summary: sum, deaths, weather };
   writeFileSync(new URL(`${night}.json.gz`, NDIR), gzipSync(JSON.stringify(N)));
-  writeFileSync(new URL(`${night}.rich.json.gz`, NDIR), gzipSync(JSON.stringify({ night, ...richDone(RR) })));
+  if (RR) writeFileSync(new URL(`${night}.rich.json.gz`, NDIR), gzipSync(JSON.stringify({ night, ...richDone(RR) })));
   const keep = Number(opt('keepRich', 0));   // --keepRich=7: only the last 7 nights' recordings (the data branch on GitHub)
   if (keep) for (let k = night - keep; k > 0; k--) { const old = new URL(`${k}.rich.json.gz`, NDIR); if (!existsSync(old)) break; unlinkSync(old); }
+  if (!RR) for (const fn of readdirSync(NDIR)) if (fn.endsWith('.rich.json.gz')) unlinkSync(new URL(fn, NDIR));   // no replays: the old recordings go
   saveAll(st, world);
   // the life stories: this night added (or all rebuilt if the file is missing or behind)
   let story = existsSync(STORY) ? JSON.parse(readFileSync(STORY, 'utf8')) : null;

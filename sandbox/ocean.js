@@ -13,7 +13,6 @@
 // (tap: look there), toasts for your moments, your badge (portrait, cells, growth, kills, nights, rank, last night in
 // one line; tap: your next cell), 🧪 The Lab · 📖 Its story (its nights; the board) · 🔭 Whole / 🎯 Follow.
 import { startLive } from './ocean-live.js';
-import { replay } from '../sim/rich.js';
 import { updatePose, motorAngle } from '../sim/physics.js';
 import { PARAMS } from '../sim/params.js';
 import { fullness } from '../sim/metab.js';
@@ -180,17 +179,15 @@ export function initOcean(art) {
   // ---- the state ----
   let open = false, raf = 0, W = 1, H = 1, dpr = 1, lastT = 0;
   let board = null, story = null, nights = {}, follow = saved.follow || null;
-  let mode = 'loading';            // 'loading' | 'live' | 'rec' | 'none'
+  let mode = 'loading';            // 'loading' | 'live' | 'none'
   let live = null, slow = false;   // slow: this device can't keep the live Ocean going at half speed
   let F = { cur: null, prev: null, dt: 125 };   // the live frames: the last two from the worker
-  let rec = null;                  // { n, R, rp, steps, w }: a night's recording being played
-  const richOf = {};               // night -> its rich record (or null when there is none)
   const designs = new Map();       // species -> one design object (the Lab's drawing caches by design)
   const vis = new Map();           // uid -> { clocks (motors drawn calm), gapes, meal, mealSeen, mealT0, trail }
   let shown = null;                // the world-like object last drawn (cells posed for drawing)
   let soundKey = {};
   const cam = { x: TW / 2, y: TH / 2, s: 1, tx: TW / 2, ty: TH / 2, ts: 1, follow: 0 };
-  let fx = [], corpses = [], known = null, primed = false, recEv = 0, touching = new Set();
+  let fx = [], corpses = [], known = null, primed = false, touching = new Set();
   const minS = () => 0.85 * Math.min(W / TW, H / (TH + 160));
   const maxS = 14;
 
@@ -235,13 +232,6 @@ export function initOcean(art) {
     const ms = r.ms.filter((m) => m.tone).slice(0, 3);
     ms.forEach((m, i) => setTimeout(() => toast(`Last night: ${m.tone === 'gold' ? '★' : '✕'} ${m.text}`, m.tone === 'red'), 1200 + i * 1600));
   }
-  // a milestone replayed: the night's recording from a little before its moment, the camera on the cell if known
-  async function replayMoment(n, t, uid) {
-    if (!(await playNight(n))) return;
-    rec.steps = rec.rp.from + Math.max(0, t - 0.01) * (rec.rp.to - rec.rp.from); primed = false;
-    recEv = (rec.steps - rec.rp.from) * DT / DAY;   // the moments before it are not toasted again
-    if (uid) { cam.follow = uid; cam.ts = clamp(Math.min(W, H) / 260, minS(), maxS); camButton(); }
-  }
   async function loadNight(n) {
     if (n in nights) return nights[n];
     try {
@@ -250,11 +240,6 @@ export function initOcean(art) {
       nights[n] = r;
     } catch (e) { nights[n] = null; }
     return nights[n];
-  }
-  async function loadRich(n) {
-    if (n in richOf) return richOf[n];
-    try { richOf[n] = await fetchJSON(`nights/${n}.rich.json.gz`); } catch (e) { richOf[n] = null; }
-    return richOf[n];
   }
 
   // ---- words: a night in one line for the followed species ----
@@ -316,34 +301,20 @@ export function initOcean(art) {
       },
     });
   }
+  // no recordings any more (author, 2026-11-24: "remove replays"): a device too slow for the live Ocean shows it running slower
   async function fallBack(why, fatal) {
-    if (mode === 'rec') return;
-    const n = board && board.night;
-    const R = n ? await loadRich(n) : null;
-    if (R) { playNight(n); toast(`Playing last night's recording: the live Ocean is ${why}.`); }
-    else if (fatal || !F.cur) { setMode('none'); message('The Ocean can\'t be shown here', why); }
-    else setMode('live');   // too slow, and no recording to fall back on: it stays live, slowly
+    if (fatal || !F.cur) { setMode('none'); message('The Ocean can\'t be shown here', why); }
+    else setMode('live');
   }
   function setMode(m) {
     mode = m; primed = false; known = null; fx = []; soundKey = {};
     for (const v of vis.values()) v.trail = [];
     const pill = q('.pill'), label = pill.querySelector('span');
-    pill.classList.toggle('rec', m === 'rec'); pill.classList.toggle('wait', m === 'loading' || m === 'none');
-    label.textContent = m === 'rec' ? (rec && board && rec.n === board.night ? 'Last night' : `Night ${rec ? rec.n : ''}`) : m === 'live' ? (slow ? 'Live · slow' : 'Live') : m === 'none' ? 'Offline' : 'Loading';
-    pill.title = m === 'rec' ? 'A recording of the night. Tap to go back to the live Ocean' : 'Live: the Ocean running on now (tonight\'s run makes it official). Tap to watch last night\'s recording instead';
+    pill.classList.toggle('wait', m === 'loading' || m === 'none');
+    label.textContent = m === 'live' ? (slow ? 'Live · slow' : 'Live') : m === 'none' ? 'Offline' : 'Loading';
+    pill.title = 'Live: the Ocean running on now (tonight\'s run makes it official)';
     if (m === 'live' && live) live.resume();
-    if (m === 'rec' && live) live.pause();
     hud(true);
-  }
-  async function playNight(n) {
-    const R = await loadRich(n);
-    if (!R) { toast(`Night ${n} has no recording.`, true); return false; }
-    const rp = replay(R);
-    rec = { n, R, rp, steps: rp.from, w: null }; recEv = 0; corpses = [];
-    await loadNight(n);
-    message(null);
-    setMode('rec');
-    return true;
   }
 
   // ---- what happened since the last look: divisions, deaths, kills by yours; the dead left on the seabed ----
@@ -389,23 +360,6 @@ export function initOcean(art) {
   }
   const mark = (c) => ({ dead: !!c.dead, species: c.species, x: c.q[0], y: c.q[1], a: c.q[2], r: c.pieces[0].a, L: c.pieces[0].L });
   const count = (w, sp) => w.cells.filter((c) => c.species === sp && !c.dead).length;
-  // a recording's moments for the followed species, as the replay passes them (from the night's record)
-  function recMoments(day) {
-    const N = rec && nights[rec.n];
-    if (!N || !follow) return;
-    const xs = storyOf(follow, rec.n), span = (N.to - N.from) || 1;   // its extinction, when the replay reaches it
-    if (xs) for (const m of xs.ms) if (m.k === 'extinct' && m.t * span > recEv && m.t * span <= day) extinctBanner(follow);
-    for (const e of N.events) {
-      if (e.day <= recEv || e.day > day) continue;
-      const sp = follow;
-      if (e.kind === 'born' && e.species === sp) toast(`Your ${sp} divided: ${e.cells} cells.`);
-      else if (e.kind === 'died' && e.species === sp) toast(`One of your ${sp} died: ${e.why}.`, true);
-      else if (e.kind === 'died' && e.by === sp) toast(`★ Your ${sp} ${/^drained/.test(e.why) ? 'drained' : 'killed'} a ${e.species}!`);
-      else if (e.kind === 'latched' && e.species === sp) toast(`Your ${sp} hooked a ${e.prey}.`);
-      else if (e.kind === 'swallowed' && e.species === sp) toast(`Your ${sp} swallowed a ${e.prey}!`);
-    }
-    recEv = day;
-  }
 
   // ---- posing: the cells as drawn this frame (eased between the worker's frames; beating parts drawn calm) ----
   function visOf(uid) { let v = vis.get(uid); if (!v) { v = { clocks: [], gapes: [], trail: [] }; vis.set(uid, v); } return v; }
@@ -438,24 +392,6 @@ export function initOcean(art) {
     }
     const links = C.w.links || [];
     return Object.assign({}, C.w, { cells, links });
-  }
-  function posedRec(dt) {
-    const rp = rec.rp;
-    rec.steps += dt / DT;
-    if (rec.steps > rp.to) { rec.steps = rp.from; primed = false; recEv = 0; corpses = []; }
-    const w = rp.at(rec.steps);
-    if (!w) return null;
-    if (w.flow && !w.flowNow) w.flowNow = flowState(w);   // the water in the recording: the motes drift with it
-    for (const c of w.cells) {
-      const v = visOf(c.uid);
-      calmMotors(c, c, v, dt);
-      c.gapes = v.gapes;
-      if (c.meal && v.meal && v.meal.look && c.meal.look && v.meal.look.uid === c.meal.look.uid) { v.meal.t = c.meal.t; c.meal = v.meal; } else v.meal = c.meal;
-      c.mealSeen = v.mealSeen; c.mealT0 = v.mealT0;
-      updatePose(c);
-    }
-    rec.w = w;
-    return w;
   }
   const keepVis = (w) => { for (const c of w.cells) { const v = vis.get(c.uid); if (v) { v.mealSeen = c.mealSeen; v.mealT0 = c.mealT0; } } };
 
@@ -604,7 +540,7 @@ export function initOcean(art) {
     m.hidden = !title;
     if (title) m.firstElementChild.innerHTML = `<b>${esc(title)}</b>${esc(text || '')}`;
   }
-  const nightNo = () => (mode === 'rec' && rec ? rec.n : board ? board.night + 1 : 1);
+  const nightNo = () => (board ? board.night + 1 : 1);
   let hudAt = 0, badgeKey = '', strongSeen = '';
   function hud(force) {
     const now = performance.now();
@@ -715,33 +651,22 @@ export function initOcean(art) {
     if (story && follow) {   // the story file: every night it was here, newest first, each milestone a tap to its moment
       const mine = (story.species[follow] || []).slice().reverse();
       const wl = (n) => { const x = story.weather && story.weather[n]; return x ? `${x.climate ? `<span class="clim">🌍 ${esc(x.climate)}</span>` : ''}${x.line ? `<span class="wl${x.strong ? ' strong' : ''}">🌊 ${esc(x.line)}</span>` : ''}` : ''; };
-      box.innerHTML = tonight + mine.map((r) => `<div class="nightrow" data-n="${r.night}" title="Replay night ${r.night}"><div class="n">night<b>${r.night}</b>${r.rank ? `<span class="rk">${ord(r.rank)}</span>` : ''}</div><p>${wl(r.night)}${esc(r.line)}<br>${r.ms.map((m) => `<span class="ms ${m.tone}" data-t="${m.t}" data-uid="${m.uid || ''}" title="Replay this moment">${m.tone === 'gold' ? '★' : m.tone === 'red' ? '✕' : '•'} ${esc(m.text)}</span>`).join('')}</p></div>`).join('')
-        + `<p class="note">${mine.length ? 'A line a night. Tap a night to replay it, a milestone to see its moment.' : `${esc(follow)} has no nights here yet.`} Naming your lines and pinned moments come with releases.</p>`;
-      box.querySelectorAll('.ms[data-t]').forEach((c) => (c.onclick = async (e) => {
-        e.stopPropagation();
-        const n = Number(c.closest('.nightrow').dataset.n);
-        await replayMoment(n, Number(c.dataset.t), Number(c.dataset.uid) || 0); hideSheet(); toast(`Night ${n}: ${c.textContent.trim()}`);
-      }));
-      box.querySelectorAll('.nightrow').forEach((r) => (r.onclick = async () => {
-        if (r.dataset.live) { hideSheet(); if (mode !== 'live') { setMode('live'); message(null); } return; }
-        if (await playNight(Number(r.dataset.n))) { hideSheet(); toast(`Replaying night ${r.dataset.n}.`); }
-      }));
+      box.innerHTML = tonight + mine.map((r) => `<div class="nightrow" data-n="${r.night}"><div class="n">night<b>${r.night}</b>${r.rank ? `<span class="rk">${ord(r.rank)}</span>` : ''}</div><p>${wl(r.night)}${esc(r.line)}<br>${r.ms.map((m) => `<span class="ms ${m.tone}" data-t="${m.t}">${m.tone === 'gold' ? '★' : m.tone === 'red' ? '✕' : '•'} ${esc(m.text)}</span>`).join('')}</p></div>`).join('')
+        + `<p class="note">${mine.length ? 'A line a night, newest first.' : `${esc(follow)} has no nights here yet.`} Naming your lines and pinned moments come with releases.</p>`;
+      box.querySelectorAll('.nightrow[data-live]').forEach((r) => (r.onclick = () => hideSheet()));
       return;
     }
     const rows = [];
     for (let n = board.night; n >= Math.max(1, board.night - 13); n--) rows.push(n);
     box.innerHTML = `<div class="nightrow" data-live="1" title="Back to the live Ocean"><div class="n">night<b>${board.night + 1}</b></div><p>Tonight, running now${slow ? ' (slowly, on this device)' : ''}: the nightly run makes it official.</p></div>` +
-      rows.map((n) => `<div class="nightrow" data-n="${n}" title="Replay night ${n}"><div class="n">night<b>${n}</b></div><p>…</p></div>`).join('');
+      rows.map((n) => `<div class="nightrow" data-n="${n}"><div class="n">night<b>${n}</b></div><p>…</p></div>`).join('');
     for (const n of rows) {
       const N = await loadNight(n), p = box.querySelector(`.nightrow[data-n="${n}"] p`);
       if (!p) continue;
       p.innerHTML = N ? `${esc(nightLine(N, follow) || 'Not here that night.')}<br>${milestones(N, follow).map(([m, c]) => `<span class="ms ${c}">${c === 'gold' ? '★' : c === 'red' ? '✕' : '•'} ${esc(m)}</span>`).join('')}` : 'No record of this night.';
     }
-    box.querySelectorAll('.nightrow').forEach((r) => (r.onclick = async () => {
-      if (r.dataset.live) { hideSheet(); if (mode !== 'live') { setMode('live'); message(null); } return; }
-      if (await playNight(Number(r.dataset.n))) { hideSheet(); toast(`Replaying night ${r.dataset.n}.`); }
-    }));
-    box.insertAdjacentHTML('beforeend', '<p class="note">A line a night. Milestones, naming your lines and pinned moments come with releases. Tap a night to replay it.</p>');
+    box.querySelectorAll('.nightrow[data-live]').forEach((r) => (r.onclick = () => hideSheet()));
+    box.insertAdjacentHTML('beforeend', '<p class="note">A line a night. Milestones, naming your lines and pinned moments come with releases.</p>');
   }
   const hideSheet = () => q('.sheet').classList.remove('on');
   el.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => showSheet(b.dataset.tab)));
@@ -751,11 +676,7 @@ export function initOcean(art) {
   q('.badge').onclick = () => followNext(true);
   q('.lab').onclick = () => closeOcean();
   q('.snd').onclick = () => { art.setSound(!art.soundOn()); soundKey = {}; hud(true); };
-  q('.pill').onclick = async () => {
-    if (mode === 'rec') { setMode('live'); message(null); toast('Back to the live Ocean.'); return; }
-    if (!board) return;
-    if (await playNight(board.night)) toast(`Playing last night (night ${board.night}). Tap the pill to come back live.`);
-  };
+  q('.pill').onclick = () => toast(slow ? 'Live, but this device runs the Ocean slower than real time.' : 'Live: the Ocean running on now. Tonight\'s run makes it official.');
   document.addEventListener('keydown', (e) => { if (open && e.key === 'Escape') { if (q('.sheet').classList.contains('on')) hideSheet(); else closeOcean(); } });
   document.addEventListener('visibilitychange', () => { if (!open || !live) return; if (document.hidden) live.pause(); else if (mode === 'live') live.resume(); });
 
@@ -976,17 +897,16 @@ export function initOcean(art) {
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
   }
   new ResizeObserver(() => { if (open) { resize(); clampCam(); } }).observe(cv);
-  let firstLook = true, lookT = 0;
+  let firstLook = true;
   function frame(now) {
     raf = 0;
     if (!open) return;
     const dt = Math.min(0.1, (now - (lastT || now)) / 1000);
     lastT = now;
-    shown = mode === 'rec' && rec ? posedRec(dt) : F.cur ? posedLive(now, dt) : null;
+    shown = F.cur ? posedLive(now, dt) : null;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.fillStyle = '#02070d'; g.fillRect(0, 0, W, H);
     if (shown) {
-      if (mode === 'rec') { lookT += dt; if (lookT > 0.125 || !primed) { lookT = 0; observe(shown); } recMoments((rec.steps - rec.rp.from) * DT / DAY); }
       if (firstLook) { firstLook = false; followNext(true); const c = shown.cells.find((x) => x.uid === cam.follow); if (c) { cam.x = cam.tx = c.q[0]; cam.y = cam.ty = c.q[1]; } else whole(); }
       // the camera: on the followed cell (it sits a little above the middle: the HUD covers the bottom)
       const fc = cam.follow && shown.cells.find((c) => c.uid === cam.follow);
@@ -1025,11 +945,9 @@ export function initOcean(art) {
       for (const vo of views) drawPick(shown, vo);
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       drawVignette(g, W, H);
-      if (mode === 'rec') { g.fillStyle = 'rgba(255,177,92,.05)'; g.fillRect(0, 0, W, H); }   // the recording: a faint amber cast
       // the sound: the water where the camera looks, and what happens in it
       const depth = clamp(1 - cam.y / TH, 0, 1);
       soundUpdate({ x: cam.x, y: cam.y, s, W, H }, { depth, light: daylight(shown), flow: waterLoud(shown), playing: true, speed: 1, world: shown });
-      if (mode === 'rec') soundListen(shown, soundKey);
     }
     hud();
     raf = requestAnimationFrame(frame);
@@ -1073,6 +991,6 @@ export function initOcean(art) {
   // Ocean first (author, 2026-11-19): once you follow a species there, the game opens on it
   if ((saved.follow || waiting || PLAYER) && !/[?&](design|preset)=/.test(location.search)) openOcean();
   // for headless tests (as window.__tg in the Lab): the live run's speed, and what is shown
-  window.__ocean = { wx: (x) => { forceWx = x; cloudN = -1; }, pick: (uid) => pickCell(uid), look: (x, y, z) => { cam.follow = 0; cam.ts = z; cam.tx = cam.x = x; cam.ty = cam.y = y; clampCam(); camButton(); }, cells: () => (shown ? shown.cells.filter((c) => !c.dead).map((c) => [c.uid, c.species, W / 2 + (c.q[0] - cam.x) * cam.s, H / 2 - (c.q[1] - cam.y) * cam.s]) : []), speed: (x) => live && live.speed(x), recAt: (f) => { if (rec) { rec.steps = rec.rp.from + f * (rec.rp.to - rec.rp.from); primed = false; } }, play: (n) => playNight(n), state: () => ({ mode, slow, cells: shown ? shown.cells.length : 0, clock: shown ? clock(shown) : null, info: live && live.info }) };
+  window.__ocean = { wx: (x) => { forceWx = x; cloudN = -1; }, pick: (uid) => pickCell(uid), look: (x, y, z) => { cam.follow = 0; cam.ts = z; cam.tx = cam.x = x; cam.ty = cam.y = y; clampCam(); camButton(); }, cells: () => (shown ? shown.cells.filter((c) => !c.dead).map((c) => [c.uid, c.species, W / 2 + (c.q[0] - cam.x) * cam.s, H / 2 - (c.q[1] - cam.y) * cam.s]) : []), speed: (x) => live && live.speed(x), state: () => ({ mode, slow, cells: shown ? shown.cells.length : 0, clock: shown ? clock(shown) : null, info: live && live.info }) };
   return { open: openOcean, close: closeOcean };
 }
