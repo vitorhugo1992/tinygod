@@ -223,7 +223,7 @@ export function sense(world, cell) {
     }
     if (!j.controls) { if (j.offBy) { j.on = true; j.offBy = null; } continue; }   // back on after a rest or a stun stopped it
     const all = holdsAll(world, cell, j.controls);
-    if (j.burst) { if (all && !(cell.stunT > 0)) fire(cell, j.burst.group); }   // a burst organ fires when its sensors say so
+    if (j.burst) { if (all && !(cell.stunT > 0)) fire(cell, j.burst.group); else if (j.burst.state === 'charged') cell.cantFire = 0; }   // a burst organ fires when its sensors say so (cantFire: it wanted to and couldn't pay)
     else if (j.type === 'motor') j.on = all;
     else if (j.latched && all) j.latched = false;   // a trigger: released once, the first time they all hold
   }

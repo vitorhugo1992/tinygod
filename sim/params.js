@@ -264,6 +264,9 @@ export const PARAMS = {
   // and grows back over `reload` (author). The first thing in its line takes it: any cell's body, kin too (the wound is
   // mechanical, author), is stunned (its flagella, springs, tubes, mouths and harpoons stop: a hunter lets go) and loses
   // energy; a spine or a flagellum catches the dart harmlessly. A miss wastes the shot.
+  // a burst organ (the Spring) firing: pJ per µm of the organ each firing, paid at once (2026-11-24; was free: Needle Drifter's
+  // 20 µm escape fired every 3.8 s while drained and tore every tube off); 20 µm: 40k, a sixth of an r 10 cell's full pool
+  burst: { cost: 500 },
   harpoon: {
     range: 40,              // µm the dart flies past the spine's tip
     cost: 3000,             // pJ per µm of spine, each shot (regrowing it; the pool must hold it): 20 µm, 60k (author:

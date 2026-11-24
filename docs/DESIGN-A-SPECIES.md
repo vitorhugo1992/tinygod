@@ -228,7 +228,7 @@ on each piece's joint makes the beat follow a reading (stopped at min, full at m
 
 **Spring** (escape jump): a short coiled tail that, fired, beats at 500 Hz for a moment and throws the cell ~200 µm,
 then needs 3 s to recharge. 10-40 µm of 5 µm pieces, radius 0.3; all pieces share one `group`. **It fires only by its
-rule** (no rule: never). A jump costs about as much as 50 s of swimming.
+rule** (no rule: never). Each firing costs 500 pJ per µm of the spring (20 µm: 10,000 pJ), paid at once from the energy pool; without that much in the pool it can't fire (so a cell being drained by a tube, its pool emptied, gets one quick escape at most).
 
 ```json
 { "type": "segment", "id": "s0", "at": [-10, 0], "angle": 180, "length": 5, "radius": 0.3,

@@ -1576,7 +1576,7 @@ function liveRule(live, k) {
   const j = live.joints.find((x) => x.part === k);
   if (j) {
     let state, on;
-    if (j.burst) { on = j.burst.state === 'firing'; state = j.burst.state === 'firing' ? 'FIRING' : 'READY'; }
+    if (j.burst) { on = j.burst.state === 'firing'; state = j.burst.state === 'firing' ? 'FIRING' : j.burst.state === 'charged' && live.cantFire ? 'TOO DEAR' : 'READY'; }
     else if (j.type === 'motor') { on = j.on && !(world.metab && live.metab.starving); state = on ? 'RUNNING' : world.metab && live.metab.starving ? 'NO ENERGY' : 'STOPPED'; }
     else { on = !j.latched; state = j.latched ? 'COCKED' : 'RELEASED'; }
     return { ctls: j.controls || null, state, cls: on ? 'on' : '' };
@@ -2263,7 +2263,7 @@ function stats() {
   const bursts = cell.joints.filter((j) => j.burst);
   if (bursts.length) {
     const b = bursts[0].burst;
-    lines.push(`spring    ${b.state === 'charged' ? 'charged' : b.state === 'firing' ? 'FIRING' : `recharging, ${(b.recharge - b.t).toFixed(1)} s left`}`);
+    lines.push(`spring    ${b.state === 'charged' ? (cell.cantFire ? `charged, can't pay ${Math.round(cell.cantFire / 1000)}k pJ to fire` : 'charged') : b.state === 'firing' ? 'FIRING' : `recharging, ${(b.recharge - b.t).toFixed(1)} s left`}`);
   }
   const motors = cell.joints.filter((j) => j.type === 'motor' && !j.burst);
   if (motors.length && cell.metab.starving) lines.push('motors    stopped: STARVING');

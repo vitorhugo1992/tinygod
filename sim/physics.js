@@ -332,6 +332,18 @@ export function planSubsteps(cell) {
 // Burst organs: charged -> firing (beating) for its duration -> recharging -> charged
 export function fire(cell, group) {
   let any = false;
+  // a firing costs energy (2026-11-24; author: "the escape burst should spend more energy, otherwise it will always
+  // escape"): PARAMS.burst.cost pJ per µm of the organ that fires, paid at once from the pool; it can't fire without it
+  // (no metabolism: free, as the physics checks run)
+  const m = cell.metab;
+  if (m) {
+    let L = 0;
+    for (const p of cell.pieces) { const jt = p.joint !== undefined && p.joint >= 0 ? cell.joints[p.joint] : null; if (jt && jt.burst && jt.burst.state === 'charged' && (group === undefined || jt.burst.group === group)) L += p.L; }
+    const price = PARAMS.burst.cost * L;
+    if (!L) return false;
+    if (m.E < price) { cell.cantFire = price; return false; }
+    m.E -= price; cell.cantFire = 0; cell.firedCost = price;
+  }
   for (const jt of cell.joints) {
     if (!jt.burst || jt.burst.state !== 'charged' || (group !== undefined && jt.burst.group !== group)) continue;
     jt.burst.state = 'firing'; jt.burst.t = 0; jt.on = true; any = true;
