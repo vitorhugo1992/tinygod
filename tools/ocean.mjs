@@ -38,7 +38,7 @@ export const HOUSE = [
   ['Noctilla', 'designs/noctilla.json'], ['Plebella', 'designs/plebella.json'], ['Nutricline Bobber', 'tournament/bobber-blind-opus.json'],
   ['Deepdweller II', 'designs/deepdweller2.json'], ['Needle Drifter', 'tournament/fixer-blind-opus2.json'], ['Laqueella', 'designs/laqueella.json'],
   ['Bloomeater', 'designs/_gulper.json'], ['Raptilla 2', 'designs/raptilla2.json'],
-  // joined the Ocean on night 4 (2026-11-21; author: "place the new pogella and vagastella in the ocean, maybe also the symbiotic species")
+  // joined the Ocean on night 6 (queued 2026-11-24; author: "place the new pogella and vagastella in the ocean, maybe also the symbiotic species")
   ['Pogella', 'designs/pogella.json'], ['Vagastella', 'designs/vagastella.json'], ['Cunabella', 'designs/cunabella.json'], ['Azotella', 'designs/azotella.json', 'Cunabella'],
 ];
 // A partner species arriving WITH its host: each of its cells beside one of the host's living cells, pad to pad (the
