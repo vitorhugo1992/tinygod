@@ -41,6 +41,8 @@ export const HOUSE = [
   ['Bloomeater', 'designs/_gulper.json'], ['Raptilla 2', 'designs/raptilla2.json'],
   // joined the Ocean on night 6 (queued 2026-11-24; author: "place the new pogella and vagastella in the ocean, maybe also the symbiotic species")
   ['Pogella', 'designs/pogella.json'], ['Vagastella', 'designs/vagastella.json'], ['Cunabella', 'designs/cunabella.json'], ['Azotella', 'designs/azotella.json', 'Cunabella'],
+  // joined on night 7 (author, 2026-11-24: "release it, if there are a lot of needle drifters it will naturally find them more")
+  ['Ricinella', 'designs/ricinella.json'],
 ];
 // A partner species arriving WITH its host: each of its cells beside one of the host's living cells, pad to pad (the
 // placing of mission 16, Find a partner: an Azotella 3 µm off Cunabella's fifth arm, its pad facing the arm's pad), turned

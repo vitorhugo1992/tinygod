@@ -1,0 +1,385 @@
+{
+ "name": "Ricinella",
+ "from": "Claude",
+ "note": "A tick: a slim 12 x 66 µm rod that lies along another cell and rides it. Mirror-symmetric so it lies level; twelve mucus pads along it and round its ends grip what it touches (an escape jump can tear a tube, not several pads), a feeding tube at each end catches on first contact and two short side tubes keep feeding while it rides. Its tubes feed while its energy is below 85%. Its chambers float in dim water and stay neutral while it feeds, so it rides its host wherever the host goes. Made to farm the long, rich Needle Drifters, but it takes whatever it bumps into.",
+ "design": {
+  "body": {
+   "radius": 6,
+   "length": 54
+  },
+  "parts": [
+   {
+    "type": "inclusion",
+    "id": "nucleus",
+    "material": "nucleus",
+    "at": [
+     0,
+     0
+    ],
+    "radius": 4.3,
+    "joint": {
+     "type": "rest",
+     "controls": [
+      {
+       "sensor": "eye",
+       "min": 0,
+       "max": 0.03
+      }
+     ]
+    }
+   },
+   {
+    "type": "inclusion",
+    "id": "plastid",
+    "material": "plastid",
+    "at": [
+     10.3,
+     0
+    ],
+    "radius": 4,
+    "length": 4,
+    "angle": 0
+   },
+   {
+    "type": "inclusion",
+    "id": "plastid2",
+    "material": "plastid",
+    "at": [
+     -10.3,
+     0
+    ],
+    "radius": 4,
+    "length": 4,
+    "angle": 0
+   },
+   {
+    "type": "inclusion",
+    "id": "oil",
+    "material": "oil",
+    "at": [
+     19.5,
+     0
+    ],
+    "radius": 2.8
+   },
+   {
+    "type": "inclusion",
+    "id": "oil2",
+    "material": "oil",
+    "at": [
+     -19.5,
+     0
+    ],
+    "radius": 2.8
+   },
+   {
+    "type": "inclusion",
+    "id": "chamber",
+    "material": "chamber",
+    "at": [
+     27.5,
+     0
+    ],
+    "radius": 4.5,
+    "length": 1,
+    "angle": 0,
+    "joint": {
+     "type": "chamber",
+     "controls": [
+      {
+       "sensor": "eye",
+       "min": 0.03,
+       "max": 0.25
+      },
+      {
+       "sensor": "feeding",
+       "min": 0.5,
+       "max": 1,
+       "not": true
+      },
+      {
+       "sensor": "nsense",
+       "min": 0.3,
+       "max": 1,
+       "or": true
+      },
+      {
+       "sensor": "feeding",
+       "min": 0.5,
+       "max": 1,
+       "not": true
+      }
+     ]
+    }
+   },
+   {
+    "type": "inclusion",
+    "id": "chamber2",
+    "material": "chamber",
+    "at": [
+     -27.5,
+     0
+    ],
+    "radius": 4.5,
+    "length": 1,
+    "angle": 0,
+    "joint": {
+     "type": "chamber",
+     "controls": [
+      {
+       "sensor": "eye",
+       "min": 0.03,
+       "max": 0.25
+      },
+      {
+       "sensor": "feeding",
+       "min": 0.5,
+       "max": 1,
+       "not": true
+      },
+      {
+       "sensor": "nsense",
+       "min": 0.3,
+       "max": 1,
+       "or": true
+      },
+      {
+       "sensor": "feeding",
+       "min": 0.5,
+       "max": 1,
+       "not": true
+      }
+     ]
+    }
+   },
+   {
+    "type": "sensor",
+    "id": "eye",
+    "kind": "light",
+    "at": [
+     0,
+     6
+    ],
+    "angle": 90,
+    "cone": 180
+   },
+   {
+    "type": "sensor",
+    "id": "nsense",
+    "kind": "chem",
+    "at": [
+     0,
+     -6
+    ]
+   },
+   {
+    "type": "segment",
+    "id": "tube",
+    "label": "Peduncle",
+    "at": [
+     33,
+     0
+    ],
+    "angle": 0,
+    "length": 10,
+    "radius": 0.6,
+    "material": "protein",
+    "joint": {
+     "type": "feed",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 0.85
+      }
+     ]
+    }
+   },
+   {
+    "type": "segment",
+    "id": "tube2",
+    "label": "Peduncle",
+    "at": [
+     -33,
+     0
+    ],
+    "angle": 180,
+    "length": 10,
+    "radius": 0.6,
+    "material": "protein",
+    "joint": {
+     "type": "feed",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 0.85
+      }
+     ]
+    }
+   },
+   {
+    "type": "segment",
+    "id": "side",
+    "label": "Peduncle",
+    "at": [
+     -5,
+     6
+    ],
+    "angle": 20,
+    "length": 8,
+    "radius": 0.6,
+    "material": "protein",
+    "joint": {
+     "type": "feed",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 0.85
+      }
+     ]
+    }
+   },
+   {
+    "type": "segment",
+    "id": "side2",
+    "label": "Peduncle",
+    "at": [
+     -5,
+     -6
+    ],
+    "angle": -20,
+    "length": 8,
+    "radius": 0.6,
+    "material": "protein",
+    "joint": {
+     "type": "feed",
+     "controls": [
+      {
+       "sensor": "energy",
+       "min": 0,
+       "max": 0.85
+      }
+     ]
+    }
+   },
+   {
+    "type": "pad",
+    "id": "m0",
+    "at": [
+     -24,
+     6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m1",
+    "at": [
+     -24,
+     -6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m2",
+    "at": [
+     -14,
+     6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m3",
+    "at": [
+     -14,
+     -6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m4",
+    "at": [
+     14,
+     6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m5",
+    "at": [
+     14,
+     -6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m6",
+    "at": [
+     24,
+     6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m7",
+    "at": [
+     24,
+     -6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m8",
+    "at": [
+     10.39,
+     6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m9",
+    "at": [
+     10.39,
+     -6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m10",
+    "at": [
+     -10.39,
+     6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "pad",
+    "id": "m11",
+    "at": [
+     -10.39,
+     -6
+    ],
+    "kind": "mucus"
+   },
+   {
+    "type": "rule",
+    "id": "divide",
+    "label": "Division",
+    "joint": {
+     "type": "divide"
+    }
+   }
+  ]
+ }
+}
