@@ -3944,20 +3944,23 @@ function placeAt(P) {
     }
     if (!d) { const spot = findFit(id); if (spot) d = builds(makePart(design.body, id, spot)); }
   } else {   // on the rim of the body or of the lobe nearest the finger, pointing out there
+    // the spot on the cell's outer membrane nearest the tap: every 5° round the body and round each lobe, leaving out spots
+    // buried inside another lobe or the body (author, 2026-11-24: a mouth and feelers ended up inside a lobed cell)
     const b = design.body, h = (b.length || 0) / 2;
-    let best = null, bd = Math.abs(Math.hypot(Math.max(Math.abs(P[0]) - h, 0), P[1]) - b.radius);
-    for (const f of frames) {
-      const ux = Math.cos(f.dir), uy = Math.sin(f.dir), t = Math.max(0, Math.min(f.L, (P[0] - f.root[0]) * ux + (P[1] - f.root[1]) * uy));
-      const g = Math.abs(Math.hypot(P[0] - f.root[0] - ux * t, P[1] - f.root[1] - uy * t) - f.r);
-      if (g < bd) { bd = g; best = f; }
+    const caps = [{ id: 'body', a: [-h, 0], b: [h, 0], r: b.radius }, ...frames.map((f) => ({ id: f.id, a: f.root, b: [f.root[0] + Math.cos(f.dir) * f.L, f.root[1] + Math.sin(f.dir) * f.L], r: f.r }))];
+    const inCap = (p, c) => { const dx = c.b[0] - c.a[0], dy = c.b[1] - c.a[1], l2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((p[0] - c.a[0]) * dx + (p[1] - c.a[1]) * dy) / l2)); return Math.hypot(p[0] - c.a[0] - dx * t, p[1] - c.a[1] - dy * t) < c.r - 0.3; };
+    let pick = null;
+    for (const f of [null, ...frames]) for (let deg = 0; deg < 360; deg += 5) {
+      let pt;
+      if (!f) pt = surfacePoint(b, deg);
+      else { const [x, y] = surfacePoint({ radius: f.r, length: f.L }, deg), ux = Math.cos(f.dir), uy = Math.sin(f.dir), mx = f.root[0] + ux * f.L / 2, my = f.root[1] + uy * f.L / 2; pt = [mx + ux * x - uy * y, my + uy * x + ux * y]; }
+      if (caps.some((c) => c.id !== (f ? f.id : 'body') && inCap(pt, c))) continue;
+      const g = Math.hypot(pt[0] - P[0], pt[1] - P[1]);
+      if (!pick || g < pick.g) pick = { g, on: f ? f.id : 'body', deg };
     }
     fillOn();
-    let deg;
-    if (best) {   // a lobe's own frame: x along it from its middle (0°: its tip)
-      const ux = Math.cos(best.dir), uy = Math.sin(best.dir), mx = P[0] - best.root[0] - ux * best.L / 2, my = P[1] - best.root[1] - uy * best.L / 2;
-      $('partOn').value = best.id; deg = Math.atan2(-uy * mx + ux * my, ux * mx + uy * my) * 180 / Math.PI;
-    } else { $('partOn').value = 'body'; deg = Math.atan2(P[1], P[0]) * 180 / Math.PI; }
-    $('partAngle').value = ((Math.round(deg / 5) * 5) % 360 + 360) % 360; showAngle();
+    $('partOn').value = pick ? pick.on : 'body';
+    $('partAngle').value = pick ? pick.deg : ((Math.round(Math.atan2(P[1], P[0]) * 36 / Math.PI) * 5) % 360 + 360) % 360; showAngle();
     d = builds(makePart(design.body, id));
   }
   if (!d) { $('buildErr').textContent = `no room there for the ${SHORT[name] || name}: try another spot, or make it smaller under "Where and exactly how"`; return; }

@@ -75,6 +75,8 @@ function saveAll(st, world) {
   writeFileSync(WORLD, gzipSync(saveState({ world })));
   writeFileSync(STATE, JSON.stringify(st));
   writeFileSync(BOARD, JSON.stringify(board(st), null, 1));
+  // each species' look, so the page can draw one that has no living cell (its design is in the tank and the recordings anyway)
+  writeFileSync(new URL('looks.json', DIR), JSON.stringify(Object.fromEntries(Object.values(st.species).map((s) => [s.name, s.design]))));
 }
 
 // A species arrives: 3 cells at random spots (the same Ocean and night always picks the same spots)

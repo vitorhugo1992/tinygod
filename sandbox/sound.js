@@ -207,14 +207,20 @@ function near(x, y) {
   const far = Math.max(Math.abs(dx), Math.abs(dy));
   return { k: far <= 1 ? 1 : far >= 1.5 ? 0 : 1 - (far - 1) / 0.5, pan: dx * 0.8 };
 }
+// The Ocean is quieter (author, 2026-11-24: "many beeps in the ocean"): only events (a division, a death, a swallow, a latch,
+// a harpoon, a tether, a spring, a burst, a tube drinking), no rule switches and no eyespot or feeler cues, 3 a second at most
+let quiet = false;
+export function setQuiet(q) { quiet = !!q; }
+const SWITCHES = new Set(['tailOn', 'tailOff', 'float', 'sink', 'rest', 'wake', 'join']);
 function play(kind, x, y, extra = {}) {
   if (!on || !A || !view || !playing) return;
+  if (quiet) { if (SWITCHES.has(kind)) return; extra = { ...extra, cue: null }; }
   const { k, pan } = near(x, y);
   if (k <= 0) return;
   const now = A.currentTime;
   if (now - (last.get(kind) || -9) < GAP[kind]) return;
   recent = recent.filter((t) => now - t < 1);
-  if (recent.length >= 6) return;
+  if (recent.length >= (quiet ? 3 : 6)) return;
   last.set(kind, now); recent.push(now);
   const o = { k: k / (speed > 5 ? 1.6 : 1), pan, ...extra };
   // what set it off first (an eyespot's light, a feeler's touch), then the part a moment later

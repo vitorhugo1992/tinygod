@@ -17,10 +17,12 @@ import { replay } from '../sim/rich.js';
 import { updatePose, motorAngle } from '../sim/physics.js';
 import { PARAMS } from '../sim/params.js';
 import { fullness } from '../sim/metab.js';
+import { makeCell } from '../sim/grow.js';
+import { prepEntry } from '../sim/entry.js';
 import { weatherNow, flowState } from '../sim/flow.js';
 import { daylight, clock, lightAt } from '../sim/light.js';
 import { drawWater, drawDrift, drawVignette, drawToxins, drawShade, bedZone, speciesTint, twilight, waterColor, hexRGB, rgba, mix } from './scene.js';
-import { listen as soundListen, update as soundUpdate } from './sound.js';
+import { listen as soundListen, update as soundUpdate, setQuiet as soundQuiet } from './sound.js';
 
 const TW = PARAMS.tank.w, TH = PARAMS.tank.h, DT = PARAMS.time.dt, DAY = PARAMS.metab.day;
 const VIS_BEATS = 2.5;            // beating parts drawn at most this many strokes a real second (as the Lab's calm drawing)
@@ -214,6 +216,9 @@ export function initOcean(art) {
   const lostOf = (sp) => board && (board.lost || []).find((r) => r.name === sp);
   // the life stories (tools/ocean-story.mjs): a line and milestones a night for every species
   async function loadStory() { try { story = await fetchJSON('story.json'); } catch (e) { story = null; } }
+  // every species' look (tools/ocean.mjs looks.json), so the board can draw one with no living cell (wiped out)
+  let looks = null;
+  const loadLooks = () => fetchJSON('looks.json').then((x) => { looks = x; badgeKey = ''; hud(true); if (q('.sheet').classList.contains('on') && tab === 'board') showSheet('board'); }).catch(() => {});
   const storyOf = (sp, n) => (story && story.species[sp] ? story.species[sp].find((r) => r.night === n) : null);
   // last night's milestones for the species you follow, once each morning (the reason to come back)
   function extinctBanner(name) {
@@ -651,7 +656,8 @@ export function initOcean(art) {
     pg.setTransform(1, 0, 0, 1, 0, 0);
     const bg = pg.createRadialGradient(Wp / 2, Hp / 2, 2, Wp / 2, Hp / 2, Wp * 0.7);
     bg.addColorStop(0, '#0e3346'); bg.addColorStop(1, '#03101a'); pg.fillStyle = bg; pg.fillRect(0, 0, Wp, Hp);
-    const src = shown && shown.cells.find((c) => (uid ? c.uid === uid : c.species === sp && !c.dead));
+    let src = shown && shown.cells.find((c) => (uid ? c.uid === uid : c.species === sp && !c.dead));
+    if (!src && shown && looks && looks[sp]) { try { const d = prepEntry(looks[sp]); d.name = d.species = sp; src = makeCell(d); src.species = sp; } catch (e) { src = null; } }
     if (!src) { pg.fillStyle = rgba(hexRGB(speciesTint(sp || 'x')), 0.6); pg.beginPath(); pg.arc(Wp / 2, Hp / 2, Wp * 0.18, 0, 7); pg.fill(); return; }
     const y0 = TH * 0.6, d = Object.assign({}, src, { q: Float64Array.from(src.q), phi: new Float64Array(src.phi), cs: new Float64Array(src.cs), sn: new Float64Array(src.sn),
       cx: new Float64Array(src.cx), cy: new Float64Array(src.cy), jx: new Float64Array(src.jx), jy: new Float64Array(src.jy), meal: null });
@@ -685,6 +691,7 @@ export function initOcean(art) {
   let tab = 'story';
   async function showSheet(which = tab) {
     tab = which;
+    q('.story').textContent = which === 'board' ? '🏆 Board' : '📖 Its story';   // the button opens the sheet where it was left
     q('.sheet').classList.add('on');
     q('.sheet h2').textContent = which === 'board' ? 'The board' : follow ? `${follow}'s life` : 'The Ocean';
     el.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === which));
@@ -739,7 +746,7 @@ export function initOcean(art) {
   const hideSheet = () => q('.sheet').classList.remove('on');
   el.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => showSheet(b.dataset.tab)));
   q('.sheet .close').onclick = hideSheet;
-  q('.story').onclick = () => showSheet('story');
+  q('.story').onclick = () => showSheet(tab);
   q('.cam').onclick = () => { if (cam.follow) whole(); else followNext(true); };
   q('.badge').onclick = () => followNext(true);
   q('.lab').onclick = () => closeOcean();
@@ -1036,13 +1043,14 @@ export function initOcean(art) {
   // ---- opening and closing ----
   async function openOcean() {
     if (open) return;
-    open = true; el.hidden = false; art.open(true);
+    open = true; el.hidden = false; art.open(true); soundQuiet(true);
     resize(); lastT = 0;
     if (!board) {
       message('The Ocean', 'Loading…');
       try { await loadBoard(); } catch (e) { setMode('none'); message('The Ocean can\'t be reached', `${e.message}. It lives on the website and on the home server.`); hud(true); raf = requestAnimationFrame(frame); return; }
       message(null);
       loadNight(board.night).then(() => { badgeKey = ''; hud(true); });
+      loadLooks();
       loadStory().then(() => { badgeKey = ''; hud(true); morning(); });
       startLiveOcean();
       setTimeout(() => { if (mode === 'loading' && !F.cur) fallBack('slow to start'); }, 20000);
@@ -1053,7 +1061,7 @@ export function initOcean(art) {
   }
   function closeOcean() {
     if (!open) return;
-    open = false; el.hidden = true; hideSheet();
+    open = false; el.hidden = true; hideSheet(); soundQuiet(false);
     if (live) live.pause();
     if (raf) cancelAnimationFrame(raf); raf = 0;
     art.open(false);
