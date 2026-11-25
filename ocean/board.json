@@ -1,0 +1,491 @@
+{
+ "night": 7,
+ "updated": "2026-11-25T11:39:11.173Z",
+ "rules": {
+  "cap": 100,
+  "capSpecies": 25,
+  "arrive": 3,
+  "returnAfter": 3,
+  "releaseEvery": 3,
+  "houseUntil": 12,
+  "boardNights": 7,
+  "wipeouts": 3,
+  "seed": 20261118
+ },
+ "last": {
+  "night": 7,
+  "at": "2026-11-25T11:39:11.173Z",
+  "cells": 77,
+  "minutes": 12.65,
+  "told": [
+   "climate change: fix-price-3000",
+   "Ricinella (house) arrived"
+  ],
+  "clock": 7.4
+ },
+ "rows": [
+  {
+   "name": "Needle Drifter",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 13.61,
+   "cells": 25,
+   "share": 0.4876,
+   "growth": 15.51,
+   "kills": 0,
+   "nightsAlive": 7,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "12 × 196 µm",
+   "parts": {
+    "nucleus": 1,
+    "plastid": 1,
+    "nitroplast": 1,
+    "chamber": 2,
+    "store": 1,
+    "eyespot": 1,
+    "feeler": 1,
+    "tail": 4
+   },
+   "rank": 1
+  },
+  {
+   "name": "Nutricline Bobber",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 9.25,
+   "cells": 25,
+   "share": 0.279,
+   "growth": 36.8,
+   "kills": 0,
+   "nightsAlive": 7,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "10 × 70 µm",
+   "parts": {
+    "nucleus": 1,
+    "plastid": 1,
+    "store": 1,
+    "chamber": 1,
+    "eyespot": 1,
+    "feeler": 1,
+    "spine": 2,
+    "tail": 5
+   },
+   "rank": 2
+  },
+  {
+   "name": "Plebella",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 1.7,
+   "cells": 2,
+   "share": 0.0023,
+   "growth": 1.07,
+   "kills": 0,
+   "nightsAlive": 7,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "8 × 32 µm",
+   "parts": {
+    "plastid": 1,
+    "store": 1,
+    "toxin": 1,
+    "pad": 6
+   },
+   "rank": 3
+  },
+  {
+   "name": "Bloomeater",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 1.69,
+   "cells": 3,
+   "share": 0.0926,
+   "growth": 1.33,
+   "kills": 1,
+   "nightsAlive": 7,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "24 × 114 µm",
+   "parts": {
+    "nucleus": 1,
+    "plastid": 1,
+    "chamber": 1,
+    "store": 4,
+    "eyespot": 1,
+    "feeler": 1,
+    "mouth": 4
+   },
+   "rank": 4
+  },
+  {
+   "name": "Vagastella",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 1.67,
+   "cells": 5,
+   "share": 0.0327,
+   "growth": 1.77,
+   "kills": 0,
+   "nightsAlive": 2,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "14 × 14 µm",
+   "parts": {
+    "lobe": 5,
+    "plastid": 5,
+    "store": 5,
+    "eyespot": 3,
+    "nucleus": 1
+   },
+   "rank": 5
+  },
+  {
+   "name": "Ricinella",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 1.63,
+   "cells": 3,
+   "share": 0.0166,
+   "growth": 1.63,
+   "kills": 2,
+   "nightsAlive": 1,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "12 × 66 µm",
+   "parts": {
+    "nucleus": 1,
+    "plastid": 2,
+    "store": 2,
+    "chamber": 2,
+    "eyespot": 1,
+    "feeler": 1,
+    "tube": 4,
+    "pad": 12
+   },
+   "rank": 6
+  },
+  {
+   "name": "Cunabella",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 1.24,
+   "cells": 3,
+   "share": 0.0408,
+   "growth": 1.37,
+   "kills": 0,
+   "nightsAlive": 2,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "30 × 30 µm",
+   "parts": {
+    "lobe": 5,
+    "eyespot": 3,
+    "store": 5,
+    "plastid": 5,
+    "nucleus": 1,
+    "chamber": 1,
+    "partner pad": 2
+   },
+   "rank": 7
+  },
+  {
+   "name": "Pogella",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 1.19,
+   "cells": 3,
+   "share": 0.0248,
+   "growth": 1.27,
+   "kills": 0,
+   "nightsAlive": 2,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "28 × 28 µm",
+   "parts": {
+    "lobe": 1,
+    "plastid": 2,
+    "nucleus": 1,
+    "store": 1,
+    "statolith": 1,
+    "eyespot": 1,
+    "feeler": 2,
+    "tail": 8
+   },
+   "rank": 8
+  },
+  {
+   "name": "Laqueella",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "extinct",
+   "score": 1.15,
+   "cells": 0,
+   "share": 0,
+   "growth": 0,
+   "kills": 0,
+   "nightsAlive": 0,
+   "returns": 9,
+   "extinctions": [
+    {
+     "from": 1,
+     "to": 6,
+     "why": "starved"
+    }
+   ],
+   "wipeouts": null,
+   "size": "10 × 54 µm",
+   "parts": {
+    "plastid": 1,
+    "store": 1,
+    "toxin": 1,
+    "nucleus": 1,
+    "pad": 4,
+    "feeler": 2,
+    "tether": 2
+   },
+   "rank": 9
+  },
+  {
+   "name": "Azotella",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 1.1,
+   "cells": 3,
+   "share": 0.005,
+   "growth": 1.1,
+   "kills": 0,
+   "nightsAlive": 2,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "14 × 14 µm",
+   "parts": {
+    "lobe": 4,
+    "nucleus": 1,
+    "nitroplast": 1,
+    "plastid": 1,
+    "store": 2,
+    "eyespot": 1,
+    "partner pad": 1
+   },
+   "rank": 10
+  },
+  {
+   "name": "Deepdweller II",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 0.94,
+   "cells": 3,
+   "share": 0.0119,
+   "growth": 1.33,
+   "kills": 13,
+   "nightsAlive": 2,
+   "returns": null,
+   "extinctions": [
+    {
+     "from": 1,
+     "to": 3,
+     "why": "starved"
+    }
+   ],
+   "wipeouts": null,
+   "size": "10 × 82 µm",
+   "parts": {
+    "nucleus": 1,
+    "store": 2,
+    "toxin": 1,
+    "chamber": 1,
+    "plastid": 1,
+    "feeler": 3,
+    "spine": 6,
+    "tube": 2
+   },
+   "rank": 11
+  },
+  {
+   "name": "Noctilla",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "living",
+   "score": 0.86,
+   "cells": 2,
+   "share": 0.0067,
+   "growth": 1.1,
+   "kills": 0,
+   "nightsAlive": 7,
+   "returns": null,
+   "extinctions": [],
+   "wipeouts": null,
+   "size": "20 × 20 µm",
+   "parts": {
+    "eyespot": 3,
+    "tail": 6,
+    "nucleus": 1,
+    "plastid": 2,
+    "store": 1
+   },
+   "rank": 12
+  },
+  {
+   "name": "Raptilla 2",
+   "player": "house",
+   "house": true,
+   "version": 1,
+   "status": "extinct",
+   "score": 0.37,
+   "cells": 0,
+   "share": 0,
+   "growth": 0,
+   "kills": 0,
+   "nightsAlive": 0,
+   "returns": 8,
+   "extinctions": [
+    {
+     "from": 1,
+     "to": 5,
+     "why": "starved"
+    }
+   ],
+   "wipeouts": null,
+   "size": "20 × 20 µm",
+   "parts": {
+    "eyespot": 3,
+    "tail": 6,
+    "nucleus": 1,
+    "plastid": 2,
+    "store": 1,
+    "tube": 1
+   },
+   "rank": 13
+  }
+ ],
+ "bands": [
+  {
+   "night": 1,
+   "s": {
+    "Noctilla": 0.0373,
+    "Plebella": 0.028,
+    "Nutricline Bobber": 0.0668,
+    "Deepdweller II": 0.0877,
+    "Needle Drifter": 0.3136,
+    "Laqueella": 0.0489,
+    "Bloomeater": 0.3924,
+    "Raptilla 2": 0.0252
+   }
+  },
+  {
+   "night": 2,
+   "s": {
+    "Noctilla": 0.0125,
+    "Plebella": 0.0134,
+    "Nutricline Bobber": 0.0586,
+    "Deepdweller II": 0.0638,
+    "Needle Drifter": 0.4027,
+    "Laqueella": 0.0536,
+    "Bloomeater": 0.3859,
+    "Raptilla 2": 0.0095
+   }
+  },
+  {
+   "night": 3,
+   "s": {
+    "Noctilla": 0.0076,
+    "Plebella": 0.0082,
+    "Nutricline Bobber": 0.037,
+    "Needle Drifter": 0.6484,
+    "Laqueella": 0.0238,
+    "Bloomeater": 0.2669,
+    "Raptilla 2": 0.0081
+   }
+  },
+  {
+   "night": 4,
+   "s": {
+    "Noctilla": 0.0041,
+    "Plebella": 0.0038,
+    "Nutricline Bobber": 0.0231,
+    "Needle Drifter": 0.8198,
+    "Laqueella": 0.0073,
+    "Bloomeater": 0.1376,
+    "Raptilla 2": 0.0044
+   }
+  },
+  {
+   "night": 5,
+   "s": {
+    "Noctilla": 0.006,
+    "Plebella": 0.0036,
+    "Nutricline Bobber": 0.0558,
+    "Needle Drifter": 0.7484,
+    "Laqueella": 0.0046,
+    "Bloomeater": 0.1816
+   }
+  },
+  {
+   "night": 6,
+   "s": {
+    "Noctilla": 0.0068,
+    "Plebella": 0.0035,
+    "Nutricline Bobber": 0.1026,
+    "Deepdweller II": 0.0127,
+    "Needle Drifter": 0.6347,
+    "Bloomeater": 0.1436,
+    "Pogella": 0.0234,
+    "Vagastella": 0.0316,
+    "Cunabella": 0.0358,
+    "Azotella": 0.0054
+   }
+  },
+  {
+   "night": 7,
+   "s": {
+    "Noctilla": 0.0067,
+    "Plebella": 0.0023,
+    "Nutricline Bobber": 0.279,
+    "Deepdweller II": 0.0119,
+    "Needle Drifter": 0.4876,
+    "Bloomeater": 0.0926,
+    "Pogella": 0.0248,
+    "Vagastella": 0.0327,
+    "Cunabella": 0.0408,
+    "Azotella": 0.005,
+    "Ricinella": 0.0166
+   }
+  }
+ ],
+ "past": [],
+ "lost": [],
+ "queue": []
+}
