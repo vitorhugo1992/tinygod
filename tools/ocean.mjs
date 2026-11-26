@@ -76,6 +76,7 @@ function loadWorld(st) {
   if (existsSync(WORLD)) return loadState(gunzipSync(readFileSync(WORLD)).toString('utf8')).world;
   const w = makeWorld(st.seed, { day: true, metab: true, grow: true, flow: true });
   w.cap = OCEAN.cap; w.capSpecies = OCEAN.capSpecies;
+  w.weather = true; w.wrap = true;   // an Ocean founded after 2026-11-20 has weather and joined sides from its first night
   return w;
 }
 function saveAll(st, world) {
@@ -106,7 +107,7 @@ function arrive(st, world, sp, night) {
 function found() {
   if (existsSync(STATE)) throw new Error(`an Ocean exists in ${DIR.pathname}: it never resets (delete the folder to start again)`);
   mkdirSync(NDIR, { recursive: true });
-  const st = { created: new Date().toISOString(), seed: Number(opt('seed', OCEAN.seed)), night: 0, rules: OCEAN, species: {}, queue: [], climate: [] };
+  const st = { created: new Date().toISOString(), seed: Number(opt('seed', OCEAN.seed)), night: 0, rules: OCEAN, species: {}, queue: [], climate: CLIMATE.map((c) => ({ night: 0, id: c.id, what: c.what })) };   // today's rules from the start: no climate change to mark
   for (const [name, file] of HOUSE) {
     const design = JSON.parse(readFileSync(new URL(file, ROOT), 'utf8')).design;
     st.species[name] = { name, player: 'house', house: true, design, version: 1, released: 0, status: 'queued', stays: [], nights: [], kills: 0 };
